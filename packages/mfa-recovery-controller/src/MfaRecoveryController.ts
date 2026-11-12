@@ -87,7 +87,6 @@ const CLOCK_SKEW_SECONDS = 5 * 60;
 
 const MESSENGER_EXPOSED_METHODS = [
   'acquireLock',
-  'renewLock',
   'releaseLock',
   'register',
   'updateRecoverySecret',
@@ -293,28 +292,11 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Acquires the per-profile recovery lease. Hold it from the first read
-   * through any Auth identifier changes and mutations.
+   * Acquires or extends the per-profile recovery lease. Hold it from the first
+   * read through any Auth identifier changes and mutations.
    */
   async acquireLock(): Promise<void> {
     await this.#withLock(async () => this.#acquireLease());
-  }
-
-  /**
-   * Renews the held lease. Fails if it expired or another operation holds it;
-   * then acquire again and reread state.
-   */
-  async renewLock(): Promise<void> {
-    await this.#withLock(async () => {
-      const { lockId } = this.state;
-      if (lockId === null) {
-        throw new MfaRecoveryError(
-          'Acquire the recovery lock first',
-          'recovery_lock_required',
-        );
-      }
-      await this.#lockProvider.renew(lockId);
-    });
   }
 
   /**
@@ -332,7 +314,17 @@ export class MfaRecoveryController extends BaseController<
       if (lockId === null) {
         return;
       }
-      await this.#lockProvider.release(lockId);
+      try {
+        await this.#lockProvider.release(lockId);
+      } catch (error) {
+        // A conflict means another ID holds the lease, so it is not ours.
+        if (
+          !(error instanceof MfaRecoveryError) ||
+          error.code !== 'recovery_lock_conflict'
+        ) {
+          throw error;
+        }
+      }
       this.update((state) => {
         state.lockId = null;
       });
@@ -682,12 +674,7 @@ export class MfaRecoveryController extends BaseController<
     const { mutation } = pending;
     // The lease outlives the approval, so no write lands after another
     // operation can take the lease.
-    const { lockId } = this.state;
-    if (lockId === null) {
-      await this.#acquireLease();
-    } else {
-      await this.#lockProvider.renew(lockId);
-    }
+    await this.#acquireLease();
     const { approval, identifiers } =
       await this.#authProvider.authorizeRecoveryRequest({
         requestHash: mutation.requestHash,
@@ -1194,7 +1181,21 @@ export class MfaRecoveryController extends BaseController<
     this.update((state) => {
       state.lockId = lockId;
     });
-    await this.#lockProvider.acquire(lockId);
+    try {
+      await this.#lockProvider.acquire(lockId);
+    } catch (error) {
+      // A conflict means another ID holds the lease. Other failures may have
+      // acquired it, so keep the ID for a retry.
+      if (
+        error instanceof MfaRecoveryError &&
+        error.code === 'recovery_lock_conflict'
+      ) {
+        this.update((state) => {
+          state.lockId = null;
+        });
+      }
+      throw error;
+    }
   }
 
   async #withLock<ReturnValue>(

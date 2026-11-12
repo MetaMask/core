@@ -53,18 +53,13 @@ export class RecoveryRegistrationLockProvider implements RecoveryLockProvider {
     await this.#request('POST', '', { lock_id: lockId });
   }
 
-  /** @param lockId - Held lease; an expired one is not recreated. */
-  async renew(lockId: string): Promise<void> {
-    await this.#request('PUT', `/${encodeURIComponent(lockId)}`);
-  }
-
   /** @param lockId - Held lease. */
   async release(lockId: string): Promise<void> {
     await this.#request('DELETE', `/${encodeURIComponent(lockId)}`);
   }
 
   async #request(
-    method: 'POST' | 'PUT' | 'DELETE',
+    method: 'POST' | 'DELETE',
     path: string,
     body?: { lock_id: string },
   ): Promise<void> {

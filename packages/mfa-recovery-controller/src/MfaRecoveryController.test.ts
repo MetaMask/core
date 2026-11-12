@@ -22,7 +22,11 @@ import {
   hash,
   unixNow,
 } from './crypto.js';
-import { IncompleteMutationError, MutationRejectedError } from './errors.js';
+import {
+  IncompleteMutationError,
+  MfaRecoveryError,
+  MutationRejectedError,
+} from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
@@ -174,16 +178,15 @@ describe('MfaRecoveryController', () => {
   });
 
   describe('recovery lock', () => {
-    it('acquires a lease before the first approval and renews it before later ones', async () => {
+    it('acquires the lease with the same ID before every approval', async () => {
       await withController(
         async ({ controller, authProvider, lockProvider, escrowA }) => {
           const calls: string[] = [];
-          vi.spyOn(lockProvider, 'acquire').mockImplementation(async () => {
-            calls.push('acquire');
-          });
-          vi.spyOn(lockProvider, 'renew').mockImplementation(async () => {
-            calls.push('renew');
-          });
+          vi.spyOn(lockProvider, 'acquire').mockImplementation(
+            async (lockId) => {
+              calls.push(`acquire ${lockId}`);
+            },
+          );
           const authorize =
             authProvider.authorizeRecoveryRequest.bind(authProvider);
           vi.spyOn(authProvider, 'authorizeRecoveryRequest').mockImplementation(
@@ -207,19 +210,20 @@ describe('MfaRecoveryController', () => {
             REGISTERED_EPOCH,
           );
 
+          const { lockId } = controller.state;
           expect(calls).toStrictEqual([
             'approval',
             'version check',
-            'acquire',
+            `acquire ${lockId}`,
             'approval',
             'version check',
             'approval',
             'version check',
-            'renew',
+            `acquire ${lockId}`,
             'approval',
             'version check',
           ]);
-          expect(controller.state.lockId).toStrictEqual(expect.any(String));
+          expect(lockId).toStrictEqual(expect.any(String));
         },
       );
     });
@@ -240,12 +244,57 @@ describe('MfaRecoveryController', () => {
       );
     });
 
+    it('drops the lock ID when another operation holds the lease', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        lockProvider.lockId = 'other-operation';
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'recovery_lock_conflict' });
+        expect(controller.state.lockId).toBeNull();
+
+        lockProvider.lockId = null;
+        await controller.resume();
+        expect(await controller.getPhase()).toBe('idle');
+        expect(controller.state.lockId).toBe(lockProvider.lockId);
+      });
+    });
+
+    it('keeps the lock ID when acquiring fails otherwise', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        vi.spyOn(lockProvider, 'acquire').mockRejectedValueOnce(
+          new MfaRecoveryError('Unavailable', 'recovery_lock_unavailable'),
+        );
+        await expect(controller.acquireLock()).rejects.toMatchObject({
+          code: 'recovery_lock_unavailable',
+        });
+        expect(controller.state.lockId).toStrictEqual(expect.any(String));
+      });
+    });
+
+    it('drops the lock ID on release when another operation holds the lease', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        await controller.acquireLock();
+        const release = vi.spyOn(lockProvider, 'release');
+        release.mockRejectedValueOnce(
+          new MfaRecoveryError('Unavailable', 'recovery_lock_unavailable'),
+        );
+        await expect(controller.releaseLock()).rejects.toMatchObject({
+          code: 'recovery_lock_unavailable',
+        });
+        expect(controller.state.lockId).toStrictEqual(expect.any(String));
+
+        lockProvider.lockId = 'other-operation';
+        await controller.releaseLock();
+        expect(controller.state.lockId).toBeNull();
+        expect(lockProvider.lockId).toBe('other-operation');
+      });
+    });
+
     it('reuses the persisted lock ID and releases it', async () => {
       await withController(async ({ controller, lockProvider }) => {
         await controller.acquireLock();
         const { lockId } = controller.state;
         await controller.acquireLock();
-        await controller.renewLock();
         expect(controller.state.lockId).toBe(lockId);
         expect(lockProvider.lockId).toBe(lockId);
 
@@ -256,11 +305,15 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('requires an acquired lease to renew', async () => {
-      await withController(async ({ controller }) => {
-        await expect(controller.renewLock()).rejects.toMatchObject({
-          code: 'recovery_lock_required',
-        });
+    it('reacquires an expired lease before an approval', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        await controller.acquireLock();
+        const { lockId } = controller.state;
+        lockProvider.lockId = null;
+
+        await controller.register(SECRET, IDENTIFIERS);
+
+        expect(lockProvider.lockId).toBe(lockId);
       });
     });
 
