@@ -1384,6 +1384,64 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(userAbstraction).toHaveBeenLastCalledWith({ user });
     });
 
+    it.each(['disabled', 'default'] as const)(
+      'republishes spotCollateral when a delayed abstraction resolve is %s',
+      async (resolvedMode) => {
+        // The subscribe-time userAbstraction fails, so the mode stays
+        // unknown and spotCollateral is unset. A later spot tick resolves
+        // it to Standard. Unknown and Standard both skip the spot fold, so
+        // the stream must still notify: clients are waiting on '0'.
+        const userAbstraction = vi
+          .fn()
+          .mockRejectedValueOnce(new Error('abstraction unavailable'))
+          .mockResolvedValueOnce(resolvedMode);
+        mockClientService.getInfoClient = vi.fn(() => ({
+          spotClearinghouseState: mockSpotClearinghouseState,
+          userAbstraction,
+        })) as never;
+
+        const accountCallback = vi.fn();
+        const unsubscribe = service.subscribeToAccount({
+          callback: accountCallback,
+        });
+        await vi.runAllTimersAsync();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(1);
+        expect(accountCallback).toHaveBeenCalled();
+        expect(
+          accountCallback.mock.calls.at(-1)?.[0]?.spotCollateral,
+        ).toBeUndefined();
+
+        accountCallback.mockClear();
+        const spotListener =
+          mockSubscriptionClient.spotState.mock.calls.at(-1)?.[1];
+        spotListener({
+          user: '0x123',
+          spotState: {
+            balances: [
+              {
+                coin: 'USDC',
+                token: 0,
+                hold: '0',
+                total: '100.76531791',
+                entryNtl: '100.76531791',
+              },
+            ],
+          },
+        });
+        await vi.runAllTimersAsync();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        expect(accountCallback).toHaveBeenCalled();
+        const published = accountCallback.mock.calls.at(-1)?.[0];
+        // Spot is present, but Standard does not count it as collateral.
+        expect(published?.spotCollateral).toBe('0');
+        expect(parseFloat(published?.spendableBalance)).toBe(1000);
+
+        unsubscribe();
+      },
+    );
+
     it('unsubscribes spotState when the last account subscriber leaves', async () => {
       const unsubSpot = vi.fn().mockResolvedValue(undefined);
       mockSubscriptionClient.spotState.mockResolvedValueOnce({

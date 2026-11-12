@@ -56,6 +56,7 @@ import {
   addSpotBalanceToAccountState,
   aggregateAccountStates,
   calculateWeightedReturnOnEquity,
+  getCrossMarginSpotCollateral,
 } from '../utils/accountUtils.js';
 import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
 import {
@@ -1035,7 +1036,11 @@ export class HyperLiquidSubscriptionService {
     const summaryHash = summary
       ? `${summary.accountValue}:${summary.maintenanceMargin}:${summary.marginUsed}:${summary.notional}`
       : 'none';
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${summaryHash}`;
+    // spotCollateral is part of the published account. Unknown and Standard
+    // share the same balances, so leaving it out of the hash drops the
+    // notification that turns an unset value into '0'.
+    const spotCollateral = account.spotCollateral ?? '';
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}`;
   }
 
   // Cache hashes to avoid recomputation
@@ -1560,15 +1565,25 @@ export class HyperLiquidSubscriptionService {
           Date.now(),
         );
 
-        // If the fold semantics actually changed for this user, trigger a
-        // re-aggregation so balance-dependent UI (withdraw cap, order-entry
-        // validation) picks up the new mode immediately — otherwise a
-        // Unified→Standard flip can stay folded with old semantics until the
-        // next spot/account event happens to arrive.
+        // Re-aggregate when the published account changes. The fold covers
+        // spendable and withdrawable. Spot collateral also changes when an
+        // unknown mode resolves to Standard: both fail closed to no-fold, so
+        // a fold comparison never fires, and subscribers would keep an unset
+        // spotCollateral until the next balance tick.
+        const spotIsForUser =
+          this.#cachedSpotState !== null &&
+          this.#cachedSpotStateUserAddress === normalizedUser;
+        const collateralChanged =
+          spotIsForUser &&
+          getCrossMarginSpotCollateral(this.#cachedSpotState, previousMode) !==
+            getCrossMarginSpotCollateral(this.#cachedSpotState, mode);
         const foldChanged =
           hyperLiquidModeFoldsSpot(previousMode) !==
           hyperLiquidModeFoldsSpot(mode);
-        if (foldChanged && this.#dexAccountCache.size > 0) {
+        if (
+          (foldChanged || collateralChanged) &&
+          this.#dexAccountCache.size > 0
+        ) {
           this.#aggregateAndNotifySubscribers();
         }
       } catch (error) {
