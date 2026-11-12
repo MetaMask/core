@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.4.0]
+
 ### Added
 
 - Sync custom-token changes to Authenticated User Storage: adding or hiding a custom asset now mirrors it to the user's AUS user-assets blob (fire-and-forget; failures are reported via the messenger's `captureException` and never roll back local state), and removing or unhiding strips the asset from the corresponding AUS list ([#10336](https://github.com/MetaMask/core/pull/10336))
@@ -18,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Enrich native asset metadata (name, decimals, image) from the config registry via `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, and upgrade previously emitted imageless native metadata stubs with the registry image ([#11420](https://github.com/MetaMask/core/pull/11420))
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0`
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1`
+- Bump `@metamask/network-enablement-controller` from `^7.1.1` to `^7.1.2`
 
 ## [20.3.1]
 
@@ -1292,7 +1297,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.0...HEAD
+[20.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...@metamask/assets-controller@20.4.0
 [20.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...@metamask/assets-controller@20.3.1
 [20.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.3...@metamask/assets-controller@20.3.0
 [20.2.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.2...@metamask/assets-controller@20.2.3

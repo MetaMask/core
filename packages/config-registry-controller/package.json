@@ -1,6 +1,6 @@
 {
   "name": "@metamask/config-registry-controller",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Manages configuration registry for MetaMask",
   "keywords": [
     "Ethereum",
