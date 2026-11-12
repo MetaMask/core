@@ -10,6 +10,7 @@ import {
   calculateAccountSummary,
   calculateWeightedReturnOnEquity,
   getCrossCollateral,
+  getCrossMarginSpotCollateral,
   getSpotBalance,
   sumCrossMarginSummaries,
 } from '../../../src/utils/accountUtils.js';
@@ -546,6 +547,136 @@ describe('spot balance helpers', () => {
     expect(parseFloat(result.totalBalance)).toBe(35);
     expect(parseFloat(result.spendableBalance)).toBe(35);
     expect(parseFloat(result.withdrawableBalance)).toBe(35);
+  });
+
+  it('publishes spotCollateral from the abstraction mode without treating an unknown mode as zero', () => {
+    const accountState: AccountState = {
+      spendableBalance: '100',
+      withdrawableBalance: '100',
+      totalBalance: '100',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+    const spot = {
+      balances: [{ coin: 'USDC', total: '900', hold: '0' }],
+    } as never;
+
+    const unified = addSpotBalanceToAccountState(accountState, spot, {
+      foldIntoCollateral: true,
+      abstractionMode: 'unifiedAccount',
+    });
+    expect(unified.spotCollateral).toBe('900');
+    expect(unified.spendableBalance).toBe('1000');
+
+    const standard = addSpotBalanceToAccountState(accountState, spot, {
+      foldIntoCollateral: false,
+      abstractionMode: 'disabled',
+    });
+    expect(standard.spotCollateral).toBe('0');
+    expect(standard.spendableBalance).toBe('100');
+
+    const unresolved = addSpotBalanceToAccountState(accountState, spot, {
+      foldIntoCollateral: false,
+      abstractionMode: null,
+    });
+    expect(unresolved.spotCollateral).toBeUndefined();
+    expect(unresolved.spendableBalance).toBe('100');
+  });
+});
+
+describe('getCrossMarginSpotCollateral', () => {
+  const freeSpot = {
+    balances: [{ coin: 'USDC', total: '900', hold: '0' }],
+  } as never;
+  const spotWithHold = {
+    balances: [{ coin: 'USDC', total: '40', hold: '15' }],
+  } as never;
+
+  it('returns 0 for Standard when spot is present but is not collateral', () => {
+    expect(getCrossMarginSpotCollateral(freeSpot, 'disabled')).toBe('0');
+    expect(getCrossMarginSpotCollateral(freeSpot, 'default')).toBe('0');
+  });
+
+  it('returns free spot USDC for Unified', () => {
+    expect(getCrossMarginSpotCollateral(freeSpot, 'unifiedAccount')).toBe(
+      '900',
+    );
+  });
+
+  it('returns free spot USDC for portfolio margin', () => {
+    expect(getCrossMarginSpotCollateral(freeSpot, 'portfolioMargin')).toBe(
+      '900',
+    );
+  });
+
+  it('subtracts the hold for Unified and never goes negative', () => {
+    expect(getCrossMarginSpotCollateral(spotWithHold, 'unifiedAccount')).toBe(
+      '25',
+    );
+    expect(
+      getCrossMarginSpotCollateral(
+        { balances: [{ coin: 'USDC', total: '10', hold: '40' }] } as never,
+        'portfolioMargin',
+      ),
+    ).toBe('0');
+  });
+
+  it('returns undefined when spot state is missing', () => {
+    expect(
+      getCrossMarginSpotCollateral(undefined, 'unifiedAccount'),
+    ).toBeUndefined();
+    expect(
+      getCrossMarginSpotCollateral(null, 'portfolioMargin'),
+    ).toBeUndefined();
+  });
+
+  it('returns undefined when the abstraction mode is unresolved', () => {
+    expect(getCrossMarginSpotCollateral(freeSpot, undefined)).toBeUndefined();
+    expect(getCrossMarginSpotCollateral(freeSpot, null)).toBeUndefined();
+  });
+
+  it('ignores non-USDC balances when the spot state is known', () => {
+    expect(
+      getCrossMarginSpotCollateral(
+        { balances: [{ coin: 'HYPE', total: '500', hold: '0' }] } as never,
+        'unifiedAccount',
+      ),
+    ).toBe('0');
+    expect(
+      getCrossMarginSpotCollateral({ balances: [] } as never, 'unifiedAccount'),
+    ).toBe('0');
+  });
+
+  it('makes the venue ratio 6% when 900 of free spot backs a 100 perps account', () => {
+    const crossMarginSummary = {
+      accountValue: '100',
+      maintenanceMargin: '60',
+      marginUsed: '60',
+      notional: '0',
+    };
+    const unified = calculateAccountSummary({
+      totalEquity: '1000',
+      crossMarginSummary,
+      spotCollateral: getCrossMarginSpotCollateral(freeSpot, 'unifiedAccount'),
+    });
+    expect(unified.accountRatio).toBeCloseTo(0.06);
+    expect(unified.crossMarginUsage).toBeCloseTo(0.06);
+
+    const standard = calculateAccountSummary({
+      totalEquity: '100',
+      crossMarginSummary,
+      spotCollateral: getCrossMarginSpotCollateral(freeSpot, 'disabled'),
+    });
+    expect(standard.accountRatio).toBeCloseTo(0.6);
+
+    const unknown = calculateAccountSummary({
+      totalEquity: '100',
+      crossMarginSummary,
+      spotCollateral: getCrossMarginSpotCollateral(freeSpot, null),
+    });
+    expect(unknown.accountRatio).toBeUndefined();
+    expect(unknown.crossMarginUsage).toBeUndefined();
   });
 });
 

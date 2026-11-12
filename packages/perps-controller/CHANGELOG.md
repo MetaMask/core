@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountState.spotCollateral`, the spot USDC that counts as cross collateral, so clients can pass it to `calculateAccountSummary` instead of assuming spot collateral is `0`
+  - The value is a canonical USDC decimal string. It is absent while the spot state or the Hyperliquid abstraction mode is still unknown, and `calculateAccountSummary` then leaves `accountRatio` and `crossMarginUsage` undefined
+  - Hyperliquid Standard (`disabled` and `default`) reports `'0'`: spot is a separate ledger and is not collateral
+  - Hyperliquid Unified and portfolio margin report free spot USDC, `max(0, spot.total - spot.hold)`, counting USDC only
+  - `getCrossMarginSpotCollateral(spotState, abstractionMode)` is the same calculation. `addSpotBalanceToAccountState` writes it onto the account when callers pass `abstractionMode`, including `null` while the mode is unresolved
+  - A known Lighter account reports `'0'`. That venue has no separate spot ledger; its collateral is already in the account value. A failed Lighter read still omits the field
+
 ## [23.1.0]
 
 ### Added

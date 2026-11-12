@@ -245,6 +245,10 @@ export function adaptAccountStateFromLighterUserStats(
     totalBalance: String(portfolioValue),
     spendableBalance: String(available),
     withdrawableBalance: String(available),
+    // Lighter collateral is already the account value. There is no separate
+    // spot USDC to add, and this read is a known account, so the amount is 0
+    // rather than unknown.
+    spotCollateral: '0',
     marginUsed: String(Math.max(collateral - available, 0)),
     unrealizedPnl: String(portfolioValue - collateral),
     returnOnEquity:
@@ -631,6 +635,10 @@ export function adaptAccountStateFromLighter(
     totalBalance: String(totalBalance),
     spendableBalance: String(available),
     withdrawableBalance: String(available),
+    // Lighter collateral is already the account value. There is no separate
+    // spot USDC to add, and this read is a known account, so the amount is 0
+    // rather than unknown.
+    spotCollateral: '0',
     marginUsed: String(marginUsed),
     unrealizedPnl: String(unrealizedPnl),
     returnOnEquity:

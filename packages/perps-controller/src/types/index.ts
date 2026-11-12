@@ -961,6 +961,21 @@ export type AccountState = {
    */
   crossMarginSummary?: CrossMarginSummary;
   /**
+   * Spot USDC this venue counts as cross collateral, as a decimal string.
+   * Pass it to `calculateAccountSummary` as `spotCollateral`.
+   *
+   * Absent while the spot state or the abstraction mode is still unknown.
+   * `calculateAccountSummary` then leaves `accountRatio` and
+   * `crossMarginUsage` undefined.
+   *
+   * `'0'` when spot is not collateral: Hyperliquid Standard (`disabled` /
+   * `default`), and venues with no separate spot ledger (Lighter).
+   *
+   * Free spot USDC (`max(0, total − hold)`, USDC only) for Hyperliquid
+   * Unified and portfolio margin.
+   */
+  spotCollateral?: string;
+  /**
    * Per-sub-account balance breakdown (protocol-specific, optional)
    * Maps sub-account identifier to its balance details.
    *
@@ -3819,6 +3834,7 @@ export type * from './perps-types.js';
 export * from './transactionTypes.js';
 // hyperliquid-types: selective export to avoid OrderType clash with main types
 export type {
+  HyperLiquidAbstractionMode,
   AssetPosition,
   SpotBalance,
   PerpsUniverse,

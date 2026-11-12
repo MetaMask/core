@@ -7,7 +7,11 @@ import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import type { SpotClearinghouseStateResponse } from '../types/hyperliquid-types.js';
+import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
+import type {
+  HyperLiquidAbstractionMode,
+  SpotClearinghouseStateResponse,
+} from '../types/hyperliquid-types.js';
 import type {
   AccountState,
   CrossMarginSummary,
@@ -189,6 +193,48 @@ export function getSpotHold(
 }
 
 /**
+ * Spot USDC the venue counts as cross collateral.
+ *
+ * Unknown spot state or an unresolved abstraction mode stays `undefined`,
+ * not `0`. A ratio computed from `0` treats a Unified account as Standard
+ * and overstates how close it is to liquidation. This is deliberately
+ * different from {@link hyperLiquidModeFoldsSpot}, which fail-closes an
+ * unknown mode to "do not fold" so withdrawable funds are not over-reported.
+ *
+ * @param spotState - Spot clearinghouse state. `null` or omitted means it
+ * has not been read yet.
+ * @param abstractionMode - Resolved abstraction mode. `null` or omitted
+ * means it has not been read yet.
+ * @returns Canonical USDC decimal string: `'0'` when spot is not collateral
+ * (Standard / `default`), or free spot USDC (`max(0, total − hold)`, USDC
+ * only) for Unified and portfolio margin. `undefined` until both inputs
+ * are known.
+ */
+export function getCrossMarginSpotCollateral(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  abstractionMode: HyperLiquidAbstractionMode | null | undefined,
+): string | undefined {
+  if (
+    spotState === null ||
+    spotState === undefined ||
+    abstractionMode === null ||
+    abstractionMode === undefined
+  ) {
+    return undefined;
+  }
+  if (!hyperLiquidModeFoldsSpot(abstractionMode)) {
+    return '0';
+  }
+  const freeSpot = BigNumber.max(
+    0,
+    getSpotCollateralAmount(spotState, 'total').minus(
+      getSpotCollateralAmount(spotState, 'hold'),
+    ),
+  );
+  return canonicalizeUsdc(freeSpot);
+}
+
+/**
  * Options controlling how `addSpotBalanceToAccountState` folds spot balance
  * into the three-field AccountState contract.
  */
@@ -206,10 +252,20 @@ export type AddSpotBalanceOptions = {
    * Standard mode). The caller is responsible for translating
    * provider-specific state into this flag.
    *
-   * Defaults to `true` for backward compatibility with call sites that
-   * haven't yet been wired with provider-specific context.
+   * Defaults to `false`. Omitting the flag does not mean the mode is
+   * Standard: pass `abstractionMode` to publish `spotCollateral`.
    */
   foldIntoCollateral?: boolean;
+  /**
+   * Resolved abstraction mode used to publish `AccountState.spotCollateral`.
+   * Pass `null` while the mode is unknown. Omit the property to leave any
+   * existing `spotCollateral` untouched.
+   *
+   * Derive `foldIntoCollateral` from the same mode via
+   * `hyperLiquidModeFoldsSpot`. The two answers differ when the mode is
+   * unknown: folding stays off, and `spotCollateral` stays unset.
+   */
+  abstractionMode?: HyperLiquidAbstractionMode | null;
 };
 
 /**
@@ -218,9 +274,9 @@ export type AddSpotBalanceOptions = {
  * — the util stays provider-agnostic.
  *
  * @param accountState - Base AccountState produced by a provider adapter.
- * @param spotState - Raw spot clearinghouse response (HL-shaped); null or missing means no spot balance and the state is returned unchanged.
+ * @param spotState - Raw spot clearinghouse response (HL-shaped); null or missing means no spot balance and the balances are returned unchanged.
  * @param options - See {@link AddSpotBalanceOptions}.
- * @returns AccountState with spot folded into `totalBalance` always, and into spendable/withdrawable when `foldIntoCollateral` is true.
+ * @returns AccountState with spot folded into `totalBalance` always, and into spendable/withdrawable when `foldIntoCollateral` is true. When `abstractionMode` is passed, `spotCollateral` is the spot USDC that counts as cross collateral.
  */
 export function addSpotBalanceToAccountState(
   accountState: AccountState,
@@ -231,6 +287,25 @@ export function addSpotBalanceToAccountState(
   // A caller that omits `options` should NOT silently fold spot — that would
   // over-report withdrawable funds for Standard / default users.
   const foldIntoCollateral = options?.foldIntoCollateral ?? false;
+  const publishesSpotCollateral =
+    options !== undefined &&
+    Object.prototype.hasOwnProperty.call(options, 'abstractionMode');
+  const spotCollateral = publishesSpotCollateral
+    ? getCrossMarginSpotCollateral(spotState, options?.abstractionMode)
+    : undefined;
+  const withSpotCollateral = (state: AccountState): AccountState => {
+    if (!publishesSpotCollateral) {
+      return state;
+    }
+    if (state.spotCollateral === spotCollateral) {
+      return state;
+    }
+    if (spotCollateral === undefined) {
+      const { spotCollateral: _removed, ...rest } = state;
+      return rest;
+    }
+    return { ...state, spotCollateral };
+  };
 
   const spotBalance = getSpotCollateralAmount(spotState, 'total');
   const spotHold = getSpotCollateralAmount(spotState, 'hold');
@@ -243,7 +318,7 @@ export function addSpotBalanceToAccountState(
   // Preserve sentinel totals (e.g. PERPS_CONSTANTS.FallbackDataDisplay '--')
   // rather than coercing them to NaN.
   if (!currentTotal.isFinite()) {
-    return accountState;
+    return withSpotCollateral(accountState);
   }
 
   // Folding is gated strictly on the resolved abstraction mode (see callers'
@@ -279,15 +354,15 @@ export function addSpotBalanceToAccountState(
     nextSpendable === accountState.spendableBalance &&
     nextWithdrawable === accountState.withdrawableBalance
   ) {
-    return accountState;
+    return withSpotCollateral(accountState);
   }
 
-  return {
+  return withSpotCollateral({
     ...accountState,
     totalBalance: nextTotal,
     spendableBalance: nextSpendable,
     withdrawableBalance: nextWithdrawable,
-  };
+  });
 }
 
 function resolveFoldedBalance(

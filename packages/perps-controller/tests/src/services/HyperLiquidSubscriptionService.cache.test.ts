@@ -1164,6 +1164,14 @@ describe('HyperLiquidSubscriptionService', () => {
       });
       await vi.runAllTimersAsync();
 
+      // Spot is known, but the abstraction mode is still in flight. The
+      // collateral amount stays unset so the ratio is hidden rather than
+      // computed as if this were a Standard account.
+      expect(accountCallback).toHaveBeenCalled();
+      expect(
+        accountCallback.mock.calls.at(-1)?.[0]?.spotCollateral,
+      ).toBeUndefined();
+
       // Resolve the REST userAbstraction. The refresh path must record the
       // mode (it's user-keyed, independent of spot generation) and trigger
       // a re-aggregation so the active subscriber sees folded balance —
@@ -1184,6 +1192,7 @@ describe('HyperLiquidSubscriptionService', () => {
         1123.45,
         2,
       );
+      expect(recoveredCall?.spotCollateral).toBe('123.45');
 
       // A subsequent subscribe must take the fast path — the cache is now
       // sealed for this user, so no redundant userAbstraction REST round-trip.

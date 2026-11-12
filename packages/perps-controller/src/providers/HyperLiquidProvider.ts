@@ -13424,7 +13424,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const accountState = addSpotBalanceToAccountState(
       aggregateAccountStates(dexAccountStates),
       spotState,
-      { foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode) },
+      {
+        foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode),
+        abstractionMode,
+      },
     );
 
     accountState.subAccountBreakdown = Object.fromEntries(
@@ -14671,6 +14674,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             foldIntoCollateral: hyperLiquidModeFoldsSpot(
               standaloneAbstractionResult,
             ),
+            abstractionMode: standaloneAbstractionResult,
           },
         );
 
@@ -14810,7 +14814,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       const aggregatedAccountState = addSpotBalanceToAccountState(
         aggregateAccountStates(dexAccountStates),
         spotState,
-        { foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode) },
+        {
+          foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode),
+          abstractionMode,
+        },
       );
 
       // Build per-sub-account breakdown (HIP-3 DEXs map to sub-accounts)

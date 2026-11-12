@@ -1477,10 +1477,12 @@ export class HyperLiquidSubscriptionService {
   }
 
   #getSpotBalanceOptions(): AddSpotBalanceOptions {
+    const abstractionMode = this.#getAbstractionModeForUser(
+      this.#cachedSpotStateUserAddress,
+    );
     return {
-      foldIntoCollateral: hyperLiquidModeFoldsSpot(
-        this.#getAbstractionModeForUser(this.#cachedSpotStateUserAddress),
-      ),
+      foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode),
+      abstractionMode,
     };
   }
 

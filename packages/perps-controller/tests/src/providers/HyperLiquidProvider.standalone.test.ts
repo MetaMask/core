@@ -1327,7 +1327,9 @@ describe('HyperLiquidProvider', () => {
           userAddress: mockUserAddress,
         });
 
-        // Assert — all DEX queries failed, aggregateAccountStates([]) returns fallback
+        // Assert — all DEX queries failed, aggregateAccountStates([]) returns fallback.
+        // Spot and the abstraction mode still resolved, so spotCollateral is
+        // known: Unified with no spot balance gives 0.
         expect(result).toEqual({
           spendableBalance: '--',
           withdrawableBalance: '--',
@@ -1335,6 +1337,7 @@ describe('HyperLiquidProvider', () => {
           marginUsed: '--',
           unrealizedPnl: '--',
           returnOnEquity: '--',
+          spotCollateral: '0',
         });
       });
     });
