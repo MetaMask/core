@@ -65,14 +65,15 @@ export type MoneyAccountLifecycleControllerRefreshAction = {
  * Triggers the Money Account upgrade process for the primary Money Account,
  * including its EIP-7702 upgrade, through `MoneyAccountUpgradeController`.
  * Only a Money Account that is not in an identity or is a valid SFA is
- * upgraded, judged from the latest identity fetch. Makes a single attempt;
+ * upgraded, judged from the latest identity fetch, and never while a
+ * migration is in flight. Makes a single attempt;
  * clients decide when to call it and how to retry. Concurrent calls share the
  * attempt in flight. After upgrading, refetches identities so the recorded
  * lifecycle reflects the upgrade.
  *
  * @returns A promise that resolves once the attempt completes, or straight
- * away when the feature is disabled, the wallet is not ready, or the Money
- * Account cannot be upgraded.
+ * away when the feature is disabled, the wallet is not ready, a migration is
+ * in flight, or the Money Account cannot be upgraded.
  * @throws When there is no Money Account, or the error from fetching
  * identities before upgrading or from the upgrade, unchanged.
  */
@@ -83,21 +84,53 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
 
 /**
  * Starts migrating the primary Money Account from its SFA address to a new
- * MFA address.
+ * MFA address, or resumes its migration if one is already in flight.
  *
  * Reads the profile's identities fresh from CHOMP and records them, then
- * only proceeds when the wallet is still ready, no identity is migrating, and
- * the Money Account is a valid SFA in no other identity. Asks
- * `MoneyAccountController` to create the MPC Money Account, or returns the
- * one an earlier attempt created, and checks that its address is fresh for
- * CHOMP: not part of any identity, and without intents.
+ * only proceeds when the wallet is still ready and the Money Account is in
+ * no other identity. If the Money Account is migrating, and no other
+ * identity is, the migration is resumed, but only towards the MPC Money
+ * Account of this wallet, which has to sign the successor's steps. That
+ * account is restored first when it is missing, as after a reinstall.
  *
- * Linking the MFA address to the Money Account and completing the migration
- * steps are not implemented yet, so this always throws once the checks
- * pass.
+ * Otherwise, the Money Account must be a valid SFA and no identity may be
+ * migrating. Asks `MoneyAccountController` to create the MPC Money Account,
+ * or returns the one an earlier attempt created. Creating it may run the
+ * MPC setup, so afterwards the identities are read and checked again, and
+ * the MFA address must not be part of any identity. CHOMP itself rejects
+ * linking an MFA address that already has active intents.
  *
- * @throws If a migration is already in flight, the checks fail, or the
- * migration is reached.
+ * Then, through `MoneyAccountUpgradeController`, links the MFA address as
+ * the successor of the Money Account and upgrades it, which starts the
+ * migration on CHOMP and freezes the Money Account until it completes, and
+ * registers the intents the Money Account signs for the migration. Both
+ * only do the work CHOMP reports missing.
+ *
+ * Before registering those intents, an active Money Account Plus
+ * subscription paid by the Money Account is moved to the MFA address,
+ * because CHOMP only accepts the intents of a premium migration once the
+ * successor holds the premium eligibility. The MFA address signs a new
+ * subscription delegation, which also registers its subscription intent,
+ * and becomes the payer of the subscription. If CHOMP still reports the
+ * subscription intent of the MFA address missing once the MFA address pays,
+ * its subscription delegation is prepared again to register the intent,
+ * and if no active Money Account Plus subscription is paid by either
+ * address, the migration cannot complete, so this throws.
+ *
+ * Finally, asks CHOMP to start moving the funds of the Money Account to the
+ * MFA address. From then on, the migration can no longer be cancelled.
+ * CHOMP refuses while a step is missing, for example while the MFA address
+ * is not yet monitored, or when a concurrent request conflicts, so the
+ * request is retried once after a short delay. If that fails too, calling
+ * this again starts the transfer.
+ *
+ * Identities are then refetched, so the recorded lifecycle becomes
+ * `migrating`, even when any of these steps fails.
+ *
+ * @throws If a migration or Money Account upgrade is already in flight, the
+ * checks fail, the wallet stops being ready part way, or linking the
+ * successor, moving the subscription, registering the intents or starting
+ * the funds transfer fails.
  */
 export type MoneyAccountLifecycleControllerStartMigrationAction = {
   type: `MoneyAccountLifecycleController:startMigration`;

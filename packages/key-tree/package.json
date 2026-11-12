@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "@metamask/byte-utils": "^0.1.0",
+    "@metamask/cryptography": "^1.1.2",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/type-utils": "^0.1.0",
     "@noble/curves": "^1.9.7",

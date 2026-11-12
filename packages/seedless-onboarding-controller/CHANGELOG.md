@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `SeedlessAuthData` (the `authenticate` parameters, without `skipLock`; extends `AuthenticatedUserDetails` without `nodeAuthTokens`), `parseSeedlessAuthData`, and `AUTH_CONNECTION_BY_NAMESPACE` so other controllers can reuse the seedless social-login auth payload ([#11224](https://github.com/MetaMask/core/pull/11224))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed

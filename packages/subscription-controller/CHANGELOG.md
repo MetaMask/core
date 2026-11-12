@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.2.1]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^73.1.0` to `^73.1.2` ([#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
-- Bump `@metamask/money-account-balance-service` from `^3.1.2` to `^3.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
-- Bump `@metamask/money-account-upgrade-controller` from `^6.0.0` to `^6.0.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
-- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
+- Bump `@metamask/money-account-balance-service` from `^3.1.2` to `^3.2.1` ([#11390](https://github.com/MetaMask/core/pull/11390), [#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/money-account-upgrade-controller` from `^6.0.0` to `^7.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390), [#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/chomp-api-service` from `^7.0.0` to `^7.1.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
 ## [15.2.0]
 
@@ -712,7 +715,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.1...HEAD
+[15.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.0...@metamask/subscription-controller@15.2.1
 [15.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.2...@metamask/subscription-controller@15.2.0
 [15.1.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.1...@metamask/subscription-controller@15.1.2
 [15.1.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.0...@metamask/subscription-controller@15.1.1

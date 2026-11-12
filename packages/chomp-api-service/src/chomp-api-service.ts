@@ -41,16 +41,20 @@ import type {
   CreateAddressChallengeResponse,
   ProfileAddressEntry,
   ChompIntentType,
+  ChompMigrationIntentType,
   CreateUpgradeParams,
   CreateUpgradeResponse,
   UpgradeEntry,
   CreateWithdrawalParams,
+  FundsTransferStart,
   CreateWithdrawalResponse,
   DerivedIdentitiesResponse,
   IntentEntry,
   MigrationStep,
   SendIntentParams,
   SendIntentResponse,
+  SendIntentV2Params,
+  SendIntentV2Response,
   ServiceDetailsResponse,
   VerifyDelegationParams,
   VerifyDelegationResponse,
@@ -62,6 +66,12 @@ const CHOMP_INTENT_TYPES: ChompIntentType[] = [
   'cash-deposit-premium',
   'cash-withdrawal-premium',
   'cash-subscription',
+];
+
+const CHOMP_MIGRATION_INTENT_TYPES: ChompMigrationIntentType[] = [
+  'cash-migration-root',
+  'cash-migration-transfer',
+  'cash-migration-premium-transfer',
 ];
 
 const MIGRATION_STEPS: MigrationStep[] = [
@@ -78,6 +88,10 @@ const MIGRATION_STEPS: MigrationStep[] = [
 
 function isChompIntentType(value: string): value is ChompIntentType {
   return (CHOMP_INTENT_TYPES as string[]).includes(value);
+}
+
+function isMigrationStep(value: string): value is MigrationStep {
+  return (MIGRATION_STEPS as string[]).includes(value);
 }
 
 // === GENERAL ===
@@ -149,11 +163,13 @@ const MESSENGER_EXPOSED_METHODS = [
   'getUpgrades',
   'verifyDelegation',
   'createIntents',
+  'createIntentsV2',
   'getIntentsByAddress',
   'createWithdrawal',
   'getServiceDetails',
   'getDerivedIdentities',
   'getDerivedIdentityByAddress',
+  'startFundsTransfer',
 ] as const;
 
 /**
@@ -259,11 +275,15 @@ const DerivedIdentityStruct = type({
     type({
       from: LowercaseHexAddressStruct,
       to: LowercaseHexAddressStruct,
-      steps: array(
-        type({
-          step: enums(MIGRATION_STEPS),
-          completed: boolean(),
-        }),
+      steps: coerce(
+        array(
+          type({
+            step: enums(MIGRATION_STEPS),
+            completed: boolean(),
+          }),
+        ),
+        array(type({ step: string(), completed: boolean() })),
+        (steps) => steps.filter(({ step }) => isMigrationStep(step)),
       ),
       transfer: MigrationTransferStruct,
       premiumTransfer: MigrationTransferStruct,
@@ -283,6 +303,13 @@ const AddressIdentityResponseStruct = type({
     predecessor: nullable(LowercaseHexAddressStruct),
     successor: nullable(LowercaseHexAddressStruct),
   }),
+});
+
+const FundsTransferStartStruct = type({
+  from: LowercaseHexAddressStruct,
+  to: LowercaseHexAddressStruct,
+  transfer: MigrationTransferStruct,
+  premiumTransfer: MigrationTransferStruct,
 });
 
 const AccountUpgradeStatusStruct = enums(['pending', 'upgraded']);
@@ -336,6 +363,22 @@ const SendIntentResponseArrayStruct = array(
   }),
 );
 
+const SendIntentV2ResponseArrayStruct = array(
+  type({
+    delegationHash: StrictHexStruct,
+    intent: type({
+      type: enums([...CHOMP_INTENT_TYPES, ...CHOMP_MIGRATION_INTENT_TYPES]),
+      data: type({
+        allowance: StrictHexStruct,
+        tokenSymbol: string(),
+        tokenAddress: StrictHexStruct,
+        userSignature: optional(StrictHexStruct),
+      }),
+    }),
+    createdAt: string(),
+  }),
+);
+
 const IntentEntryArrayStruct = array(
   type({
     account: StrictHexStruct,
@@ -378,6 +421,7 @@ const ServiceDetailsResponseStruct = type({
     StrictHexStruct,
     type({
       autoDepositDelegate: StrictHexStruct,
+      vaultMigrationHelperAddress: optional(StrictHexStruct),
       protocol: type({
         vedaProtocol: ServiceDetailsProtocolStruct,
         vedaPremiumProtocol: optional(ServiceDetailsProtocolStruct),
@@ -839,6 +883,46 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
+   * Submits one or more intents to the CHOMP API, including the Money Account
+   * migration intents that `POST /v1/intent` rejects.
+   *
+   * POST /v2/intent
+   *
+   * CHOMP accepts at most 10 intents per request. Their delegations must
+   * already be saved to the authenticated user storage.
+   *
+   * @param intents - The array of intents to submit.
+   * @returns The array of intent responses.
+   */
+  async createIntentsV2(
+    intents: SendIntentV2Params[],
+  ): Promise<SendIntentV2Response[]> {
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:createIntentsV2`, intents],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#authHeaders();
+        const response = await fetch(new URL('/v2/intent', this.#baseUrl), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(intents),
+        });
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `POST /v2/intent failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, SendIntentV2ResponseArrayStruct);
+  }
+
+  /**
    * Fetches intents associated with a given address.
    *
    * GET /v1/intent/account/:address
@@ -1042,5 +1126,49 @@ export class ChompApiService extends BaseDataService<
     return jsonResponse === null
       ? null
       : create(jsonResponse, AddressIdentityResponseStruct);
+  }
+
+  /**
+   * Starts moving the funds of a migrating Money Account to its successor.
+   *
+   * POST /v1/money-account/identities/address/:address/funds-transfer
+   *
+   * CHOMP starts the transfer for the predecessor of the migrating identity
+   * that contains `address`, once every other migration step is complete,
+   * and rejects the request with `MIGRATION_STEPS_INCOMPLETE` otherwise. Once
+   * the transfer exists, the migration can no longer be cancelled. Repeating
+   * the request returns the existing transfer requests, so it is retried like
+   * a read.
+   *
+   * @param address - Any address of the migrating identity.
+   * @returns The funds-transfer requests. Addresses are lowercased.
+   */
+  async startFundsTransfer(address: Hex): Promise<FundsTransferStart> {
+    const { token, profileKey } = await this.#getProfileScopedToken();
+    const path = `/v1/money-account/identities/address/${address}/funds-transfer`;
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:startFundsTransfer`, profileKey, address],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => {
+        const response = await fetch(new URL(path, this.#baseUrl), {
+          method: 'POST',
+          headers: this.#headersForToken(token),
+          body: JSON.stringify({}),
+        });
+
+        if (!response.ok) {
+          throw await createChompApiError(
+            response,
+            `POST ${path} failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, FundsTransferStartStruct);
   }
 }

@@ -540,6 +540,46 @@ describe('parseRealtimeFeedItem', () => {
     expect(absent?.flags).toBeUndefined();
   });
 
+  it('copies the prices the server marked the card to', () => {
+    const value = {
+      ...fullHydratedPosition,
+      currentValueUSD: 150,
+      positionValueUSD: 150,
+      pnlValueUsd: 50,
+      pnlPercent: 50,
+    };
+
+    const result = normalizeRealtimeFeedItem(value);
+
+    expect(result).toMatchObject({
+      currentValueUSD: 150,
+      positionValueUSD: 150,
+      pnlValueUsd: 50,
+      pnlPercent: 50,
+    });
+  });
+
+  it('leaves prices the server did not send absent and keeps nulls', () => {
+    const value = {
+      ...fullHydratedPosition,
+      currentValueUSD: 0,
+      pnlValueUsd: null,
+    };
+
+    const result = normalizeRealtimeFeedItem(value);
+
+    expect(result?.currentValueUSD).toBe(0);
+    expect(result?.pnlValueUsd).toBeNull();
+    expect(result).not.toHaveProperty('positionValueUSD');
+    expect(result).not.toHaveProperty('pnlPercent');
+  });
+
+  it('rejects a realtime item whose price is not a number', () => {
+    const value = { ...fullHydratedPosition, currentValueUSD: '150' };
+
+    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+  });
+
   it('keeps flags on an already normalized feed item', () => {
     const normalized = normalizeRealtimeFeedItem(fullHydratedPosition);
     const flagged = { ...normalized, flags: ['insider'] };

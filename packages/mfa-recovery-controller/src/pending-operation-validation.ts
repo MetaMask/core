@@ -128,19 +128,22 @@ export async function assertValidPendingOperation(
 }
 
 /**
- * Escrows reject payload identifiers that are not exactly (verifier included)
- * in the approval's list, and the rejection leaves the write unabortable.
+ * Escrows reject non-SIWE payload identifiers that are not exactly (verifier
+ * included) in the approval's list, and the rejection leaves the write
+ * unabortable. SIWE identifiers are proven by their own authorizations.
  *
  * @param identifiers - Payload identifiers.
  * @param approvedIdentifiers - The approval's identifiers.
- * @returns Whether every payload identifier is in the approval.
+ * @returns Whether every non-SIWE payload identifier is in the approval.
  */
 async function isApprovedSubset(
   identifiers: Identifier[],
   approvedIdentifiers: Identifier[],
 ): Promise<boolean> {
   const approved = new Set(await Promise.all(approvedIdentifiers.map(hash)));
-  const hashes = await Promise.all(identifiers.map(hash));
+  const hashes = await Promise.all(
+    identifiers.filter(({ type }) => type !== 'siwe').map(hash),
+  );
   return hashes.every((identifierHash) => approved.has(identifierHash));
 }
 

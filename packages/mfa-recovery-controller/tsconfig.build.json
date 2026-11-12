@@ -18,6 +18,9 @@
       "path": "../profile-sync-controller/tsconfig.build.json"
     },
     {
+      "path": "../seedless-onboarding-controller/tsconfig.build.json"
+    },
+    {
       "path": "../utils/tsconfig.build.json"
     }
   ],
