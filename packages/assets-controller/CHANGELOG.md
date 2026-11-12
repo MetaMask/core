@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/core-backend` from `^14.0.0` to `^15.0.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
-
 ## [20.4.0]
 
 ### Added

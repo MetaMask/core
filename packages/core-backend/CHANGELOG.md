@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [15.0.0]
+## [14.1.0]
 
 ### Added
 
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** V5 transaction types now use CAIP identifiers from `@metamask/utils` instead of `string` ([#11444](https://github.com/MetaMask/core/pull/11444))
+- V5 transaction types now use CAIP identifiers from `@metamask/utils` instead of `string` ([#11444](https://github.com/MetaMask/core/pull/11444))
   - `V5TransactionRecord.accountId`, fee `payer`, `unprocessedAccounts`, and the `accountIds` arguments of the v5 transaction fetch methods are `CaipAccountId`
   - `V5Transaction.chainId` and the `networks` filter are `CaipChainId`
   - Value-transfer, fee, and misc-operation `assetId` fields, and the `assetIds` filter, are `CaipAssetType`
@@ -567,8 +567,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@15.0.0...HEAD
-[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...@metamask/core-backend@15.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...@metamask/core-backend@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...@metamask/core-backend@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...@metamask/core-backend@13.0.0
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.2.0...@metamask/core-backend@12.3.0
