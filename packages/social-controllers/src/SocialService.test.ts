@@ -1006,17 +1006,16 @@ describe('SocialService', () => {
       expect(result.positions[1].flags).toBeNull();
     });
 
-    it('passes the position owner through and accepts positions without one', async () => {
-      const owner = {
-        profileId: 'profile-1',
-        addresses: ['0x1234', '0x5678'],
-      };
+    it('passes the owner profileId through and accepts positions without one', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
-            positions: [{ ...mockPosition, owner }, mockPosition],
+            positions: [
+              { ...mockPosition, profileId: 'profile-1' },
+              mockPosition,
+            ],
             pagination: { hasMore: false },
           }),
       });
@@ -1026,17 +1025,17 @@ describe('SocialService', () => {
         addressOrId: '0x1234',
       });
 
-      expect(result.positions[0].owner).toStrictEqual(owner);
-      expect(result.positions[1].owner).toBeUndefined();
+      expect(result.positions[0].profileId).toBe('profile-1');
+      expect(result.positions[1].profileId).toBeUndefined();
     });
 
-    it('rejects a position whose owner is malformed', async () => {
+    it('rejects a position whose owner profileId is not a string', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
-            positions: [{ ...mockPosition, owner: { profileId: 'profile-1' } }],
+            positions: [{ ...mockPosition, profileId: 1 }],
             pagination: { hasMore: false },
           }),
       });
@@ -1444,15 +1443,12 @@ describe('SocialService', () => {
       );
     });
 
-    it('returns the position owner unchanged', async () => {
-      const owner = {
-        profileId: 'profile-1',
-        addresses: ['0x1234', 'So11111111111111111111111111111111111111112'],
-      };
+    it('returns the owner profileId unchanged', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ ...mockPosition, owner }),
+        json: () =>
+          Promise.resolve({ ...mockPosition, profileId: 'profile-1' }),
       });
 
       const service = createService();
@@ -1460,10 +1456,10 @@ describe('SocialService', () => {
         positionId: 'position-1',
       });
 
-      expect(result).toStrictEqual({ ...mockPosition, owner });
+      expect(result).toStrictEqual({ ...mockPosition, profileId: 'profile-1' });
     });
 
-    it('accepts a position without an owner', async () => {
+    it('accepts a position without an owner profileId', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -1475,19 +1471,18 @@ describe('SocialService', () => {
         positionId: 'position-1',
       });
 
-      expect(result.owner).toBeUndefined();
+      expect(result.profileId).toBeUndefined();
     });
 
     it.each([
       ['null', null],
-      ['missing addresses', { profileId: 'profile-1' }],
-      ['a non-string address', { profileId: 'profile-1', addresses: [1] }],
-      ['a non-string profileId', { profileId: 1, addresses: [] }],
-    ])('throws when the owner is %s', async (_label, owner) => {
+      ['a number', 1],
+      ['an object', { profileId: 'profile-1' }],
+    ])('throws when the owner profileId is %s', async (_label, profileId) => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ ...mockPosition, owner }),
+        json: () => Promise.resolve({ ...mockPosition, profileId }),
       });
 
       const service = createService();
@@ -1642,23 +1637,22 @@ describe('SocialService', () => {
       });
     });
 
-    it('passes the position owner through on feed items', async () => {
-      const owner = { profileId: 'profile-1', addresses: ['0x1234'] };
+    it('passes the owner profileId through on feed items', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
             ...mockFeedResponse,
-            items: [{ ...mockFeedItem, owner }, mockFeedItem],
+            items: [{ ...mockFeedItem, profileId: 'profile-1' }, mockFeedItem],
           }),
       });
 
       const service = createService();
       const result = await service.fetchFeed({ scope: 'leaderboard' });
 
-      expect(result.items[0].owner).toStrictEqual(owner);
-      expect(result.items[1].owner).toBeUndefined();
+      expect(result.items[0].profileId).toBe('profile-1');
+      expect(result.items[1].profileId).toBeUndefined();
     });
 
     it('appends scope, chains, limit, and pagination cursors', async () => {
