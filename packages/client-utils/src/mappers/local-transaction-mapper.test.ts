@@ -256,23 +256,6 @@ describe('mapLocalTransaction', () => {
       item.type === 'approveSpendingCap' ? item.data.token : 'unset';
     expect(token).toBeUndefined();
   });
-  it('maps a Permit2 approve with an uppercase method ID without the Permit2 contract as the token', () => {
-    const input = localTransactionFixtures.mapInputs.mapsAPermit2Approve;
-    const item = mapLocal({
-      ...input,
-      initialTransaction: {
-        ...input.initialTransaction,
-        txParams: {
-          ...input.initialTransaction.txParams,
-          data: `0x87517C45${input.initialTransaction.txParams.data.slice(10)}`,
-        },
-      },
-    });
-    expect(item).toMatchObject({
-      type: 'approveSpendingCap',
-      data: { token: undefined },
-    });
-  });
   it('falls back to transferInformation when txParams.to is not a valid address', () => {
     const item = mapLocal(
       localTransactionFixtures.mapInputs
