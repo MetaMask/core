@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `hooks.isResumable` option: a synchronous callback called during construction for each incomplete transaction; return `true` to leave it pending for another controller to resume ([#0000](https://github.com/MetaMask/core/pull/0000))
-- `finalizeResumedTransaction(transactionId, transactionHash)` method and `TransactionController:finalizeResumedTransaction` action: marks a resumed approved/signed transaction as submitted via the same event path as a normal publish ([#0000](https://github.com/MetaMask/core/pull/0000))
-- `MetamaskPayMetadata.resumeAttemptedAt` field for the pay controller to record when it started a resume attempt ([#0000](https://github.com/MetaMask/core/pull/0000))
+- `hooks.isResumable` option: a synchronous callback called during construction for each incomplete transaction; return `true` to leave it pending for another controller to resume ([#11449](https://github.com/MetaMask/core/pull/11449))
+- `finalizeResumedTransaction(transactionId, transactionHash)` method and `TransactionController:finalizeResumedTransaction` action: marks a resumed approved/signed transaction as submitted via the same event path as a normal publish ([#11449](https://github.com/MetaMask/core/pull/11449))
+- `MetamaskPayMetadata.resumeAttemptedAt` field for the pay controller to record when it started a resume attempt ([#11449](https://github.com/MetaMask/core/pull/11449))
 
 ## [73.1.2]
 
