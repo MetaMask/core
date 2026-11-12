@@ -320,8 +320,12 @@ export type SeedlessOnboardingControllerRefreshAuthTokensAction = {
  * Its `exp` caps the lifetime of the aal2 node auth tokens.
  * @param params.authConnectionId - The recovery sub-verifier ID.
  * @param params.groupedAuthConnectionId - The recovery aggregate verifier ID.
+ * Requires a successful {@link authenticate} first, since the recovery
+ * session is bound to the authenticated user.
+ *
  * @returns A promise that resolves once the aal2 set is stored.
- * @throws `MissingAuthUserInfo` if either verifier ID is empty or not a string.
+ * @throws `MissingAuthUserInfo` if the user is not authenticated, or if either
+ * verifier ID is empty or not a string.
  */
 export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
   type: `SeedlessOnboardingController:authenticateForRecovery`;

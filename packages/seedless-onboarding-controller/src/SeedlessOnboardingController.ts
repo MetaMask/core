@@ -412,8 +412,16 @@ export class SeedlessOnboardingController<
           idTokens,
           groupedAuthConnectionId,
         });
+        // recovery state belongs to the user it was started for
+        const isUserChanged = this.state.userId !== userId;
+        if (isUserChanged) {
+          this.#recoveredVaultKeySet = undefined;
+        }
         // update the state with the authenticated user info
         this.update((state) => {
+          if (isUserChanged) {
+            delete state.recoverySession;
+          }
           state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
           state.authConnectionId = authConnectionId;
           state.groupedAuthConnectionId = groupedAuthConnectionId;
@@ -2538,8 +2546,12 @@ export class SeedlessOnboardingController<
    * Its `exp` caps the lifetime of the aal2 node auth tokens.
    * @param params.authConnectionId - The recovery sub-verifier ID.
    * @param params.groupedAuthConnectionId - The recovery aggregate verifier ID.
+   * Requires a successful {@link authenticate} first, since the recovery
+   * session is bound to the authenticated user.
+   *
    * @returns A promise that resolves once the aal2 set is stored.
-   * @throws `MissingAuthUserInfo` if either verifier ID is empty or not a string.
+   * @throws `MissingAuthUserInfo` if the user is not authenticated, or if either
+   * verifier ID is empty or not a string.
    */
   async authenticateForRecovery({
     aal2Token,
@@ -2562,6 +2574,8 @@ export class SeedlessOnboardingController<
     }
 
     return await this.#withControllerLock(async () => {
+      this.#assertIsAuthenticatedUser(this.state);
+
       const { exp, sub } = decodeAal2Token(
         aal2Token,
         Math.floor(Date.now() / 1000),

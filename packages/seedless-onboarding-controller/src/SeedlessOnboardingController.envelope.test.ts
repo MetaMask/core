@@ -529,6 +529,32 @@ describe('SeedlessOnboardingController', () => {
     }
 
     describe('authenticateForRecovery', () => {
+      it('throws without a successful authenticate and does not call the recovery verifier', async () => {
+        await withController(
+          { state: getMockInitialControllerState() },
+          async ({ toprfClient, baseMessenger }) => {
+            const authenticateSpy = vi.spyOn(toprfClient, 'authenticate');
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:authenticateForRecovery',
+                {
+                  aal2Token: createMockJWTToken({
+                    exp: futureExp(),
+                    sub: AAL2_USER_ID,
+                  }),
+                  authConnectionId: AAL2_AUTH_CONNECTION_ID,
+                  groupedAuthConnectionId: AAL2_GROUPED_AUTH_CONNECTION_ID,
+                },
+              ),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+            );
+            expect(authenticateSpy).not.toHaveBeenCalled();
+          },
+        );
+      });
+
       it('authenticates on the recovery verifier with the token sub and stores the aal2 set', async () => {
         const exp = futureExp();
         const aal2Token = createMockJWTToken({ exp, sub: AAL2_USER_ID });
@@ -2493,6 +2519,81 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it('does not use the recovered keys for a different user', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recoverSecrets(args);
+
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: AAL2_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['other-user-id-token'],
+              accessToken: 'other-access-token',
+              metadataAccessToken: 'other-metadata-access-token',
+              authConnection: controller.state.authConnection,
+              authConnectionId: controller.state.authConnectionId,
+              groupedAuthConnectionId: controller.state.groupedAuthConnectionId,
+              userId: 'other-user@example.com',
+              refreshToken: 'other-refresh-token',
+            },
+          );
+
+          await expect(setLocalPassword(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.RecoveryRequired,
+          );
+          expect(controller.state.vault).toBeUndefined();
+        });
+      });
+
+      it('keeps the recovered keys when authenticate runs again for the same user', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recoverSecrets(args);
+
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+            nodeAuthTokens: AAL2_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: ['same-user-id-token'],
+              accessToken: 'same-user-access-token',
+              metadataAccessToken: 'same-user-metadata-access-token',
+              authConnection: controller.state.authConnection,
+              authConnectionId: controller.state.authConnectionId,
+              groupedAuthConnectionId: controller.state.groupedAuthConnectionId,
+              userId: controller.state.userId,
+              refreshToken: 'same-user-refresh-token',
+            },
+          );
+
+          await setLocalPassword(args);
+
+          expect(
+            await controller.verifyVaultPassword(RECOVERED_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
       it('throws RecoveryRequired on a second call', async () => {
         const store = await createMigratedAccount();
 
@@ -2533,7 +2634,32 @@ describe('SeedlessOnboardingController', () => {
             });
             await recoverSecrets(args);
 
+            const {
+              authConnection,
+              authConnectionId,
+              groupedAuthConnectionId,
+              userId,
+            } = controller.state;
             await baseMessenger.call(action);
+            // the social login is needed again before the aal2 session
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValueOnce({
+              nodeAuthTokens: AAL2_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            await baseMessenger.call(
+              'SeedlessOnboardingController:authenticate',
+              {
+                idTokens: ['idToken'],
+                accessToken: 'accessToken',
+                metadataAccessToken: 'metadataAccessToken',
+                authConnection,
+                authConnectionId,
+                groupedAuthConnectionId,
+                userId,
+                refreshToken: 'refreshToken',
+                revokeToken: 'revokeToken',
+              },
+            );
             await authenticateAal2(args, { hasRecoveryShare: true });
 
             await expect(setLocalPassword(args)).rejects.toThrow(

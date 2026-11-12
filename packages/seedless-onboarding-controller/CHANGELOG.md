@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 - Add `authenticateForRecovery` and the `SeedlessOnboardingController:authenticateForRecovery` messenger action ([#11220](https://github.com/MetaMask/core/pull/11220))
   - `authenticateForRecovery` takes `authConnectionId` and `groupedAuthConnectionId`, and uses the aal2 token as the id token and its `sub` as the user ID.
+  - Requires a successful `authenticate` first; throws `MissingAuthUserInfo` otherwise.
+  - Running `authenticate` for a different `userId` clears the recovery session and any recovered vault keys held for the previous user.
 - Add non-persisted `recoverySession` state and the `RecoverySession` type. The session holds recovery-node tokens, expiry, profile ID, verifier IDs, and whether the nodes hold a recovery share, and is cleared on lock and `clearState` ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable vault key set of the account ([#11220](https://github.com/MetaMask/core/pull/11220))
   - Takes the 32-byte `recoverySecret` and no password. It requires an unlocked vault that is in sync with the global password, an aal2 session from `authenticateForRecovery`, and `migrationVersion` `V1` or later.
