@@ -231,6 +231,7 @@ type FeatureFlagsExtendedRaw = {
       validationEnabled?: ServerValidationEnabledConfig;
     };
   };
+  resume?: Partial<Record<TransactionPayStrategy, TransactionType[]>>;
 };
 
 type EIP7702FeatureFlag = {
@@ -273,9 +274,12 @@ function normalizeTransactionTypes(
 
   const knownTypes = Object.values(TransactionType) as string[];
 
-  return uniq(values.filter((value) => knownTypes.includes(value))).map(
-    (value) => value as TransactionType,
-  );
+  return uniq(
+    values.filter(
+      (value): value is string =>
+        typeof value === 'string' && knownTypes.includes(value),
+    ),
+  ).map((value) => value as TransactionType);
 }
 
 function normalizeStrategy(
@@ -1115,6 +1119,30 @@ export function getFiatEnabledTypes(
     | undefined;
 
   return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
+}
+
+/**
+ * Returns the transaction types enabled for resume for a given strategy.
+ * Reads `confirmations_pay_extended.resume[strategy]`.
+ *
+ * Only reads `RemoteFeatureFlagController:getState` from the messenger, so a
+ * minimal TC init messenger that only exposes that action is sufficient.
+ *
+ * @param messenger - Controller messenger.
+ * @param strategy - The pay strategy.
+ * @returns Array of enabled transaction types, or `[]` if not configured.
+ */
+export function getResumeEnabledTypes(
+  messenger: TransactionPayControllerMessenger,
+  strategy: TransactionPayStrategy,
+): TransactionType[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return featureFlags.resume?.[strategy] ?? [];
 }
 
 /**

@@ -36,6 +36,7 @@ import {
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
+  getResumeEnabledTypes,
   getStablecoins,
   isChainExcludedFromInfura,
   isEIP7702Chain,
@@ -2121,6 +2122,67 @@ describe('Feature Flags Utils', () => {
       const result = getFiatEnabledTypes(messenger);
 
       expect(result).toStrictEqual(customTypes);
+    });
+  });
+
+  describe('getResumeEnabledTypes', () => {
+    it('returns empty array when the flag is absent', () => {
+      expect(
+        getResumeEnabledTypes(messenger, TransactionPayStrategy.Fiat),
+      ).toStrictEqual([]);
+    });
+
+    it('returns empty array when confirmations_pay_extended.resume is missing', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {},
+        },
+      });
+
+      expect(
+        getResumeEnabledTypes(messenger, TransactionPayStrategy.Fiat),
+      ).toStrictEqual([]);
+    });
+
+    it('returns the configured types for the requested strategy', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            resume: {
+              [TransactionPayStrategy.Fiat]: [
+                TransactionType.moneyAccountDeposit,
+              ],
+              [TransactionPayStrategy.Relay]: [],
+              [TransactionPayStrategy.Server]: [],
+            },
+          },
+        },
+      });
+
+      expect(
+        getResumeEnabledTypes(messenger, TransactionPayStrategy.Fiat),
+      ).toStrictEqual([TransactionType.moneyAccountDeposit]);
+    });
+
+    it('returns empty array when the strategy key is not present', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            resume: {
+              [TransactionPayStrategy.Fiat]: [
+                TransactionType.moneyAccountDeposit,
+              ],
+            },
+          },
+        },
+      });
+
+      expect(
+        getResumeEnabledTypes(messenger, TransactionPayStrategy.Relay),
+      ).toStrictEqual([]);
     });
   });
 
