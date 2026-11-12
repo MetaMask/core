@@ -2,6 +2,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import { TransactionPayStrategy } from '../constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 import { getResumeEnabledTypes } from './feature-flags.js';
 import { getPayTransactionType } from './pay-transaction-type.js';
 import { getStrategyByName } from './strategy.js';
@@ -10,17 +11,19 @@ import { getStrategyByName } from './strategy.js';
  * Returns true if the given transaction is eligible for resume by the
  * transaction-pay-controller.
  *
- * All checks are synchronous and read only from the provided arguments —
- * this is intentional so the function can be called at TransactionController
- * boot time (before Pay is constructed).
+ * All checks are synchronous and only read `RemoteFeatureFlagController:getState`
+ * from the messenger — this is intentional so the function can be called at
+ * TransactionController boot time (before Pay is constructed) with a minimal
+ * init messenger that only exposes that action.
  *
+ * @param messenger - Controller messenger. Only
+ * `RemoteFeatureFlagController:getState` is called.
  * @param transaction - The transaction to check.
- * @param remoteFeatureFlags - The current remote feature flags.
  * @returns True if the transaction should be resumed.
  */
 export function isPayTransactionResumable(
+  messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta | undefined,
-  remoteFeatureFlags: Record<string, unknown> | undefined,
 ): boolean {
   try {
     if (!transaction) {
@@ -52,7 +55,10 @@ export function isPayTransactionResumable(
       return false;
     }
 
-    const enabledTypes = getResumeEnabledTypes(remoteFeatureFlags, strategy);
+    const enabledTypes = getResumeEnabledTypes(
+      messenger,
+      strategy as TransactionPayStrategy,
+    );
 
     if (!enabledTypes.includes(payType)) {
       return false;

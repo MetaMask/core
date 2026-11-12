@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `confirmations_pay_extended.payStrategies.server.gaslessEnabled` feature flag to disable gasless quotes in `ServerStrategy`, enabled by default ([#11432](https://github.com/MetaMask/core/pull/11432))
 - `getPayTransactionType(transaction)`: derives the pay-specific type from a transaction, including from nested calls in EIP-7702 batches ([#11450](https://github.com/MetaMask/core/pull/11450))
-- `getResumeEnabledTypes(remoteFeatureFlags, strategy)`: reads the per-strategy resume flag from `confirmations_pay_extended.resume` ([#11450](https://github.com/MetaMask/core/pull/11450))
-- `isPayTransactionResumable(transaction, remoteFeatureFlags)`: pure sync gate for the TC `isResumable` hook ([#11450](https://github.com/MetaMask/core/pull/11450))
+- `getResumeEnabledTypes(messenger, strategy)`: reads the per-strategy resume flag from `confirmations_pay_extended.resume` through the messenger ([#11450](https://github.com/MetaMask/core/pull/11450))
+- `isPayTransactionResumable(messenger, transaction)`: pure sync gate for the TC `isResumable` hook, reading feature flags through the messenger ([#11450](https://github.com/MetaMask/core/pull/11450))
 - `PayStrategy.canResume?` and `PayStrategy.resume?` optional methods; `PayStrategyResumeRequest` type ([#11450](https://github.com/MetaMask/core/pull/11450))
 - `TransactionPayControllerOptions.waitForClientReady?: () => Promise<void>` option; `#resumePayTransactions()` self-scheduled from the constructor ([#11450](https://github.com/MetaMask/core/pull/11450))
 

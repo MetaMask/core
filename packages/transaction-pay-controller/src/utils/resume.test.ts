@@ -5,6 +5,8 @@ import {
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../constants.js';
 import { isPayTransactionResumable } from './resume.js';
 import { getStrategyByName } from './strategy.js';
@@ -12,7 +14,7 @@ import { getStrategyByName } from './strategy.js';
 vi.mock(import('./strategy.js'));
 
 const TRANSACTION_ID_MOCK = 'transaction-id';
-const REMOTE_FEATURE_FLAGS_MOCK = {
+const RESUME_ENABLED_FEATURE_FLAGS_MOCK = {
   confirmations_pay_extended: {
     resume: {
       [TransactionPayStrategy.Fiat]: [TransactionType.predictDeposit],
@@ -37,9 +39,15 @@ function getTransactionMock(
 
 describe('isPayTransactionResumable', () => {
   const getStrategyByNameMock = vi.mocked(getStrategyByName);
+  const { messenger, getRemoteFeatureFlagControllerStateMock } =
+    getMessengerMock();
 
   beforeEach(() => {
     vi.resetAllMocks();
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: RESUME_ENABLED_FEATURE_FLAGS_MOCK,
+    });
     getStrategyByNameMock.mockReturnValue({
       canResume: vi.fn().mockReturnValue(true),
       execute: vi.fn(),
@@ -48,28 +56,36 @@ describe('isPayTransactionResumable', () => {
   });
 
   it('returns true when the flag enables the pay type and strategy can resume', () => {
-    expect(
-      isPayTransactionResumable(
-        getTransactionMock(),
-        REMOTE_FEATURE_FLAGS_MOCK,
-      ),
-    ).toBe(true);
+    expect(isPayTransactionResumable(messenger, getTransactionMock())).toBe(
+      true,
+    );
   });
 
   it('returns false when resume flags are empty', () => {
-    expect(isPayTransactionResumable(getTransactionMock(), {})).toBe(false);
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+    });
+
+    expect(isPayTransactionResumable(messenger, getTransactionMock())).toBe(
+      false,
+    );
   });
 
   it('returns false when the strategy key is not enabled', () => {
-    expect(
-      isPayTransactionResumable(getTransactionMock(), {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
         confirmations_pay_extended: {
           resume: {
             [TransactionPayStrategy.Relay]: [TransactionType.predictDeposit],
           },
         },
-      }),
-    ).toBe(false);
+      },
+    });
+
+    expect(isPayTransactionResumable(messenger, getTransactionMock())).toBe(
+      false,
+    );
   });
 
   it('returns false when canResume is undefined', () => {
@@ -78,12 +94,9 @@ describe('isPayTransactionResumable', () => {
       getQuotes: vi.fn(),
     });
 
-    expect(
-      isPayTransactionResumable(
-        getTransactionMock(),
-        REMOTE_FEATURE_FLAGS_MOCK,
-      ),
-    ).toBe(false);
+    expect(isPayTransactionResumable(messenger, getTransactionMock())).toBe(
+      false,
+    );
   });
 
   it('returns false when canResume returns false', () => {
@@ -93,24 +106,21 @@ describe('isPayTransactionResumable', () => {
       getQuotes: vi.fn(),
     });
 
-    expect(
-      isPayTransactionResumable(
-        getTransactionMock(),
-        REMOTE_FEATURE_FLAGS_MOCK,
-      ),
-    ).toBe(false);
+    expect(isPayTransactionResumable(messenger, getTransactionMock())).toBe(
+      false,
+    );
   });
 
   it('returns false when resume was already attempted', () => {
     expect(
       isPayTransactionResumable(
+        messenger,
         getTransactionMock({
           metamaskPay: {
             resumeAttemptedAt: 123,
             strategy: TransactionPayStrategy.Fiat,
           },
         }),
-        REMOTE_FEATURE_FLAGS_MOCK,
       ),
     ).toBe(false);
   });
@@ -118,8 +128,8 @@ describe('isPayTransactionResumable', () => {
   it('returns false when metamaskPay is missing', () => {
     expect(
       isPayTransactionResumable(
+        messenger,
         getTransactionMock({ metamaskPay: undefined }),
-        REMOTE_FEATURE_FLAGS_MOCK,
       ),
     ).toBe(false);
   });
@@ -127,10 +137,10 @@ describe('isPayTransactionResumable', () => {
   it('returns false when strategy is none', () => {
     expect(
       isPayTransactionResumable(
+        messenger,
         getTransactionMock({
           metamaskPay: { strategy: TransactionPayStrategy.None },
         }),
-        REMOTE_FEATURE_FLAGS_MOCK,
       ),
     ).toBe(false);
   });
@@ -138,8 +148,8 @@ describe('isPayTransactionResumable', () => {
   it('returns false when status is submitted', () => {
     expect(
       isPayTransactionResumable(
+        messenger,
         getTransactionMock({ status: TransactionStatus.submitted }),
-        REMOTE_FEATURE_FLAGS_MOCK,
       ),
     ).toBe(false);
   });
@@ -149,17 +159,15 @@ describe('isPayTransactionResumable', () => {
       throw new Error('boom');
     });
 
-    expect(
-      isPayTransactionResumable(
-        getTransactionMock(),
-        REMOTE_FEATURE_FLAGS_MOCK,
-      ),
-    ).toBe(false);
+    expect(isPayTransactionResumable(messenger, getTransactionMock())).toBe(
+      false,
+    );
   });
 
   it('uses the first pay-specific nested type for batch transactions', () => {
     expect(
       isPayTransactionResumable(
+        messenger,
         getTransactionMock({
           nestedTransactions: [
             { type: TransactionType.tokenMethodApprove },
@@ -167,7 +175,6 @@ describe('isPayTransactionResumable', () => {
           ],
           type: TransactionType.batch,
         }),
-        REMOTE_FEATURE_FLAGS_MOCK,
       ),
     ).toBe(true);
   });

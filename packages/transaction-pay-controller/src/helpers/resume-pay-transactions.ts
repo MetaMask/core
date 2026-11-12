@@ -33,11 +33,9 @@ export async function resumePayTransactions(
   messenger: TransactionPayControllerMessenger,
   waitForClientReady?: () => Promise<void>,
 ): Promise<void> {
-  const remoteFeatureFlags = getRemoteFeatureFlags(messenger);
-
   const { transactions } = messenger.call('TransactionController:getState');
   const candidates = transactions.filter((tx) =>
-    isPayTransactionResumable(tx, remoteFeatureFlags),
+    isPayTransactionResumable(messenger, tx),
   );
 
   if (candidates.length === 0) {
@@ -126,16 +124,5 @@ export async function resumePayTransactions(
         log('Failed to fail transaction after resume error', { id, failError });
       }
     }
-  }
-}
-
-function getRemoteFeatureFlags(
-  messenger: TransactionPayControllerMessenger,
-): Record<string, unknown> | undefined {
-  try {
-    return messenger.call('RemoteFeatureFlagController:getState')
-      .remoteFeatureFlags;
-  } catch {
-    return undefined;
   }
 }
