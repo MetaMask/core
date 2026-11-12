@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "38.0.0",
+  "version": "38.0.1",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "Ethereum",
@@ -52,9 +52,9 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^4.3.0",
+    "@metamask/analytics-controller": "^4.3.1",
     "@metamask/base-controller": "^10.1.0",
-    "@metamask/config-registry-controller": "^5.0.0",
+    "@metamask/config-registry-controller": "^6.0.0",
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-block-tracker": "^16.0.0",

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "20.3.1",
+  "version": "20.4.0",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "Ethereum",
@@ -62,7 +62,7 @@
     "@metamask/assets-controllers": "^113.3.1",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/client-controller": "^2.0.0",
-    "@metamask/config-registry-controller": "^5.0.0",
+    "@metamask/config-registry-controller": "^6.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/core-backend": "^14.0.0",
     "@metamask/keyring-api": "^24.3.0",
@@ -71,8 +71,8 @@
     "@metamask/keyring-snap-client": "^10.0.1",
     "@metamask/messenger": "^3.0.0",
     "@metamask/multichain-transactions-controller": "^8.0.0",
-    "@metamask/network-controller": "^38.0.0",
-    "@metamask/network-enablement-controller": "^7.1.1",
+    "@metamask/network-controller": "^38.0.1",
+    "@metamask/network-enablement-controller": "^7.1.2",
     "@metamask/permission-controller": "^14.1.0",
     "@metamask/phishing-controller": "^18.3.0",
     "@metamask/polling-controller": "^17.0.0",
