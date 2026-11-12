@@ -48,6 +48,7 @@ export function mapLocalTransaction(
     activityStatus?: ActivityItem['status'];
     fees?: Fee[];
     getKnownTokenDecimals?: GetKnownTokenDecimals;
+    activityAccountAddress?: string;
   },
 ): ActivityItem {
   const { initialTransaction, primaryTransaction } = transactionGroup;
@@ -66,6 +67,13 @@ export function mapLocalTransaction(
     metamaskPay,
     txParams: { from = '', to = '', data: txData, value: txValue } = {},
   } = initialTransaction;
+
+  const extractTokenTransferRecipient = (data?: string): string | undefined => {
+    if (!data || data.length < 74) {
+      return undefined;
+    }
+    return `0x${data.slice(34, 74)}`;
+  };
   const {
     time: primaryTime,
     hash: primaryHash,
@@ -224,13 +232,21 @@ export function mapLocalTransaction(
 
   switch (transactionType) {
     case TransactionType.simpleSend: {
+      const isReceive =
+        transactionGroup.activityAccountAddress &&
+        to &&
+        equalsIgnoreCase(transactionGroup.activityAccountAddress, to);
+
       return {
-        type: 'send',
+        type: isReceive ? 'receive' : 'send',
         ...common,
         data: {
           from,
           to,
-          token: getNativeToken(initialTransaction, 'out'),
+          token: getNativeToken(
+            initialTransaction,
+            isReceive ? 'in' : 'out',
+          ),
         },
       };
     }
@@ -255,15 +271,21 @@ export function mapLocalTransaction(
     case TransactionType.tokenMethodSafeTransferFrom:
     case TransactionType.tokenMethodTransfer:
     case TransactionType.tokenMethodTransferFrom: {
+      const tokenRecipient = extractTokenTransferRecipient(txData);
+      const isReceive =
+        transactionGroup.activityAccountAddress &&
+        tokenRecipient &&
+        equalsIgnoreCase(transactionGroup.activityAccountAddress, tokenRecipient);
+
       return {
-        type: 'send',
+        type: isReceive ? 'receive' : 'send',
         ...common,
         data: {
           from,
           to,
           token: getContractTokenFromTransaction({
             transaction: initialTransaction,
-            direction: 'out',
+            direction: isReceive ? 'in' : 'out',
             contractAddress: tokenContractAddress,
           }),
         },

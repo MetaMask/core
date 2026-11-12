@@ -1348,4 +1348,82 @@ describe('mapLocalTransaction', () => {
       symbol: 'ETH',
     });
   });
+
+  it('maps a simpleSend to receive when activityAccountAddress equals the recipient', () => {
+    const item = mapLocal({
+      ...localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo,
+      activityAccountAddress: to,
+    });
+
+    expect(item).toMatchObject({
+      type: 'receive',
+      status: 'pending',
+      data: {
+        from,
+        to,
+        token: {
+          amount: '0x1',
+          decimals: 18,
+          direction: 'in',
+          assetType: 'native',
+        },
+      },
+    });
+  });
+
+  it('maps a token transfer to receive when activityAccountAddress equals the decoded recipient', () => {
+    const recipient = '0x50a9d56c2b8ba9a5c7f2c08c3d26e0499f23a706';
+    const item = mapLocal({
+      ...localTransactionFixtures.mapInputs
+        .mapsAUsdcTransferWithTransferinformation,
+      activityAccountAddress: recipient,
+    });
+
+    expect(item).toMatchObject({
+      type: 'receive',
+      status: 'pending',
+      data: {
+        token: {
+          amount: '20000',
+          decimals: 6,
+          direction: 'in',
+          symbol: 'USDC',
+        },
+      },
+    });
+  });
+
+  it('maps a token transfer with malformed calldata to send when activityAccountAddress is set', () => {
+    const base =
+      localTransactionFixtures.mapInputs
+        .mapsAUsdcTransferWithTransferinformation;
+    const item = mapLocal({
+      ...base,
+      activityAccountAddress: '0x50a9d56c2b8ba9a5c7f2c08c3d26e0499f23a706',
+      initialTransaction: {
+        ...base.initialTransaction,
+        txParams: {
+          ...base.initialTransaction.txParams,
+          data: '0xa9059cbb',
+        },
+      },
+      primaryTransaction: {
+        ...base.primaryTransaction,
+        txParams: {
+          ...base.primaryTransaction.txParams,
+          data: '0xa9059cbb',
+        },
+      },
+    });
+
+    expect(item).toMatchObject({
+      type: 'send',
+      status: 'pending',
+      data: {
+        token: {
+          direction: 'out',
+        },
+      },
+    });
+  });
 });

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `mapLocalTransaction` to correctly identify transfers to the activity account as receives rather than sends when `activityAccountAddress` parameter matches the recipient ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+
 ## [3.3.0]
 
 ### Changed
