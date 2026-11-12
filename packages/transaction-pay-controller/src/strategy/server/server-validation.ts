@@ -11,7 +11,7 @@ import {
   isServerValidationEnabled,
 } from '../../utils/feature-flags.js';
 import { GasPaymentMode } from '../../utils/gas-payment.js';
-import { isMpcMoneyAccountPayer } from '../../utils/keyring.js';
+import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   buildPolymarketDepositWalletSimulation,
   isPredictWithdraw,
