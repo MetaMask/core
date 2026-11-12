@@ -259,6 +259,11 @@ export type GetIdentifiersResponse = {
   version: number;
 };
 
+export type GetMutationReceiptResponse = {
+  receipt: MutationReceipt | null;
+  version: number;
+};
+
 /**
  * Enrolled identifiers and `epoch`, plus Auth's current identifiers to build
  * an `updateIdentifiers` set from.
@@ -332,13 +337,14 @@ export type RecoveryEscrowProvider = {
     authControllerToken: AuthControllerToken,
   ) => Promise<GetIdentifiersResponse>;
   /**
-   * Returns the receipt the escrow stored when its record reached `version`,
-   * or `null` when there is none. Escrows keep only recent receipts.
+   * Returns the receipt the escrow stored for `mutation` at its `newVersion`,
+   * or `null` when there is none, with the record's current `version`.
+   * Escrows keep only recent receipts.
    */
   getMutationReceipt: (
     authControllerToken: AuthControllerToken,
-    version: number,
-  ) => Promise<MutationReceipt | null>;
+    mutation: Mutation,
+  ) => Promise<GetMutationReceiptResponse>;
   getSecret: (
     authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,

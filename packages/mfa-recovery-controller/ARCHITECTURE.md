@@ -162,7 +162,7 @@ sequenceDiagram
   M->>E: getIdentifiers (remaining escrows, live token or read-only approval)
   M->>M: approval for another profile → invalid_pending_operation
   opt some escrow off expectedVersion
-    M->>E: getMutationReceipt(newVersion) on those escrows
+    M->>E: getMutationReceipt(mutation) on those escrows
     M->>M: any receipt missing or not ours → clear, mutation_superseded
     M->>M: persist the receipts, then reread the rest
   end

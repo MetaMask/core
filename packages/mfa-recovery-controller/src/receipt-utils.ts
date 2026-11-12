@@ -69,10 +69,7 @@ export async function getAppliedMutationReceipts(
 ): Promise<MutationReceipt[] | null> {
   const receipts = await Promise.all(
     escrows.map(async (escrow) => {
-      const receipt = await escrow.getMutationReceipt(
-        token,
-        mutation.newVersion,
-      );
+      const { receipt } = await escrow.getMutationReceipt(token, mutation);
       return (await verifyMutationReceipt(receipt, mutation, escrow))
         ? receipt
         : null;

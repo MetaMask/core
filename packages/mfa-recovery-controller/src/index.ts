@@ -50,6 +50,7 @@ export type {
   AuthControllerToken,
   EncryptedPendingOperation,
   GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,

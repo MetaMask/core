@@ -403,29 +403,45 @@ describe('CubistEscrowProvider', () => {
   describe('getMutationReceipt', () => {
     it('invokes getMutationReceipt and returns the receipt', async () => {
       const receipt = await signedReceipt();
-      const { provider, invoke } = createProvider({ stdout: receipt });
-      expect(await provider.getMutationReceipt(TOKEN, 1)).toStrictEqual(
+      const { provider, invoke } = createProvider({
+        stdout: { receipt, version: MUTATION.newVersion },
+      });
+      expect(await provider.getMutationReceipt(TOKEN, MUTATION)).toStrictEqual({
         receipt,
-      );
+        version: MUTATION.newVersion,
+      });
       expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
         request: {
           cmd: 'getMutationReceipt',
           authControllerToken: TOKEN,
-          version: 1,
+          version: MUTATION.newVersion,
+          mutationId: MUTATION.id,
+          requestHash: MUTATION.requestHash,
         },
       });
     });
 
-    it('returns null when the escrow has no receipt at that version', async () => {
-      const { provider } = createProvider({ stdout: null });
-      expect(await provider.getMutationReceipt(TOKEN, 1)).toBeNull();
+    it('returns a null receipt when the escrow has none for the mutation', async () => {
+      const { provider } = createProvider({
+        stdout: { receipt: null, version: 0 },
+      });
+      expect(await provider.getMutationReceipt(TOKEN, MUTATION)).toStrictEqual({
+        receipt: null,
+        version: 0,
+      });
     });
 
-    it('rejects a response that is not a receipt', async () => {
-      const { provider } = createProvider({ stdout: { nope: true } });
-      await expect(provider.getMutationReceipt(TOKEN, 1)).rejects.toMatchObject(
-        { code: 'escrow_response_invalid' },
-      );
+    it.each([
+      ['a bare null', null],
+      ['a missing receipt', { version: 0 }],
+      ['a missing version', { receipt: null }],
+      ['a negative version', { receipt: null, version: -1 }],
+      ['a receipt that is not one', { receipt: { nope: true }, version: 0 }],
+    ])('rejects a response with %s', async (_label, body) => {
+      const { provider } = createProvider({ stdout: body });
+      await expect(
+        provider.getMutationReceipt(TOKEN, MUTATION),
+      ).rejects.toMatchObject({ code: 'escrow_response_invalid' });
     });
   });
 

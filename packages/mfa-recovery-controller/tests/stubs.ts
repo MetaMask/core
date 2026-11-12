@@ -27,6 +27,7 @@ import {
 import type {
   AuthControllerToken,
   GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   Identifier,
   IdentifierAuthorization,
   KeyBoundIdentifierToken,
@@ -260,19 +261,19 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   async getMutationReceipt(
     authControllerToken: AuthControllerToken,
-    version: number,
-  ): Promise<MutationReceipt | null> {
+    mutation: Mutation,
+  ): Promise<GetMutationReceiptResponse> {
     const record = this.#records.get(
       this.#verifyProfileToken(authControllerToken),
     );
-    const applied = Object.entries(record?.appliedMutations ?? {}).find(
-      ([, mutation]) => mutation.version === version,
-    );
-    if (applied === undefined) {
-      return null;
-    }
-    const [id, { requestHash }] = applied;
-    return await this.#signReceipt({ id, requestHash, newVersion: version });
+    const applied = record?.appliedMutations[mutation.id];
+    const isOurs =
+      applied?.version === mutation.newVersion &&
+      applied.requestHash === mutation.requestHash;
+    return {
+      receipt: isOurs ? await this.#signReceipt(mutation) : null,
+      version: record?.version ?? 0,
+    };
   }
 
   #verifyProfileToken(authControllerToken: AuthControllerToken): string {
