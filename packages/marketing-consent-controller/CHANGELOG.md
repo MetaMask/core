@@ -7,11 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `controllerName` and the `MarketingConsentControllerOptions` and `MarketingConsentControllerMethodActions` types
+
 ### Changed
 
+- **BREAKING:** `MarketingConsentController` no longer extends `BaseController` and holds no state
+  - The local change waiting to be saved to Authenticated User Storage is now the `marketingConsentSyncPending` state of `AnalyticsController`, which requires a version of `@metamask/analytics-controller` that includes it.
+  - Remove the `state` constructor option, and drop persisted `MarketingConsentController` state. Clients should migrate a non-null `pendingMarketingConsent` to `AnalyticsController.marketingConsentSyncPending: true`.
+  - The messenger must now allow the `AnalyticsController:applyRemoteMarketingConsent` and `AnalyticsController:clearPendingMarketingConsent` actions.
+- Apply consent read from Authenticated User Storage with `AnalyticsController:applyRemoteMarketingConsent`, and only start a sync when the pending consent in `AnalyticsController` changes, instead of on every `AnalyticsController` state change
 - Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.3.1` ([#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Removed
+
+- **BREAKING:** Remove the `MarketingConsentController:getState` action and the `MarketingConsentController:stateChanged` event
+  - Remove the `MarketingConsentControllerState`, `MarketingConsentControllerGetStateAction`, `MarketingConsentControllerStateChangedEvent` and `MarketingConsentControllerEvents` types, and the `getDefaultMarketingConsentControllerState` function.
 
 ## [1.1.0]
 
