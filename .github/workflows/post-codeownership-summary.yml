@@ -10,8 +10,9 @@
 # Only one such comment is kept on a pull request: it is updated whenever the
 # branch is updated, and removed if no changed files have codeowners.
 #
-# You can run `yarn create-codeownership-summary` to see the content of the
-# comment locally.
+# You can run `yarn create-codeownership-summary --ci` to see the content of
+# the comment locally. (`--ci` truncates the summary if it would be too long
+# to post on GitHub; leave it off to see the full output.)
 
 name: Post codeownership summary
 
@@ -84,7 +85,7 @@ jobs:
         # Write the output to a file, not GITHUB_OUTPUT, to ensure that GitHub
         # doesn't get confused when it attempts to parse the multiline output string.
         run: |
-          if yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
+          if yarn create-codeownership-summary --ci --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
             exit 0
           else
             exitcode=$?

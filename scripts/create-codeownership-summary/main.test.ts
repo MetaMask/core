@@ -189,6 +189,71 @@ describe('main', () => {
     });
   });
 
+  it('does not shorten file lists by default (i.e. --ci is not provided)', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initializeRepository(directoryPath);
+      await commitFiles(directoryPath, {
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
+      await createBranch(directoryPath, 'feature');
+      await commitFiles(
+        directoryPath,
+        Object.fromEntries(
+          Array.from({ length: 800 }, (_value, index) => [
+            `packages/accounts-controller/src/${'long-file-name-'.repeat(5)}${index}.ts`,
+            'export {};\n',
+          ]),
+        ),
+      );
+      const { stdout, stderr, output } = createStreams();
+
+      await main({
+        argv: ['node', 'create-codeownership-summary.ts'],
+        stdout,
+        stderr,
+        cwd: directoryPath,
+      });
+
+      expect(output.stdout.match(/^- `/gmu)).toHaveLength(800);
+    });
+  });
+
+  it('shortens file lists so the summary fits in a GitHub comment with --ci', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initializeRepository(directoryPath);
+      await commitFiles(directoryPath, {
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
+      await createBranch(directoryPath, 'feature');
+      await commitFiles(
+        directoryPath,
+        Object.fromEntries(
+          Array.from({ length: 800 }, (_value, index) => [
+            `packages/accounts-controller/src/${'long-file-name-'.repeat(5)}${index}.ts`,
+            'export {};\n',
+          ]),
+        ),
+      );
+      const { stdout, stderr, output } = createStreams();
+
+      await main({
+        argv: ['node', 'create-codeownership-summary.ts', '--ci'],
+        stdout,
+        stderr,
+        cwd: directoryPath,
+      });
+
+      expect(output.stdout.length).toBeLessThanOrEqual(60_000);
+      expect(output.stdout).toContain('more files</em></abbr>');
+    });
+  });
+
   it('prints nothing to stdout and explains on stderr when no changed files have codeowners', async () => {
     expect.assertions(2);
 

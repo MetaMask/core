@@ -3,8 +3,9 @@ import yargs from 'yargs';
 import { generateCodeownershipSummary } from './generate-summary.ts';
 
 /**
- * The most characters the summary may have, leaving room below GitHub's comment
- * size limit (65,536 characters) for the workflow's comment marker.
+ * The most characters the summary may have with `--ci`, leaving room below
+ * GitHub's comment size limit (65,536 characters) for the workflow's comment
+ * marker.
  */
 const MAX_SUMMARY_LENGTH_FOR_COMMENT = 60_000;
 
@@ -52,10 +53,20 @@ export async function main({
       default: 'HEAD',
       description: 'The branch being merged. Uncommitted changes are ignored.',
     })
+    .option('ci', {
+      type: 'boolean',
+      default: false,
+      description:
+        'Shorten the file lists if needed so that the summary fits in a GitHub comment, as the workflow does.',
+    })
     .example('$0', 'Report the changes on the current branch')
     .example(
       '$0 --base-ref origin/main --head-ref my-branch',
       'Report the changes on my-branch compared with the remote main branch',
+    )
+    .example(
+      '$0 --ci',
+      'Report the changes exactly as the workflow would post them',
     )
     .strict()
     .help('help')
@@ -83,7 +94,7 @@ export async function main({
     repositoryDirectoryPath: cwd,
     baseRef: options.baseRef,
     headRef: options.headRef,
-    maxLength: MAX_SUMMARY_LENGTH_FOR_COMMENT,
+    maxLength: options.ci ? MAX_SUMMARY_LENGTH_FOR_COMMENT : undefined,
   });
   if (summary) {
     stdout.write(summary);
