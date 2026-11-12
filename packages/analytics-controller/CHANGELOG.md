@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0`
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0` ([#11447 (https://github.com/MetaMask/core/pull/11447))
 
 ## [4.3.0]
 
