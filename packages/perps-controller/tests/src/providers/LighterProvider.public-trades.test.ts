@@ -249,6 +249,44 @@ describe('LighterProvider public trades', () => {
       await provider.disconnect();
     });
 
+    it('delivers only new trades to a subscriber that returns to a market while the stream stays open', async () => {
+      const { provider } = buildTradesProvider();
+      const btcSubscribe = JSON.stringify({
+        type: 'subscribe',
+        channel: 'trade/1',
+      });
+      const left = vi.fn();
+      const returning = vi.fn();
+
+      // ETH keeps the shared socket open across the BTC round trip.
+      provider.subscribeToPublicTrades({ symbol: 'ETH', callback: vi.fn() });
+      const leaveBtc = provider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback: left,
+      });
+      const socket = await openSocket();
+      await vi.waitFor(() => expect(socket.sent).toContain(btcSubscribe));
+      leaveBtc();
+      provider.subscribeToPublicTrades({ symbol: 'BTC', callback: returning });
+      await vi.advanceTimersByTimeAsync(0);
+      receive(socket, {
+        type: 'update/trade',
+        channel: 'trade:1',
+        trades: [wireTrade(9, 9000)],
+      });
+
+      // The channel is still subscribed, so no new subscribe frame and no
+      // venue snapshot: the returning subscriber seeds via getPublicTrades.
+      expect(
+        socket.sent.filter((frame) => frame === btcSubscribe),
+      ).toHaveLength(1);
+      expect(left).not.toHaveBeenCalled();
+      expect(returning.mock.calls).toStrictEqual([
+        [[expectedTrade(9, 9000, 'buy')]],
+      ]);
+      await provider.disconnect();
+    });
+
     it('drops malformed trades and batches with nothing left', async () => {
       const { provider } = buildTradesProvider();
       const callback = vi.fn();

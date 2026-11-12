@@ -1997,10 +1997,11 @@ export type SubscribePublicTradesParams = {
   /** Explicit provider route; defaults to the active/default provider. */
   providerId?: PerpsProviderType;
   /**
-   * Receives each batch of trades the venue pushes, newest first. The first
-   * batch is the venue's recent trades (Hyperliquid 30, Lighter 50), so a
-   * client can seed its list from the stream and dedupe later batches on
-   * `id`.
+   * Receives each batch of new trades the venue pushes, newest first. Only a
+   * subscription that opens the venue channel may first receive the venue's
+   * recent trades; a second or returning subscriber on the same market
+   * receives only new trades. Seed the list with `getPublicTrades` and
+   * dedupe batches on `id`.
    */
   callback: (trades: PublicTrade[]) => void;
   /** Receives a failure to open the stream. */

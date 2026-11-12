@@ -855,8 +855,10 @@ export class HyperLiquidClientService {
   }
 
   /**
-   * Subscribe to a coin's public trades over WebSocket. The venue first
-   * sends its recent trades, then each new batch.
+   * Subscribe to a coin's public trades over WebSocket. A new venue
+   * subscription first sends its recent trades, then each new batch; the SDK
+   * shares one subscription per coin, so a later listener gets only new
+   * batches.
    *
    * @param params - The subscription parameters.
    * @param params.symbol - The coin (e.g. "BTC").
