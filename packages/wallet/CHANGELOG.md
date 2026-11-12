@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `MarketStatsService` to the default initialization configurations ([#11193](https://github.com/MetaMask/core/pull/11193))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.4.0` to `^74.4.1` ([#11761](https://github.com/MetaMask/core/pull/11761))
@@ -20,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add `@metamask/core-backend` at `^14.1.0` ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@metamask/transaction-controller` from `^74.3.0` to `^74.4.0` ([#11732](https://github.com/MetaMask/core/pull/11732))
 
 ## [21.0.5]

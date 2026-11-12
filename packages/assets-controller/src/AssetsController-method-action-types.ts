@@ -43,8 +43,8 @@ export type AssetsControllerGetAssetMetadataAction = {
  * `fiatValue`) for an account directly from controller state.
  *
  * Reuses the same state-composition and filtering logic as `getAssets`
- * (balance and metadata are required, a missing price falls back to
- * `{ price: 0, lastUpdated: 0 }` with `fiatValue: 0`, and hidden or
+ * (balance and metadata are required, a missing price falls back to a
+ * fungible price of `0` with `fiatValue: 0`, and hidden or
  * otherwise filtered assets are excluded) so the returned shape never
  * drifts from `getAssets`. Reads from current state only and does not
  * trigger a data-source refresh.

@@ -35,7 +35,6 @@ export type {
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
   AssetsControllerBalanceChangedEvent,
-  AssetsControllerPriceChangedEvent,
   AssetsControllerEvents,
 } from './AssetsController.js';
 export type {
@@ -162,11 +161,35 @@ export type {
   TokenDataSourceOptions,
   PriceDataSourceConfig,
   PriceDataSourceOptions,
+  MarketStatsPriceStreamMessenger,
 } from './data-sources/index.js';
 
 // Middlewares
 export { RpcFallbackMiddleware } from './middlewares/index.js';
 export type { RpcFallbackMiddlewareOptions } from './middlewares/index.js';
+
+// Market-stats quote helpers live in core-backend. Re-exported so existing imports keep working.
+export {
+  applyLiveTokenFiat,
+  applyMarketStatsPrices,
+  liveFiatDelta,
+  liveGroupFiatAdjustments,
+  liveHoldingFiat,
+  marketStatsAssetKey,
+  marketStatsQueryKey,
+  quotesFor,
+  readLiveQuotes,
+  shareMarketStatsData,
+  subscribeLiveQuotes,
+} from '@metamask/core-backend';
+export type {
+  LivePriceMap,
+  LiveQuote,
+  MarketStatsQuoteHandlers,
+  MarketStatsQuotesQueryKey,
+  SubscribeToMarketStats,
+  UnsubscribeMarketStats,
+} from '@metamask/core-backend';
 
 // Utilities
 export {
