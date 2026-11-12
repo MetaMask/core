@@ -302,10 +302,6 @@ export type RecoveryEscrowProvider = {
    * using the corresponding wrap private key.
    */
   readonly wrapPublicKey: Uint8Array;
-  /**
-   * Resolves `false` when this replica is down. Thrown errors, including a
-   * missing or expired session, propagate to the caller.
-   */
   isAvailable: () => Promise<boolean>;
   generateChallenge: (
     authControllerToken: AuthControllerToken,

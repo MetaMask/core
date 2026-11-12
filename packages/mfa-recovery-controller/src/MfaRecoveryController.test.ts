@@ -615,19 +615,6 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('propagates an availability error instead of skipping the escrow', async () => {
-      await withController(async ({ controller, escrowA }) => {
-        await controller.register(SECRET, IDENTIFIERS);
-        const error = new MfaRecoveryError(
-          'Feature disabled',
-          'feature_disabled',
-        );
-        vi.spyOn(escrowA, 'isAvailable').mockRejectedValue(error);
-
-        await expect(recover(controller, PASSKEY)).rejects.toBe(error);
-      });
-    });
-
     it('continues reading when key-bound authorization fails for one escrow', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
@@ -739,22 +726,6 @@ describe('MfaRecoveryController', () => {
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toThrow('All configured escrows are required for mutation');
         expect(auth).not.toHaveBeenCalled();
-        expect(await controller.getPhase()).toBe('idle');
-      });
-    });
-
-    it('propagates an availability error instead of reporting the escrow unavailable', async () => {
-      await withController(async ({ controller, escrowB }) => {
-        await controller.register(SECRET, IDENTIFIERS);
-        const error = new MfaRecoveryError(
-          'Registration failed',
-          'registration_request_failed',
-        );
-        vi.spyOn(escrowB, 'isAvailable').mockRejectedValue(error);
-
-        await expect(
-          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
-        ).rejects.toBe(error);
         expect(await controller.getPhase()).toBe('idle');
       });
     });
@@ -2453,23 +2424,6 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('rejects a mutation whose identifier verifier is not JSON before persisting it', async () => {
-      await withController(async ({ controller, authProvider, escrowA }) => {
-        const identifier = {
-          ...PASSKEY,
-          verifier: { publicKey: new Uint8Array([1]) },
-        };
-        authProvider.identifiers = [identifier, SOCIAL];
-        const apply = vi.spyOn(escrowA, 'applyMutation');
-
-        await expect(
-          controller.register(SECRET, [identifier, SOCIAL]),
-        ).rejects.toMatchObject({ code: 'invalid_identifier' });
-        expect(apply).not.toHaveBeenCalled();
-        expect(controller.state.pendingOperation).toBeNull();
-      });
-    });
-
     it('rejects a mutation whose identifier verifier is a function', async () => {
       await withController(async ({ controller, authProvider, escrowA }) => {
         const identifier = {
@@ -2486,19 +2440,35 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('accepts identifier verifiers with undefined properties and null prototypes', async () => {
-      await withController(async ({ controller, authProvider }) => {
+    it('rejects a mutation whose identifier verifier has an undefined property', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
         const identifier = {
           ...PASSKEY,
-          verifier: Object.assign(Object.create(null) as object, {
-            publicKey: 'mock-passkey',
-            unused: undefined,
-          }),
+          verifier: { publicKey: 'mock-passkey', unused: undefined },
         };
         authProvider.identifiers = [identifier, SOCIAL];
+        const apply = vi.spyOn(escrowA, 'applyMutation');
 
-        await controller.register(SECRET, [identifier, SOCIAL]);
-        expect(controller.state.pendingOperation).toBeNull();
+        await expect(
+          controller.register(SECRET, [identifier, SOCIAL]),
+        ).rejects.toMatchObject({ code: 'invalid_identifier' });
+        expect(apply).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects a mutation whose identifier verifier has a non-finite number in an array', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        const identifier = {
+          ...PASSKEY,
+          verifier: { values: ['mock-passkey', Number.NaN] },
+        };
+        authProvider.identifiers = [identifier, SOCIAL];
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, [identifier, SOCIAL]),
+        ).rejects.toMatchObject({ code: 'invalid_identifier' });
+        expect(apply).not.toHaveBeenCalled();
       });
     });
 

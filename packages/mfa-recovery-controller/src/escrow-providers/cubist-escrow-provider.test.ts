@@ -143,48 +143,6 @@ describe('CubistEscrowProvider', () => {
       const { provider } = createProvider({ stdout: { ok: false } });
       expect(await provider.isAvailable()).toBe(false);
     });
-
-    it('rethrows an expired session from policyInvoke', async () => {
-      const { provider } = createProvider({
-        invoke: async () => {
-          throw new SessionExpiredError('invokePolicy');
-        },
-      });
-      await expect(provider.isAvailable()).rejects.toMatchObject({
-        code: 'session_expired',
-        message: 'Session has expired',
-      });
-    });
-
-    it('rethrows a failed session refresh from policyInvoke', async () => {
-      const { provider } = createProvider({
-        invoke: async () => {
-          throw new ErrResponse({
-            message: 'refresh failed',
-            status: 403,
-            operation: 'signerSessionRefresh',
-          });
-        },
-      });
-      await expect(provider.isAvailable()).rejects.toMatchObject({
-        code: 'session_expired',
-        message: 'refresh failed',
-      });
-    });
-
-    it('rethrows errors from getClient', async () => {
-      const error = new MfaRecoveryError(
-        'Feature disabled',
-        'feature_disabled',
-      );
-      const { provider, invoke } = createProvider({
-        getClient: async () => {
-          throw error;
-        },
-      });
-      await expect(provider.isAvailable()).rejects.toBe(error);
-      expect(invoke).not.toHaveBeenCalled();
-    });
   });
 
   describe('getClient', () => {

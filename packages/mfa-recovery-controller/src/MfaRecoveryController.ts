@@ -15,6 +15,7 @@ import {
   getSafeJson,
   hexToBytes,
   isHexAddress,
+  isValidJson,
 } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
@@ -1000,20 +1001,31 @@ export class MfaRecoveryController<
   async #getAvailableEscrows(
     escrows: RecoveryEscrowProvider[] = this.#escrows,
   ): Promise<RecoveryEscrowProvider[]> {
-    const flags = await Promise.all(
+    const flags = await Promise.allSettled(
       escrows.map(async (escrow) => ({
         escrow,
         available: await escrow.isAvailable(),
       })),
     );
-    return flags.flatMap(({ escrow, available }) =>
-      available ? [escrow] : [],
+    return flags.flatMap((result) =>
+      isFulfilledResult(result) && result.value.available
+        ? [result.value.escrow]
+        : [],
     );
   }
 
   #assertValidIdentifiers(identifiers: Identifier[]): void {
     for (const identifier of identifiers) {
       getIdentifierAuthMode(identifier.type);
+      if (
+        identifier.verifier !== undefined &&
+        !isValidJson(identifier.verifier)
+      ) {
+        throw new MfaRecoveryError(
+          'Identifier verifier must be JSON',
+          'invalid_identifier',
+        );
+      }
       if (
         identifier.type === 'siwe' &&
         (!isHexAddress(identifier.value.toLowerCase()) ||
@@ -1114,7 +1126,7 @@ export class MfaRecoveryController<
   // Unvalidated; callers assert the result with #assertPending.
   async #decryptPending(ciphertext: string): Promise<unknown> {
     const key = await this.#getEncryptionKey();
-    const encrypted: EncryptionResult = JSON.parse(ciphertext);
+    const encrypted = JSON.parse(ciphertext) as EncryptionResult;
     return await this.#encryptor.decryptWithKey(key, encrypted);
   }
 
@@ -1161,7 +1173,6 @@ export class MfaRecoveryController<
     return await run;
   }
 }
-
 /**
  * Every remaining escrow refused the mutation, and none has a receipt.
  *

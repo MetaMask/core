@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Requires a `lockProvider` and adds `acquireLock` and `releaseLock`; the lease is acquired, or extended if already held, before every approval, and its ID is persisted in `lockId` ([#10910](https://github.com/MetaMask/core/pull/10910))
   - Exports `RecoveryRegistrationLockProvider`, `RecoveryRegistrationLockProviderOptions`, `RecoveryRegistrationLockProviderMessenger` and `RecoveryLockProvider` for holding the lease in the recovery registration service ([#10910](https://github.com/MetaMask/core/pull/10910))
   - Exports `MfaRecoveryController`, `getDefaultMfaRecoveryControllerState`, and the controller's action, event, messenger, state, and options types.
-  - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner. `CubistEscrowProviderOptions` takes a `getClient` callback instead of a CubeSigner client so callers can create and refresh the session lazily. `isAvailable` rethrows `getClient` errors and expired sessions, and commands reject with an `MfaRecoveryError` with code `session_expired` when the CubeSigner session has expired or cannot be refreshed ([#11280](https://github.com/MetaMask/core/pull/11280))
+  - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner. `CubistEscrowProviderOptions` takes a `getClient` callback instead of a CubeSigner client so callers can create and refresh the session lazily. Commands reject with an `MfaRecoveryError` with code `session_expired` when the CubeSigner session has expired or cannot be refreshed ([#11280](https://github.com/MetaMask/core/pull/11280))
   - Exports `MfaRecoveryError`, `IncompleteMutationError`, and `MutationRejectedError`.
   - Exports `MIN_IDENTIFIERS`, `IDENTIFIER_AUTH_MODES`, and `getIdentifierAuthMode` for identifier authentication.
   - Exports types for the recovery providers (`RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider`) and `PendingOperationEncryptor`, the subset of KeyringController's `Encryptor` used for pending state, along with the related identifier, mutation, and recovery phase types, including `GetIdentifiersResponse` and `RecoveryIdentifiers` ([#11149](https://github.com/MetaMask/core/pull/11149))
@@ -31,9 +31,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
-
-### Fixed
-
-- Propagate errors thrown by `RecoveryEscrowProvider.isAvailable`, such as `feature_disabled` or a failed registration, instead of treating them as an unavailable escrow ([#11280](https://github.com/MetaMask/core/pull/11280))
 
 [Unreleased]: https://github.com/MetaMask/core/

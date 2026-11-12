@@ -264,8 +264,8 @@ profile. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
 `applyMutation` becomes `MutationRejectedError`; an expired or revoked
 CubeSigner session is `session_expired`; any other failure is
 `escrow_request_failed` / `escrow_response_invalid`. `isAvailable` resolves
-`false` for a failed `ping`, but rethrows `getClient` errors and
-`session_expired`. `verifyReceipt` checks
+`false` for any failure, including `getClient` errors and `session_expired`.
+`verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,
 `receiptKeyId` (SHA-256 of the pinned receipt key), and the Ed25519 signature
 locally.
@@ -274,9 +274,7 @@ For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE
 
 ## Read sequence (`getRecoverySecret`)
 
-Reads tolerate down replicas (`isAvailable` resolves `false`). An `isAvailable`
-rejection propagates; it is not treated as a down replica. Reads do **not**
-repair pending writes. The selected replica version is returned as `epoch` so
+Reads tolerate down replicas. Reads do **not** repair pending writes. The selected replica version is returned as `epoch` so
 a later `updateRecoverySecret` / `updateIdentifiers` can be formed without a
 locally stored version.
 

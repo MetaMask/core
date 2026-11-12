@@ -26,11 +26,7 @@ import {
   receiptKeyId,
   verifySignature,
 } from '../crypto.js';
-import {
-  MfaRecoveryError,
-  MutationRejectedError,
-  isMfaRecoveryError,
-} from '../errors.js';
+import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
@@ -61,7 +57,7 @@ export type CubistEscrowProviderOptions = {
   /**
    * Returns the authenticated CubeSigner client used to invoke the escrow C2F.
    * Called for every command, so the caller owns session caching and refresh.
-   * Its errors are propagated unchanged.
+   * Commands propagate its errors unchanged; `isAvailable` resolves `false`.
    */
   getClient: () => Promise<CubeSignerClient>;
   /**
@@ -115,20 +111,13 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
-   * Errors from `getClient` and expired sessions are rethrown so a missing or
-   * expired session is not reported as an unavailable escrow.
-   *
    * @returns Whether a ping of the escrow C2F is allowed and reports ok.
    */
   async isAvailable(): Promise<boolean> {
-    const client = await this.#getClient();
     try {
-      await this.#invokeWith(client, 'ping', {}, parsePing);
+      await this.#invoke('ping', {}, parsePing);
       return true;
-    } catch (error) {
-      if (isMfaRecoveryError(error, 'session_expired')) {
-        throw error;
-      }
+    } catch {
       return false;
     }
   }
@@ -258,22 +247,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     parse: (value: unknown) => Result,
     denyIsRejection = false,
   ): Promise<Result> {
-    return await this.#invokeWith(
-      await this.#getClient(),
-      cmd,
-      body,
-      parse,
-      denyIsRejection,
-    );
-  }
-
-  async #invokeWith<Result>(
-    client: CubeSignerClient,
-    cmd: string,
-    body: Record<string, unknown>,
-    parse: (value: unknown) => Result,
-    denyIsRejection = false,
-  ): Promise<Result> {
+    const client = await this.#getClient();
     let invocation: InvokePolicyResponse;
     try {
       invocation = await client.apiClient.policyInvoke(
