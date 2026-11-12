@@ -260,4 +260,78 @@ describe('HyperLiquidProvider - Chase re-pricing edge cases', () => {
       }),
     ]);
   });
+  it('ends failed when an unfilled chase drops under the venue minimum', async () => {
+    const order = vi.fn().mockResolvedValue(restedAs(55));
+    const l2Book = vi
+      .fn()
+      .mockResolvedValueOnce(ethBook([{ px: '2999', sz: '10' }]))
+      // The bid falls, so the full 0.0034 ETH is worth $9.996 at the new touch.
+      .mockResolvedValue(ethBook([{ px: '2940', sz: '10' }]));
+    const { exchangeClient, infoClient } = useStrategyClients({
+      exchange: { order },
+      info: { l2Book },
+    });
+
+    const placed = await provider.placeOrder({
+      ...baseOrder,
+      size: '0.0034',
+      usdAmount: '10.2',
+      orderType: 'chase',
+      chaseIntervalMs: 1000,
+    });
+    infoClient.orderStatus
+      .mockResolvedValueOnce(childStatus('open', '0.0034'))
+      .mockResolvedValue(childStatus('canceled', '0.0034'));
+
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+    expect(order).toHaveBeenCalledTimes(1);
+    expect(await provider.getChaseOrders()).toStrictEqual([
+      expect.objectContaining({
+        handle: placed.orderId,
+        restingOrderId: null,
+        originalSize: '0.0034',
+        remainingSize: '0.0034',
+        status: CHASE_ORDER_STATUS.Failed,
+      }),
+    ]);
+  });
+
+  it('ends failed once the venue keeps refusing the replacement', async () => {
+    const order = vi
+      .fn()
+      .mockResolvedValueOnce(restedAs(55))
+      .mockRejectedValue(
+        new Error('Post only order would have immediately matched'),
+      );
+    const l2Book = vi
+      .fn()
+      .mockResolvedValueOnce(ethBook([{ px: '2999', sz: '10' }]))
+      .mockResolvedValue(ethBook([{ px: '2998', sz: '10' }]));
+    useStrategyClients({ exchange: { order }, info: { l2Book } });
+
+    const placed = await provider.placeOrder({
+      ...baseOrder,
+      orderType: 'chase',
+      chaseIntervalMs: 1000,
+    });
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(order).toHaveBeenCalledTimes(3);
+    expect(await provider.getChaseOrders()).toStrictEqual([
+      expect.objectContaining({ status: CHASE_ORDER_STATUS.Active }),
+    ]);
+
+    // The third refusal in a row ends the chase; nothing more is submitted.
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(order).toHaveBeenCalledTimes(4);
+    expect(await provider.getChaseOrders()).toStrictEqual([
+      expect.objectContaining({
+        handle: placed.orderId,
+        restingOrderId: null,
+        status: CHASE_ORDER_STATUS.Failed,
+      }),
+    ]);
+  });
 });

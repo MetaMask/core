@@ -1239,6 +1239,8 @@ type ChaseSession = {
   deadline: number;
   maxRepricings: number;
   repricings: number;
+  /** Replacements the venue refused in a row since one last rested. */
+  replacementRefusals: number;
   /** Cleared when the session stops; null while no tick is pending. */
   timer: ReturnType<typeof setTimeout> | null;
   /** False once the chase has stopped re-pricing, whatever the reason. */
@@ -8317,6 +8319,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           : Date.now() + params.chaseMaxDurationMs,
       maxRepricings: params.chaseMaxRepricings ?? Number.POSITIVE_INFINITY,
       repricings: 0,
+      replacementRefusals: 0,
       timer: null,
       active: true,
       status: CHASE_ORDER_STATUS.Active,
@@ -8937,13 +8940,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * - A remainder worth less than the venue's per-order minimum cannot be placed
    *   at all — a partial fill can leave one size step under it. The chase ends
-   *   filled, reporting the unfilled remainder, and nothing is submitted.
+   *   filled, reporting the unfilled remainder, and nothing is submitted. A
+   *   chase that has not filled at all ends failed instead, as it did when the
+   *   venue refused the submission.
    * - A refusal the first placement would retry, such as a post-only order that
    *   would have matched because the touch moved during the round trip, leaves
    *   nothing resting. The session stays active and the next tick rests the
-   *   remainder at the touch it reads then.
+   *   remainder at the touch it reads then, up to
+   *   `CHASE_ORDER_CONFIG.InitialPlacementAttempts` refusals in a row.
    *
-   * Any other refusal still throws, and tick recovery ends the session.
+   * Any other refusal, or one past that limit, still throws, and tick recovery
+   * ends the session.
    *
    * @param sessionId - Session being re-priced.
    * @param session - The session itself.
@@ -8963,11 +8970,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       session.replacingOrderId = null;
       session.active = false;
       session.size = size;
-      session.status = CHASE_ORDER_STATUS.Filled;
+      session.status =
+        parseFloat(size) < parseFloat(session.originalSize)
+          ? CHASE_ORDER_STATUS.Filled
+          : CHASE_ORDER_STATUS.Failed;
       this.#deps.debugLogger.log('Chase remainder below venue minimum', {
         sessionId,
         remainingSize: size,
         price,
+        status: session.status,
       });
       await this.#rebalanceChaseSession(session);
       return false;
@@ -8998,12 +9009,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         exchangeClient: this.#clientService.getExchangeClient(),
       });
       session.size = size;
+      session.replacementRefusals = 0;
     } catch (error) {
-      if (!isRetryableChasePlacementError(error)) {
+      // Recorded so the next tick, or the failed session, reports what is
+      // actually left to chase.
+      session.size = size;
+      session.replacementRefusals += 1;
+      if (
+        !isRetryableChasePlacementError(error) ||
+        session.replacementRefusals >=
+          CHASE_ORDER_CONFIG.InitialPlacementAttempts
+      ) {
         throw error;
       }
-      // Recorded so the next tick rests what is actually left to chase.
-      session.size = size;
       this.#deps.debugLogger.log('Chase replacement refused, retrying', {
         sessionId,
         error: ensureError(error, 'HyperLiquidProvider.restChaseReplacement')
