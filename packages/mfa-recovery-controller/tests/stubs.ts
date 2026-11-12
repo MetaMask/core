@@ -3,10 +3,10 @@ import type { AuthenticationControllerRequestMfaApprovalAction } from '@metamask
 import {
   bytesToBase64,
   bytesToHex,
+  getSafeJson,
   hexToBytes,
   stringToBytes,
 } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from '../src/auth-controller-token.js';
 import {
@@ -832,7 +832,8 @@ export const stubEncryptor: PendingOperationEncryptor<string> = {
     if (iv !== key) {
       throw new Error('Incorrect key');
     }
-    return JSON.parse(data) as unknown;
+    const parsed: unknown = JSON.parse(data);
+    return parsed;
   },
 };
 
@@ -851,7 +852,7 @@ export async function encryptPending(
   return JSON.stringify(
     await stubEncryptor.encryptWithKey(
       await stubEncryptor.importKey(key),
-      operation as Json,
+      getSafeJson(JSON.parse(JSON.stringify(operation))),
     ),
   );
 }

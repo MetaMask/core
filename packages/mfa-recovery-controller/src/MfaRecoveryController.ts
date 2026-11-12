@@ -10,8 +10,12 @@ import type {
   AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerRequestMfaApprovalAction,
 } from '@metamask/profile-sync-controller/auth';
-import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
+import {
+  bytesToHex,
+  getSafeJson,
+  hexToBytes,
+  isHexAddress,
+} from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
@@ -1103,17 +1107,15 @@ export class MfaRecoveryController<
   async #encryptPending(operation: PendingOperation): Promise<string> {
     const key = await this.#getEncryptionKey();
     return JSON.stringify(
-      await this.#encryptor.encryptWithKey(key, operation as Json),
+      await this.#encryptor.encryptWithKey(key, getSafeJson(operation)),
     );
   }
 
   // Unvalidated; callers assert the result with #assertPending.
   async #decryptPending(ciphertext: string): Promise<unknown> {
     const key = await this.#getEncryptionKey();
-    return await this.#encryptor.decryptWithKey(
-      key,
-      JSON.parse(ciphertext) as EncryptionResult,
-    );
+    const encrypted: EncryptionResult = JSON.parse(ciphertext);
+    return await this.#encryptor.decryptWithKey(key, encrypted);
   }
 
   async #assertPending(pending: unknown): Promise<void> {

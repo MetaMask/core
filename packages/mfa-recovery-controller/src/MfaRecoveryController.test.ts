@@ -699,11 +699,11 @@ describe('MfaRecoveryController', () => {
 
           expect(await escrowA.getRecoveryMetadata('profile-1')).toStrictEqual({
             version: 1,
-            lastMutationId: expect.any(String) as string,
+            lastMutationId: expect.any(String),
           });
           expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
             version: 1,
-            lastMutationId: expect.any(String) as string,
+            lastMutationId: expect.any(String),
           });
         },
       );
@@ -843,7 +843,7 @@ describe('MfaRecoveryController', () => {
         await applyStarted;
 
         expect(
-          await decryptPending(controller.state.pendingOperation as string),
+          await decryptPending(getPendingCiphertext(controller)),
         ).toStrictEqual(
           expect.objectContaining({
             phase: 'writing',
@@ -1909,7 +1909,7 @@ describe('MfaRecoveryController', () => {
         );
 
         const pending = (await decryptPending(
-          controller.state.pendingOperation as string,
+          getPendingCiphertext(controller),
         )) as {
           receipts: { escrowId: string }[];
         };
@@ -1918,7 +1918,7 @@ describe('MfaRecoveryController', () => {
         ]);
         expect(await escrowB.getRecoveryMetadata('profile-1')).toStrictEqual({
           version: 1,
-          lastMutationId: expect.any(String) as string,
+          lastMutationId: expect.any(String),
         });
       });
     });
@@ -1961,7 +1961,7 @@ describe('MfaRecoveryController', () => {
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         const pending = (await decryptPending(
-          controller.state.pendingOperation as string,
+          getPendingCiphertext(controller),
         )) as {
           mutation: { requestHash: string };
           authControllerToken: string;
@@ -2358,9 +2358,9 @@ describe('MfaRecoveryController', () => {
           controller.register(SECRET, IDENTIFIERS),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
 
-        expect(
-          JSON.parse(controller.state.pendingOperation as string),
-        ).toMatchObject({ iv: STUB_ENCRYPTION_KEY });
+        expect(JSON.parse(getPendingCiphertext(controller))).toMatchObject({
+          iv: STUB_ENCRYPTION_KEY,
+        });
 
         await controller.resume();
         await controller.updateRecoverySecret(
@@ -2450,6 +2450,55 @@ describe('MfaRecoveryController', () => {
           lockId: null,
           pendingOperation: null,
         });
+      });
+    });
+
+    it('rejects a mutation whose identifier verifier is not JSON before persisting it', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        const identifier = {
+          ...PASSKEY,
+          verifier: { publicKey: new Uint8Array([1]) },
+        };
+        authProvider.identifiers = [identifier, SOCIAL];
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, [identifier, SOCIAL]),
+        ).rejects.toMatchObject({ code: 'invalid_identifier' });
+        expect(apply).not.toHaveBeenCalled();
+        expect(controller.state.pendingOperation).toBeNull();
+      });
+    });
+
+    it('rejects a mutation whose identifier verifier is a function', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        const identifier = {
+          ...PASSKEY,
+          verifier: (): string => 'unsupported',
+        };
+        authProvider.identifiers = [identifier, SOCIAL];
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, [identifier, SOCIAL]),
+        ).rejects.toMatchObject({ code: 'invalid_identifier' });
+        expect(apply).not.toHaveBeenCalled();
+      });
+    });
+
+    it('accepts identifier verifiers with undefined properties and null prototypes', async () => {
+      await withController(async ({ controller, authProvider }) => {
+        const identifier = {
+          ...PASSKEY,
+          verifier: Object.assign(Object.create(null) as object, {
+            publicKey: 'mock-passkey',
+            unused: undefined,
+          }),
+        };
+        authProvider.identifiers = [identifier, SOCIAL];
+
+        await controller.register(SECRET, [identifier, SOCIAL]);
+        expect(controller.state.pendingOperation).toBeNull();
       });
     });
 
@@ -2549,6 +2598,18 @@ function getSpyEncryptor(): {
     encryptWithKey: vi.fn(stubEncryptor.encryptWithKey),
     decryptWithKey: vi.fn(stubEncryptor.decryptWithKey),
   };
+}
+
+/**
+ * @param controller - Controller whose pending operation to read.
+ * @returns The persisted ciphertext.
+ */
+function getPendingCiphertext(controller: TestController): string {
+  const { pendingOperation } = controller.state;
+  if (pendingOperation === null) {
+    throw new Error('Expected a persisted pending operation');
+  }
+  return pendingOperation;
 }
 
 function getRootMessenger(
