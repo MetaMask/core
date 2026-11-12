@@ -20,7 +20,6 @@ export type {
   MfaRecoveryControllerGetRecoverySecretAction,
   MfaRecoveryControllerRegisterAction,
   MfaRecoveryControllerReleaseLockAction,
-  MfaRecoveryControllerRenewLockAction,
   MfaRecoveryControllerResumeAction,
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,

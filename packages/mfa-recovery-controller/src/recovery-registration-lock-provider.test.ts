@@ -76,7 +76,6 @@ describe('RecoveryRegistrationLockProvider', () => {
       '/recovery/lock',
       { body: JSON.stringify({ lock_id: 'operation-1' }) },
     ],
-    ['renew', 'PUT', '/recovery/lock/operation-1', {}],
     ['release', 'DELETE', '/recovery/lock/operation-1', {}],
   ] as const)(
     'sends an authenticated %s request',
@@ -116,7 +115,7 @@ describe('RecoveryRegistrationLockProvider', () => {
   ])('maps HTTP %i to %s', async (status, code) => {
     const { provider } = setup(new Response(null, { status }));
 
-    await expect(provider.renew('operation-1')).rejects.toMatchObject({
+    await expect(provider.release('operation-1')).rejects.toMatchObject({
       code,
     });
   });

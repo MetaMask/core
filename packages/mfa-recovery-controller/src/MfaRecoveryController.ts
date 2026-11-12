@@ -73,7 +73,6 @@ const CONTROLLER_NAME = 'MfaRecoveryController';
 
 const MESSENGER_EXPOSED_METHODS = [
   'acquireLock',
-  'renewLock',
   'releaseLock',
   'register',
   'updateRecoverySecret',
@@ -279,28 +278,11 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Acquires the per-profile recovery lease. Hold it from the first read
-   * through any Auth identifier changes and mutations.
+   * Acquires or extends the per-profile recovery lease. Hold it from the first
+   * read through any Auth identifier changes and mutations.
    */
   async acquireLock(): Promise<void> {
     await this.#withLock(async () => this.#acquireLease());
-  }
-
-  /**
-   * Renews the held lease. Fails if it expired or another operation holds it;
-   * then acquire again and reread state.
-   */
-  async renewLock(): Promise<void> {
-    await this.#withLock(async () => {
-      const { lockId } = this.state;
-      if (lockId === null) {
-        throw new MfaRecoveryError(
-          'Acquire the recovery lock first',
-          'recovery_lock_required',
-        );
-      }
-      await this.#lockProvider.renew(lockId);
-    });
   }
 
   /**
@@ -683,12 +665,7 @@ export class MfaRecoveryController extends BaseController<
   > {
     // The lease outlives the approval, so no write lands after another
     // operation can take the lease.
-    const { lockId } = this.state;
-    if (lockId === null) {
-      await this.#acquireLease();
-    } else {
-      await this.#lockProvider.renew(lockId);
-    }
+    await this.#acquireLease();
     const { approval, identifiers } =
       await this.#authProvider.authorizeRecoveryRequest({
         requestHash: mutation.requestHash,

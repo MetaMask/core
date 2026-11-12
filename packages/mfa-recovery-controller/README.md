@@ -14,10 +14,10 @@ Configure `RecoveryRegistrationLockProvider` with the registration service URL,
 `AuthenticationController:refreshCanonicalProfileId`.
 
 Call `acquireLock()` before reading identifiers, hold it while changing Auth
-identifiers and mutating, then call `releaseLock()`. Call `renewLock()` after
-long user interaction. If renewal fails, acquire again and reread.
+identifiers and mutating, then call `releaseLock()`. Call `acquireLock()` again
+after long user interaction to extend the lease.
 
-The controller renews the 6-minute lease before every 5-minute approval, and
+The controller acquires the 6-minute lease before every 5-minute approval, and
 escrows reject expired approvals. So once another operation can take the lease,
 this operation's approvals are dead.
 

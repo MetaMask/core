@@ -178,16 +178,15 @@ describe('MfaRecoveryController', () => {
   });
 
   describe('recovery lock', () => {
-    it('acquires a lease before the first approval and renews it before later ones', async () => {
+    it('acquires the lease with the same ID before every approval', async () => {
       await withController(
         async ({ controller, authProvider, lockProvider }) => {
           const calls: string[] = [];
-          vi.spyOn(lockProvider, 'acquire').mockImplementation(async () => {
-            calls.push('acquire');
-          });
-          vi.spyOn(lockProvider, 'renew').mockImplementation(async () => {
-            calls.push('renew');
-          });
+          vi.spyOn(lockProvider, 'acquire').mockImplementation(
+            async (lockId) => {
+              calls.push(`acquire ${lockId}`);
+            },
+          );
           const authorize =
             authProvider.authorizeRecoveryRequest.bind(authProvider);
           vi.spyOn(authProvider, 'authorizeRecoveryRequest').mockImplementation(
@@ -204,13 +203,14 @@ describe('MfaRecoveryController', () => {
             REGISTERED_EPOCH,
           );
 
+          const { lockId } = controller.state;
           expect(calls).toStrictEqual([
-            'acquire',
+            `acquire ${lockId}`,
             'approval',
-            'renew',
+            `acquire ${lockId}`,
             'approval',
           ]);
-          expect(controller.state.lockId).toStrictEqual(expect.any(String));
+          expect(lockId).toStrictEqual(expect.any(String));
         },
       );
     });
@@ -281,7 +281,6 @@ describe('MfaRecoveryController', () => {
         await controller.acquireLock();
         const { lockId } = controller.state;
         await controller.acquireLock();
-        await controller.renewLock();
         expect(controller.state.lockId).toBe(lockId);
         expect(lockProvider.lockId).toBe(lockId);
 
@@ -292,11 +291,15 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('requires an acquired lease to renew', async () => {
-      await withController(async ({ controller }) => {
-        await expect(controller.renewLock()).rejects.toMatchObject({
-          code: 'recovery_lock_required',
-        });
+    it('reacquires an expired lease before an approval', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        await controller.acquireLock();
+        const { lockId } = controller.state;
+        lockProvider.lockId = null;
+
+        await controller.register(SECRET, IDENTIFIERS);
+
+        expect(lockProvider.lockId).toBe(lockId);
       });
     });
 
