@@ -730,14 +730,16 @@ export const FUNDING_RATE_CONFIG = {
 /**
  * Decimal places shown for each displayed perps value, shared by Mobile,
  * Extension and Terminal. Pass one as the `decimals` option of the display
- * formatters (`formatPercentage`, `formatPnl`, `formatPerpsFiat`,
- * `formatFundingRate`, `formatFeeBps`, `formatLiquidationDistance`,
- * `formatPerpsCompact`, `formatPerpsUsdInput`). Prices follow
- * `PRICE_RANGES_UNIVERSAL` instead.
+ * formatters (`formatPercentage`, `formatCrossMarginRatio`, `formatPnl`,
+ * `formatPerpsFiat`, `formatFundingRate`, `formatFeeBps`,
+ * `formatLiquidationDistance`, `formatPerpsCompact`,
+ * `formatPerpsUsdInput`). Prices follow `PRICE_RANGES_UNIVERSAL` instead.
  */
 export const PERPS_DISPLAY_PRECISION = {
   // Generic percentage, such as the 24h change: "+5.25%"
   Percentage: 2,
+  // Cross margin account ratio and usage, from a 0..1 ratio: "17.4%", "63%"
+  CrossMarginRatioPercent: 1,
   // Return on equity: "+10.3%"
   RoePercent: 1,
   // Profit and loss in USD: "+$12.34"

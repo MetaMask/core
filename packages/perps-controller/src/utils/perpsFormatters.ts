@@ -917,6 +917,69 @@ export const formatPercentage = (
 };
 
 /**
+ * Percentage points of a ratio, from its shortest decimal form.
+ *
+ * `1.2345 * 100` is `123.44999999999999` in binary and would round to
+ * `123.4%`. Shifting that decimal form gives `123.45`, which rounds to
+ * `123.5%`, the same as `Intl` percent formatting.
+ *
+ * @param ratio - A finite ratio, such as `0.174`.
+ * @returns The ratio in percentage points, such as `17.4`.
+ */
+function _ratioToPercent(ratio: number): number {
+  const [mantissa, exponentText = '0'] = String(Math.abs(ratio)).split('e');
+  const [integerPart, fractionPart = ''] = mantissa.split('.');
+  const digits = `${integerPart}${fractionPart}`.replace(/^0+/u, '') || '0';
+  const exponent = Number(exponentText) - fractionPart.length + 2;
+  const percent = Number(`${digits}e${exponent}`);
+  return ratio < 0 ? -percent : percent;
+}
+
+/**
+ * Formats a 0..1 cross margin ratio (account ratio or cross margin usage)
+ * as an unsigned percentage with at most one decimal. A positive value has
+ * no `+` prefix and a whole number has no trailing zero.
+ *
+ * The input is a ratio, not a percentage: `0.174` is `17.4%`. A ratio
+ * outside 0..1 still formats, so usage above 100% shows `150%`.
+ *
+ * @param ratio - The ratio (`0.174` for 17.4%).
+ * @param options - `formatters` (default `en-US`), `decimals` (at most,
+ * default `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent`, 1; trailing
+ * zeros are dropped) and `sign` (default `auto`: a minus for a negative
+ * ratio, no plus).
+ * @returns Format: "X%" or "X.X%", or
+ * `PERPS_CONSTANTS.FallbackPercentageDisplay` (`--%`) for a missing ratio.
+ * @example formatCrossMarginRatio(0.174) => "17.4%"
+ * @example formatCrossMarginRatio(0.63) => "63%"
+ * @example formatCrossMarginRatio(0) => "0%"
+ * @example formatCrossMarginRatio(-0.174) => "-17.4%"
+ * @example formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) }) => "17,4%"
+ * @example formatCrossMarginRatio(undefined) => "--%"
+ */
+export const formatCrossMarginRatio = (
+  ratio: string | number | null | undefined,
+  options: PerpsDisplayFormatOptions = {},
+): string => {
+  const {
+    formatters = _fallbackFormatters,
+    decimals = PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent,
+    sign = 'auto',
+  } = options;
+  const parsed = _parseDisplayNumber(ratio);
+  if (parsed === undefined) {
+    return PERPS_CONSTANTS.FallbackPercentageDisplay;
+  }
+
+  return `${_formatSignedDecimal(formatters, _ratioToPercent(parsed), {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+    useGrouping: true,
+    sign,
+  })}%`;
+};
+
+/**
  * Options for `formatFundingRate`.
  */
 export type PerpsFundingRateFormatOptions = PerpsDisplayFormatOptions & {
