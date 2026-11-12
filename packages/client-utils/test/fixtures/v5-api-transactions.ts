@@ -145,7 +145,7 @@ const ethFee = {
   },
   unitsConsumed: 324061,
   unitPrice: '47523265',
-};
+} as const;
 
 // Rows captured from `GET /v5/multiaccount/transactions` with
 // `includeTxMetadata=true`, trimmed to the fields the mapper reads.

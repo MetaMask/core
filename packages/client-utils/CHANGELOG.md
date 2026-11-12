@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Read `accountId`, `chainId`, and `assetId` on `V5TransactionRecord` as CAIP identifiers in `mapV5ApiTransaction` ([#11444](https://github.com/MetaMask/core/pull/11444))
+
 ## [3.2.0]
 
 ### Added
