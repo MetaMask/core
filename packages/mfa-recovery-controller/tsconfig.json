@@ -8,6 +8,9 @@
       "path": "../cryptography"
     },
     {
+      "path": "../keyring-controller"
+    },
+    {
       "path": "../messenger"
     },
     {

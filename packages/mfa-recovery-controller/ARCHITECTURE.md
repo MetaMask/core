@@ -7,17 +7,17 @@ crash can finish the same write.
 
 ## Architecture
 
-The controller is a coordinator. Auth, identifier proofs, escrow I/O, and
-encryption are injected. OTP collection is not wired yet.
+The controller is a coordinator. Identifier proofs, escrow I/O, and encryption
+are injected; Auth approvals come from `AuthenticationController` through the
+controller's messenger. OTP collection is not wired yet.
 
 ```mermaid
 flowchart LR
   Client["Client / UI"]
   Messenger["Messenger"]
   Ctrl["MfaRecoveryController"]
-  Auth["RecoveryAuthProvider"]
+  Auth["AuthenticationController"]
   IdP["RecoveryIdentifierAuthProvider"]
-  Enc["PendingOperationEncryptor"]
   EA["Escrow A"]
   EB["Escrow B"]
 
@@ -25,22 +25,21 @@ flowchart LR
   Messenger --> Ctrl
   Ctrl --> Auth
   Ctrl --> IdP
-  Ctrl --> Enc
   Ctrl --> EA
   Ctrl --> EB
 ```
 
-| Piece                       | Role                                                                        |
-| --------------------------- | --------------------------------------------------------------------------- |
-| `pendingOperation`          | Persisted encrypted `authorizing` / `writing` blob, or `null`               |
-| `lockId`                    | Persisted lease ID, reused on retry and restart, or `null`                  |
-| `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
-| `authProvider`              | Profile id + request-bound Auth API approval                                |
-| `lockProvider`              | Per-profile lease, acquired before every approval                           |
-| `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
-| `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
-| `now`                       | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow` |
-| `#withLock`                 | Serializes every public method except `authenticateIdentifier`              |
+| Piece                    | Role                                                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `pendingOperation`       | Persisted encrypted `authorizing` / `writing` blob, or `null`                                                  |
+| `lockId`                 | Persisted lease ID, reused on retry and restart, or `null`                                                     |
+| `getPendingOperationKey` | Host callback returning the serialized key for `pendingOperation`, or `null`; the key is never stored in state |
+| `escrows[]`              | Build-time replica set; non-empty, unique `id`s; mutations require **all**                                     |
+| `lockProvider`           | Per-profile lease, acquired before every approval                                                              |
+| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                                                                |
+| `encryptor`              | `PendingOperationEncryptor`; imports the host key and encrypts / decrypts the pending blob with it             |
+| `now`                    | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow`                                    |
+| `#withLock`              | Serializes every public method except `authenticateIdentifier`                                                 |
 
 `id` identifies the replica in mutations and receipts; `authAudience` identifies
 the approval audience. Cubist uses `id: "cubist"` and an `authAudience` matching
@@ -108,6 +107,21 @@ Rules:
   pending state (`pending_mutation`). `resume()` finishes a persisted
   mutation and is a no-op when idle.
 
+### Pending state encryption
+
+Pending state is encrypted with a key the host supplies through the
+`getPendingOperationKey` constructor callback. The host owns the key and keeps
+it in secret storage that is independent of controller state and the vault,
+so `resume()` and `abort()` work while the wallet is locked. The controller
+never creates or persists the key. It calls the callback on first use, imports
+the serialized key with the injected `encryptor`, and caches the imported key
+for the controller's lifetime. Concurrent first use shares one in-flight
+fetch, and a failed fetch or import is retried on the next use. The controller
+persists the JSON-serialized ciphertext. If the callback returns no key, every
+operation that touches pending state rejects with `missing_encryption_key`.
+Pending state that does not decrypt under the host key propagates the
+encryptor's error. Neither case modifies state.
+
 ### Pending state validation
 
 The decrypted blob is validated on every load and before every persist.
@@ -138,18 +152,18 @@ Mutations are all-or-nothing across the configured escrow set. Reads are not.
 sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
-  participant A as AuthProvider
+  participant A as AuthenticationController
   participant I as IdentifierAuthProvider
   participant E as Escrows
 
   C->>M: register / updateRecoverySecret / updateIdentifiers
   M->>M: lock, reject if a mutation is already pending
   M->>E: isAvailable (every escrow required)
-  M->>A: getAuthenticatedProfileId
+  M->>A: refreshCanonicalProfileId
   M->>M: expectedVersion from caller epoch (register uses 0)
   M->>M: build mutation, requestHash = hash(mutation fields)
   M->>M: persist pending = authorizing
-  M->>A: authorizeRecoveryRequest (AuthController token)
+  M->>A: requestMfaApproval (AuthController token)
   M->>M: skip escrows with a stored receipt, re-verify stored receipts
   M->>E: isAvailable (remaining escrows)
   M->>M: reuse token, or re-issue it if exp <= now()
@@ -181,8 +195,12 @@ sequenceDiagram
 
 Auth approvals:
 
-- The provider receives the operation's `requestHash` and each target escrow's
-  `authAudience`. All writes and reads set `requireTwoFactor` for AAL2.
+- The controller calls `AuthenticationController:requestMfaApproval` with the
+  operation's `requestHash` and each target escrow's `authAudience`, always
+  with `includeIdentifiers: true` and `reason: { operation: 'mfa_recovery' }`.
+  All writes and reads set `requireVerification` for AAL2.
+- The profile id comes from `AuthenticationController:refreshCanonicalProfileId`
+  on each mutation.
 - The issuer controls approval lifetime. AAL2 requires recent MFA.
 - The approval's `identifiers` are persisted with its token as
   `approvedIdentifiers` and refreshed with it. `register` and
@@ -243,8 +261,11 @@ before `register`.
 and `applyMutation`. `generateChallenge` and `getIdentifiers` take the
 operation's `authControllerToken`; the escrow keys the challenge to its
 profile. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
-`applyMutation` becomes `MutationRejectedError`; any other failure is
-`escrow_request_failed` / `escrow_response_invalid`. `verifyReceipt` checks
+`applyMutation` becomes `MutationRejectedError`; an expired or revoked
+CubeSigner session is `session_expired`; any other failure is
+`escrow_request_failed` / `escrow_response_invalid`. `isAvailable` resolves
+`false` for a failed `ping`, but rethrows `getClient` errors and
+`session_expired`. `verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,
 `receiptKeyId` (SHA-256 of the pinned receipt key), and the Ed25519 signature
 locally.
@@ -253,17 +274,18 @@ For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE
 
 ## Read sequence (`getRecoverySecret`)
 
-Reads tolerate down replicas. They do **not** repair pending writes. The
-selected replica version is returned as `epoch` so a later
-`updateRecoverySecret` / `updateIdentifiers` can be formed without a locally
-stored version.
+Reads tolerate down replicas (`isAvailable` resolves `false`). An `isAvailable`
+rejection propagates; it is not treated as a down replica. Reads do **not**
+repair pending writes. The selected replica version is returned as `epoch` so
+a later `updateRecoverySecret` / `updateIdentifiers` can be formed without a
+locally stored version.
 
 ```mermaid
 sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
   participant I as IdentifierAuthProvider
-  participant A as RecoveryAuthProvider
+  participant A as AuthenticationController
   participant E as Available escrows
 
   C->>M: authenticateIdentifier(identifier)
@@ -273,11 +295,11 @@ sequenceDiagram
   M-->>C: IdentifierSession
   C->>M: getRecoverySecret(session)
   M->>M: recompute and validate requestHash
-  M->>E: isAvailable (failures skipped)
+  M->>E: isAvailable (unavailable replicas skipped)
   alt none available
     M-->>C: no_available_escrow
   end
-  M->>A: authorizeRecoveryRequest (read hash, AAL2)
+  M->>A: requestMfaApproval (read hash, AAL2)
   A-->>M: request-bound approval
   M->>E: generateChallenge + PoP (partial OK)
   par read

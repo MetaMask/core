@@ -1,7 +1,9 @@
 import type { KeyPair } from '@metamask/cryptography';
+import type { AuthenticationControllerRequestMfaApprovalAction } from '@metamask/profile-sync-controller/auth';
 import {
   bytesToBase64,
   bytesToHex,
+  getSafeJson,
   hexToBytes,
   stringToBytes,
 } from '@metamask/utils';
@@ -26,6 +28,7 @@ import {
 } from '../src/identifier-auth.js';
 import type {
   AuthControllerToken,
+  DefaultEncryptionResult,
   GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
@@ -36,8 +39,6 @@ import type {
   PendingOperation,
   PendingOperationEncryptor,
   PoPChallenge,
-  RecoveryApproval,
-  RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryLockProvider,
@@ -99,10 +100,16 @@ export function createAuthControllerToken({
   return `${encode({ alg: 'none' })}.${encode(payload)}.stub-signature`;
 }
 
+type RequestMfaApprovalHandler =
+  AuthenticationControllerRequestMfaApprovalAction['handler'];
+
+const APPROVAL_TTL_SECS = 5 * 60;
+
 /**
- * In-memory AuthController used in tests.
+ * In-memory AuthenticationController used in tests. Its methods back the
+ * `AuthenticationController:*` action handlers.
  */
-export class StubAuthProvider implements RecoveryAuthProvider {
+export class StubAuthProvider {
   profileId = 'profile-1';
 
   now: () => number = unixNow;
@@ -113,23 +120,25 @@ export class StubAuthProvider implements RecoveryAuthProvider {
     this.identifiers = identifiers;
   }
 
-  async getAuthenticatedProfileId(): Promise<string> {
+  async refreshCanonicalProfileId(): Promise<string> {
     return this.profileId;
   }
 
-  async authorizeRecoveryRequest(params: {
-    requestHash: string;
-    requireTwoFactor?: boolean;
-  }): Promise<RecoveryApproval> {
+  async requestMfaApproval(
+    request: Parameters<RequestMfaApprovalHandler>[0],
+  ): ReturnType<RequestMfaApprovalHandler> {
     return {
       approval: createAuthControllerToken({
         sub: this.profileId,
-        exp: this.now() + 5 * 60,
-        requestHash: params.requestHash,
-        aal: params.requireTwoFactor ? 2 : 1,
+        exp: this.now() + APPROVAL_TTL_SECS,
+        requestHash: request.requestHash,
+        aal: request.requireVerification ? 2 : 1,
         identifiersHash: await hash(this.identifiers),
       }),
-      identifiers: this.identifiers,
+      expiresIn: APPROVAL_TTL_SECS,
+      ...(request.includeIdentifiers === false
+        ? {}
+        : { identifiers: this.identifiers }),
     };
   }
 }
@@ -793,16 +802,77 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 }
 
 /**
- * JSON round-trip encryptor for tests. Production uses wallet secure storage.
+ * Serialized encryption key tests return from `getPendingOperationKey`, and
+ * the default key for {@link encryptPending}.
  */
-export const passthroughEncryptor: PendingOperationEncryptor = {
-  async encrypt(operation: PendingOperation): Promise<string> {
-    return JSON.stringify(operation);
+export const STUB_ENCRYPTION_KEY = 'stub-encryption-key';
+
+/**
+ * Stub `getPendingOperationKey` that always returns {@link STUB_ENCRYPTION_KEY}.
+ *
+ * @returns The stub serialized encryption key.
+ */
+export async function getStubPendingOperationKey(): Promise<string | null> {
+  return STUB_ENCRYPTION_KEY;
+}
+
+/**
+ * Keyed JSON encryptor for tests. The "key" is a string that is also its
+ * serialized form, and is recorded as `iv`, so decrypting with a different key
+ * fails. Production uses the KeyringController encryptor.
+ */
+export const stubEncryptor: PendingOperationEncryptor<string> = {
+  async importKey(key) {
+    return key;
   },
-  async decrypt(ciphertext: string): Promise<PendingOperation> {
-    return JSON.parse(ciphertext) as PendingOperation;
+  async encryptWithKey(key, object) {
+    return { data: JSON.stringify(object), iv: key };
+  },
+  async decryptWithKey(key, { data, iv }) {
+    if (iv !== key) {
+      throw new Error('Incorrect key');
+    }
+    const parsed: unknown = JSON.parse(data);
+    return parsed;
   },
 };
+
+/**
+ * Encrypts a value the way the controller persists pending state. Accepts any
+ * value so tests can persist malformed pending operations.
+ *
+ * @param operation - Value to encrypt.
+ * @param key - Serialized encryption key.
+ * @returns Ciphertext for `MfaRecoveryControllerState.pendingOperation`.
+ */
+export async function encryptPending(
+  operation: unknown,
+  key: string = STUB_ENCRYPTION_KEY,
+): Promise<string> {
+  return JSON.stringify(
+    await stubEncryptor.encryptWithKey(
+      await stubEncryptor.importKey(key),
+      getSafeJson(JSON.parse(JSON.stringify(operation))),
+    ),
+  );
+}
+
+/**
+ * Decrypts pending state written by the controller.
+ *
+ * @param ciphertext - `MfaRecoveryControllerState.pendingOperation`.
+ * @param key - Serialized encryption key.
+ * @returns The decrypted pending operation.
+ */
+export async function decryptPending(
+  ciphertext: string,
+  key: string = STUB_ENCRYPTION_KEY,
+): Promise<PendingOperation> {
+  return (await stubEncryptor.decryptWithKey(
+    await stubEncryptor.importKey(key),
+    JSON.parse(ciphertext) as DefaultEncryptionResult,
+  )) as PendingOperation;
+}
 
 /**
  * @param identifier - Identifier to canonicalize.
