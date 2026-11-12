@@ -166,7 +166,12 @@ export async function* submitEvmHandler(
       type: SubmitStep.UpdateHistoryItem,
       payload: {
         historyKey,
-        historyItemOverrides: { next, quote: quoteResponse.quote, actionId },
+        historyItemOverrides: {
+          next,
+          quote: quoteResponse.quote,
+          actionId,
+          batchId,
+        },
       },
     };
   } else {

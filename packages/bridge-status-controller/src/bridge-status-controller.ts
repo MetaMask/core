@@ -1244,7 +1244,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param historyKey - The key of the history item to lock
    * @returns The shifted next actions, new batchId, and rebuilt quoteResponse
    */
-  readonly #lockHistoryItem = (historyKey: string) => {
+  readonly #lockHistoryItem = (
+    historyKey: string,
+  ): {
+    operation: Operation;
+    batchId: `0x${string}`;
+    next: NextAction[];
+    quoteResponse: QuoteResponseV1;
+  } => {
     const historyItem = this.state.txHistory[historyKey];
     if (historyItem.status.isExpectedToken === false) {
       throw new Error(
@@ -1281,7 +1288,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
   };
 
-  readonly #nextTx = async (historyKey: string) => {
+  readonly #nextTx = async (historyKey: string): Promise<void> => {
     try {
       const { batchId, next, quoteResponse, operation } =
         this.#lockHistoryItem(historyKey);
@@ -1292,19 +1299,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem.quote.srcChainId,
         historyItem.quote.destChainId,
       );
+
+      // Use tx hash that transferred funds to the user's wallet
       const txHash = isBridgeTx
         ? historyItem.status.destChain?.txHash
         : historyItem.status.srcChain.txHash;
-
-      // TODO remove?
-      // Double check that TransactionController doesn't have the deposit batch yet
-      // const isDepositBatchIdSubmitted = checkIsBatchIdSubmitted(
-      //   this.messenger,
-      //   depositBatchId,
-      // );
-      // if (isDepositBatchIdSubmitted) {
-      //   return;
-      // }
 
       const selectedAccount = getAccountByAddress(
         this.messenger,
@@ -1437,6 +1436,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         | 'next'
         | 'quote'
         | 'batchId'
+        | 'actionId'
+        | 'txMetaId'
+        | 'approvalTxId'
+        | 'originalTransactionId'
       >
     >;
   }): void => {
@@ -1453,38 +1456,52 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       next,
       quote,
       batchId,
+      actionId,
+      txMetaId,
+      approvalTxId,
+      originalTransactionId,
     } = historyItemOverrides;
 
     this.update((currentState) => {
+      const historyItem = currentState.txHistory[historyKey];
       if (status) {
-        currentState.txHistory[historyKey].status.status = status;
+        historyItem.status.status = status;
       }
       if (txHash) {
-        currentState.txHistory[historyKey].status.srcChain.txHash = txHash;
+        historyItem.status.srcChain.txHash = txHash;
       }
       if (attempts) {
-        currentState.txHistory[historyKey].attempts = attempts;
+        historyItem.attempts = attempts;
       }
       if (completionTime) {
-        currentState.txHistory[historyKey].completionTime = completionTime;
+        historyItem.completionTime = completionTime;
       }
       if (depositTxMeta) {
-        currentState.txHistory[historyKey].depositTxMeta = {
-          ...currentState.txHistory[historyKey].depositTxMeta,
+        historyItem.depositTxMeta = {
+          ...historyItem.depositTxMeta,
           ...depositTxMeta,
         };
       }
       if (next) {
-        currentState.txHistory[historyKey].next = next;
+        historyItem.next = next;
       }
       if (quote) {
-        currentState.txHistory[historyKey].quote = quote;
+        historyItem.quote = quote;
       }
-      // if (batchId) {
-      //   currentState.txHistory[historyKey].batchId = batchId;
-      // }
-      if (quote) {
-        currentState.txHistory[historyKey].quote = quote;
+      if (batchId) {
+        historyItem.batchId = batchId;
+      }
+      if (actionId) {
+        historyItem.actionId = actionId;
+      }
+      if (txMetaId) {
+        historyItem.txMetaId = txMetaId;
+      }
+      if (approvalTxId) {
+        historyItem.approvalTxId = approvalTxId;
+      }
+      if (originalTransactionId) {
+        historyItem.originalTransactionId = originalTransactionId;
       }
     });
   };
@@ -1686,6 +1703,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
    * @param params.inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
    * @param params.migrationPhase - The active migration phase for the quote response
+   * @param params.operation - The money account operation to execute before or after the swap
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
@@ -1809,6 +1827,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         estimatedProcessingTimeInSeconds:
           quoteResponse.estimatedProcessingTimeInSeconds,
       };
+      const next = [
+        {
+          operation:
+            operation === Operation.DEPOSIT
+              ? Operation.DEPOSIT // after swap
+              : Operation.SWAP, // after withdraw
+          partialQuote, // cache initial trade and approval txs
+        },
+      ];
+
       const strategyParams: SubmitStrategyParams<Trade> = {
         messenger: this.messenger,
         quoteResponses,
@@ -1825,13 +1853,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         traceFn: this.#trace,
         batchId,
         operation,
-        // Populated when a post-swap deposit or pre-swap withdrawal is required
-        next:
-          operation === Operation.DEPOSIT
-            ? [{ operation: Operation.DEPOSIT, partialQuote }]
-            : operation === Operation.WITHDRAW
-              ? [{ operation: Operation.SWAP, partialQuote }]
-              : undefined,
+        next: operation === Operation.SWAP ? undefined : next,
       };
 
       return await this.#trace(
