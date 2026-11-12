@@ -295,6 +295,66 @@ export type KycServiceGetSessionStatusForVendorAction = {
 };
 
 /**
+ * Fetches the vendor's current onboarding step
+ * (`GET /vendors/{vendor}/step`). kyc-api works it out from what it knows
+ * about the user, so the answer is the same on every device.
+ *
+ * @param vendor - The vendor to get the step for.
+ * @returns The step.
+ */
+export type KycServiceGetStepAction = {
+  type: `KycService:getStep`;
+  handler: KycService['getStep'];
+};
+
+/**
+ * Records the user's acceptance of a vendor's terms
+ * (`POST /vendors/{vendor}/disclaimers`). Needs no session. kyc-api stores
+ * the acceptance, so the next step moves on.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor whose terms were accepted.
+ * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
+ * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
+ * for.
+ * @returns The next step.
+ */
+export type KycServiceAcceptVendorTermsAction = {
+  type: `KycService:acceptVendorTerms`;
+  handler: KycService['acceptVendorTerms'];
+};
+
+/**
+ * Tells kyc-api the identity provider flow was submitted for a session
+ * (`POST /sessions/{sessionId}/provider-submitted`), so the step survives a
+ * reinstall.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The next step.
+ */
+export type KycServiceMarkProviderSubmittedAction = {
+  type: `KycService:markProviderSubmitted`;
+  handler: KycService['markProviderSubmitted'];
+};
+
+/**
+ * Runs one vendor onboarding step for a session
+ * (`POST /sessions/{id}/onboarding/{step}`): verify or resend the vendor's
+ * email code, or send or verify its SMS code.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.step - The onboarding step.
+ * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
+ * @returns The session status after the step.
+ */
+export type KycServicePostOnboardingStepAction = {
+  type: `KycService:postOnboardingStep`;
+  handler: KycService['postOnboardingStep'];
+};
+
+/**
  * Fetches the vendors the customer's verified identity data has been shared
  * with (`GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS
  * relay), newest first.
@@ -333,4 +393,8 @@ export type KycServiceMethodActions =
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction
   | KycServiceGetSessionStatusForVendorAction
+  | KycServiceGetStepAction
+  | KycServiceAcceptVendorTermsAction
+  | KycServiceMarkProviderSubmittedAction
+  | KycServicePostOnboardingStepAction
   | KycServiceGetDataSharesAction;

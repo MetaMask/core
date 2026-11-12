@@ -31,6 +31,15 @@ export type UkycLocalUserSecretStoreMessenger = Pick<
 >;
 
 /**
+ * The part of {@link UkycLocalUserSecretStore} the secret helpers use, so a
+ * controller with a different messenger can supply its own.
+ */
+export type UkycLocalUserSecretStoreAccess = Pick<
+  UkycLocalUserSecretStore,
+  'get' | 'set'
+>;
+
+/**
  * Encrypted User Storage adapter for the UKYC `local_user_secret`.
  */
 export class UkycLocalUserSecretStore {
@@ -97,7 +106,7 @@ const inFlightCreations = new Map<string, Promise<Uint8Array>>();
  * enrolled.
  */
 export async function loadLocalUserSecret(
-  store: UkycLocalUserSecretStore,
+  store: UkycLocalUserSecretStoreAccess,
   entropySourceId?: string,
 ): Promise<Uint8Array | null> {
   const stored = await store.get(UKYC_LOCAL_USER_SECRET_PATH, entropySourceId);
@@ -125,7 +134,7 @@ export async function loadLocalUserSecret(
  * @param entropySourceId - Optional HD keyring entropy source id.
  */
 async function persistLocalUserSecret(
-  store: UkycLocalUserSecretStore,
+  store: UkycLocalUserSecretStoreAccess,
   localUserSecret: Uint8Array,
   entropySourceId?: string,
 ): Promise<void> {
@@ -151,7 +160,7 @@ async function persistLocalUserSecret(
  * @returns The `local_user_secret` bytes (existing or newly created).
  */
 export async function getOrCreateLocalUserSecret(
-  store: UkycLocalUserSecretStore,
+  store: UkycLocalUserSecretStoreAccess,
   entropySourceId?: string,
 ): Promise<Uint8Array> {
   const cacheKey = entropySourceId ?? '';
@@ -196,7 +205,7 @@ export async function getOrCreateLocalUserSecret(
  * @returns `true` if a `local_user_secret` exists in Encrypted User Storage.
  */
 export async function hasLocalUserSecret(
-  store: UkycLocalUserSecretStore,
+  store: UkycLocalUserSecretStoreAccess,
   entropySourceId?: string,
 ): Promise<boolean> {
   return (await loadLocalUserSecret(store, entropySourceId)) !== null;

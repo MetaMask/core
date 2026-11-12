@@ -39,6 +39,41 @@ export type {
   KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
 
+export {
+  VendorOnboardingController,
+  vendorOnboardingControllerName,
+  getDefaultVendorOnboardingControllerState,
+} from './VendorOnboardingController.js';
+export type {
+  KycAccountLinkAdapter,
+  KycAccountLinkMfaMethod,
+  VendorOnboardingControllerActions,
+  VendorOnboardingControllerEvents,
+  OnboardingProviderOutcome,
+  VendorOnboardingControllerGetStateAction,
+  VendorOnboardingControllerMessenger,
+  VendorOnboardingControllerOptions,
+  VendorOnboardingControllerState,
+  VendorOnboardingControllerStateChangeEvent,
+  OnboardingVendorState,
+} from './VendorOnboardingController.js';
+export type {
+  VendorOnboardingControllerAcceptSessionDisclaimersAction,
+  VendorOnboardingControllerAcceptTermsAction,
+  VendorOnboardingControllerFetchSessionDisclaimersAction,
+  VendorOnboardingControllerLaunchProviderFlowAction,
+  VendorOnboardingControllerMarkProviderSubmittedAction,
+  VendorOnboardingControllerRefreshStepAction,
+  VendorOnboardingControllerResendEmailCodeAction,
+  VendorOnboardingControllerResetAction,
+  VendorOnboardingControllerStartAccountLinkAction,
+  VendorOnboardingControllerStartSessionAction,
+  VendorOnboardingControllerSubmitEmailCodeAction,
+  VendorOnboardingControllerSubmitPhoneAction,
+  VendorOnboardingControllerSubmitPhoneCodeAction,
+  VendorOnboardingControllerVerifyAccountLinkAction,
+} from './VendorOnboardingController-method-action-types.js';
+
 export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
 export type {
   KycAnalyticsStatus,
@@ -63,6 +98,7 @@ export type {
   FetchSessionDisclaimersBySessionIdParams,
   GetDataSharesParams,
   GetSessionStatusParams,
+  KycOnboardingStep,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
@@ -79,6 +115,7 @@ export type {
   UkycSessionResponse,
 } from './KycService.js';
 export type {
+  KycServiceAcceptVendorTermsAction,
   KycServiceCreateVendorCustomerAction,
   KycServiceCompleteDeletionAction,
   KycServiceCreateDeletionAction,
@@ -94,6 +131,9 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
+  KycServiceGetStepAction,
+  KycServiceMarkProviderSubmittedAction,
+  KycServicePostOnboardingStepAction,
   KycServiceResetWrappingKeysAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
@@ -114,7 +154,9 @@ export type {
 export {
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  KYC_STEPS,
   TERMINAL_SESSION_STATUSES,
+  toKycStep,
 } from './types.js';
 export type {
   KycCatalogDocument,
@@ -124,11 +166,13 @@ export type {
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
+  OnboardingVendor,
   KycPhase,
   KycProduct,
   KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,
