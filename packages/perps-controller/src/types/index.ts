@@ -1982,8 +1982,9 @@ export type GetPublicTradesParams = {
   /** Market symbol (e.g. 'BTC'), as for the other market-data reads. */
   symbol: string;
   /**
-   * Maximum number of trades, newest first (default 50). Venues cap the
-   * count: Hyperliquid returns its last 10 trades and Lighter at most 100.
+   * Maximum number of trades, newest first (default 50). Must be a positive
+   * integer. Venues cap the count: Hyperliquid returns its last 10 trades
+   * and Lighter at most 100.
    */
   limit?: number;
   /** Explicit provider route; defaults to the active/default provider. */

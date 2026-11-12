@@ -16683,7 +16683,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Stream a coin's public trades from the `trades` WebSocket channel. The
-   * first batch is the venue's recent trades.
+   * first batch is the venue's recent trades. Like `subscribeToCandles`, the
+   * stream is not restored after the client service reconnects its WebSocket
+   * and `onError` is not called; resubscribe after a reconnect.
    *
    * @param params - Coin, callback and error handler.
    * @returns A cleanup function; safe to call before the stream opens.

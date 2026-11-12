@@ -783,6 +783,18 @@ describe('PerpsController', () => {
         });
       });
 
+      it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+        'rejects limit %s before reaching the provider',
+        async (limit) => {
+          mockProvider.getPublicTrades = vi.fn().mockResolvedValue([]);
+
+          await expect(
+            controller.getPublicTrades({ symbol: 'BTC', limit }),
+          ).rejects.toThrow(`Invalid public trades limit: ${String(limit)}`);
+          expect(mockProvider.getPublicTrades).not.toHaveBeenCalled();
+        },
+      );
+
       it('resolves to no trades when the active provider changes before the venue answers', async () => {
         let answer: (trades: PublicTrade[]) => void = () => undefined;
         mockProvider.getPublicTrades = vi.fn(

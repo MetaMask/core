@@ -1089,6 +1089,49 @@ describe('HyperLiquidClientService', () => {
       expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
     });
 
+    it('logs an unsubscribe failure other than Already unsubscribed', async () => {
+      (mockSubscriptionClient as any).trades = vi.fn().mockResolvedValue({
+        unsubscribe: vi.fn().mockRejectedValue(new Error('socket broken')),
+      });
+      vi.mocked(mockDeps.logger.error).mockClear();
+
+      const unsubscribe = service.subscribeToTrades({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      unsubscribe();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'socket broken' }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            name: 'websocket_unsubscription',
+          }),
+        }),
+      );
+    });
+
+    it('does not log an Already unsubscribed failure', async () => {
+      (mockSubscriptionClient as any).trades = vi.fn().mockResolvedValue({
+        unsubscribe: vi
+          .fn()
+          .mockRejectedValue(new Error('Already unsubscribed from trades')),
+      });
+      vi.mocked(mockDeps.logger.error).mockClear();
+
+      const unsubscribe = service.subscribeToTrades({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      unsubscribe();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
+
     it('reports a failure to open the subscription to onError', async () => {
       (mockSubscriptionClient as any).trades = vi
         .fn()

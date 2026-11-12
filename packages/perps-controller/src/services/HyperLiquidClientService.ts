@@ -883,8 +883,29 @@ export class HyperLiquidClientService {
     const unsubscribe = (subscription: {
       unsubscribe: () => Promise<void>;
     }): void => {
-      subscription.unsubscribe().catch(() => {
-        // Already closed with the transport.
+      subscription.unsubscribe().catch((error: unknown) => {
+        const errorInstance = ensureError(
+          error,
+          'HyperLiquidClientService.subscribeToTrades',
+        );
+        if (errorInstance.message.startsWith('Already unsubscribed')) {
+          return;
+        }
+        this.#deps.logger.error(errorInstance, {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            service: 'HyperLiquidClientService',
+            network: this.#isTestnet ? 'testnet' : 'mainnet',
+          },
+          context: {
+            name: 'websocket_unsubscription',
+            data: {
+              operation: 'subscribeToTrades',
+              symbol,
+              phase: 'ws_unsubscription',
+            },
+          },
+        });
       });
     };
     const subscriptionPromise = subscriptionClient.trades(

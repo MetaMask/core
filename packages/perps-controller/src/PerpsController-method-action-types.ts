@@ -1076,7 +1076,7 @@ export type PerpsControllerSubscribeToAvailableToTradeAction = {
  * @returns The trades, newest first.
  * @throws When no provider is initialized, the route conflicts with the
  * active provider (`PROVIDER_NOT_FOUND`), the provider has no public trade
- * feed, or the venue request fails.
+ * feed, `limit` is not a positive integer, or the venue request fails.
  */
 export type PerpsControllerGetPublicTradesAction = {
   type: `PerpsController:getPublicTrades`;
@@ -1092,7 +1092,10 @@ export type PerpsControllerGetPublicTradesAction = {
  * `id`. Nothing is delivered after the returned cleanup runs, after the
  * provider that opened the stream stops being the active one (provider
  * switch, testnet toggle, reinitialization), or for any other symbol.
- * Subscribe again once the new provider is active.
+ * Subscribe again once the new provider is active. On Hyperliquid, like
+ * `subscribeToCandles`, the stream is not restored after the client
+ * service reconnects its WebSocket and `onError` is not called, so
+ * resubscribe after a reconnect.
  *
  * When no provider is active, the route conflicts with the active
  * provider, or the provider has no public trade feed, this returns a no-op

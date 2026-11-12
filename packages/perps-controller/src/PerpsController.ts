@@ -7515,7 +7515,7 @@ export class PerpsController extends BaseController<
    * @returns The trades, newest first.
    * @throws When no provider is initialized, the route conflicts with the
    * active provider (`PROVIDER_NOT_FOUND`), the provider has no public trade
-   * feed, or the venue request fails.
+   * feed, `limit` is not a positive integer, or the venue request fails.
    */
   async getPublicTrades(params: GetPublicTradesParams): Promise<PublicTrade[]> {
     const provider = this.getActiveProvider();
@@ -7525,11 +7525,12 @@ export class PerpsController extends BaseController<
     if (!provider.getPublicTrades) {
       throw new Error('Public trades not supported by provider');
     }
+    const limit = params.limit ?? PUBLIC_TRADES_DEFAULT_LIMIT;
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new Error(`Invalid public trades limit: ${String(params.limit)}`);
+    }
     try {
-      const trades = await provider.getPublicTrades({
-        ...params,
-        limit: params.limit ?? PUBLIC_TRADES_DEFAULT_LIMIT,
-      });
+      const trades = await provider.getPublicTrades({ ...params, limit });
       if (this.getActiveProviderOrNull() !== provider) {
         return [];
       }
@@ -7556,7 +7557,10 @@ export class PerpsController extends BaseController<
    * `id`. Nothing is delivered after the returned cleanup runs, after the
    * provider that opened the stream stops being the active one (provider
    * switch, testnet toggle, reinitialization), or for any other symbol.
-   * Subscribe again once the new provider is active.
+   * Subscribe again once the new provider is active. On Hyperliquid, like
+   * `subscribeToCandles`, the stream is not restored after the client
+   * service reconnects its WebSocket and `onError` is not called, so
+   * resubscribe after a reconnect.
    *
    * When no provider is active, the route conflicts with the active
    * provider, or the provider has no public trade feed, this returns a no-op
