@@ -16,6 +16,7 @@ import {
   formatAddressToAssetId,
   resolveNativeAssetId,
 } from './helpers/caip.js';
+import { extractTokenTransferRecipient } from './helpers/calldata.js';
 import { getKnownTokenMetadata } from './helpers/token-metadata.js';
 import {
   getLocalTransactionFees,
@@ -67,13 +68,6 @@ export function mapLocalTransaction(
     metamaskPay,
     txParams: { from = '', to = '', data: txData, value: txValue } = {},
   } = initialTransaction;
-
-  const extractTokenTransferRecipient = (data?: string): string | undefined => {
-    if (!data || data.length < 74) {
-      return undefined;
-    }
-    return `0x${data.slice(34, 74)}`;
-  };
   const {
     time: primaryTime,
     hash: primaryHash,
@@ -243,10 +237,7 @@ export function mapLocalTransaction(
         data: {
           from,
           to,
-          token: getNativeToken(
-            initialTransaction,
-            isReceive ? 'in' : 'out',
-          ),
+          token: getNativeToken(initialTransaction, isReceive ? 'in' : 'out'),
         },
       };
     }
@@ -271,11 +262,17 @@ export function mapLocalTransaction(
     case TransactionType.tokenMethodSafeTransferFrom:
     case TransactionType.tokenMethodTransfer:
     case TransactionType.tokenMethodTransferFrom: {
-      const tokenRecipient = extractTokenTransferRecipient(txData);
+      const tokenRecipient = extractTokenTransferRecipient(
+        txData,
+        transactionType,
+      );
       const isReceive =
         transactionGroup.activityAccountAddress &&
         tokenRecipient &&
-        equalsIgnoreCase(transactionGroup.activityAccountAddress, tokenRecipient);
+        equalsIgnoreCase(
+          transactionGroup.activityAccountAddress,
+          tokenRecipient,
+        );
 
       return {
         type: isReceive ? 'receive' : 'send',

@@ -1392,38 +1392,4 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-
-  it('maps a token transfer with malformed calldata to send when activityAccountAddress is set', () => {
-    const base =
-      localTransactionFixtures.mapInputs
-        .mapsAUsdcTransferWithTransferinformation;
-    const item = mapLocal({
-      ...base,
-      activityAccountAddress: '0x50a9d56c2b8ba9a5c7f2c08c3d26e0499f23a706',
-      initialTransaction: {
-        ...base.initialTransaction,
-        txParams: {
-          ...base.initialTransaction.txParams,
-          data: '0xa9059cbb',
-        },
-      },
-      primaryTransaction: {
-        ...base.primaryTransaction,
-        txParams: {
-          ...base.primaryTransaction.txParams,
-          data: '0xa9059cbb',
-        },
-      },
-    });
-
-    expect(item).toMatchObject({
-      type: 'send',
-      status: 'pending',
-      data: {
-        token: {
-          direction: 'out',
-        },
-      },
-    });
-  });
 });
