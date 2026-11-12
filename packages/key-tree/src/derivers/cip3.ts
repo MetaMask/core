@@ -302,7 +302,7 @@ export const derivePublicKey = async ({
   const zl = entropy.slice(0, 32);
 
   // right = [8ZL] * B
-  const right = curve.getPublicKey(
+  const right = await curve.getPublicKey(
     // [8ZL]
     trunc28Mul8(zl),
   );

@@ -71,9 +71,7 @@ export async function deriveChildKey(
     return await deriveNode(
       {
         privateKey: node.privateKeyBytes,
-        get publicKey() {
-          return node.publicKeyBytes;
-        },
+        publicKey: node.publicKeyBytes,
         entropy,
         ...args,
       },
@@ -342,7 +340,6 @@ async function derivePrivateChildKey({
     index: actualChildIndex,
     curve: curve.name,
     network,
-    guard: PUBLIC_KEY_GUARD,
   });
 }
 
