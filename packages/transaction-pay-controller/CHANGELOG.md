@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support max-amount quotes in `ServerStrategy`, using the same max flow as `RelayStrategy` ([#11418](https://github.com/MetaMask/core/pull/11418))
+  - Re-quote with a reduced source amount so origin gas can be paid from the source token when the user lacks native balance.
+  - Quote subsidized routes atomically when `payStrategies.relay.atomicMaxEnabled` is enabled, embedding the transaction's calls re-encoded for the max amount.
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
