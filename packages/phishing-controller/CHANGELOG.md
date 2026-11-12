@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
 
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the chain-ID-to-scan-name map and `blast` from the token and address scan supported chains, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
+
 ## [18.3.0]
 
 ### Added

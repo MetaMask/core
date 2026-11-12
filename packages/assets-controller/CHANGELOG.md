@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Enrich native asset metadata (name, decimals, image) from the config registry via `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, and upgrade previously emitted imageless native metadata stubs with the registry image ([#11420](https://github.com/MetaMask/core/pull/11420))
 
+### Removed
+
+- Remove Blast Mainnet (`eip155:81457`) from the seeded native-asset map and the EVM RPC Multicall3 address map, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
+
 ## [20.3.1]
 
 ### Changed

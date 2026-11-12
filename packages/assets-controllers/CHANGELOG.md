@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the Multicall3 address map and `SPOT_PRICES_SUPPORT_INFO`, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
+
 ### Fixed
 
 - Stop passing `data:` NFT token URIs to `fetch`, which crashed clients whose `fetch` cannot decode `data:` URLs (e.g. MetaMask Mobile) ([#11308](https://github.com/MetaMask/core/pull/11308))
