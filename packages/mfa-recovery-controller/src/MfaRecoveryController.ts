@@ -27,6 +27,7 @@ import {
   IncompleteMutationError,
   MfaRecoveryError,
   MutationRejectedError,
+  isMfaRecoveryError,
 } from './errors.js';
 import {
   isFulfilledResult,
@@ -332,10 +333,7 @@ export class MfaRecoveryController<
         await this.#lockProvider.release(lockId);
       } catch (error) {
         // A conflict means another ID holds the lease, so it is not ours.
-        if (
-          !(error instanceof MfaRecoveryError) ||
-          error.code !== 'recovery_lock_conflict'
-        ) {
+        if (!isMfaRecoveryError(error, 'recovery_lock_conflict')) {
           throw error;
         }
       }
@@ -1141,10 +1139,7 @@ export class MfaRecoveryController<
     } catch (error) {
       // A conflict means another ID holds the lease. Other failures may have
       // acquired it, so keep the ID for a retry.
-      if (
-        error instanceof MfaRecoveryError &&
-        error.code === 'recovery_lock_conflict'
-      ) {
+      if (isMfaRecoveryError(error, 'recovery_lock_conflict')) {
         this.update((state) => {
           state.lockId = null;
         });

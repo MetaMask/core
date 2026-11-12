@@ -13,6 +13,20 @@ export class MfaRecoveryError extends Error {
 }
 
 /**
+ * Checks whether a value is an {@link MfaRecoveryError} with the given code.
+ *
+ * @param error - Value to check, usually a caught error.
+ * @param code - Expected `MfaRecoveryError` code.
+ * @returns Whether `error` is an `MfaRecoveryError` with that code.
+ */
+export function isMfaRecoveryError(
+  error: unknown,
+  code: string,
+): error is MfaRecoveryError {
+  return error instanceof MfaRecoveryError && error.code === code;
+}
+
+/**
  * Thrown when a mutation is not acknowledged by every configured escrow.
  * Call `MfaRecoveryController.resume()` to retry the same mutation.
  */

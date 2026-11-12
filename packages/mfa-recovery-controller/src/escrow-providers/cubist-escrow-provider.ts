@@ -26,7 +26,11 @@ import {
   receiptKeyId,
   verifySignature,
 } from '../crypto.js';
-import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
+import {
+  MfaRecoveryError,
+  MutationRejectedError,
+  isMfaRecoveryError,
+} from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
@@ -122,10 +126,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       await this.#invokeWith(client, 'ping', {}, parsePing);
       return true;
     } catch (error) {
-      if (
-        error instanceof MfaRecoveryError &&
-        error.code === 'session_expired'
-      ) {
+      if (isMfaRecoveryError(error, 'session_expired')) {
         throw error;
       }
       return false;
@@ -281,27 +282,18 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         { request: toWire({ cmd, ...body }) },
       );
     } catch (error) {
-      if (
-        error instanceof ErrResponse &&
-        (error.isSessionExpiredError() ||
-          error.operation === 'signerSessionRefresh')
-      ) {
-        throw new MfaRecoveryError(error.message, 'session_expired');
-      }
-      throw new MfaRecoveryError(
-        error instanceof Error ? error.message : 'Escrow request failed',
-        'escrow_request_failed',
-      );
+      throw toRequestError(error);
     }
     const policy = invocation.response;
-    if (policy.response !== 'Allow') {
-      if (denyIsRejection && policy.response === 'Deny') {
-        throw new MutationRejectedError(policy.reason);
-      }
-      throw new MfaRecoveryError(
-        policy.response === 'Deny' ? policy.reason : policy.error,
-        'escrow_request_failed',
-      );
+    switch (policy.response) {
+      case 'Allow':
+        break;
+      case 'Deny':
+        throw denyIsRejection
+          ? new MutationRejectedError(policy.reason)
+          : new MfaRecoveryError(policy.reason, 'escrow_request_failed');
+      default:
+        throw new MfaRecoveryError(policy.error, 'escrow_request_failed');
     }
     let json: unknown;
     try {
@@ -344,6 +336,37 @@ const GetSecretResponseStruct = type({
   lastMutationId: string(),
   wrapKeyId: string(),
 });
+
+/**
+ * Whether a CubeSigner request failed because the session is expired or could
+ * not be refreshed.
+ *
+ * @param error - Error thrown by the CubeSigner client.
+ * @returns Whether the error is a session error.
+ */
+function isSessionError(error: unknown): error is ErrResponse {
+  return (
+    error instanceof ErrResponse &&
+    (error.isSessionExpiredError() ||
+      error.operation === 'signerSessionRefresh')
+  );
+}
+
+/**
+ * Maps a failed CubeSigner request to a recovery error.
+ *
+ * @param error - Error thrown by the CubeSigner client.
+ * @returns The recovery error to throw.
+ */
+function toRequestError(error: unknown): MfaRecoveryError {
+  if (isSessionError(error)) {
+    return new MfaRecoveryError(error.message, 'session_expired');
+  }
+  return new MfaRecoveryError(
+    error instanceof Error ? error.message : 'Escrow request failed',
+    'escrow_request_failed',
+  );
+}
 
 function parsePing(value: unknown): void {
   if (!is(value, PingStruct)) {
