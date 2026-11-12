@@ -530,12 +530,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
     return bytesToHex(this.publicKeyBytes);
   }
 
-  /**
-   * Get the public key bytes. This will lazily derive the public key from the
-   * private key if it is not already set.
-   *
-   * @returns The public key bytes.
-   */
   public get publicKeyBytes(): Uint8Array<ArrayBuffer> {
     return this.#publicKeyBytes;
   }
