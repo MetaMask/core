@@ -4567,10 +4567,11 @@ describe('BridgeStatusController (deposit)', () => {
             ),
           ).toHaveLength(0);
           expect(mockBuildMoneyAccountDepositBatch).toHaveBeenCalledTimes(1);
-          expect(controller.state.txHistory[SWAP_ID].depositTxMeta).toEqual({
+          expect(
+            controller.state.txHistory[SWAP_ID].depositTxMeta,
+          ).toStrictEqual({
             batchId: BATCH_ID_1,
             id: DEPOSIT_TX_ID,
-            hash: DEPOSIT_HASH,
           });
           expect(controller.state.txHistory[SWAP_ID].status.status).not.toBe(
             StatusTypes.FAILED,

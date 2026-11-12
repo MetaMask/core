@@ -411,6 +411,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
+    console.error('====[TRANSACTION FAILED]', txMeta);
+
     this.#updateHistoryItem({
       historyKey,
       historyItemOverrides: {
@@ -1316,6 +1318,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const historyItem = this.state.txHistory[historyKey];
 
+      console.warn('====[NEXT TX] HISTORY ITEM', historyItem);
       const isBridgeTx = isCrossChain(
         historyItem.quote.srcChainId,
         historyItem.quote.destChainId,
@@ -1396,6 +1399,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.messenger.captureException?.(
         error instanceof Error ? error : new Error(String(error)),
       );
+      console.error('====[NEXT TX] ERROR', error);
       this.#onTransactionFailed({
         historyKey,
       });

@@ -80,10 +80,12 @@ export async function updateQuotes(
   }
 
   if (transaction?.status !== TransactionStatus.unapproved) {
+    console.error('====transaction not unapproved', transaction);
     return false;
   }
 
   log('Updating quotes', { transactionId });
+  console.error('====updateQuotes', transactionId);
 
   const {
     accountOverride,
@@ -125,6 +127,7 @@ export async function updateQuotes(
 
     if (signal.aborted) {
       log('Quote request aborted before building requests', { transactionId });
+      console.error('====UPDATE QUOTES signal aborted', signal);
       return false;
     }
 
@@ -167,6 +170,7 @@ export async function updateQuotes(
       signal,
     );
 
+    console.error('====quotes', quotes);
     if (signal.aborted) {
       log('Quote request aborted before persisting results', { transactionId });
       return false;
@@ -179,6 +183,7 @@ export async function updateQuotes(
       (quote) => quote.strategy !== TransactionPayStrategy.None,
     );
 
+    console.error('====executableQuotes', executableQuotes);
     const totals = calculateTotals({
       fiatPaymentAmount: fiatPayment?.amountFiat,
       messenger,
@@ -201,6 +206,7 @@ export async function updateQuotes(
       transactionId,
     });
 
+    console.error('====syncTransaction', batchTransactions);
     updateTransactionData(transactionId, (data) => {
       // oxlint-disable-next-line typescript/no-unnecessary-type-assertion
       data.quotes = quotes as never;
@@ -209,6 +215,7 @@ export async function updateQuotes(
       data.totals = totals;
     });
   } catch (error) {
+    console.error('====UPDATE QUOTES error', error);
     if (signal.aborted) {
       log('Quote request aborted', { transactionId, reason: signal.reason });
       return false;
@@ -651,6 +658,7 @@ function buildPostQuoteRequests({
     targetTokenAddress: destinationToken.address,
   };
 
+  console.error('====POST-QUOTE REQUEST', request);
   log('Post-quote request built', { transactionId, request });
 
   // Currently only single token post-quote flows are supported.

@@ -4,6 +4,7 @@ import type {
   BridgeControllerMessenger,
   TxData,
   Trade,
+  SwapTraceRequest,
 } from '@metamask/bridge-controller';
 import {
   ActionTypes,
@@ -21,6 +22,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import type { MoneyAccountVaultConfig } from '@metamask/money-account-utils';
 import type { NetworkState, Provider } from '@metamask/network-controller';
 import {
   CHAIN_IDS,
@@ -43,7 +45,9 @@ import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
 } from './constants.js';
-import { SubmitStep, type SubmitStrategyParams } from './strategy/types.js';
+import type { TraceName } from './constants.js';
+import { SubmitStep } from './strategy/types.js';
+import type { SubmitStrategyParams } from './strategy/types.js';
 import { BridgeClientId, Operation } from './types.js';
 import type {
   BridgeId,
@@ -54,15 +58,18 @@ import type {
 import * as historyUtils from './utils/history.js';
 import * as transactionUtils from './utils/transaction.js';
 
-const mockGetMoneyAccountVaultConfig = vi.fn();
+const mockGetMoneyAccountVaultConfig =
+  vi.fn<() => MoneyAccountVaultConfig | undefined>();
 const mockBuildMoneyAccountWithdrawBatch = vi.fn();
 vi.mock('@metamask/money-account-utils', async (importOriginal) => ({
   ...(await importOriginal()),
   getMoneyAccountVaultConfig: () => mockGetMoneyAccountVaultConfig(),
+  // oxlint-disable-next-line typescript/no-unsafe-return
   buildMoneyAccountWithdrawBatch: (...args: unknown[]) =>
     mockBuildMoneyAccountWithdrawBatch(...args),
 }));
 
+const WITHDRAW_SWAP_TX_HASH = '0xwithdrawHash1';
 const { mockSubmitEvmHandler } = vi.hoisted(() => ({
   mockSubmitEvmHandler: vi.fn(async function* submitEvmHandler() {
     yield {
@@ -126,11 +133,7 @@ const { mockExecuteSubmitStrategy, setRealExecuteSubmitStrategy } = vi.hoisted(
 );
 vi.mock('./strategy/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./strategy/index.js')>();
-  setRealExecuteSubmitStrategy(
-    actual.default as (
-      params: SubmitStrategyParams<Trade>,
-    ) => AsyncGenerator<unknown, void, void>,
-  );
+  setRealExecuteSubmitStrategy(actual.default);
   return {
     ...actual,
     default: (params: Parameters<typeof actual.default>[0]) =>
@@ -158,13 +161,13 @@ vi.mock('uuid', () => ({
   v4: () => 'test-uuid-1234',
 }));
 
-const mockIsEthUsdt = vi.fn();
+const mockIsEthUsdt = vi.fn<() => boolean>();
 vi.mock(import('@metamask/bridge-controller'), async (importOriginal) => ({
   ...(await importOriginal()),
   isEthUsdt: () => mockIsEthUsdt(),
 }));
 
-const mockGenerateBatchId = vi.fn();
+const mockGenerateBatchId = vi.fn<() => `0x${string}`>();
 vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
   ...(await importOriginal()),
   generateBatchId: () => {
@@ -381,7 +384,7 @@ const WITHDRAW_SWAP_QUOTE = getMockQuote({
   srcChainId: ChainId.MONAD,
   destChainId: ChainId.MONAD,
 });
-const WITHDRAW_SWAP_TX_HASH = '0xwithdrawHash1';
+
 const PARTIAL_QUOTE = {
   quoteId: 'withdrawQuoteId1',
   estimatedProcessingTimeInSeconds: 15,
@@ -498,8 +501,16 @@ function getControllerMessenger(
       'RemoteFeatureFlagController:getState',
       'AuthenticationController:getBearerToken',
       'KeyringController:signTypedMessage',
+      'MoneyAccountController:getMoneyAccount',
+      'TransactionPayController:setTransactionConfig',
+      'TransactionPayController:updatePaymentToken',
+      'ApprovalController:acceptRequest',
     ],
-    events: ['TransactionController:transactionStatusUpdated'],
+    events: [
+      'TransactionController:transactionStatusUpdated',
+      'TransactionController:unapprovedTransactionAdded',
+      'TransactionPayController:stateChange',
+    ],
   });
   return messenger;
 }
@@ -668,12 +679,15 @@ const mockSelectedAccount = {
 };
 
 const BATCH_ID_1 = '0x1234BatchId';
-const BATCH_ID_2 = 'batchId1';
+const BATCH_ID_2 = '0xbatchId2';
 
 const MOCK_VAULT_CONFIG = {
-  chainId: '0xa4b1',
-  tellerAddress: '0x123',
-  accountantAddress: '0x456',
+  boringVault: '0xboringVault' as const,
+  lensAddress: '0xlensAddress' as const,
+  chainId: '0xa4b1' as const,
+  tellerAddress: '0x123' as const,
+  accountantAddress: '0x456' as const,
+  underlyingToken: '0xaca92e438df0b2401ff60da7e4337b687a2435da' as const,
 };
 const MOCK_WITHDRAW_TXS = {
   withdrawTx: {
@@ -732,7 +746,12 @@ describe('BridgeStatusController (withdraw)', () => {
     vi.clearAllMocks();
     vi.clearAllTimers();
     vi.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
-    mockTraceFn = vi.fn(async (_request, fn) => await fn?.());
+    mockTraceFn = vi.fn(
+      async (
+        _request: SwapTraceRequest<TraceName>,
+        fn?: (args?: unknown) => unknown,
+      ) => await fn?.(),
+    );
   });
 
   describe('submitTx: EVM withdraw', () => {
@@ -810,7 +829,6 @@ describe('BridgeStatusController (withdraw)', () => {
 
       mockMessengerCall.mockReturnValueOnce({}); // feature flags
       mockGetMoneyAccountVaultConfig.mockReturnValueOnce(MOCK_VAULT_CONFIG);
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // recipient
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // primary money account
       mockMessengerCall.mockReturnValueOnce('arb'); // get network client
       mockMessengerCall.mockReturnValueOnce({ provider: vi.fn() });
@@ -819,7 +837,6 @@ describe('BridgeStatusController (withdraw)', () => {
         MOCK_WITHDRAW_TXS,
       );
 
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arb');
 
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
@@ -827,9 +844,7 @@ describe('BridgeStatusController (withdraw)', () => {
       mockMessengerCall.mockReturnValueOnce({
         transactions: MOCK_TRANSACTION_META,
       });
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-
-      mockMessengerCall.mockReturnValueOnce({
+      mockMessengerCall.mockReturnValue({
         transactions: MOCK_TRANSACTION_META,
       });
 
@@ -964,14 +979,7 @@ describe('BridgeStatusController (withdraw)', () => {
                 "RemoteFeatureFlagController:getState",
               ],
               [
-                "AccountsController:getAccountByAddress",
-                "0xaccount1",
-              ],
-              [
                 "MoneyAccountController:getMoneyAccount",
-                {
-                  "id": "test-account-id",
-                },
               ],
               [
                 "NetworkController:findNetworkClientIdByChainId",
@@ -980,10 +988,6 @@ describe('BridgeStatusController (withdraw)', () => {
               [
                 "NetworkController:getNetworkClientById",
                 "arb",
-              ],
-              [
-                "AccountsController:getAccountByAddress",
-                "0xaccount1",
               ],
               [
                 "NetworkController:findNetworkClientIdByChainId",
@@ -1037,7 +1041,6 @@ describe('BridgeStatusController (withdraw)', () => {
             .toMatchInlineSnapshot(`
               {
                 "batchId": "0x1234BatchId",
-                "hash": "0xevmWithdrawTxHash",
                 "id": "test-tx-id",
               }
             `);
@@ -1073,7 +1076,7 @@ describe('BridgeStatusController (withdraw)', () => {
                 },
               ]
             `);
-          expect(mockMessengerCall).toHaveBeenCalledTimes(14);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(12);
         },
       );
 
@@ -1084,10 +1087,23 @@ describe('BridgeStatusController (withdraw)', () => {
           "atomic": true,
           "batchId": "0x1234BatchId",
           "disable7702": true,
+          "disableHook": true,
+          "disableSequential": true,
           "isDelegatedAccount": false,
-          "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
-          "requireApproval": false,
+          "requireApproval": true,
+          "selectedAccount": {
+            "address": "0xaccount1",
+            "id": "test-account-id",
+            "metadata": {
+              "keyring": {
+                "type": [
+                  "any",
+                ],
+              },
+            },
+            "type": "eth",
+          },
         }
       `);
     });
@@ -1108,7 +1124,6 @@ describe('BridgeStatusController (withdraw)', () => {
     } = {}) => {
       mockMessengerCall.mockReturnValueOnce({}); // feature flags
       mockGetMoneyAccountVaultConfig.mockReturnValueOnce(MOCK_VAULT_CONFIG);
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // recipient
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // money account
       mockMessengerCall.mockReturnValueOnce('arb');
       mockMessengerCall.mockReturnValueOnce(provider);
@@ -1118,7 +1133,6 @@ describe('BridgeStatusController (withdraw)', () => {
     };
 
     const queueBatchLookup = (transactions: Record<string, unknown>[]) => {
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arb');
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
@@ -1133,25 +1147,11 @@ describe('BridgeStatusController (withdraw)', () => {
         isStxEnabled: false,
       });
 
-    it('throws when the recipient id is missing', async () => {
-      queueWithdrawSubmitCalls();
-      mockMessengerCall.mockReturnValueOnce({});
-      mockGetMoneyAccountVaultConfig.mockReturnValueOnce(MOCK_VAULT_CONFIG);
-      mockMessengerCall.mockReturnValueOnce({});
-
-      await withController({ mockMessengerCall }, async ({ rootMessenger }) => {
-        await expect(submitWithdraw(rootMessenger)).rejects.toThrow(
-          'Failed to get recipient id',
-        );
-      });
-    });
-
     it('throws when the primary money account is missing', async () => {
       queueWithdrawSubmitCalls();
       mockMessengerCall.mockReturnValueOnce({});
       mockGetMoneyAccountVaultConfig.mockReturnValueOnce(MOCK_VAULT_CONFIG);
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
-      mockMessengerCall.mockReturnValueOnce({});
+      mockMessengerCall.mockReturnValueOnce(undefined);
 
       await withController({ mockMessengerCall }, async ({ rootMessenger }) => {
         await expect(submitWithdraw(rootMessenger)).rejects.toThrow(
@@ -1190,62 +1190,7 @@ describe('BridgeStatusController (withdraw)', () => {
 
       await withController({ mockMessengerCall }, async ({ rootMessenger }) => {
         await expect(submitWithdraw(rootMessenger)).rejects.toThrow(
-          'Failed to find withdraw transaction meta, id or hash',
-        );
-      });
-    });
-
-    it('throws when the matched withdraw tx has no id', async () => {
-      queueWithdrawSubmitCalls();
-      queueMoneyAccountAndProvider();
-      queueBatchLookup([
-        {
-          ...MOCK_TRANSACTION_META[0],
-          id: undefined,
-          type: TransactionType.tokenMethodTransfer,
-        },
-      ]);
-
-      await withController({ mockMessengerCall }, async ({ rootMessenger }) => {
-        await expect(submitWithdraw(rootMessenger)).rejects.toThrow(
-          'Failed to find withdraw transaction meta, id or hash',
-        );
-      });
-    });
-
-    it('throws when the batch tx is not a withdraw or transfer', async () => {
-      queueWithdrawSubmitCalls();
-      queueMoneyAccountAndProvider();
-      queueBatchLookup([
-        {
-          ...MOCK_TRANSACTION_META[0],
-          type: TransactionType.contractInteraction,
-          nestedTransactions: [],
-        },
-      ]);
-
-      await withController({ mockMessengerCall }, async ({ rootMessenger }) => {
-        await expect(submitWithdraw(rootMessenger)).rejects.toThrow(
-          'Failed to find withdraw transaction meta, id or hash',
-        );
-      });
-    });
-
-    it('throws when the matched withdraw tx has no hash', async () => {
-      queueWithdrawSubmitCalls();
-      queueMoneyAccountAndProvider();
-      queueBatchLookup([
-        {
-          ...MOCK_TRANSACTION_META[0],
-          hash: undefined,
-          type: TransactionType.tokenMethodTransfer,
-          nestedTransactions: [],
-        },
-      ]);
-
-      await withController({ mockMessengerCall }, async ({ rootMessenger }) => {
-        await expect(submitWithdraw(rootMessenger)).rejects.toThrow(
-          'Failed to find withdraw transaction meta, id or hash',
+          'Failed to find trade meta after withdraw batch added',
         );
       });
     });
@@ -1272,7 +1217,6 @@ describe('BridgeStatusController (withdraw)', () => {
           ).toMatchObject({
             batchId: BATCH_ID_1,
             id: 'test-tx-id',
-            hash: '0xevmWithdrawTxHash',
           });
         },
       );
@@ -1290,7 +1234,6 @@ describe('BridgeStatusController (withdraw)', () => {
         ...MOCK_VAULT_CONFIG,
         underlyingToken,
       });
-      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arb');
       mockMessengerCall.mockReturnValueOnce({ provider: vi.fn() });
@@ -1398,10 +1341,6 @@ describe('BridgeStatusController (withdraw)', () => {
       bridgeStatusController.stopAllPolling();
       console.warn = consoleFn;
       vi.useRealTimers();
-    });
-
-    beforeEach(() => {
-      vi.clearAllMocks();
     });
 
     it('should route to batch-strategy (swap) after withdraw transaction', async () => {
@@ -1849,10 +1788,6 @@ describe('BridgeStatusController (withdraw)', () => {
       bridgeStatusController.stopAllPolling();
       console.warn = consoleFn;
       vi.useRealTimers();
-    });
-
-    beforeEach(() => {
-      vi.clearAllMocks();
     });
 
     it('should mark history item as failed and skip swap/bridge', async () => {

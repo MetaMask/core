@@ -15,7 +15,7 @@ import { CHAIN_IDS, generateBatchId } from '@metamask/transaction-controller';
 import { Operation } from '../types.js';
 import { getPrimaryMoneyAccount } from '../utils/money-account.js';
 import { getNetworkClientByChainId } from '../utils/network.js';
-import { waitForMmPayTransactionApproval } from '../utils/subscriptions.js';
+import { waitForMMPayFeeQuotes } from '../utils/subscriptions.js';
 import {
   getAddTransactionBatchParams,
   getTransactionMetaByBatchId,
@@ -171,9 +171,9 @@ export async function* submitWithdrawHandler(
     // After TransactionController adds the unapproved transaction,
     // this updates the txMeta with MM Pay quotes,
     // then approves tx batch
-    waitForMmPayTransactionApproval({
+    waitForMMPayFeeQuotes({
       messenger,
-      batchIdToWaitFor: batchId,
+      batchId,
       primaryMoneyAccount,
       underlyingToken,
       chainId,
