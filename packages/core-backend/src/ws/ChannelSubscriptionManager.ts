@@ -49,8 +49,8 @@ export const CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_ACTIONS = [
   'BackendWebSocketService:connect',
   'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
+  'BackendWebSocketService:unsubscribeChannels',
   'BackendWebSocketService:channelHasSubscription',
-  'BackendWebSocketService:getSubscriptionsByChannel',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
 ] as const;
@@ -386,14 +386,10 @@ export class ChannelSubscriptionManager {
 
   async #unsubscribeChannelOnServer(channel: string): Promise<boolean> {
     try {
-      const subscriptions = this.#messenger.call(
-        'BackendWebSocketService:getSubscriptionsByChannel',
-        channel,
+      await this.#messenger.call(
+        'BackendWebSocketService:unsubscribeChannels',
+        [channel],
       );
-
-      for (const sub of subscriptions) {
-        await sub.unsubscribe();
-      }
       return true;
     } catch (error) {
       this.#log('Unsubscription failed', { channel, error });

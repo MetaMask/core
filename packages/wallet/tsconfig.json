@@ -81,6 +81,9 @@
     },
     {
       "path": "../geolocation-controller"
+    },
+    {
+      "path": "../core-backend"
     }
   ],
   "include": ["../../types", "./src"]

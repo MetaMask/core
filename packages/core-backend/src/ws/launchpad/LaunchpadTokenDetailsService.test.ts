@@ -26,7 +26,7 @@ type ServiceMocks = {
   connect: Mock;
   subscribe: Mock;
   channelHasSubscription: Mock;
-  getSubscriptionsByChannel: Mock;
+  unsubscribeChannels: Mock;
   forceReconnection: Mock;
   addChannelCallback: Mock;
   removeChannelCallback: Mock;
@@ -52,8 +52,8 @@ const getMessenger = (): MessengerSetup => {
       'BackendWebSocketService:connect',
       'BackendWebSocketService:forceReconnection',
       'BackendWebSocketService:subscribe',
+      'BackendWebSocketService:unsubscribeChannels',
       'BackendWebSocketService:channelHasSubscription',
-      'BackendWebSocketService:getSubscriptionsByChannel',
       'BackendWebSocketService:addChannelCallback',
       'BackendWebSocketService:removeChannelCallback',
     ],
@@ -65,7 +65,7 @@ const getMessenger = (): MessengerSetup => {
     connect: vi.fn().mockResolvedValue(undefined),
     subscribe: vi.fn().mockResolvedValue(undefined),
     channelHasSubscription: vi.fn().mockReturnValue(false),
-    getSubscriptionsByChannel: vi.fn().mockReturnValue([]),
+    unsubscribeChannels: vi.fn().mockResolvedValue(undefined),
     forceReconnection: vi.fn().mockResolvedValue(undefined),
     addChannelCallback: vi.fn(),
     removeChannelCallback: vi.fn(),
@@ -88,8 +88,8 @@ const getMessenger = (): MessengerSetup => {
     mocks.channelHasSubscription,
   );
   rootMessenger.registerActionHandler(
-    'BackendWebSocketService:getSubscriptionsByChannel',
-    mocks.getSubscriptionsByChannel,
+    'BackendWebSocketService:unsubscribeChannels',
+    mocks.unsubscribeChannels,
   );
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:addChannelCallback',
@@ -305,20 +305,14 @@ describe('LaunchpadTokenDetailsService', () => {
   describe('unsubscribe', () => {
     it('unsubscribes on the server after the grace period', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = vi.fn().mockResolvedValue(undefined);
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
         await vi.advanceTimersByTimeAsync(3000);
 
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
+        expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([
           EXPECTED_CHANNEL,
-        );
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
+        ]);
       });
     });
   });

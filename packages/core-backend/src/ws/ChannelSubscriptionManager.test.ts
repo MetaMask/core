@@ -8,7 +8,6 @@ import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketSer
 import type {
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-  WebSocketConnectionInfo,
 } from './BackendWebSocketService.js';
 import { WebSocketState } from './BackendWebSocketService.js';
 import { ChannelSubscriptionManager } from './ChannelSubscriptionManager.js';
@@ -62,7 +61,7 @@ const getMessenger = (): {
     connect: Mock;
     subscribe: Mock;
     channelHasSubscription: Mock;
-    getSubscriptionsByChannel: Mock;
+    unsubscribeChannels: Mock;
     forceReconnection: Mock;
     addChannelCallback: Mock;
     removeChannelCallback: Mock;
@@ -81,8 +80,8 @@ const getMessenger = (): {
       'BackendWebSocketService:connect',
       'BackendWebSocketService:forceReconnection',
       'BackendWebSocketService:subscribe',
+      'BackendWebSocketService:unsubscribeChannels',
       'BackendWebSocketService:channelHasSubscription',
-      'BackendWebSocketService:getSubscriptionsByChannel',
       'BackendWebSocketService:addChannelCallback',
       'BackendWebSocketService:removeChannelCallback',
     ],
@@ -94,7 +93,7 @@ const getMessenger = (): {
     connect: vi.fn().mockResolvedValue(undefined),
     subscribe: vi.fn().mockResolvedValue(undefined),
     channelHasSubscription: vi.fn().mockReturnValue(false),
-    getSubscriptionsByChannel: vi.fn().mockReturnValue([]),
+    unsubscribeChannels: vi.fn().mockResolvedValue(undefined),
     forceReconnection: vi.fn().mockResolvedValue(undefined),
     addChannelCallback: vi.fn(),
     removeChannelCallback: vi.fn(),
@@ -117,8 +116,8 @@ const getMessenger = (): {
     mocks.channelHasSubscription,
   );
   rootMessenger.registerActionHandler(
-    'BackendWebSocketService:getSubscriptionsByChannel',
-    mocks.getSubscriptionsByChannel,
+    'BackendWebSocketService:unsubscribeChannels',
+    mocks.unsubscribeChannels,
   );
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:addChannelCallback',
@@ -260,29 +259,20 @@ describe('ChannelSubscriptionManager', () => {
   describe('unsubscribe', () => {
     it('unsubscribes on the server after the grace period', async () => {
       const { manager, mocks } = getManager();
-      const mockUnsub = vi.fn().mockResolvedValue(undefined);
-      mocks.getSubscriptionsByChannel.mockReturnValue([
-        { unsubscribe: mockUnsub },
-      ]);
 
       await manager.subscribe(CHANNEL);
       await manager.unsubscribe(CHANNEL);
 
-      expect(mockUnsub).not.toHaveBeenCalled();
+      expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(3000);
       await completeAsyncOperations();
 
-      expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(CHANNEL);
-      expect(mockUnsub).toHaveBeenCalledTimes(1);
+      expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([CHANNEL]);
     });
 
     it('reuses the subscription if a new subscriber arrives during the grace period', async () => {
       const { manager, mocks } = getManager();
-      const mockUnsub = vi.fn().mockResolvedValue(undefined);
-      mocks.getSubscriptionsByChannel.mockReturnValue([
-        { unsubscribe: mockUnsub },
-      ]);
       mocks.channelHasSubscription.mockReturnValue(true);
 
       await manager.subscribe(CHANNEL);
@@ -292,14 +282,14 @@ describe('ChannelSubscriptionManager', () => {
       vi.advanceTimersByTime(3000);
       await completeAsyncOperations();
 
-      expect(mockUnsub).not.toHaveBeenCalled();
+      expect(mocks.unsubscribeChannels).not.toHaveBeenCalled();
     });
 
     it('forces a reconnection after unsubscribe retries are exhausted', async () => {
       const { manager, mocks } = getManager();
-      mocks.getSubscriptionsByChannel.mockImplementation(() => {
-        throw new Error('unsubscribe failed');
-      });
+      mocks.unsubscribeChannels.mockRejectedValue(
+        new Error('unsubscribe failed'),
+      );
 
       await manager.subscribe(CHANNEL);
       await manager.unsubscribe(CHANNEL);
@@ -327,7 +317,7 @@ describe('ChannelSubscriptionManager', () => {
       rootMessenger.publish('BackendWebSocketService:connectionStateChanged', {
         ...BASE_CONNECTION_INFO,
         state: WebSocketState.CONNECTED,
-      } as WebSocketConnectionInfo);
+      });
       await completeAsyncOperations();
 
       expect(mocks.subscribe).toHaveBeenCalledWith({
@@ -343,7 +333,7 @@ describe('ChannelSubscriptionManager', () => {
       rootMessenger.publish('BackendWebSocketService:connectionStateChanged', {
         ...BASE_CONNECTION_INFO,
         state: WebSocketState.DISCONNECTED,
-      } as WebSocketConnectionInfo);
+      });
       await completeAsyncOperations();
 
       expect(options.onConnectionStateChange).toHaveBeenCalledWith(
@@ -402,18 +392,13 @@ describe('ChannelSubscriptionManager', () => {
   describe('flush', () => {
     it('flushes other grace-period channels before subscribing a new one', async () => {
       const { manager, mocks } = getManager();
-      const mockUnsub = vi.fn().mockResolvedValue(undefined);
-      mocks.getSubscriptionsByChannel.mockReturnValue([
-        { unsubscribe: mockUnsub },
-      ]);
 
       await manager.subscribe(CHANNEL);
       await manager.unsubscribe(CHANNEL);
       // CHANNEL is now in its grace period; subscribing OTHER_CHANNEL flushes it.
       await manager.subscribe(OTHER_CHANNEL);
 
-      expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(CHANNEL);
-      expect(mockUnsub).toHaveBeenCalledTimes(1);
+      expect(mocks.unsubscribeChannels).toHaveBeenCalledWith([CHANNEL]);
     });
   });
 });

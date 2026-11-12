@@ -112,17 +112,6 @@ export type BackendWebSocketServiceGetConnectionInfoAction = {
 };
 
 /**
- * Gets all subscription information for a specific channel
- *
- * @param channel - The channel name to look up
- * @returns Array of subscription details for all subscriptions containing the channel
- */
-export type BackendWebSocketServiceGetSubscriptionsByChannelAction = {
-  type: `BackendWebSocketService:getSubscriptionsByChannel`;
-  handler: BackendWebSocketService['getSubscriptionsByChannel'];
-};
-
-/**
  * Checks if a channel has a subscription
  *
  * @param channel - The channel name to check
@@ -243,7 +232,8 @@ export type BackendWebSocketServiceGetChannelCallbacksAction = {
  * @param options.callback - Callback function for handling notifications
  * @param options.requestId - Optional request ID for testing (will generate UUID if not provided)
  * @param options.channelType - Channel type identifier
- * @returns Subscription object with unsubscribe method
+ * @returns Subscription for the channels the gateway accepted. `failed` lists
+ * the channels it refused. A response that accepts nothing rejects.
  *
  * @example
  * ```typescript
@@ -267,6 +257,20 @@ export type BackendWebSocketServiceSubscribeAction = {
 };
 
 /**
+ * Remove these channels from the server.
+ *
+ * Channels stored on the same subscription go out in one unsubscribe frame.
+ * A channel the server does not have is skipped. A refusal on one
+ * subscription does not skip the others.
+ *
+ * @param channels - Fully-qualified channel names to close.
+ */
+export type BackendWebSocketServiceUnsubscribeChannelsAction = {
+  type: `BackendWebSocketService:unsubscribeChannels`;
+  handler: BackendWebSocketService['unsubscribeChannels'];
+};
+
+/**
  * Union of all BackendWebSocketService action types.
  */
 export type BackendWebSocketServiceMethodActions =
@@ -276,10 +280,10 @@ export type BackendWebSocketServiceMethodActions =
   | BackendWebSocketServiceSendMessageAction
   | BackendWebSocketServiceSendRequestAction
   | BackendWebSocketServiceGetConnectionInfoAction
-  | BackendWebSocketServiceGetSubscriptionsByChannelAction
   | BackendWebSocketServiceChannelHasSubscriptionAction
   | BackendWebSocketServiceFindSubscriptionsByChannelPrefixAction
   | BackendWebSocketServiceAddChannelCallbackAction
   | BackendWebSocketServiceRemoveChannelCallbackAction
   | BackendWebSocketServiceGetChannelCallbacksAction
-  | BackendWebSocketServiceSubscribeAction;
+  | BackendWebSocketServiceSubscribeAction
+  | BackendWebSocketServiceUnsubscribeChannelsAction;

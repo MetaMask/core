@@ -152,6 +152,52 @@ export type {
 } from './ws/launchpad/index.js';
 
 // ============================================================================
+// MARKET STATS SERVICE
+// ============================================================================
+
+export {
+  MarketStatsService,
+  MARKET_STATS_SERVICE_ALLOWED_ACTIONS,
+  MARKET_STATS_SERVICE_ALLOWED_EVENTS,
+  buildMarketStatsChannel,
+  parseMarketStatsBatch,
+  parseMarketStatsChannel,
+  MARKET_STATS_BATCH_CHANNEL,
+  MARKET_STATS_NAMESPACE,
+  MARKET_STATS_SYSTEM_NOTIFICATIONS_CHANNEL,
+  applyLiveTokenFiat,
+  applyMarketStatsPrices,
+  liveFiatDelta,
+  liveGroupFiatAdjustments,
+  liveHoldingFiat,
+  marketStatsAssetKey,
+  marketStatsQueryKey,
+  quotesFor,
+  readLiveQuotes,
+  shareMarketStatsData,
+  subscribeLiveQuotes,
+} from './ws/market-stats/index.js';
+
+export type {
+  MarketStatsPriceUpdate,
+  MarketStatsSubscriptionOptions,
+  MarketStatsChainStatus,
+  MarketStatsSystemNotificationData,
+  MarketStatsServiceActions,
+  MarketStatsServiceAllowedActions,
+  MarketStatsServicePricesUpdatedEvent,
+  MarketStatsServiceEvents,
+  MarketStatsServiceAllowedEvents,
+  MarketStatsServiceMessenger,
+  LivePriceMap,
+  LiveQuote,
+  MarketStatsQuoteHandlers,
+  MarketStatsQuotesQueryKey,
+  SubscribeToMarketStats,
+  UnsubscribeMarketStats,
+} from './ws/market-stats/index.js';
+
+// ============================================================================
 // API PLATFORM CLIENT
 // ============================================================================
 
