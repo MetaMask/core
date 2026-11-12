@@ -7,7 +7,6 @@ import type { Network } from '../constants.js';
 import { BIP_32_HARDENED_OFFSET, UNPREFIXED_PATH_REGEX } from '../constants.js';
 import type { Curve } from '../curves/index.js';
 import { mod } from '../curves/index.js';
-import { PUBLIC_KEY_GUARD } from '../guard.js';
 import { SLIP10Node } from '../SLIP10Node.js';
 import { isValidBytesKey, numberToUint32, validateBytes } from '../utils.js';
 import type { DeriveChildKeyArgs, DerivedKeys } from './index.js';

@@ -474,7 +474,7 @@ export class SLIP10Node implements SLIP10NodeInterface {
 
   public readonly privateKeyBytes?: Uint8Array<ArrayBuffer> | undefined;
 
-  #publicKeyBytes: Uint8Array<ArrayBuffer>;
+  readonly #publicKeyBytes: Uint8Array<ArrayBuffer>;
 
   // eslint-disable-next-line no-restricted-syntax
   private constructor(
