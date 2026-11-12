@@ -550,10 +550,14 @@ export class SeedlessOnboardingController<
       this.#assertIsUnlocked();
 
       const performBackup = async (): Promise<void> => {
-        await this.#assertPasswordInSync({
-          skipCache: true,
-          skipLock: true, // skip lock since we already have the lock
-        });
+        // a local password is outdated by design until it is reset, so the
+        // vault keys it unlocks are the source of truth for the new data
+        if (!this.state.isLocalPassword) {
+          await this.#assertPasswordInSync({
+            skipCache: true,
+            skipLock: true, // skip lock since we already have the lock
+          });
+        }
 
         // verify the password and unlock the vault
         const { toprfEncryptionKey, toprfAuthKeyPair } =

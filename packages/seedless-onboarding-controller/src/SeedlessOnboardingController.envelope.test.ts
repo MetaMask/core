@@ -2352,6 +2352,147 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('adds secret data without the global password while the local password is set', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+
+          await controller.addNewSecretData(
+            stringToBytes('new mock seed phrase'),
+            EncAccountDataType.ImportedSrp,
+            { keyringId: 'new-keyring' },
+          );
+
+          const secrets = await controller.fetchAllSecretData();
+          expect(secrets.map(({ data }) => data)).toStrictEqual(
+            expect.arrayContaining([
+              MOCK_SEED_PHRASE,
+              stringToBytes('new mock seed phrase'),
+            ]),
+          );
+          expect(controller.state.isLocalPassword).toBe(true);
+        });
+      });
+
+      it('fetches secret data without a password while the local password is set', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+
+          const secrets = await controller.fetchAllSecretData();
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(controller.state.isLocalPassword).toBe(true);
+        });
+      });
+
+      it('unlocks with the local password after a lock', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+          await controller.setLocked();
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            RECOVERED_PASSWORD,
+          );
+
+          expect(controller.state.isLocalPassword).toBe(true);
+          expect(
+            (await controller.fetchAllSecretData()).map(({ data }) => data),
+          ).toStrictEqual([MOCK_SEED_PHRASE]);
+        });
+      });
+
+      it('refuses createToprfKeyAndBackupSeedPhrase when a vault exists', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { toprfClient, baseMessenger } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
+              RECOVERED_PASSWORD,
+              stringToBytes('another seed phrase'),
+              'another-keyring',
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultAlreadyExists,
+          );
+          expect(network.spies.createLocalKey).not.toHaveBeenCalled();
+        });
+      });
+
+      it('identifies incomplete metadata backup with the local password', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient, baseMessenger } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+
+          expect(
+            await baseMessenger.call(
+              'SeedlessOnboardingController:identifyIncompleteMetadataBackup',
+              RECOVERED_PASSWORD,
+            ),
+          ).toBeUndefined();
+          expect(controller.state.isLocalPassword).toBe(true);
+        });
+      });
+
+      it('returns the access token after setLocalPassword', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await recover(args);
+
+          expect(await controller.getAccessToken()).toBe(
+            controller.state.accessToken,
+          );
+        });
+      });
+
       it('throws RecoveryRequired on a second call', async () => {
         const store = await createMigratedAccount();
 
