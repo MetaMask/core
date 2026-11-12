@@ -77,14 +77,18 @@ describe('main', () => {
 
         To merge this PR, you'll need to get approvals from the following owners.
 
-        **@MetaMask/accounts-engineers** (2 files)
+        <details>
+        <summary><strong>@MetaMask/accounts-engineers</strong> (2 files)</summary>
 
         - \`packages/accounts-controller/CHANGELOG.md\`
         - \`packages/accounts-controller/src/index.ts\`
+        </details>
 
-        **@MetaMask/core-platform** (1 file)
+        <details>
+        <summary><strong>@MetaMask/core-platform</strong> (1 file)</summary>
 
         - \`packages/sample-controllers/package.json\`
+        </details>
 
         <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
 
@@ -129,9 +133,11 @@ describe('main', () => {
 
         To merge this PR, you'll need to get approvals from the following owners.
 
-        **@MetaMask/accounts-engineers** (1 file)
+        <details>
+        <summary><strong>@MetaMask/accounts-engineers</strong> (1 file)</summary>
 
         - \`packages/accounts-controller/src/index.ts\`
+        </details>
 
       `);
     });
@@ -173,9 +179,11 @@ describe('main', () => {
 
         To merge this PR, you'll need to get approvals from the following owners.
 
-        **@MetaMask/accounts-engineers** (1 file)
+        <details>
+        <summary><strong>@MetaMask/accounts-engineers</strong> (1 file)</summary>
 
         - \`packages/accounts-controller/src/index.ts\`
+        </details>
 
       `);
     });

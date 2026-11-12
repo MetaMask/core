@@ -3,6 +3,12 @@ import yargs from 'yargs';
 import { generateCodeownershipSummary } from './generate-summary.ts';
 
 /**
+ * The most characters the summary may have, leaving room below GitHub's comment
+ * size limit (65,536 characters) for the workflow's comment marker.
+ */
+const MAX_SUMMARY_LENGTH_FOR_COMMENT = 60_000;
+
+/**
  * Print a summary of which codeowners own the files changed on a branch. The
  * summary is what the Post Codeownership Summary workflow posts on pull
  * requests, so running this locally shows what the workflow will post.
@@ -77,6 +83,7 @@ export async function main({
     repositoryDirectoryPath: cwd,
     baseRef: options.baseRef,
     headRef: options.headRef,
+    maxLength: MAX_SUMMARY_LENGTH_FOR_COMMENT,
   });
   if (summary) {
     stdout.write(summary);

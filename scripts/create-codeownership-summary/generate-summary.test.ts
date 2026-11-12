@@ -53,15 +53,19 @@ describe('generateCodeownershipSummary', () => {
       To merge this PR, you'll need to get approvals from the following owner groups.
       **For files with multiple owners, approval from one owner is sufficient.**
 
-      **@MetaMask/team-a** (2 files)
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
 
       - \`packages/example-controller/CHANGELOG.md\`
       - \`packages/example-controller/src/index.ts\`
+      </details>
 
-      **@MetaMask/team-b** _or_ **@MetaMask/team-c** (2 files)
+      <details>
+      <summary><strong>@MetaMask/team-b</strong> <em>or</em> <strong>@MetaMask/team-c</strong> (2 files)</summary>
 
       - \`packages/shared-controller/package.json\`
       - \`packages/shared-controller/README.md\`
+      </details>
 
       <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
 
@@ -106,9 +110,11 @@ describe('generateCodeownershipSummary', () => {
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/team-a** (1 file)
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
 
       - \`a.ts\`
+      </details>
 
     `);
   });
@@ -134,9 +140,11 @@ describe('generateCodeownershipSummary', () => {
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/team-a** (1 file)
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
 
       - \`packages/example-controller/src/index.ts\`
+      </details>
 
     `);
   });
@@ -159,9 +167,11 @@ describe('generateCodeownershipSummary', () => {
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/core-platform** (1 file)
+      <details>
+      <summary><strong>@MetaMask/core-platform</strong> (1 file)</summary>
 
       - \`packages/example-controller/CHANGELOG.md\`
+      </details>
 
     `);
   });
@@ -184,9 +194,11 @@ describe('generateCodeownershipSummary', () => {
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/team-a** (1 file)
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
 
       - \`a.md\`
+      </details>
 
     `);
   });
@@ -213,9 +225,11 @@ describe('generateCodeownershipSummary', () => {
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/team-a** (1 file)
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (1 file)</summary>
 
       - \`a.ts\`
+      </details>
 
     `);
   });
@@ -241,9 +255,11 @@ describe('generateCodeownershipSummary', () => {
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/accounts-engineers** (1 file)
+      <details>
+      <summary><strong>@MetaMask/accounts-engineers</strong> (1 file)</summary>
 
       - \`packages/example/src/index.ts\`
+      </details>
 
     `);
   });
@@ -270,10 +286,12 @@ describe('generateCodeownershipSummary', () => {
       To merge this PR, you'll need to get approvals from the following owner groups.
       **For files with multiple owners, approval from one owner is sufficient.**
 
-      **@MetaMask/extension-platform** _or_ **@MetaMask/mobile-platform** (2 files)
+      <details>
+      <summary><strong>@MetaMask/extension-platform</strong> <em>or</em> <strong>@MetaMask/mobile-platform</strong> (2 files)</summary>
 
       - \`a.ts\`
       - \`b.ts\`
+      </details>
 
     `);
   });
@@ -295,10 +313,12 @@ describe('generateCodeownershipSummary', () => {
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/core-platform** (2 files)
+      <details>
+      <summary><strong>@MetaMask/core-platform</strong> (2 files)</summary>
 
       - \`a/nested/index.ts\`
       - \`z/index.ts\`
+      </details>
 
     `);
   });
@@ -337,37 +357,123 @@ describe('generateCodeownershipSummary', () => {
     expect(summary).toBe('');
   });
 
-  it('omits the owner groups that would make the summary too long for a GitHub comment, with a warning', async () => {
+  it('lists every file when the summary fits within the maximum length', async () => {
     mockGitRepository({
-      codeowners: outdent`
-        /a/ @MetaMask/team-a
-        /b/ @MetaMask/team-b
-
-      `,
-      changedFilePaths: [
-        'a/index.ts',
-        ...Array.from({ length: 10_000 }, (_value, index) => `b/${index}.ts`),
-      ],
+      codeowners: '/a/ @MetaMask/team-a\n',
+      changedFilePaths: ['a/1.ts', 'a/2.ts'],
     });
+    const expectedSummary = outdent`
+      ## 🛑 Files requiring codeowner review
+
+      To merge this PR, you'll need to get approvals from the following owners.
+
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
+
+      - \`a/1.ts\`
+      - \`a/2.ts\`
+      </details>
+
+    `;
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
+      maxLength: expectedSummary.length,
     });
 
-    expect(summary).toBe(outdent`
+    expect(summary).toBe(expectedSummary);
+  });
+
+  it('shortens every file list to the same number of files when the summary would exceed the maximum length', async () => {
+    mockGitRepository({
+      codeowners: outdent`
+        /a/ @MetaMask/core-platform @MetaMask/team-a # maintenance-owner: @MetaMask/core-platform
+        /b/ @MetaMask/team-b
+
+      `,
+      changedFilePaths: [
+        ...Array.from(
+          { length: 30 },
+          (_value, index) => `a/${String(index + 1).padStart(2, '0')}.ts`,
+        ),
+        'b/index.ts',
+      ],
+    });
+    const expectedSummary = outdent`
       ## 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
 
-      **@MetaMask/team-a** (1 file)
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (30 files)</summary>
 
-      - \`a/index.ts\`
+      - \`a/01.ts\`
+      - ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>29 more files</em></abbr> ...
+      </details>
 
-      > ⚠️ Remaining file groups omitted because this summary reached the comment size limit. Run \`yarn create-codeownership-summary\` to see the full summary.
+      <details>
+      <summary><strong>@MetaMask/team-b</strong> (1 file)</summary>
 
-    `);
+      - \`b/index.ts\`
+      </details>
+
+      <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
+
+      > [!NOTE]
+      > For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns
+      > the following files. **It is not required to seek approval from
+      > \`@MetaMask/core-platform\` to change these files. This section is purely
+      > informational.**
+
+      - \`a/01.ts\`
+      - ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>29 more files</em></abbr> ...
+      </details>
+
+    `;
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+      maxLength: expectedSummary.length,
+    });
+
+    expect(summary).toBe(expectedSummary);
+  });
+
+  it('says how many files were left out of a list when it is only one', async () => {
+    const longDirectoryPath = `a/${'long-directory-name-'.repeat(12)}`;
+    mockGitRepository({
+      codeowners: '/a/ @MetaMask/team-a\n',
+      changedFilePaths: [
+        `${longDirectoryPath}1.ts`,
+        `${longDirectoryPath}2.ts`,
+      ],
+    });
+    const expectedSummary = outdent`
+      ## 🛑 Files requiring codeowner review
+
+      To merge this PR, you'll need to get approvals from the following owners.
+
+      <details>
+      <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
+
+      - \`${longDirectoryPath}1.ts\`
+      - ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>1 more file</em></abbr> ...
+      </details>
+
+    `;
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+      maxLength: expectedSummary.length,
+    });
+
+    expect(summary).toBe(expectedSummary);
   });
 });
 

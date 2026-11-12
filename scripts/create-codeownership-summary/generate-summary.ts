@@ -4,12 +4,6 @@ import ignore from 'ignore';
 import type { CodeownersRule } from '../manage-codeowners/types.ts';
 
 /**
- * Leaves room below GitHub's comment size limit for the workflow's comment
- * marker and truncation notices.
- */
-const MAX_SUMMARY_LENGTH = 60_000;
-
-/**
  * A changed file and whose approval it needs, based on the last CODEOWNERS
  * rule that matches it, which GitHub uses.
  */
@@ -33,7 +27,7 @@ type MatchedFile = {
 /**
  * Files with the same set of eligible codeowners.
  */
-type CodeownershipGroup = {
+type PrimaryOwnershipGroup = {
   /**
    * Sorted, unique owners; any one can approve the group's files.
    */
@@ -48,11 +42,11 @@ type CodeownershipGroup = {
 /**
  * Files that a maintenance owner co-owns.
  */
-type MaintainedFileGroup = {
+type MaintenanceOwnershipGroup = {
   /**
    * The maintenance owner.
    */
-  maintenanceOwner: string;
+  owner: string;
   /**
    * Repository-relative paths of the changed files it co-owns.
    */
@@ -75,16 +69,20 @@ type MaintainedFileGroup = {
  * repository to inspect.
  * @param options.baseRef - The branch being merged into.
  * @param options.headRef - The branch being merged.
+ * @param options.maxLength - If given, the file lists are shortened as needed
+ * so that the summary is no longer than this, e.g. to fit in a GitHub comment.
  * @returns The summary, or an empty string if no changed files have owners.
  */
 export async function generateCodeownershipSummary({
   repositoryDirectoryPath,
   baseRef,
   headRef,
+  maxLength,
 }: {
   repositoryDirectoryPath: string;
   baseRef: string;
   headRef: string;
+  maxLength?: number;
 }): Promise<string> {
   const codeownerRules = parseCodeowners(
     await readCodeownersFile({ repositoryDirectoryPath, ref: baseRef }),
@@ -103,7 +101,11 @@ export async function generateCodeownershipSummary({
     groupFilesByMaintenanceOwners(matchedFiles);
 
   return primaryOwnershipGroups.length > 0
-    ? renderSummary({ primaryOwnershipGroups, maintenanceOwnershipGroups })
+    ? renderSummary({
+        primaryOwnershipGroups,
+        maintenanceOwnershipGroups,
+        maxLength,
+      })
     : '';
 }
 
@@ -289,8 +291,8 @@ function resolveOwners(
  */
 function groupFilesByPrimaryOwners(
   matchedFiles: MatchedFile[],
-): CodeownershipGroup[] {
-  const groups = new Map<string, CodeownershipGroup>();
+): PrimaryOwnershipGroup[] {
+  const groups = new Map<string, PrimaryOwnershipGroup>();
   for (const { filePath, primaryOwners } of matchedFiles) {
     if (primaryOwners.length === 0) {
       continue;
@@ -317,7 +319,7 @@ function groupFilesByPrimaryOwners(
  */
 function groupFilesByMaintenanceOwners(
   matchedFiles: MatchedFile[],
-): MaintainedFileGroup[] {
+): MaintenanceOwnershipGroup[] {
   const filePathsByMaintenanceOwner = new Map<string, string[]>();
   for (const { filePath, maintenanceOwners } of matchedFiles) {
     for (const maintenanceOwner of maintenanceOwners) {
@@ -329,7 +331,7 @@ function groupFilesByMaintenanceOwners(
 
   return [...filePathsByMaintenanceOwner.entries()]
     .sort(([first], [second]) => first.localeCompare(second))
-    .map(([maintenanceOwner, filePaths]) => ({ maintenanceOwner, filePaths }));
+    .map(([owner, filePaths]) => ({ owner, filePaths }));
 }
 
 /**
@@ -365,44 +367,115 @@ function createPatternMatcher(pattern: string): (filePath: string) => boolean {
  * whose approval is required.
  * @param options.maintenanceOwnershipGroups - Changed files co-owned by each
  * maintenance owner.
- * @returns A Markdown summary short enough to post as a GitHub comment.
+ * @param options.maxLength - If given, the most characters the summary may
+ * have. If every file doesn't fit, each file list is shortened to the same
+ * number of files, the most that fit.
+ * @returns The Markdown summary.
  */
 function renderSummary({
   primaryOwnershipGroups,
   maintenanceOwnershipGroups,
+  maxLength,
 }: {
-  primaryOwnershipGroups: CodeownershipGroup[];
-  maintenanceOwnershipGroups: MaintainedFileGroup[];
+  primaryOwnershipGroups: PrimaryOwnershipGroup[];
+  maintenanceOwnershipGroups: MaintenanceOwnershipGroup[];
+  maxLength: number | undefined;
 }): string {
-  let summary = '';
-  const sections = [
-    ...renderApprovalRequiredSection(primaryOwnershipGroups),
-    ...maintenanceOwnershipGroups.map(renderApprovalOptionalSection),
-  ];
-
-  for (const section of sections) {
-    if (summary.length + section.length > MAX_SUMMARY_LENGTH) {
-      summary +=
-        '\n> ⚠️ Remaining file groups omitted because this summary reached the comment size limit. Run `yarn create-codeownership-summary` to see the full summary.\n';
-      break;
-    }
-    summary += section;
+  /**
+   * Render the summary, showing at most the given number of files in each
+   * list.
+   *
+   * @param maxFilesPerList - The most files to show in each list.
+   * @returns The Markdown summary.
+   */
+  function renderSummaryWithMaxFilesPerList(maxFilesPerList: number): string {
+    return [
+      renderApprovalRequiredSection({
+        primaryOwnershipGroups,
+        maxFilesPerList,
+      }),
+      ...maintenanceOwnershipGroups.map((maintenanceOwnershipGroup) =>
+        renderApprovalOptionalSection({
+          maintenanceOwnershipGroup,
+          maxFilesPerList,
+        }),
+      ),
+    ].join('');
   }
-  return summary;
+
+  // First try rendering the summary without any file list limits.
+  const fullSummary = renderSummaryWithMaxFilesPerList(Infinity);
+  if (maxLength === undefined || fullSummary.length <= maxLength) {
+    return fullSummary;
+  }
+
+  // Too long! We need to elide each file list.
+  const maxFilesPerList = findMostFilesPerListThatFit({
+    renderSummaryWithMaxFilesPerList,
+    initialMaxListLength: Math.max(
+      ...[...primaryOwnershipGroups, ...maintenanceOwnershipGroups].map(
+        ({ filePaths }) => filePaths.length,
+      ),
+    ),
+    maxTotalLength: maxLength,
+  });
+  return renderSummaryWithMaxFilesPerList(maxFilesPerList);
+}
+
+/**
+ * Find the most files that each list in the summary can show while keeping the
+ * entire summary within a maximum length.
+ *
+ * @param options - The options.
+ * @param options.renderSummaryWithMaxFilesPerList - Render the summary, showing
+ * at most the given number of files in each list.
+ * @param options.initialMaxListLength - The number of files in the longest list.
+ * @param options.maxTotalLength - The most characters the summary may have.
+ * @returns The number of files to show in each list, or 0 if even that
+ * doesn't fit.
+ */
+function findMostFilesPerListThatFit({
+  renderSummaryWithMaxFilesPerList,
+  initialMaxListLength,
+  maxTotalLength,
+}: {
+  renderSummaryWithMaxFilesPerList: (maxFilesPerList: number) => string;
+  initialMaxListLength: number;
+  maxTotalLength: number;
+}): number {
+  // We could test the length of the summary starting at some reasonable maximum
+  // and work backward, but that would be suboptimal if a list has hundreds of
+  // files, so we work out the perfect length via binary search.
+  let start = 0;
+  let end = initialMaxListLength - 1;
+  while (start < end) {
+    const middle = Math.ceil((start + end) / 2);
+    if (renderSummaryWithMaxFilesPerList(middle).length <= maxTotalLength) {
+      start = middle;
+    } else {
+      end = middle - 1;
+    }
+  }
+  return start;
 }
 
 /**
  * Render the files whose owners must approve the PR, grouped by those owners.
+ * Each group is collapsed, showing its owners and how many files it has.
  *
- * @param primaryOwnershipGroups - Changed files grouped by the owners whose
- * approval is required.
- * @returns The parts of the Markdown section: its heading and instructions,
- * then each group. They're kept apart so that a summary that's too long for a
- * comment can be cut off between groups, rather than losing the whole section.
+ * @param options - The options.
+ * @param options.primaryOwnershipGroups - Changed files grouped by the owners
+ * whose approval is required.
+ * @param options.maxFilesPerList - The most files to list for each group.
+ * @returns A Markdown section.
  */
-function renderApprovalRequiredSection(
-  primaryOwnershipGroups: CodeownershipGroup[],
-): string[] {
+function renderApprovalRequiredSection({
+  primaryOwnershipGroups,
+  maxFilesPerList,
+}: {
+  primaryOwnershipGroups: PrimaryOwnershipGroup[];
+  maxFilesPerList: number;
+}): string {
   const hasGroupWithMultipleOwners = primaryOwnershipGroups.some(
     ({ owners }) => owners.length > 1,
   );
@@ -410,20 +483,22 @@ function renderApprovalRequiredSection(
     ? `To merge this PR, you'll need to get approvals from the following owner groups.
 **For files with multiple owners, approval from one owner is sufficient.**`
     : "To merge this PR, you'll need to get approvals from the following owners.";
+  const groups = primaryOwnershipGroups.map(({ owners, filePaths }) => {
+    const ownerList = owners
+      .map((owner) => `<strong>${owner}</strong>`)
+      .join(' <em>or</em> ');
+    return `
+<details>
+<summary>${ownerList} (${describeNumberOfFiles(filePaths.length)})</summary>
 
-  return [
-    `## 🛑 Files requiring codeowner review
+${renderFileList(filePaths, maxFilesPerList)}</details>
+`;
+  });
+
+  return `## 🛑 Files requiring codeowner review
 
 ${instructions}
-`,
-    ...primaryOwnershipGroups.map(({ owners, filePaths }) => {
-      const ownerList = owners.map((owner) => `**${owner}**`).join(' _or_ ');
-      return `
-${ownerList} (${describeNumberOfFiles(filePaths)})
-
-${renderFileList(filePaths)}`;
-    }),
-  ];
+${groups.join('')}`;
 }
 
 /**
@@ -433,48 +508,61 @@ ${renderFileList(filePaths)}`;
  * The owner is shown as code so that the comment doesn't mention, and notify,
  * a team whose review isn't needed.
  *
- * @param group - The maintenance owner and the files it co-owns.
- * @param group.maintenanceOwner - The maintenance owner.
- * @param group.filePaths - Repository-relative paths of the changed files it
- * co-owns.
+ * @param options - The options.
+ * @param options.maintenanceOwnershipGroup - The maintenance ownership group.
+ * @param options.maxFilesPerList - The most files to list.
  * @returns A collapsible Markdown section.
  */
 function renderApprovalOptionalSection({
-  maintenanceOwner,
-  filePaths,
-}: MaintainedFileGroup): string {
+  maintenanceOwnershipGroup,
+  maxFilesPerList,
+}: {
+  maintenanceOwnershipGroup: MaintenanceOwnershipGroup;
+  maxFilesPerList: number;
+}): string {
   return `
-<details><summary><h2>ℹ️ Files co-owned by <code>${maintenanceOwner}</code> (expand for more)</h2></summary>
+<details><summary><h2>ℹ️ Files co-owned by <code>${maintenanceOwnershipGroup.owner}</code> (expand for more)</h2></summary>
 
 > [!NOTE]
-> For convenience in maintaining this repo, \`${maintenanceOwner}\` co-owns
+> For convenience in maintaining this repo, \`${maintenanceOwnershipGroup.owner}\` co-owns
 > the following files. **It is not required to seek approval from
-> \`${maintenanceOwner}\` to change these files. This section is purely
+> \`${maintenanceOwnershipGroup.owner}\` to change these files. This section is purely
 > informational.**
 
-${renderFileList(filePaths)}</details>
+${renderFileList(maintenanceOwnershipGroup.filePaths, maxFilesPerList)}</details>
 `;
 }
 
 /**
  * Describe how many files there are, pluralizing "file" if necessary.
  *
- * @param filePaths - The files.
+ * @param numberOfFiles - The number of files.
  * @returns A phrase such as "1 file" or "2 files".
  */
-function describeNumberOfFiles(filePaths: string[]): string {
-  return `${filePaths.length} ${filePaths.length === 1 ? 'file' : 'files'}`;
+function describeNumberOfFiles(numberOfFiles: number): string {
+  return `${numberOfFiles} ${numberOfFiles === 1 ? 'file' : 'files'}`;
 }
 
 /**
- * Render file paths as a sorted Markdown list.
+ * Render file paths as a sorted Markdown list. If there are too many to show,
+ * the list ends with a note of how many were left out and how to see them.
  *
  * @param filePaths - Repository-relative paths.
+ * @param maxFiles - The most files to list.
  * @returns The list, ending with a line break.
  */
-function renderFileList(filePaths: string[]): string {
-  return [...filePaths]
+function renderFileList(filePaths: string[], maxFiles: number): string {
+  const listedFilePaths = [...filePaths]
     .sort((first, second) => first.localeCompare(second))
+    .slice(0, maxFiles);
+  const list = listedFilePaths
     .map((filePath) => `- \`${filePath}\`\n`)
     .join('');
+  if (listedFilePaths.length === filePaths.length) {
+    return list;
+  }
+
+  const numberOfOmittedFiles = filePaths.length - listedFilePaths.length;
+  const omittedFiles = `${numberOfOmittedFiles} more ${numberOfOmittedFiles === 1 ? 'file' : 'files'}`;
+  return `${list}- ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>${omittedFiles}</em></abbr> ...\n`;
 }
