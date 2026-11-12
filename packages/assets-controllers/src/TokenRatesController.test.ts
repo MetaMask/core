@@ -13,6 +13,7 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type { NativeAssetIdentifiersMap } from '@metamask/network-enablement-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { add0x, KnownCaipNamespace } from '@metamask/utils';
 import type { Patch } from 'immer';
@@ -77,13 +78,54 @@ function buildTokenRatesControllerMessenger(
       'NetworkController:getState',
       'NetworkEnablementController:getState',
     ],
-    events: ['TokensController:stateChange', 'NetworkController:stateChange'],
+    events: [
+      'TokensController:stateChange',
+      'NetworkController:stateChange',
+      'NetworkEnablementController:stateChange',
+    ],
   });
   return tokenRatesControllerMessenger;
 }
 
 describe('TokenRatesController', () => {
   describe('constructor', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: TokenRatesControllerMessenger = new Messenger({
+        namespace: 'TokenRatesController',
+      });
+      const call = vi.spyOn(messenger, 'call');
+      const setNativeAssetIdentifiers = vi.fn();
+
+      const controller = new TokenRatesController({
+        messenger,
+        tokenPricesService: buildMockTokenPricesService({
+          setNativeAssetIdentifiers,
+        }),
+      });
+
+      expect(controller.state).toStrictEqual({ marketData: {} });
+      expect(call).not.toHaveBeenCalled();
+      expect(setNativeAssetIdentifiers).not.toHaveBeenCalled();
+    });
+
+    it('reads other controllers only once when init is called repeatedly', async () => {
+      const setNativeAssetIdentifiers = vi.fn();
+      await withController(
+        {
+          options: {
+            tokenPricesService: buildMockTokenPricesService({
+              setNativeAssetIdentifiers,
+            }),
+          },
+        },
+        async ({ controller }) => {
+          controller.init();
+
+          expect(setNativeAssetIdentifiers).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
     it('should set default state', async () => {
       await withController(async ({ controller }) => {
         expect(controller.state).toStrictEqual({
@@ -92,7 +134,7 @@ describe('TokenRatesController', () => {
       });
     });
 
-    it('should call setNativeAssetIdentifiers on tokenPricesService if available', async () => {
+    it('should call setNativeAssetIdentifiers on tokenPricesService in init if available', async () => {
       const setNativeAssetIdentifiers = vi.fn();
       const tokenPricesService = buildMockTokenPricesService({
         setNativeAssetIdentifiers,
@@ -125,11 +167,48 @@ describe('TokenRatesController', () => {
             tokenPricesService,
           },
         },
-        async ({ controller }) => {
+        async ({ controller, publishNativeAssetIdentifiers }) => {
+          publishNativeAssetIdentifiers({
+            'eip155:1': 'eip155:1/slip44:60',
+          } as const);
+
           // Should not throw and controller should be created
           expect(controller.state).toStrictEqual({
             marketData: {},
           });
+        },
+      );
+    });
+
+    it('applies native asset identifiers published after init', async () => {
+      const setNativeAssetIdentifiers = vi.fn();
+      const laterIdentifiers = {
+        'eip155:1': 'eip155:1/slip44:60',
+      } as const;
+
+      await withController(
+        {
+          mockNativeAssetIdentifiers: {},
+          options: {
+            tokenPricesService: buildMockTokenPricesService({
+              setNativeAssetIdentifiers,
+            }),
+          },
+        },
+        async ({ publishNativeAssetIdentifiers }) => {
+          expect(setNativeAssetIdentifiers).toHaveBeenCalledTimes(1);
+          expect(setNativeAssetIdentifiers).toHaveBeenCalledWith({});
+
+          publishNativeAssetIdentifiers(laterIdentifiers);
+
+          expect(setNativeAssetIdentifiers).toHaveBeenCalledTimes(2);
+          expect(setNativeAssetIdentifiers).toHaveBeenLastCalledWith(
+            laterIdentifiers,
+          );
+
+          publishNativeAssetIdentifiers(laterIdentifiers);
+
+          expect(setNativeAssetIdentifiers).toHaveBeenCalledTimes(2);
         },
       );
     });
@@ -182,6 +261,44 @@ describe('TokenRatesController', () => {
   });
 
   describe('updateExchangeRates', () => {
+    it('reads native asset identifiers again before fetching rates', async () => {
+      const setNativeAssetIdentifiers = vi.fn();
+      const fetchTokenPrices = vi.fn().mockResolvedValue([]);
+      const laterIdentifiers = {
+        'eip155:10': 'eip155:10/slip44:614',
+      } as const;
+
+      await withController(
+        {
+          mockNativeAssetIdentifiers: {},
+          options: {
+            tokenPricesService: buildMockTokenPricesService({
+              setNativeAssetIdentifiers,
+              fetchTokenPrices,
+            }),
+          },
+        },
+        async ({ controller, setNativeAssetIdentifiersState }) => {
+          setNativeAssetIdentifiersState(laterIdentifiers);
+
+          await controller.updateExchangeRates([
+            {
+              chainId: '0x1',
+              nativeCurrency: 'ETH',
+            },
+          ]);
+
+          expect(setNativeAssetIdentifiers).toHaveBeenLastCalledWith(
+            laterIdentifiers,
+          );
+          const appliedAt =
+            setNativeAssetIdentifiers.mock.invocationCallOrder.at(-1);
+          const fetchedAt = fetchTokenPrices.mock.invocationCallOrder[0];
+          expect(appliedAt).toBeLessThan(fetchedAt);
+        },
+      );
+    });
+
     it('does not fetch when disabled', async () => {
       const tokenPricesService = buildMockTokenPricesService();
       vi.spyOn(tokenPricesService, 'fetchTokenPrices');
@@ -1441,10 +1558,18 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
   triggerTokensStateChange,
   triggerNetworkStateChange,
+  setNativeAssetIdentifiersState,
+  publishNativeAssetIdentifiers,
 }: {
   controller: TokenRatesController;
   triggerTokensStateChange: (state: TokensControllerState) => void;
   triggerNetworkStateChange: (state: NetworkState, patches?: Patch[]) => void;
+  setNativeAssetIdentifiersState: (
+    nativeAssetIdentifiers: NativeAssetIdentifiersMap,
+  ) => void;
+  publishNativeAssetIdentifiers: (
+    nativeAssetIdentifiers: NativeAssetIdentifiersMap,
+  ) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1455,6 +1580,7 @@ type WithControllerOptions = {
   >;
   mockTokensControllerState?: Partial<TokensControllerState>;
   mockNetworkState?: Partial<NetworkState>;
+  mockNativeAssetIdentifiers?: NativeAssetIdentifiersMap;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1474,7 +1600,12 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, mockTokensControllerState, mockNetworkState } = rest;
+  const {
+    options,
+    mockTokensControllerState,
+    mockNetworkState,
+    mockNativeAssetIdentifiers,
+  } = rest;
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -1497,15 +1628,17 @@ async function withController<ReturnValue>(
     }),
   );
 
+  let nativeAssetIdentifiers: NativeAssetIdentifiersMap =
+    mockNativeAssetIdentifiers ?? {
+      'eip155:1': 'eip155:1/slip44:60',
+      'eip155:137': 'eip155:137/slip44:966',
+    };
   // Register NetworkEnablementController:getState handler
   messenger.registerActionHandler(
     'NetworkEnablementController:getState',
-    vi.fn().mockReturnValue({
+    () => ({
       enabledNetworkMap: {},
-      nativeAssetIdentifiers: {
-        'eip155:1': 'eip155:1/slip44:60',
-        'eip155:137': 'eip155:137/slip44:966',
-      },
+      nativeAssetIdentifiers,
     }),
   );
 
@@ -1514,6 +1647,7 @@ async function withController<ReturnValue>(
     messenger: buildTokenRatesControllerMessenger(messenger),
     ...options,
   });
+  controller.init();
   try {
     return await fn({
       controller,
@@ -1525,6 +1659,20 @@ async function withController<ReturnValue>(
         patches: Patch[] = [],
       ) => {
         messenger.publish('NetworkController:stateChange', state, patches);
+      },
+      setNativeAssetIdentifiersState: (next) => {
+        nativeAssetIdentifiers = next;
+      },
+      publishNativeAssetIdentifiers: (next) => {
+        nativeAssetIdentifiers = next;
+        messenger.publish(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {},
+            nativeAssetIdentifiers: next,
+          },
+          [],
+        );
       },
     });
   } finally {

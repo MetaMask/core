@@ -24,6 +24,7 @@ import type {
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkState,
 } from '@metamask/network-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
@@ -43,7 +44,7 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import { TOKEN_END_POINT_API } from './token-service.js';
 import type { TokenRwaData } from './token-service.js';
 import type { Token } from './TokenRatesController.js';
-import { TokensController } from './TokensController.js';
+import { getDefaultTokensState, TokensController } from './TokensController.js';
 import type {
   TokensControllerMessenger,
   TokensControllerState,
@@ -3299,7 +3300,7 @@ describe('TokensController', () => {
           },
         },
         async ({ controller }) => {
-          // The enrichment is async (fires in constructor); wait for it.
+          // The enrichment is async (fires in `init`); wait for it.
           await new Promise((resolve) => setTimeout(resolve, 0));
 
           // TokenListService returns the token list for mainnet with a name.
@@ -3359,7 +3360,7 @@ describe('TokensController', () => {
           },
         },
         async ({ controller }) => {
-          // Enrichment is a fire-and-forget async call in the constructor.
+          // Enrichment is a fire-and-forget async call in `init`.
           await new Promise((resolve) => setTimeout(resolve, 0));
 
           const token =
@@ -3369,6 +3370,155 @@ describe('TokensController', () => {
 
           expect(token.name).toBe('BarName');
           expect(token.rwaData).toStrictEqual({ ticker: 'NEW' });
+        },
+      );
+    });
+  });
+
+  describe('construction and init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: TokensControllerMessenger = new Messenger({
+        namespace: 'TokensController',
+      });
+      const call = vi.spyOn(messenger, 'call');
+      const fetchTokensByChainId = vi.fn().mockResolvedValue({});
+
+      const controller = new TokensController({
+        messenger,
+        tokenListService: {
+          fetchTokensByChainId,
+        } as unknown as import('./TokenListService.js').TokenListService,
+      });
+
+      expect(controller.state).toStrictEqual(getDefaultTokensState());
+      expect(call).not.toHaveBeenCalled();
+      expect(fetchTokensByChainId).not.toHaveBeenCalled();
+    });
+
+    it('reads the selected account only once when init is called repeatedly', async () => {
+      await withController(
+        async ({ controller, getSelectedAccountHandler }) => {
+          getSelectedAccountHandler.mockClear();
+
+          await controller.init();
+
+          expect(getSelectedAccountHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not read the selected account or enrich tokens in init when isDeprecated() returns true', async () => {
+      const fetchTokensByChainId = vi.fn().mockResolvedValue({});
+      await withController(
+        {
+          options: {
+            isDeprecated: () => true,
+            tokenListService: {
+              fetchTokensByChainId,
+            } as unknown as import('./TokenListService.js').TokenListService,
+          },
+        },
+        async ({ getSelectedAccountHandler }) => {
+          expect(getSelectedAccountHandler).not.toHaveBeenCalled();
+          expect(fetchTokensByChainId).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('uses the selected account address before init is called', async () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const tokensControllerMessenger: TokensControllerMessenger =
+        new Messenger({ namespace: 'TokensController', parent: messenger });
+      messenger.delegate({
+        messenger: tokensControllerMessenger,
+        actions: [
+          'AccountsController:getSelectedAccount',
+          'NetworkController:getNetworkClientById',
+        ],
+      });
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => defaultMockInternalAccount,
+      );
+      messenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        () =>
+          ({
+            configuration: { chainId: ChainId.mainnet },
+          }) as unknown as ReturnType<
+            NetworkControllerGetNetworkClientByIdAction['handler']
+          >,
+      );
+      const controller = new TokensController({
+        messenger: tokensControllerMessenger,
+        tokenListService: {
+          fetchTokensByChainId: vi.fn().mockResolvedValue({}),
+        } as unknown as import('./TokenListService.js').TokenListService,
+      });
+
+      await controller.addTokens(
+        [{ address: '0x01', symbol: 'bar', decimals: 2 }],
+        'mainnet',
+      );
+
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ],
+      ).toHaveLength(1);
+    });
+
+    it('uses the provider of the selected network client when no provider is given', async () => {
+      const getSelectedNetworkClient = vi
+        .fn()
+        .mockReturnValue({ provider: new MockInternalProvider() });
+      await withController(
+        { options: { provider: undefined } },
+        async ({ controller, messenger }) => {
+          messenger.registerActionHandler(
+            'NetworkController:getSelectedNetworkClient',
+            getSelectedNetworkClient,
+          );
+          ContractMock.mockImplementation(function () {
+            return buildMockEthersERC721Contract({ supportsInterface: true });
+          });
+
+          const result = controller.watchAsset({
+            asset: buildToken({
+              address: '0x0000000000000000000000000000000000000001',
+            }),
+            type: 'ERC20',
+            networkClientId: '',
+          });
+
+          await expect(result).rejects.toThrow('was detected as ERC721');
+          expect(getSelectedNetworkClient).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('throws when no provider is given and there is no selected network client', async () => {
+      await withController(
+        { options: { provider: undefined } },
+        async ({ controller, messenger }) => {
+          messenger.registerActionHandler(
+            'NetworkController:getSelectedNetworkClient',
+            () => undefined,
+          );
+
+          const result = controller.watchAsset({
+            asset: buildToken({
+              address: '0x0000000000000000000000000000000000000001',
+            }),
+            type: 'ERC20',
+            networkClientId: '',
+          });
+
+          await expect(result).rejects.toThrow(
+            'No provider is available for the selected network',
+          );
         },
       );
     });
@@ -4166,6 +4316,7 @@ async function withController<ReturnValue>(
     actions: [
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
+      'NetworkController:getSelectedNetworkClient',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
@@ -4215,6 +4366,9 @@ async function withController<ReturnValue>(
     tokenListService,
     ...options,
   });
+  // `init` never rejects; its synchronous part runs before this returns.
+  // eslint-disable-next-line no-void
+  void controller.init();
 
   const triggerSelectedAccountChange = (internalAccount: InternalAccount) => {
     getAccountHandler.mockReturnValue(internalAccount);

@@ -72,10 +72,36 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
   };
 }
 
+/**
+ * Registers a stub `PreferencesController:getState` on the wallet messenger.
+ * Clients register `PreferencesController` themselves; the assets
+ * controllers read it once accounts and networks change.
+ *
+ * @param wallet - The wallet.
+ */
+function registerPreferencesController(wallet: Wallet): void {
+  const messenger = new Messenger({
+    namespace: 'PreferencesController',
+    parent: wallet.messenger as unknown as Messenger<string>,
+  });
+
+  (
+    messenger as unknown as {
+      registerActionHandler(type: string, handler: () => unknown): void;
+    }
+  ).registerActionHandler('PreferencesController:getState', () => ({
+    isMultiAccountBalancesEnabled: false,
+    useTokenDetection: false,
+    useNftDetection: false,
+  }));
+}
+
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: getInstanceOptions(),
   });
+
+  registerPreferencesController(wallet);
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
 
@@ -117,6 +143,7 @@ describe('Wallet', () => {
         },
       },
     });
+    registerPreferencesController(wallet);
 
     await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
 
@@ -199,7 +226,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(10);
+    expect(results).toHaveLength(20);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -360,6 +387,7 @@ describe('Wallet', () => {
         },
         instanceOptions: getInstanceOptions(),
       });
+      registerPreferencesController(wallet);
 
       await wallet.messenger.call(
         'KeyringController:submitPassword',

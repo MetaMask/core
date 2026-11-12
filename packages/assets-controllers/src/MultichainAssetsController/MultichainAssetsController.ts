@@ -192,6 +192,13 @@ const BLOCKAID_BULK_TOKEN_SCAN_BATCH_SIZE = 100;
  */
 const DEFAULT_BLOCKAID_TOKEN_RESCAN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * How soon to retry a re-scan when `PhishingController:bulkScanTokens` is not
+ * registered yet. `Wallet.init()` can finish before the client registers
+ * `PhishingController`, and the first poll runs immediately.
+ */
+const BLOCKAID_RESCAN_UNAVAILABLE_RETRY_MS = 60_000;
+
 type ChainTokenEntry = { asset: CaipAssetType; address: string };
 
 type BulkTokenScanBatchOutcome =
@@ -200,7 +207,26 @@ type BulkTokenScanBatchOutcome =
       response: BulkTokenScanResponse;
       entries: ChainTokenEntry[];
     }
-  | { status: 'rejected'; entries: ChainTokenEntry[] };
+  | { status: 'rejected'; entries: ChainTokenEntry[]; reason: unknown };
+
+type MaliciousTokenScan =
+  | { status: 'scanned'; malicious: CaipAssetType[] }
+  | { status: 'unavailable'; error: Error };
+
+/**
+ * Whether `error` means `PhishingController:bulkScanTokens` has no handler yet.
+ *
+ * @param error - A rejected bulk-scan reason.
+ * @returns True when the action is not registered or not delegated.
+ */
+function isPhishingControllerUnavailable(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    error.message.startsWith(
+      'A handler for PhishingController:bulkScanTokens has not been ',
+    )
+  );
+}
 
 export class MultichainAssetsController extends StaticIntervalPollingController<null>()<
   typeof controllerName,
@@ -213,6 +239,14 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   readonly #controllerOperationMutex = new Mutex();
 
   readonly #isDeprecated: () => boolean;
+
+  readonly #blockaidTokenRescanInterval: number;
+
+  #blockaidRescanUsingRetryInterval = false;
+
+  #reportedMissingPhishingController = false;
+
+  #initialized = false;
 
   constructor({
     messenger,
@@ -238,12 +272,10 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
     this.#snaps = {};
     this.#isDeprecated = isDeprecated;
+    this.#blockaidTokenRescanInterval = blockaidTokenRescanInterval;
 
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-    } else if (blockaidTokenRescanInterval > 0) {
-      this.setIntervalLength(blockaidTokenRescanInterval);
-      this.startPolling(null);
     }
 
     this.messenger.subscribe(
@@ -263,6 +295,36 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     );
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: start the periodic Blockaid re-scan of stored
+   * tokens, unless it is disabled.
+   *
+   * The constructor does not call other controllers or start polling, so it
+   * can run before they are constructed. The first re-scan runs immediately.
+   * `PhishingController` may be registered after that scan. A missing
+   * `PhishingController:bulkScanTokens` handler is reported once and the scan
+   * is retried every minute until the action can be called, then the
+   * configured interval is used again. Calling this more than once has no
+   * effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
+    if (this.#blockaidTokenRescanInterval > 0) {
+      this.setIntervalLength(this.#blockaidTokenRescanInterval);
+      this.startPolling(null);
+    }
   }
 
   /**
@@ -313,15 +375,21 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
           continue;
         }
 
-        const malicious = await this.#findMaliciousTokensAmong(splTokens);
-        if (malicious.length > 0) {
-          this.ignoreAssets(malicious, accountId);
+        const scan = await this.#findMaliciousTokensAmong(splTokens);
+        if (scan.status === 'unavailable') {
+          this.#applyBlockaidRescanSchedule(scan.error);
+          return;
+        }
+        if (scan.malicious.length > 0) {
+          this.ignoreAssets(scan.malicious, accountId);
           assetsByAccount[accountId] = {
             added: [],
-            removed: malicious,
+            removed: scan.malicious,
           };
         }
       }
+
+      this.#applyBlockaidRescanSchedule(undefined);
 
       if (Object.keys(assetsByAccount).length > 0) {
         this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
@@ -329,6 +397,39 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         });
       }
     });
+  }
+
+  /**
+   * Keep the daily re-scan interval, or retry sooner while
+   * `PhishingController:bulkScanTokens` has no handler.
+   *
+   * The first miss is reported through `captureException`. Later misses stay
+   * quiet so the retry does not report the same error every minute. A scan
+   * that reaches the controller, including one whose request fails, returns to
+   * the configured interval.
+   *
+   * @param missingPhishingController - The missing-handler error, if this poll
+   * could not call `PhishingController`.
+   */
+  #applyBlockaidRescanSchedule(
+    missingPhishingController: Error | undefined,
+  ): void {
+    if (missingPhishingController) {
+      if (!this.#reportedMissingPhishingController) {
+        this.#reportedMissingPhishingController = true;
+        this.messenger.captureException?.(missingPhishingController);
+      }
+      if (!this.#blockaidRescanUsingRetryInterval) {
+        this.#blockaidRescanUsingRetryInterval = true;
+        this.setIntervalLength(BLOCKAID_RESCAN_UNAVAILABLE_RETRY_MS);
+      }
+      return;
+    }
+
+    if (this.#blockaidRescanUsingRetryInterval) {
+      this.#blockaidRescanUsingRetryInterval = false;
+      this.setIntervalLength(this.#blockaidTokenRescanInterval);
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -854,26 +955,22 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       );
     }
 
-    const batchResults = await Promise.allSettled(
-      batches.map((batch) =>
-        this.messenger.call('PhishingController:bulkScanTokens', {
-          chainId: chainName,
-          tokens: batch.map((entry) => entry.address),
-        }),
-      ),
+    return await Promise.all(
+      batches.map(async (batch): Promise<BulkTokenScanBatchOutcome> => {
+        try {
+          const response = await this.messenger.call(
+            'PhishingController:bulkScanTokens',
+            {
+              chainId: chainName,
+              tokens: batch.map((entry) => entry.address),
+            },
+          );
+          return { status: 'fulfilled', response, entries: batch };
+        } catch (error: unknown) {
+          return { status: 'rejected', entries: batch, reason: error };
+        }
+      }),
     );
-
-    return batches.map((entries, index) => {
-      const result = batchResults[index];
-      if (result.status === 'fulfilled') {
-        return {
-          status: 'fulfilled' as const,
-          response: result.value,
-          entries,
-        };
-      }
-      return { status: 'rejected' as const, entries };
-    });
   }
 
   /**
@@ -923,15 +1020,18 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   /**
    * SPL `token:` assets in state that Blockaid marks malicious (failed batches skipped).
    *
+   * A missing `PhishingController:bulkScanTokens` handler is reported as
+   * `unavailable` so the caller can retry soon. Other rejections stay fail-open.
+   *
    * @param assets - CAIP `token:` assets to scan.
-   * @returns Subset marked malicious.
+   * @returns Malicious assets, or `unavailable` when the scan could not start.
    */
   async #findMaliciousTokensAmong(
     assets: CaipAssetType[],
-  ): Promise<CaipAssetType[]> {
+  ): Promise<MaliciousTokenScan> {
     const tokensByChain = this.#groupTokenAssetsByChain(assets);
 
-    const maliciousAssets: CaipAssetType[] = [];
+    const malicious: CaipAssetType[] = [];
 
     for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
       const batchOutcomes = await this.#runBatchedBulkTokenScans(
@@ -941,6 +1041,9 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
       for (const outcome of batchOutcomes) {
         if (outcome.status === 'rejected') {
+          if (isPhishingControllerUnavailable(outcome.reason)) {
+            return { status: 'unavailable', error: outcome.reason };
+          }
           continue;
         }
         for (const entry of outcome.entries) {
@@ -948,13 +1051,13 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
             outcome.response[entry.address]?.result_type ===
             TokenScanResultType.Malicious
           ) {
-            maliciousAssets.push(entry.asset);
+            malicious.push(entry.asset);
           }
         }
       }
     }
 
-    return maliciousAssets;
+    return { status: 'scanned', malicious };
   }
 
   /**

@@ -32,6 +32,7 @@ import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
@@ -145,6 +146,7 @@ export type TokensControllerActions =
 export type AllowedActions =
   | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetSelectedNetworkClientAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction;
@@ -200,20 +202,29 @@ export class TokensController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  #selectedAccountId: string;
+  #selectedAccountId: string | undefined;
 
-  readonly #provider: Provider;
+  readonly #provider: Provider | undefined;
+
+  readonly #tokenListService: TokenListService;
 
   readonly #abortController: AbortController;
 
   readonly #isDeprecated: () => boolean;
 
+  #initialized = false;
+
   /**
    * Tokens controller options
    *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. Call {@link TokensController.init} once they are.
+   *
    * @param options - Constructor options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.provider - Network provider.
+   * @param options.provider - Network provider. When omitted, the provider of
+   * the selected network client (`NetworkController:getSelectedNetworkClient`)
+   * is used at call time.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The messenger.
    * @param options.tokenListService - Shared service for fetching token metadata per chain.
@@ -232,8 +243,8 @@ export class TokensController extends BaseController<
     tokenListService,
     isDeprecated = (): boolean => false,
   }: {
-    chainId: Hex;
-    provider: Provider;
+    chainId?: Hex;
+    provider?: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
     tokenListService: TokenListService;
@@ -250,9 +261,8 @@ export class TokensController extends BaseController<
     });
 
     this.#provider = provider;
+    this.#tokenListService = tokenListService;
     this.#isDeprecated = isDeprecated;
-
-    this.#selectedAccountId = this.#getSelectedAccount().id;
 
     this.#abortController = new AbortController();
 
@@ -275,12 +285,32 @@ export class TokensController extends BaseController<
 
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-    } else {
-      // Enrich persisted tokens with name/rwaData from the token list once at init.
-      this.#enrichTokensFromTokenList(tokenListService).catch(() => {
-        // Tokens remain usable without metadata enrichment
-      });
     }
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: read the selected account and enrich persisted
+   * tokens with name/rwaData from the token list.
+   *
+   * Calling it more than once has no effect.
+   */
+  async init(): Promise<void> {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
+    this.#selectedAccountId ??= this.#getSelectedAccount().id;
+
+    await this.#enrichTokensFromTokenList(this.#tokenListService).catch(() => {
+      // Tokens remain usable without metadata enrichment
+    });
   }
 
   /**
@@ -914,14 +944,23 @@ export class TokensController extends BaseController<
   }
 
   #getProvider(networkClientId?: NetworkClientId): Web3Provider {
-    return new Web3Provider(
-      networkClientId
-        ? this.messenger.call(
-            'NetworkController:getNetworkClientById',
-            networkClientId,
-          ).provider
-        : this.#provider,
-    );
+    if (networkClientId) {
+      return new Web3Provider(
+        this.messenger.call(
+          'NetworkController:getNetworkClientById',
+          networkClientId,
+        ).provider,
+      );
+    }
+
+    const provider =
+      this.#provider ??
+      this.messenger.call('NetworkController:getSelectedNetworkClient')
+        ?.provider;
+    if (!provider) {
+      throw new Error('No provider is available for the selected network');
+    }
+    return new Web3Provider(provider);
   }
 
   #createEthersContract(
@@ -1249,6 +1288,9 @@ export class TokensController extends BaseController<
   }
 
   #getSelectedAddress() {
+    if (this.#selectedAccountId === undefined) {
+      return this.#getSelectedAccount().address;
+    }
     // If the address is not defined (or empty), we fallback to the currently selected account's address
     const account = this.messenger.call(
       'AccountsController:getAccount',

@@ -192,15 +192,19 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 > {
   #intervalId?: ReturnType<typeof setTimeout>;
 
-  #selectedAccountId: string;
+  #selectedAccountId: string | undefined;
 
   readonly #tokenListService: TokenListService;
 
   #disabled: boolean;
 
-  #isUnlocked: boolean;
+  #isUnlocked = false;
 
-  #isDetectionEnabledFromPreferences: boolean;
+  #isDetectionEnabledFromPreferences: boolean | undefined;
+
+  #reportedMissingTokenDetectionPreference = false;
+
+  #initialized = false;
 
   readonly #useTokenDetection: () => boolean;
 
@@ -279,21 +283,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
-    this.#selectedAccountId = this.#getSelectedAccount().id;
-
     this.#tokenListService = tokenListService;
-
-    const { useTokenDetection: defaultUseTokenDetection } = this.messenger.call(
-      'PreferencesController:getState',
-    );
-    this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
 
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
 
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
-
-    const { isUnlocked } = this.messenger.call('KeyringController:getState');
-    this.#isUnlocked = isUnlocked;
 
     this.#useTokenDetection = useTokenDetection;
     this.#useExternalServices = useExternalServices;
@@ -304,6 +298,34 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }
 
     this.#registerEventListeners();
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: read the selected account, the lock state, and the
+   * token detection preference.
+   *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. Until this is called, the controller treats the keyring as
+   * locked. `PreferencesController` may be registered after this is called. A
+   * missing `PreferencesController:getState` is reported once and the preference
+   * stays unset. Detection reads it again the next time it runs, and while the
+   * controller is still unavailable non-mainnet chains are skipped and mainnet
+   * uses the static token list. `PreferencesController:stateChange` also updates
+   * the preference. Calling this more than once has no effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    this.#selectedAccountId ??= this.#getSelectedAccount().id;
+
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    this.#isUnlocked = isUnlocked;
+
+    this.#readTokenDetectionPreference();
   }
 
   #enforceDisabledState(): void {
@@ -518,6 +540,37 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
+   * Read `useTokenDetection` when it is still unknown.
+   *
+   * `init` can run before `PreferencesController` is registered, and a later
+   * `init` does not retry. A failed read leaves the preference unset so the
+   * next detection attempt tries again. The first failure is reported through
+   * `captureException`; further misses while the controller is still absent
+   * stay quiet so polling does not report the same error on every chain.
+   *
+   * @returns The preference, or `undefined` when it is still unknown.
+   */
+  #readTokenDetectionPreference(): boolean | undefined {
+    if (this.#isDetectionEnabledFromPreferences !== undefined) {
+      return this.#isDetectionEnabledFromPreferences;
+    }
+
+    try {
+      const { useTokenDetection } = this.messenger.call(
+        'PreferencesController:getState',
+      );
+      this.#isDetectionEnabledFromPreferences = useTokenDetection;
+    } catch (error) {
+      if (!this.#reportedMissingTokenDetectionPreference) {
+        this.#reportedMissingTokenDetectionPreference = true;
+        this.messenger.captureException?.(error as Error);
+      }
+    }
+
+    return this.#isDetectionEnabledFromPreferences;
+  }
+
+  /**
    * Returns the token cache for `chainId` if detection should proceed, or `null` if it
    * should be skipped.  Each call fetches a fresh snapshot from `TokenListService` (which
    * may serve from its in-memory cache) so concurrent calls for different chains never
@@ -532,15 +585,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     if (!isTokenDetectionSupportedForNetwork(chainId)) {
       return null;
     }
-    if (
-      !this.#isDetectionEnabledFromPreferences &&
-      chainId !== ChainId.mainnet
-    ) {
+    const isDetectionEnabledFromPreferences =
+      this.#readTokenDetectionPreference();
+    if (!isDetectionEnabledFromPreferences && chainId !== ChainId.mainnet) {
       return null;
     }
 
     const isMainnetDetectionInactive =
-      !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
+      !isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
     if (isMainnetDetectionInactive) {
       return this.#getConvertedStaticMainnetTokenList();
     }
@@ -1144,6 +1196,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   #getSelectedAddress(): string {
+    if (this.#selectedAccountId === undefined) {
+      return this.#getSelectedAccount().address;
+    }
     // If the address is not defined (or empty), we fallback to the currently selected account's address
     const account = this.messenger.call(
       'AccountsController:getAccount',

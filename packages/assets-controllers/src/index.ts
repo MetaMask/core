@@ -70,6 +70,7 @@ export type {
   NftControllerIsNftOwnerAction,
   NftControllerAddNftVerifyOwnershipAction,
   NftControllerAddNftAction,
+  NftControllerAddNftsAction,
   NftControllerRemoveNftAction,
   NftControllerRemoveAndIgnoreNftAction,
   NftControllerCheckAndUpdateSingleNftOwnershipStatusAction,

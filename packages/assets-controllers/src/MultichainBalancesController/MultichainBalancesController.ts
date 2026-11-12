@@ -143,6 +143,8 @@ export class MultichainBalancesController extends BaseController<
 > {
   readonly #isDeprecated: () => boolean;
 
+  #initialized = false;
+
   /**
    * Creates a MultichainBalancesController instance.
    *
@@ -179,13 +181,6 @@ export class MultichainBalancesController extends BaseController<
 
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-    } else {
-      // Fetch initial balances for all non-EVM accounts
-      for (const account of this.#listAccounts()) {
-        // Fetching the balance is asynchronous and we cannot use `await` here.
-        // eslint-disable-next-line no-void
-        void this.updateBalance(account.id);
-      }
     }
 
     this.messenger.subscribe(
@@ -213,6 +208,37 @@ export class MultichainBalancesController extends BaseController<
         await this.#handleOnAccountAssetListUpdated(updatedAccountAssets);
       },
     );
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: fetch the initial balances of all non-EVM accounts.
+   *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. A failure to fetch the balances of one account is logged
+   * and does not affect the others. Calling it more than once has no effect.
+   */
+  async init(): Promise<void> {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      this.#listAccounts().map(async (account) =>
+        this.updateBalance(account.id),
+      ),
+    );
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('Failed to fetch initial balances:', result.reason);
+      }
+    }
   }
 
   /**

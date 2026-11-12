@@ -122,6 +122,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    */
   #initializePromise?: Promise<void>;
 
+  #initPromise?: Promise<void>;
+
   /**
    * Promise that resolves when the current persist operation completes.
    * Used to prevent race conditions between persist operations.
@@ -240,6 +242,18 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         },
       );
     }
+  }
+
+  /**
+   * Initialize the controller by loading cache from storage and running
+   * migration. Same as {@link TokenListController.initialize}, except that
+   * calling it more than once has no effect.
+   *
+   * @returns A promise that resolves when initialization is complete.
+   */
+  async init(): Promise<void> {
+    this.#initPromise ??= this.initialize();
+    await this.#initPromise;
   }
 
   /**

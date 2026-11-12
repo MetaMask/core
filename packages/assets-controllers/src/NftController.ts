@@ -298,6 +298,7 @@ const controllerName = 'NftController';
 
 const MESSENGER_EXPOSED_METHODS = [
   'addNft',
+  'addNfts',
   'addNftVerifyOwnership',
   'removeAndIgnoreNft',
   'removeNft',
@@ -377,7 +378,9 @@ export class NftController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  #selectedAccountId: string;
+  #selectedAccountId: string | undefined;
+
+  #initialized = false;
 
   #ipfsGateway: string;
 
@@ -441,9 +444,6 @@ export class NftController extends BaseController<
       },
     });
 
-    this.#selectedAccountId = this.messenger.call(
-      'AccountsController:getSelectedAccount',
-    ).id;
     this.#ipfsGateway = ipfsGateway;
     this.#displayNftMedia = displayNftMedia;
     this.#useIpfsSubdomains = useIpfsSubdomains;
@@ -464,6 +464,26 @@ export class NftController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: read the selected account from
+   * `AccountsController`.
+   *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. Until this is called, the selected account is read on
+   * demand. Calling it more than once has no effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    this.#selectedAccountId ??= this.messenger.call(
+      'AccountsController:getSelectedAccount',
+    ).id;
   }
 
   /**
@@ -2252,10 +2272,13 @@ export class NftController extends BaseController<
     }
 
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const selectedAccount = this.messenger.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
+    const selectedAccount =
+      this.#selectedAccountId === undefined
+        ? this.messenger.call('AccountsController:getSelectedAccount')
+        : this.messenger.call(
+            'AccountsController:getAccount',
+            this.#selectedAccountId,
+          );
     return selectedAccount?.address || '';
   }
 

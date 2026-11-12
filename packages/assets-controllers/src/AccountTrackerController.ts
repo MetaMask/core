@@ -267,6 +267,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   /** Track if the keyring is locked */
   #isLocked = true;
 
+  readonly #seedSelectedChain: boolean;
+
+  #initialized = false;
+
   /**
    * Creates an AccountTracker instance.
    *
@@ -313,26 +317,16 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     isOnboarded?: () => boolean;
     isDeprecated?: () => boolean;
   }) {
-    const { selectedNetworkClientId } = messenger.call(
-      'NetworkController:getState',
-    );
-    const {
-      configuration: { chainId },
-    } = messenger.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
     super({
       name: controllerName,
       messenger,
       state: {
-        accountsByChainId: {
-          [chainId]: {},
-        },
+        accountsByChainId: {},
         ...state,
       },
       metadata: accountTrackerMetadata,
     });
+    this.#seedSelectedChain = state?.accountsByChainId === undefined;
     this.#getStakedBalanceForChain = getStakedBalanceForChain;
 
     this.#includeStakedAssets = includeStakedAssets;
@@ -358,9 +352,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
     }
-
-    const { isUnlocked } = this.messenger.call('KeyringController:getState');
-    this.#isLocked = !isUnlocked;
 
     this.setIntervalLength(interval);
 
@@ -434,6 +425,45 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: read the lock state from `KeyringController` and,
+   * when no `accountsByChainId` state was provided, add an empty entry for the
+   * chain of the selected network.
+   *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. Until this is called, the controller treats the keyring as
+   * locked. Calling it more than once has no effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    this.#isLocked = !isUnlocked;
+
+    if (!this.#seedSelectedChain || this.#isDeprecated()) {
+      return;
+    }
+
+    const { selectedNetworkClientId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    const {
+      configuration: { chainId },
+    } = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    if (this.state.accountsByChainId[chainId] === undefined) {
+      this.update((state) => {
+        state.accountsByChainId[chainId] = {};
+      });
+    }
   }
 
   /**

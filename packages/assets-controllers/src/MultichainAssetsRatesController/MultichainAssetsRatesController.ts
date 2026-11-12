@@ -198,9 +198,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 > {
   readonly #mutex = new Mutex();
 
-  #currentCurrency: CurrencyRateState['currentCurrency'];
+  #currentCurrency: CurrencyRateState['currentCurrency'] = 'usd';
 
   #isUnlocked = true;
+
+  #initialized = false;
 
   readonly #isDeprecated: () => boolean;
 
@@ -257,10 +259,6 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       this.#isUnlocked = true;
     });
 
-    ({ currentCurrency: this.#currentCurrency } = this.messenger.call(
-      'CurrencyRateController:getState',
-    ));
-
     this.messenger.subscribe(
       'CurrencyRateController:stateChange',
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -296,6 +294,26 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         await this.#updateAssetsRatesForNewAssets(updatedAccountAssets);
       },
     );
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: read the current currency from
+   * `CurrencyRateController`.
+   *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. Until this is called, the current currency is `usd`.
+   * Calling it more than once has no effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    ({ currentCurrency: this.#currentCurrency } = this.messenger.call(
+      'CurrencyRateController:getState',
+    ));
   }
 
   /**

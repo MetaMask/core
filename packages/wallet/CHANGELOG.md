@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add the `@metamask/assets-controllers` controllers to the default initialization configurations ([#11315](https://github.com/MetaMask/core/pull/11315))
+  - Adds `AccountTrackerController`, `AssetsContractController`, `CurrencyRateController`, `DeFiPositionsController`, `MultichainAssetsController`, `MultichainAssetsRatesController`, `MultichainBalancesController`, `NftController`, `NftDetectionController`, `RatesController`, `TokenBalancesController`, `TokenDetectionController`, `TokenListController`, `TokenRatesController`, `TokensController` and `TokenSearchDiscoveryDataController`.
+  - Hosts that already register any of these controllers on the wallet root messenger must remove that registration before upgrading, or messenger registration will collide.
+  - Their constructors call no other controller, so they can be constructed in any order. `Wallet.init()` calls their `init` methods, which read the other controllers and start the initial fetches. Polling is still started by the client.
+  - Delegates the external actions and events each controller's messenger declares. `Wallet` does not construct `PreferencesController`, `SnapController`, `PhishingController`, `AccountTreeController`, `AuthenticationController` or `AccountActivityService`; clients must register them on the wallet messenger. `wallet.init()` does not fail when they are missing, but the controllers read `PreferencesController:getState` as soon as accounts, networks or the keyring change, so register it before unlocking the wallet.
+  - `AccountTrackerController`'s `getStakedBalanceForChain` and `TokenDetectionController`'s `getBalancesInSingleCall` call `AssetsContractController` through the messenger, and `NftDetectionController`'s `addNfts`, `removeNft` and `getNftState` call `NftController`.
+  - `CurrencyRateController`, `TokenRatesController` and `TokenSearchDiscoveryDataController` default `tokenPricesService` to a `CodefiTokenPricesServiceV2`. `TokensController` and `TokenDetectionController` default `tokenListService` to a `TokenListService`. `AssetsContractController` and `TokenListController` default `chainId` to Ethereum mainnet. Every option can be overridden through `instanceOptions`.
+  - `DeFiPositionsController`, `NftDetectionController` and `TokenDetectionController` take no persisted state.
+
 ### Changed
 
+- Add `@metamask/assets-controllers` `^113.3.1` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
 - Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.0` ([#11391](https://github.com/MetaMask/core/pull/11391))
 - Bump `@metamask/subscription-controller` from `^15.2.0` to `^15.2.1` ([#11437](https://github.com/MetaMask/core/pull/11437))
 

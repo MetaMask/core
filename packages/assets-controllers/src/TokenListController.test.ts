@@ -31,7 +31,10 @@ import type {
   TokenListControllerMessenger,
   DataCache,
 } from './TokenListController.js';
-import { TokenListController } from './TokenListController.js';
+import {
+  getDefaultTokenListState,
+  TokenListController,
+} from './TokenListController.js';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();
@@ -1373,6 +1376,40 @@ describe('TokenListController', () => {
           "tokensChainsCache": {},
         }
       `);
+    });
+  });
+
+  describe('init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: TokenListControllerMessenger = new Messenger({
+        namespace,
+      });
+      const call = vi.spyOn(messenger, 'call');
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger,
+      });
+
+      expect(controller.state).toStrictEqual(getDefaultTokenListState());
+      expect(call).not.toHaveBeenCalled();
+    });
+
+    it('initializes the controller only once when called repeatedly', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const call = vi.spyOn(restrictedMessenger, 'call');
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      await Promise.all([controller.init(), controller.init()]);
+      const callCount = call.mock.calls.length;
+      await controller.init();
+
+      expect(callCount).toBeGreaterThan(0);
+      expect(call).toHaveBeenCalledTimes(callCount);
     });
   });
 

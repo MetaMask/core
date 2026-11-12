@@ -350,6 +350,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /** Track if the keyring is unlocked */
   #isUnlocked = false;
 
+  #initialized = false;
+
   /** Store original chainIds from startPolling to preserve intent */
   #requestedChainIds: ChainIdHex[] = [];
 
@@ -419,15 +421,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     this.setIntervalLength(interval);
 
-    const { allTokens, allDetectedTokens, allIgnoredTokens } =
-      this.messenger.call('TokensController:getState');
-    this.#allTokens = allTokens;
-    this.#detectedTokens = allDetectedTokens;
-    this.#allIgnoredTokens = allIgnoredTokens;
-
-    const { isUnlocked } = this.messenger.call('KeyringController:getState');
-    this.#isUnlocked = isUnlocked;
-
     this.#batchedUpdateBalances = createBatchedHandler(
       (buffer) =>
         buffer.length === 0
@@ -449,6 +442,31 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     this.#subscribeToControllers();
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+  }
+
+  /**
+   * Complete initialization once the controllers this controller reads from
+   * have been constructed: read the current tokens from `TokensController` and
+   * the lock state from `KeyringController`.
+   *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. Until this is called, the controller treats the keyring as
+   * locked and knows of no tokens. Calling it more than once has no effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    const { allTokens, allDetectedTokens, allIgnoredTokens } =
+      this.messenger.call('TokensController:getState');
+    this.#allTokens = allTokens;
+    this.#detectedTokens = allDetectedTokens;
+    this.#allIgnoredTokens = allIgnoredTokens;
+
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    this.#isUnlocked = isUnlocked;
   }
 
   /**

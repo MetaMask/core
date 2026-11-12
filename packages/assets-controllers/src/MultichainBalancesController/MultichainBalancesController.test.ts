@@ -224,6 +224,9 @@ const setupController = ({
     state,
     ...(isDeprecated ? { isDeprecated } : {}),
   });
+  // `init` never rejects; it fetches the initial balances in the background.
+  // eslint-disable-next-line no-void
+  void controller.init();
 
   return {
     controller,
@@ -415,6 +418,57 @@ describe('MultichainBalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
+  });
+
+  describe('construction and init', () => {
+    it('does not call other controllers when constructed', () => {
+      const messenger: MultichainBalancesControllerMessenger = new Messenger({
+        namespace: 'MultichainBalancesController',
+      });
+      const call = vi.spyOn(messenger, 'call');
+
+      const controller = new MultichainBalancesController({ messenger });
+
+      expect(controller.state).toStrictEqual({ balances: {} });
+      expect(call).not.toHaveBeenCalled();
+    });
+
+    it('fetches the initial balances only once when init is called repeatedly', async () => {
+      const { controller, mockListMultichainAccounts } = setupController();
+      await waitForAllPromises();
+      mockListMultichainAccounts.mockClear();
+
+      await controller.init();
+
+      expect(mockListMultichainAccounts).not.toHaveBeenCalled();
+    });
+
+    it('logs and resolves when fetching the initial balances of an account fails', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const messenger = getRootMessenger();
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockBtcAccount],
+      );
+      const controller = new MultichainBalancesController({
+        messenger: getRestrictedMessenger(messenger),
+      });
+
+      await controller.init();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to fetch initial balances:',
+        expect.objectContaining({
+          message: expect.stringContaining(
+            'MultichainAssetsController:getState',
+          ),
+        }),
+      );
+      expect(controller.state.balances).toStrictEqual({});
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   it('fetches initial balances for existing non-EVM accounts', async () => {
@@ -921,7 +975,7 @@ describe('MultichainBalancesController', () => {
       expect(controller.state.balances).toStrictEqual(initialState.balances);
     });
 
-    it('does not fetch initial balances at construction when isDeprecated() returns true', async () => {
+    it('does not fetch initial balances in init when isDeprecated() returns true', async () => {
       const { mockSnapHandleRequest } = setupController({
         isDeprecated: () => true,
       });

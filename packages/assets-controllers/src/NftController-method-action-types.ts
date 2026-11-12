@@ -56,6 +56,22 @@ export type NftControllerAddNftAction = {
 };
 
 /**
+ * Adds multiple NFTs and respective NFT contracts to the stored NFT and NFT contracts lists.
+ *
+ * @param nfts - An array of NFT objects to add.
+ * @param nfts[].tokenAddress - Hex address of the NFT contract.
+ * @param nfts[].tokenId - The NFT identifier.
+ * @param nfts[].nftMetadata - NFT metadata including chainId.
+ * @param userAddress - The address of the current user.
+ * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`; pass `Source.Detected` when refreshing existing NFTs.
+ * @returns Promise resolving to the current NFT list.
+ */
+export type NftControllerAddNftsAction = {
+  type: `NftController:addNfts`;
+  handler: NftController['addNfts'];
+};
+
+/**
  * Removes an NFT from the stored token list.
  *
  * @param address - Hex address of the NFT contract.
@@ -119,6 +135,7 @@ export type NftControllerMethodActions =
   | NftControllerIsNftOwnerAction
   | NftControllerAddNftVerifyOwnershipAction
   | NftControllerAddNftAction
+  | NftControllerAddNftsAction
   | NftControllerRemoveNftAction
   | NftControllerRemoveAndIgnoreNftAction
   | NftControllerCheckAndUpdateSingleNftOwnershipStatusAction
