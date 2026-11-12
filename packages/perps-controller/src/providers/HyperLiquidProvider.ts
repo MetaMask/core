@@ -821,13 +821,16 @@ const classifyCancelStatus = (status: unknown): CancelChildOutcome => {
  * placed for: an order netted at its original size subtracts more than it
  * occupies, which can hide external liquidity sharing the level.
  *
+ * Prices are matched by value, not text: an order submitted at "74676" sits on
+ * the level the book prints as "74676.0".
+ *
  * @param levels - One side of the book, best-first.
- * @param ownByPrice - This provider's own resting size at each price.
+ * @param ownByPrice - This provider's own resting size at each numeric price.
  * @returns The best price other participants are showing, or null.
  */
 const readBestExternalPrice = (
   levels: { px: string; sz: string }[] | undefined,
-  ownByPrice: Map<string, number>,
+  ownByPrice: Map<number, number>,
 ): number | null => {
   for (const level of levels ?? []) {
     const price = parseFloat(level.px);
@@ -835,7 +838,7 @@ const readBestExternalPrice = (
       continue;
     }
 
-    const size = parseFloat(level.sz) - (ownByPrice.get(level.px) ?? 0);
+    const size = parseFloat(level.sz) - (ownByPrice.get(price) ?? 0);
     if (size > 0) {
       return price;
     }
@@ -1006,7 +1009,8 @@ type ChaseTerminalResolution = {
 
 type ChaseRestingOrder = {
   orderId: string;
-  price: string;
+  /** Numeric, so it matches the book level whichever way that prints it. */
+  price: number;
   size: string;
 };
 
@@ -8746,7 +8750,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
 
-    if (quotePrice !== session.restingPrice && session.orderId) {
+    if (session.orderId === null) {
+      // The venue refused the last replacement, so nothing rests and there is
+      // nothing to cancel. Rest the remainder at the touch just read.
+      if (
+        !(await this.#restChaseReplacement(
+          sessionId,
+          session,
+          quotePrice,
+          session.size,
+        ))
+      ) {
+        return;
+      }
+    } else if (quotePrice !== session.restingPrice) {
       const outcome = await this.#cancelChaseChild(session);
 
       // The cancel is a second round trip, and this is the window where a
@@ -8866,62 +8883,14 @@ export class HyperLiquidProvider implements PerpsProvider {
           return;
         }
 
-        const remaining = remainder.remainingSize;
-
-        // Published *before* the placement starts, not from the promise it
-        // returns: the window opens the moment `#restChaseOrder` is entered, so
-        // deriving the marker from its return value would leave the synchronous
-        // prefix of that call unguarded. A cancel arriving anywhere inside the
-        // round trip now waits for the replacement to land instead of reading
-        // the null `orderId` as "nothing rests", reporting success, and dropping
-        // the handle while this call is still putting an order on the book.
-        let settleReplacement: (() => void) | undefined;
-        session.pendingReplacement = new Promise<void>((resolve) => {
-          settleReplacement = resolve;
-        });
-
-        try {
-          session.orderId = await this.#restChaseOrder({
-            assetId: session.assetId,
-            isBuy: session.isBuy,
-            price: quotePrice,
-            size: remaining,
-            reduceOnly: session.reduceOnly,
-            builder: session.builder,
-            marksSubscriptionCloid: session.marksSubscriptionCloid,
-            accountContext: session.accountContext,
-            exchangeClient: this.#clientService.getExchangeClient(),
-          });
-          session.size = remaining;
-        } finally {
-          // Cleared before the waiters wake, so they see the settled session.
-          session.replacingOrderId = null;
-          session.pendingReplacement = null;
-          settleReplacement?.();
-        }
-        session.restingPrice = quotePrice;
-        session.repricings += 1;
-
-        this.#deps.debugLogger.log('Chase re-priced', {
-          sessionId,
-          orderId: session.orderId,
-          restingPrice: quotePrice,
-          size: session.size,
-          repricings: session.repricings,
-        });
-
-        // A cancel that arrived during the round trip is now waiting on this
-        // session; it cancels the order just recorded above. A `disconnect`
-        // deregisters the session instead, and deliberately leaves resting
-        // orders alone — logged with its ID so it stays traceable.
-        if (!this.#chaseSessions.has(sessionId)) {
-          this.#deps.debugLogger.log('Chase replacement outlived its session', {
+        if (
+          !(await this.#restChaseReplacement(
             sessionId,
-            orderId: session.orderId,
-          });
-          return;
-        }
-        if (!session.active) {
+            session,
+            quotePrice,
+            remainder.remainingSize,
+          ))
+        ) {
           return;
         }
       }
@@ -8961,6 +8930,119 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Rest a chase's remainder at a new price once its previous child is off the
+   * book.
+   *
+   * Two venue outcomes no longer end the chase as failed:
+   *
+   * - A remainder worth less than the venue's per-order minimum cannot be placed
+   *   at all — a partial fill can leave one size step under it. The chase ends
+   *   filled, reporting the unfilled remainder, and nothing is submitted.
+   * - A refusal the first placement would retry, such as a post-only order that
+   *   would have matched because the touch moved during the round trip, leaves
+   *   nothing resting. The session stays active and the next tick rests the
+   *   remainder at the touch it reads then.
+   *
+   * Any other refusal still throws, and tick recovery ends the session.
+   *
+   * @param sessionId - Session being re-priced.
+   * @param session - The session itself.
+   * @param price - Formatted price to rest at.
+   * @param size - Formatted size still to chase.
+   * @returns Whether the tick should go on to its stop checks: false when the
+   * chase ended, was stopped or replaced during the round trip, or is waiting
+   * for the next tick.
+   */
+  async #restChaseReplacement(
+    sessionId: string,
+    session: ChaseSession,
+    price: string,
+    size: string,
+  ): Promise<boolean> {
+    if (parseFloat(size) * parseFloat(price) < this.#getMinimumOrderSize()) {
+      session.replacingOrderId = null;
+      session.active = false;
+      session.size = size;
+      session.status = CHASE_ORDER_STATUS.Filled;
+      this.#deps.debugLogger.log('Chase remainder below venue minimum', {
+        sessionId,
+        remainingSize: size,
+        price,
+      });
+      await this.#rebalanceChaseSession(session);
+      return false;
+    }
+
+    // Published *before* the placement starts, not from the promise it
+    // returns: the window opens the moment `#restChaseOrder` is entered, so
+    // deriving the marker from its return value would leave the synchronous
+    // prefix of that call unguarded. A cancel arriving anywhere inside the
+    // round trip now waits for the replacement to land instead of reading
+    // the null `orderId` as "nothing rests", reporting success, and dropping
+    // the handle while this call is still putting an order on the book.
+    let settleReplacement: (() => void) | undefined;
+    session.pendingReplacement = new Promise<void>((resolve) => {
+      settleReplacement = resolve;
+    });
+
+    try {
+      session.orderId = await this.#restChaseOrder({
+        assetId: session.assetId,
+        isBuy: session.isBuy,
+        price,
+        size,
+        reduceOnly: session.reduceOnly,
+        builder: session.builder,
+        marksSubscriptionCloid: session.marksSubscriptionCloid,
+        accountContext: session.accountContext,
+        exchangeClient: this.#clientService.getExchangeClient(),
+      });
+      session.size = size;
+    } catch (error) {
+      if (!isRetryableChasePlacementError(error)) {
+        throw error;
+      }
+      // Recorded so the next tick rests what is actually left to chase.
+      session.size = size;
+      this.#deps.debugLogger.log('Chase replacement refused, retrying', {
+        sessionId,
+        error: ensureError(error, 'HyperLiquidProvider.restChaseReplacement')
+          .message,
+      });
+      this.#scheduleChaseTick(sessionId);
+      return false;
+    } finally {
+      // Cleared before the waiters wake, so they see the settled session.
+      session.replacingOrderId = null;
+      session.pendingReplacement = null;
+      settleReplacement?.();
+    }
+    session.restingPrice = price;
+    session.repricings += 1;
+
+    this.#deps.debugLogger.log('Chase re-priced', {
+      sessionId,
+      orderId: session.orderId,
+      restingPrice: price,
+      size: session.size,
+      repricings: session.repricings,
+    });
+
+    // A cancel that arrived during the round trip is now waiting on this
+    // session; it cancels the order just recorded above. A `disconnect`
+    // deregisters the session instead, and deliberately leaves resting
+    // orders alone — logged with its ID so it stays traceable.
+    if (!this.#chaseSessions.has(sessionId)) {
+      this.#deps.debugLogger.log('Chase replacement outlived its session', {
+        sessionId,
+        orderId: session.orderId,
+      });
+      return false;
+    }
+    return session.active;
+  }
+
+  /**
    * Resolve how much of the chase's own order is really sitting on its level.
    *
    * The session tracks what its order was last *placed* for, which overstates
@@ -8978,8 +9060,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.isBuy - Side being quoted.
    * @param params.callerOrderId - The asking session's order, if it has one.
    * @param params.ownSide - The side of the book those orders rest on.
-   * @returns Our resting size at each price, the asking child's terminal
-   * result, or the unavailable sentinel.
+   * @returns Our resting size at each numeric price, the asking child's
+   * terminal result, or the unavailable sentinel.
    */
   async #resolveOwnRestingSizes(params: {
     symbol: string;
@@ -8987,7 +9069,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     callerOrderId?: string;
     ownSide?: { px: string; sz: string }[];
   }): Promise<
-    | Map<string, number>
+    | Map<number, number>
     | ChaseTerminalResolution
     | typeof CHASE_ORDER_STATUS_UNAVAILABLE
   > {
@@ -9003,7 +9085,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       ) {
         ourOrders.push({
           orderId: session.orderId,
-          price: session.restingPrice,
+          price: parseFloat(session.restingPrice),
           size: session.size,
         });
       }
@@ -9013,7 +9095,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return new Map();
     }
 
-    const recorded = new Map<string, number>();
+    const recorded = new Map<number, number>();
     for (const order of ourOrders) {
       recorded.set(
         order.price,
@@ -9027,7 +9109,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     // resting — an order partially fills without the loop seeing it — and only
     // then is a lookup worth a round trip.
     const ambiguous = ourOrders.filter((order) => {
-      const level = ownSide?.find((entry) => entry.px === order.price);
+      const level = ownSide?.find(
+        (entry) => parseFloat(entry.px) === order.price,
+      );
       return !level || parseFloat(level.sz) <= (recorded.get(order.price) ?? 0);
     });
 
