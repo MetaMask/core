@@ -10,15 +10,6 @@ import type { CodeownersRule } from '../manage-codeowners/types.ts';
 const MAX_SUMMARY_LENGTH = 60_000;
 
 /**
- * Where GitHub looks for a CODEOWNERS file, in the order it looks.
- */
-const CODEOWNERS_PATHS = [
-  '.github/CODEOWNERS',
-  'CODEOWNERS',
-  'docs/CODEOWNERS',
-];
-
-/**
  * A changed file and whose approval it needs, based on the last CODEOWNERS
  * rule that matches it, which GitHub uses.
  */
@@ -117,14 +108,17 @@ export async function generateCodeownershipSummary({
 }
 
 /**
- * Read the CODEOWNERS file at the given ref.
+ * Read the `.github/CODEOWNERS` file at the given ref.
+ *
+ * GitHub also looks for `CODEOWNERS` in the repository root and in `docs/`,
+ * but our repositories keep it in `.github/`.
  *
  * @param options - The options.
  * @param options.repositoryDirectoryPath - A directory within the Git
  * repository to inspect.
  * @param options.ref - The ref to read the file at.
  * @returns The contents of the file.
- * @throws If there is no CODEOWNERS file at the ref.
+ * @throws If there is no `.github/CODEOWNERS` file at the ref.
  */
 async function readCodeownersFile({
   repositoryDirectoryPath,
@@ -133,24 +127,10 @@ async function readCodeownersFile({
   repositoryDirectoryPath: string;
   ref: string;
 }): Promise<string> {
-  for (const codeownersPath of CODEOWNERS_PATHS) {
-    try {
-      const { stdout } = await execa(
-        'git',
-        ['show', `${ref}:${codeownersPath}`],
-        {
-          cwd: repositoryDirectoryPath,
-        },
-      );
-      return stdout;
-    } catch {
-      // Git fails if the file doesn't exist, so try the next location
-    }
-  }
-
-  throw new Error(
-    `Could not find a CODEOWNERS file at ${ref} (looked for ${CODEOWNERS_PATHS.slice(0, -1).join(', ')}, and ${CODEOWNERS_PATHS.at(-1)})`,
-  );
+  const { stdout } = await execa('git', ['show', `${ref}:.github/CODEOWNERS`], {
+    cwd: repositoryDirectoryPath,
+  });
+  return stdout;
 }
 
 /**

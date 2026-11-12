@@ -45,45 +45,11 @@ describe('generateCodeownershipSummary', () => {
     expect(summary).toContain('**@MetaMask/team-a** (1 file)');
   });
 
-  it.each(['CODEOWNERS', 'docs/CODEOWNERS'])(
-    'uses %s when the base ref has no .github/CODEOWNERS',
-    async (codeownersPath) => {
-      mockGitRepository({
-        filesAtBaseRef: { [codeownersPath]: '*.ts @MetaMask/team-a\n' },
-        changedFilePaths: ['a.ts'],
-      });
-
-      const summary = await generateCodeownershipSummary({
-        repositoryDirectoryPath: '/path/to/repository',
-        baseRef: 'main',
-        headRef: 'HEAD',
-      });
-
-      expect(summary).toContain('**@MetaMask/team-a** (1 file)');
-    },
-  );
-
-  it('prefers .github/CODEOWNERS over CODEOWNERS files elsewhere, as GitHub does', async () => {
+  it('throws if the base ref has no .github/CODEOWNERS, even if it has a CODEOWNERS file elsewhere', async () => {
     mockGitRepository({
-      filesAtBaseRef: {
-        '.github/CODEOWNERS': '*.ts @MetaMask/team-a\n',
-        CODEOWNERS: '*.ts @MetaMask/team-b\n',
-        'docs/CODEOWNERS': '*.ts @MetaMask/team-c\n',
-      },
+      filesAtBaseRef: { CODEOWNERS: '*.ts @MetaMask/team-a\n' },
       changedFilePaths: ['a.ts'],
     });
-
-    const summary = await generateCodeownershipSummary({
-      repositoryDirectoryPath: '/path/to/repository',
-      baseRef: 'main',
-      headRef: 'HEAD',
-    });
-
-    expect(summary).toContain('**@MetaMask/team-a** (1 file)');
-  });
-
-  it('throws if the base ref has no CODEOWNERS file', async () => {
-    mockGitRepository({ filesAtBaseRef: {}, changedFilePaths: ['a.ts'] });
 
     const promiseForGenerating = generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
@@ -92,7 +58,7 @@ describe('generateCodeownershipSummary', () => {
     });
 
     await expect(promiseForGenerating).rejects.toThrow(
-      'Could not find a CODEOWNERS file at main (looked for .github/CODEOWNERS, CODEOWNERS, and docs/CODEOWNERS)',
+      "fatal: path '.github/CODEOWNERS' does not exist in 'main'",
     );
   });
 
