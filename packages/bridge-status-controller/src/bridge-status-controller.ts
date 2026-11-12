@@ -478,6 +478,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
+    this.#updateHistoryItem({
+      historyKey,
+      status: StatusTypes.COMPLETE,
+      txHash: txMeta.hash,
+      completionTime: Date.now(),
+    });
+
     const isSwap =
       type === TransactionType.swap || hasNestedSwapTransactions(txMeta);
     const isIntent = this.#isIntentHistoryItem(historyKey);
@@ -496,12 +503,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
 
-    this.#updateHistoryItem({
-      historyKey,
-      status: StatusTypes.COMPLETE,
-      txHash: txMeta.hash,
-      completionTime: Date.now(),
-    });
     this.#trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.Completed,
       historyKey,
