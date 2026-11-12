@@ -273,9 +273,12 @@ function normalizeTransactionTypes(
 
   const knownTypes = Object.values(TransactionType) as string[];
 
-  return uniq(values.filter((value) => knownTypes.includes(value))).map(
-    (value) => value as TransactionType,
-  );
+  return uniq(
+    values.filter(
+      (value): value is string =>
+        typeof value === 'string' && knownTypes.includes(value),
+    ),
+  ).map((value) => value as TransactionType);
 }
 
 function normalizeStrategy(
@@ -1115,6 +1118,37 @@ export function getFiatEnabledTypes(
     | undefined;
 
   return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
+}
+
+/**
+ * Returns the transaction types enabled for resume for a given strategy.
+ * Reads `confirmations_pay_extended.resume[strategy]`.
+ *
+ * @param remoteFeatureFlags - The remote feature flags object.
+ * @param strategy - The pay strategy name (e.g. "fiat", "relay").
+ * @returns Array of enabled transaction types, or [] if not configured.
+ */
+export function getResumeEnabledTypes(
+  remoteFeatureFlags: Record<string, unknown> | undefined,
+  strategy: string,
+): TransactionType[] {
+  const extFlags = remoteFeatureFlags?.confirmations_pay_extended as
+    | Record<string, unknown>
+    | undefined;
+  const resumeFlags = extFlags?.resume as Record<string, unknown> | undefined;
+  const values = resumeFlags?.[strategy];
+
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const knownTypes = Object.values(TransactionType) as string[];
+  return uniq(
+    values.filter(
+      (value): value is string =>
+        typeof value === 'string' && knownTypes.includes(value),
+    ),
+  ).map((value) => value as TransactionType);
 }
 
 /**

@@ -13,6 +13,8 @@ import {
 } from './constants.js';
 import type { TransactionPayClientId } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { resumePayTransactions } from './helpers/resume-pay-transactions.js';
+import { createModuleLogger, projectLogger } from './logger.js';
 import type {
   GetAmountDataCallback,
   GetBalanceCallback,
@@ -50,6 +52,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
+
+const log = createModuleLogger(projectLogger, 'TransactionPayController');
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
   transactionData: {
@@ -103,6 +107,7 @@ export class TransactionPayController extends BaseController<
     messenger,
     polymarket,
     state,
+    waitForClientReady,
   }: TransactionPayControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -144,6 +149,15 @@ export class TransactionPayController extends BaseController<
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
+    });
+
+    // Fire-and-forget: errors are caught and logged inside.
+    this.#scheduleResume(waitForClientReady);
+  }
+
+  #scheduleResume(waitForClientReady?: () => Promise<void>): void {
+    resumePayTransactions(this.messenger, waitForClientReady).catch((error) => {
+      log('Resume error', error);
     });
   }
 

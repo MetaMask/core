@@ -33,6 +33,8 @@ import type {
   BatchTransaction,
   BatchTransactionParams,
   TransactionControllerAddTransactionAction,
+  TransactionControllerFailTransactionAction,
+  TransactionControllerFinalizeResumedTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
   TransactionControllerStateChangeEvent,
@@ -67,6 +69,8 @@ export type AllowedActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerFailTransactionAction
+  | TransactionControllerFinalizeResumedTransactionAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
@@ -265,6 +269,13 @@ export type TransactionPayControllerOptions = {
 
   /** Optional callback to override the source balance used for max-amount calculation. */
   getBalance?: GetBalanceCallback;
+
+  /**
+   * Resolves when all client-side controller dependencies (e.g. RampsController)
+   * are registered. The resume runner waits for this before attempting any
+   * strategy resume. Defaults to resolved.
+   */
+  waitForClientReady?: () => Promise<void>;
 
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
@@ -749,6 +760,15 @@ export type PayStrategyExecuteRequest<OriginalRequest> = {
   transaction: TransactionMeta;
 };
 
+/** Request object passed to {@link PayStrategy.resume}. */
+export type PayStrategyResumeRequest = {
+  /** Controller messenger for making actions. */
+  messenger: TransactionPayControllerMessenger;
+
+  /** The transaction to resume. */
+  transaction: TransactionMeta;
+};
+
 /** Request to get batch transactions for quotes. */
 export type PayStrategyGetBatchRequest<OriginalQuote> = {
   /** Controller messenger. */
@@ -830,6 +850,21 @@ export type PayStrategy<OriginalQuote> = {
 
   /** Execute or submit the quotes to obtain required tokens. */
   execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<{
+    transactionHash?: Hex;
+  }>;
+
+  /**
+   * Returns true if the strategy can resume the given transaction after
+   * an app restart. Sync, tx-only check — no network calls.
+   */
+  canResume?: (transaction: TransactionMeta) => boolean;
+
+  /**
+   * Resume a previously interrupted transaction.
+   * Called only after the wallet is unlocked and the client is ready.
+   * Returns the final on-chain hash on success; throws on failure.
+   */
+  resume?: (request: PayStrategyResumeRequest) => Promise<{
     transactionHash?: Hex;
   }>;
 };
