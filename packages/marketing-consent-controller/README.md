@@ -14,6 +14,8 @@ or
 
 `MarketingConsentController` keeps the user's marketing consent, held locally by `AnalyticsController`, in sync with their Authenticated User Storage (AUS) profile. AUS is the source of truth.
 
+The controller holds no state. `AnalyticsController` records which local change is waiting to be saved to AUS (`marketingConsentSyncPending`), in the same state update as the consent itself.
+
 ### Setup
 
 Construct it, then call `initialize()` once `AnalyticsController`, `AuthenticationController` and `KeyringController` are registered. The constructor doesn't call other controllers; `initialize()` reads their state, subscribes to their changes and starts syncing.
@@ -21,7 +23,6 @@ Construct it, then call `initialize()` once `AnalyticsController`, `Authenticati
 ```ts
 const controller = new MarketingConsentController({
   messenger,
-  state, // persisted state, if any
   clientType: 'extension', // or 'mobile'
 });
 
@@ -35,7 +36,7 @@ The messenger must allow these actions and events:
 
 - Actions:
   - `AuthenticatedUserStorageService:invalidateQueries`, `getMarketingConsent`, `putMarketingConsent`, `getNotificationPreferences`, `putNotificationPreferences`
-  - `AnalyticsController:getState`, `optInToMarketing`, `optOutOfMarketing`
+  - `AnalyticsController:getState`, `optInToMarketing`, `optOutOfMarketing`, `applyRemoteMarketingConsent`, `clearPendingMarketingConsent`
   - `AuthenticationController:getState`
   - `KeyringController:getState`
 - Events:
@@ -50,7 +51,7 @@ Call `MarketingConsentController:setMarketingConsent(enabled)` for every user ch
 - Turning consent off also turns off the AUS marketing notification channels.
 - Before sign-in finishes (for example during onboarding), the change is applied locally and saved once the wallet is unlocked and signed in; the call resolves without waiting. A change still unsaved when the wallet locks is saved after the next unlock and sign-in.
 - If AUS does not save the change, the call rejects and local consent is re-read from AUS.
-- If a newer choice is made while it waits (another call, or other code changing consent in `AnalyticsController`), the call resolves without an error; the newer choice is saved on its own.
+- If a newer choice is made while it waits (another call, or other code calling `AnalyticsController:optInToMarketing` or `optOutOfMarketing`), the call resolves without an error; the newer choice is saved on its own.
 
 ### Re-reading AUS
 
