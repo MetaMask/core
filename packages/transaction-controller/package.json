@@ -63,7 +63,7 @@
     "@metamask/approval-controller": "^10.0.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/core-backend": "^14.0.0",
+    "@metamask/core-backend": "^15.0.0",
     "@metamask/gas-fee-controller": "^27.1.1",
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",

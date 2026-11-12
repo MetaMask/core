@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.1]
+
 ### Changed
 
 - Read `accountId`, `chainId`, and `assetId` on `V5TransactionRecord` as CAIP identifiers in `mapV5ApiTransaction` ([#11444](https://github.com/MetaMask/core/pull/11444))
@@ -239,7 +241,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.2.1...HEAD
+[3.2.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.2.0...@metamask/client-utils@3.2.1
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.1.1...@metamask/client-utils@3.2.0
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.1.0...@metamask/client-utils@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.4...@metamask/client-utils@3.1.0
