@@ -4516,7 +4516,7 @@ describe('BridgeStatusController (deposit)', () => {
             id: DEPOSIT_TX_ID,
           });
           expect(controller.state.txHistory[SWAP_ID].next).toStrictEqual([]);
-          expect(controller.state.txHistory[SWAP_ID].status.status).not.toBe(
+          expect(controller.state.txHistory[SWAP_ID].status.status).toBe(
             StatusTypes.COMPLETE,
           );
 

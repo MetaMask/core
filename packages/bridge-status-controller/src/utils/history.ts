@@ -35,6 +35,7 @@ const mergeHistoryItems = (
       | 'quote'
       | 'txMetaId'
       | 'actionId'
+      | 'batchId'
       | 'depositTxMeta'
       | 'originalTransactionId'
       | 'next'
@@ -51,6 +52,7 @@ const mergeHistoryItems = (
     actionId: historyItemOverrides?.actionId ?? oldHistoryItem.actionId,
     approvalTxId:
       historyItemOverrides?.approvalTxId ?? oldHistoryItem.approvalTxId,
+    batchId: historyItemOverrides?.batchId ?? oldHistoryItem.batchId,
     status: {
       ...oldHistoryItem.status,
       srcChain: {

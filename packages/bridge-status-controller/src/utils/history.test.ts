@@ -133,12 +133,14 @@ describe('History Utils', () => {
 
       const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
         txMetaId: 'tx1',
+        batchId: '0xnewBatch',
         next: [],
         depositTxMeta: { id: 'deposit-1' },
       });
 
       expect(result).toBe(true);
       expect(state.txHistory.tx1.next).toStrictEqual([]);
+      expect(state.txHistory.tx1.batchId).toBe('0xnewBatch');
       expect(state.txHistory.tx1.depositTxMeta).toStrictEqual({
         batchId: '0xoldBatch',
         id: 'deposit-1',
