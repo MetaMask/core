@@ -81,8 +81,8 @@ describe('derivation', () => {
       );
 
       // validate addresses
-      keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(
+      keys.forEach(async ({ privateKeyBytes }, index) => {
+        const address = await privateKeyToEthAddress(
           privateKeyBytes as Uint8Array<ArrayBuffer>,
         );
         expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
@@ -113,8 +113,8 @@ describe('derivation', () => {
       );
 
       // validate addresses
-      keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(
+      keys.forEach(async ({ privateKeyBytes }, index) => {
+        const address = await privateKeyToEthAddress(
           privateKeyBytes as Uint8Array<ArrayBuffer>,
         );
         expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
@@ -147,8 +147,8 @@ describe('derivation', () => {
       );
 
       // validate addresses
-      keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(
+      keys.forEach(async ({ privateKeyBytes }, index) => {
+        const address = await privateKeyToEthAddress(
           privateKeyBytes as Uint8Array<ArrayBuffer>,
         );
         expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
@@ -399,8 +399,10 @@ describe('derivation', () => {
         {},
         null,
         undefined,
-      ].forEach((invalidInput) => {
-        expect(() => privateKeyToEthAddress(invalidInput as any)).toThrow(
+      ].forEach(async (invalidInput) => {
+        await expect(
+          privateKeyToEthAddress(invalidInput as any),
+        ).rejects.toThrow(
           'Invalid key: The key must be a 32-byte, non-zero Uint8Array.',
         );
       });

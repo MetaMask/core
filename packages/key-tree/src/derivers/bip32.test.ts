@@ -114,21 +114,23 @@ describe('deriveChildKey', () => {
 });
 
 describe('privateKeyToEthAddress', () => {
-  it('returns the Ethereum address for a private key', () => {
+  it('returns the Ethereum address for a private key', async () => {
     const { privateKey, address } = fixtures['ethereumjs-wallet'];
 
     expect(
-      bytesToHex(privateKeyToEthAddress(hexStringToBytes(privateKey))),
+      bytesToHex(await privateKeyToEthAddress(hexStringToBytes(privateKey))),
     ).toBe(address);
   });
 
-  it('throws for invalid private keys', () => {
+  it('throws for invalid private keys', async () => {
     // @ts-expect-error Invalid public key type.
-    expect(() => privateKeyToEthAddress('foo')).toThrow(
+    await expect(privateKeyToEthAddress('foo')).rejects.toThrow(
       'Invalid key: The key must be a 32-byte, non-zero Uint8Array.',
     );
 
-    expect(() => privateKeyToEthAddress(new Uint8Array(31).fill(1))).toThrow(
+    await expect(
+      privateKeyToEthAddress(new Uint8Array(31).fill(1)),
+    ).rejects.toThrow(
       'Invalid key: The key must be a 32-byte, non-zero Uint8Array.',
     );
   });
