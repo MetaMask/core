@@ -22,24 +22,13 @@ export type KycServiceGetGeoCountryAction = {
  * created.
  *
  * @param params - The parameters.
- * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+ * @param params.vendor - Identity vendor.
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
 export type KycServiceFetchVendorDisclaimersAction = {
   type: `KycService:fetchVendorDisclaimers`;
   handler: KycService['fetchVendorDisclaimers'];
-};
-
-/**
- * Creates a MoonPay vendor session via the UKYC backend.
- *
- * @param params - The session parameters.
- * @returns The created session token.
- */
-export type KycServiceCreateMoonpaySessionAction = {
-  type: `KycService:createMoonpaySession`;
-  handler: KycService['createMoonpaySession'];
 };
 
 /**
@@ -317,7 +306,6 @@ export type KycServiceGetDataSharesAction = {
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
   | KycServiceFetchVendorDisclaimersAction
-  | KycServiceCreateMoonpaySessionAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
   | KycServiceFetchSessionDisclaimersByCountryAction

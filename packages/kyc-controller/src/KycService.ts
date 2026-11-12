@@ -50,7 +50,6 @@ export const serviceName = 'KycService';
 const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
   'fetchVendorDisclaimers',
-  'createMoonpaySession',
   'createVendorCustomer',
   'submitVendorDisclaimers',
   'fetchSessionDisclaimersByCountry',
@@ -174,8 +173,6 @@ const VendorSigningStruct = type({
 });
 const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
-const CreateSessionResponseStruct = type({ sessionToken: string() });
-
 // The session server's public key, in JWK-like form, returned inside an
 // encryption schema from `POST /sessions`. `x` is the base64url public key
 // used to wrap a secret for that schema.
@@ -295,12 +292,6 @@ const SessionDisclaimersResponseStruct = type({
 
 // === PARAM TYPES ===
 
-export type CreateMoonpaySessionParams = {
-  partnerIdentityToken: string;
-  termsAcceptedAt: string;
-  disclaimerIds: string[];
-};
-
 export type CreateVendorCustomerParams = {
   vendor: KycVendor;
   partnerIdentityToken: string;
@@ -349,11 +340,10 @@ export type CreateUkycSessionParams = {
    */
   residenceCountry: string;
   /**
-   * Identity vendor for the UKYC session. Defaults to `moonpay` for the
-   * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
-   * the consents path (no MoonPay metadata required).
+   * Identity vendor for the UKYC session. MoonPay sessions also need
+   * `vendorMetadata`; other vendors (e.g. `iron`) use the consents path.
    */
-  vendor?: KycVendor;
+  vendor: KycVendor;
   /**
    * Vendor-specific metadata. Required for MoonPay (`moonPayAccessToken` /
    * `moonPayUserId`); optional / omitted for other vendors.
@@ -566,15 +556,15 @@ export class KycService extends BaseDataService<
    * created.
    *
    * @param params - The parameters.
-   * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+   * @param params.vendor - Identity vendor.
    * @param params.country - ISO 3166-1 alpha-3 country code.
    * @returns The disclaimers.
    */
   async fetchVendorDisclaimers({
-    vendor = 'moonpay',
+    vendor,
     country,
   }: {
-    vendor?: KycVendor;
+    vendor: KycVendor;
     country: string;
   }): Promise<KycDisclaimer[]> {
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
@@ -584,27 +574,6 @@ export class KycService extends BaseDataService<
       data,
       DisclaimersResponseStruct,
       'disclaimers',
-    );
-  }
-
-  /**
-   * Creates a MoonPay vendor session via the UKYC backend.
-   *
-   * @param params - The session parameters.
-   * @returns The created session token.
-   */
-  async createMoonpaySession(
-    params: CreateMoonpaySessionParams,
-  ): Promise<Infer<typeof CreateSessionResponseStruct>> {
-    const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-    return this.#validateResponse(
-      data,
-      CreateSessionResponseStruct,
-      'sessions',
     );
   }
 
@@ -869,7 +838,7 @@ export class KycService extends BaseDataService<
       {
         method: 'POST',
         body: JSON.stringify({
-          vendorId: params.vendor ?? 'moonpay',
+          vendorId: params.vendor,
           vendorUserId: 'mockedId',
           sessionClientPublicKey: params.sessionClientPublicKey,
           residenceCountry: params.residenceCountry,

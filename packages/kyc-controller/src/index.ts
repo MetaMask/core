@@ -1,8 +1,7 @@
 export {
   KycController,
   getDefaultKycControllerState,
-  getDefaultKycProviderDisclaimersAccepted,
-  getDefaultKycVendorDisclaimersAccepted,
+  getDefaultKycVendorSessionState,
   KYC_PROVIDER_FLOW_STATUSES,
   controllerName,
 } from './KycController.js';
@@ -16,8 +15,10 @@ export type {
   KycControllerStateChangeEvent,
   FetchSessionDisclaimersParams,
   KycProviderFlowStatus,
+  KycVendorSessionState,
 } from './KycController.js';
 export type {
+  KycControllerAcceptVendorDisclaimersAction,
   KycControllerClearStateAction,
   KycControllerDeleteEncryptedStorageAction,
   KycControllerEnsureLocalUserSecretAction,
@@ -25,6 +26,7 @@ export type {
   KycControllerFetchVendorDisclaimersAction,
   KycControllerGetDataSharesAction,
   KycControllerGetProviderFlowStatusAction,
+  KycControllerGetSessionDecisionAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
   KycControllerHasCompletedVendorDisclaimersAction,
@@ -53,7 +55,6 @@ export type {
   ApplicantAccessTokenResponse,
   CapabilityAuthorization,
   CreateVendorCustomerParams,
-  CreateMoonpaySessionParams,
   CompleteDeletionParams,
   CreateDeletionParams,
   CreateDeletionResponse,
@@ -83,7 +84,6 @@ export type {
   KycServiceCompleteDeletionAction,
   KycServiceCreateDeletionAction,
   KycServiceCreateJourneyAction,
-  KycServiceCreateMoonpaySessionAction,
   KycServiceCreateUkycSessionAction,
   KycServiceFetchIdosEnclaveJwksAction,
   KycServiceFetchIdosRelayJwksAction,
@@ -100,7 +100,13 @@ export type {
   KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
-export { selectKycSessionStatus, selectKycVendor } from './selectors.js';
+export { selectKycSession, selectKycSessionStatus } from './selectors.js';
+
+export {
+  KYC_SESSION_DECISIONS,
+  getKycSessionDecision,
+} from './sessionDecision.js';
+export type { KycSessionDecision } from './sessionDecision.js';
 
 export { alpha2ToAlpha3, ALPHA2_TO_ALPHA3 } from './countryCodes.js';
 export { decryptCredentials, generateKeyPair } from './crypto.js';
@@ -124,15 +130,10 @@ export type {
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
-  KycPhase,
-  KycProduct,
-  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycVendor,
-  KycIronVendorDisclaimersAccepted,
-  KycMoonpayVendorDisclaimersAccepted,
-  KycVendorDisclaimersAccepted,
+  KycVendorDisclaimersAcceptance,
   KycVendorSigning,
 } from './types.js';
 export {

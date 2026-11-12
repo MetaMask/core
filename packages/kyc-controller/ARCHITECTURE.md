@@ -46,7 +46,7 @@ graph TB
         Service["KycService<br/><i>(stateless)</i><br/>HTTP + response validation"]
         Crypto["crypto.ts<br/>X25519 ECDH + AES-256-GCM"]
         Selectors["selectors.ts<br/>memoized reselect selectors"]
-        Types["types.ts<br/>KycPhase, KycProduct,<br/>KycSumSubLauncher, ..."]
+        Types["types.ts<br/>KycVendor, KycSessionStatus,<br/>KycSumSubLauncher, ..."]
         Country["countryCodes.ts<br/>alpha-2 → alpha-3"]
     end
 
@@ -121,7 +121,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`getGeoCountry`, `fetchVendorDisclaimers`, `createSession`, `checkKycRequired`,
+`getGeoCountry`, `fetchVendorDisclaimers`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimersByCountry`, `fetchSessionDisclaimersBySessionId`, `submitSessionDisclaimers`,
 `fetchKycStatus`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
 `createJourney`, `getSessionStatus`.
@@ -131,8 +131,7 @@ Endpoints:
 | Method                               | HTTP   | Endpoint                                     | Purpose                                                                                |
 | ------------------------------------ | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `getGeoCountry`                      | —      | (geolocation action)                         | Resolve alpha-3 country                                                                |
-| `fetchVendorDisclaimers`             | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept (`vendor` defaults to `moonpay`)                                 |
-| `createSession`                      | `POST` | `/vendors/moonpay/sessions`                  | Create MoonPay vendor session                                                          |
+| `fetchVendorDisclaimers`             | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept. `vendor` is required                                            |
 | `checkKycRequired`                   | `POST` | `/vendors/{vendor}/kyc-required`             | Is KYC required? (normalizes `required` → `kycRequired`)                               |
 | `createVendorCustomer`               | `POST` | `/vendors/{vendor}/customers`                | Create or resume an empty-shell vendor customer                                        |
 | `submitVendorDisclaimers`            | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor T&C signings (`disclaimerIds`)                                           |
@@ -162,69 +161,68 @@ and hex-or-base64 binary fields.
 
 #### 2.4 `selectors.ts`
 
-Memoized `reselect` selectors over `KycControllerState`:
-`selectKycPhase`, `selectKycSumSub`, and the parametric
-`selectIsKycRequiredForProduct(product)`.
+Selectors over `KycControllerState` that take the vendor:
+`selectKycSession(state, vendor)` and `selectKycSessionStatus(state, vendor)`.
+`sessionDecision.ts` exports the pure `getKycSessionDecision(entry)`, which
+`KycController.getSessionDecision({ vendor })` wraps.
 
 ---
 
 ### 3. State shape
 
+The controller holds one session per identity vendor, matching kyc-api, which
+keys sessions by canonical user and vendor. There is no active vendor: every
+session method takes `{ vendor }`, and features that use the same vendor share
+its entry.
+
 ```mermaid
 classDiagram
     class KycControllerState {
-        +KycPhase phase
-        +string statusMessage
-        +string error
-        +string email
-        +KycVendorDisclaimersAccepted vendorDisclaimersAccepted [persisted]
-        +KycDisclaimer[] vendorDisclaimers
-        +string vendorError
-        +string geoCountry
-        +string moonpaySessionToken [secret]
-        +string moonpayAccessToken [secret]
-        +string moonpayCustomerId
-        +KycProduct activeProduct
-        +Record kycRequiredByProduct [persisted]
-        +string lastCheckedAt [persisted]
-        +SumSubState sumsub
+        +Partial~Record~KycVendor, KycVendorSessionState~~ sessions
     }
-    class SumSubState {
-        +KycSumSubStatus status
-        +Json result
-        +string sessionId
-        +string applicantAccessToken
+    class KycVendorSessionState {
+        +KycSessionStatus sessionStatus
+        +KycProviderFlowStatus providerFlowStatus
+        +string residenceCountry
+        +KycVendorDisclaimersAcceptance vendorDisclaimersAccepted
+        +KycConsentRecord[] providerDisclaimersAccepted
+        +KycConsentRecord[] idosDisclaimersAccepted
+        +boolean credentialReusabilityConsentGiven
     }
-    KycControllerState --> SumSubState : sumsub
+    class KycVendorDisclaimersAcceptance {
+        +string[] disclaimerIds
+        +string acceptedAt
+        +boolean submitted
+    }
+    KycControllerState --> KycVendorSessionState : sessions[vendor]
+    KycVendorSessionState --> KycVendorDisclaimersAcceptance
 ```
 
-> Note: nullable fields (`error`, `email`, `moonpaySessionToken`, …) are typed as
-> `T | null` in the source; `Record` is `Partial<Record<KycProduct, boolean>>`.
-> Types are simplified above for diagram readability.
+> Nullable fields are typed as `T | null` in the source; the diagram drops that
+> for readability.
 
-State metadata highlights (`kycControllerMetadata`):
-
-- **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
-  `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
-  `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
-  can skip already-accepted terms and reuse cached results. Session-scoped
-  `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory
-  only (`persist: false`) and are cleared on `reset()`.
-  Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
-  the stored acceptance when it belongs to a different vendor, so one vendor's
-  disclaimer ids are never submitted to another. The drop waits until the
-  vendor switch commits (`createVendorCustomer` succeeds, or the MoonPay
-  path proceeds); a failed or reset switch leaves the previous vendor's
-  acceptance in place.
-- **Secrets, never persisted / never logged**: `moonpaySessionToken`, `moonpayAccessToken`,
-  `moonpayCustomerId`, `email`, `vendorDisclaimers`, and the whole `sumsub` sub-tree.
-  Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
-  these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
-  return a MoonPay URL while `activeVendor` is a consents-path vendor.
-- Additional non-state secrets kept **off** the state object entirely: the
-  X25519 private key (`#keypair`) and the Auth-frame client token
-  (`#authClientToken`). The auth client token is cleared on the same vendor
-  switch.
+- An entry is created by whichever comes first: `acceptVendorDisclaimers` for
+  that vendor or `startSession` for that vendor.
+- `residenceCountry` is the country the session was created with, or the
+  country the vendor's terms were fetched for before a session existed.
+  Vendor-disclaimer checks read the catalog for it.
+- Vendor terms are shown before a session exists but can only be submitted
+  once one does. `acceptVendorDisclaimers` stores them with
+  `submitted: false`; `recordVendorDisclaimers({ vendor })` submits them and
+  sets `submitted: true`. `hasCompletedVendorDisclaimers` only counts
+  submitted acceptance.
+- `getSessionDecision({ vendor })` reduces an entry to `none`, `new`,
+  `pending`, `approved`, `rejected` or `retry`. It is not a "ready" verdict:
+  approval says nothing about vendor work after it (e.g. Iron account
+  activation).
+- The whole `sessions` map is persisted. `clearState` / `reset` empty it and
+  stop every vendor's polling loop.
+- The UKYC `local_user_secret` lives in Encrypted User Storage, not on state,
+  and is shared by every vendor.
+- The target model for generalising the flow across vendors is proposed in
+  [MetaMask/core#11252](https://github.com/MetaMask/core/pull/11252). The
+  phase-machine sections below describe the earlier MoonPay flow and predate
+  both.
 
 ---
 
@@ -690,15 +688,15 @@ graph LR
 
 ### Appendix — key source files
 
-| File                   | Responsibility                                       |
-| ---------------------- | ---------------------------------------------------- |
-| `src/KycController.ts` | Stateful orchestrator, phase machine.                |
-| `src/KycService.ts`    | Stateless UKYC HTTP client + superstruct validation. |
-| `src/crypto.ts`        | X25519 ECDH + AES-256-GCM credential decryption.     |
-| `src/selectors.ts`     | Memoized selectors over controller state.            |
-| `src/types.ts`         | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.  |
-| `src/countryCodes.ts`  | ISO alpha-2 → alpha-3 mapping.                       |
-| `src/index.ts`         | Public exports (no barrel wildcards).                |
+| File                   | Responsibility                                             |
+| ---------------------- | ---------------------------------------------------------- |
+| `src/KycController.ts` | Stateful orchestrator, phase machine.                      |
+| `src/KycService.ts`    | Stateless UKYC HTTP client + superstruct validation.       |
+| `src/crypto.ts`        | X25519 ECDH + AES-256-GCM credential decryption.           |
+| `src/selectors.ts`     | Memoized selectors over controller state.                  |
+| `src/types.ts`         | `KycVendor`, `KycSessionStatus`, `KycSumSubLauncher`, etc. |
+| `src/countryCodes.ts`  | ISO alpha-2 → alpha-3 mapping.                             |
+| `src/index.ts`         | Public exports (no barrel wildcards).                      |
 
 Reference client (metamask-mobile):
 

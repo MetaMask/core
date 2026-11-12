@@ -1,21 +1,29 @@
-import type { KycControllerState } from './KycController.js';
-import type { KycVendor } from './types.js';
+import type {
+  KycControllerState,
+  KycVendorSessionState,
+} from './KycController.js';
+import type { KycSessionStatus, KycVendor } from './types.js';
 
 /**
- * Selects the identity vendor on the current KYC session.
+ * Selects a vendor's session entry.
  *
  * @param state - The KycController state.
- * @returns The current vendor, or `null`.
+ * @param vendor - The identity vendor.
+ * @returns The vendor's entry, or `undefined` when none exists.
  */
-export const selectKycVendor = (state: KycControllerState): KycVendor | null =>
-  state.vendor;
+export const selectKycSession = (
+  state: KycControllerState,
+  vendor: KycVendor,
+): KycVendorSessionState | undefined => state.sessions[vendor];
 
 /**
- * Selects the latest UKYC session status.
+ * Selects a vendor's latest UKYC session status.
  *
  * @param state - The KycController state.
- * @returns The current session status, or `null`.
+ * @param vendor - The identity vendor.
+ * @returns The vendor's session status, or `null`.
  */
 export const selectKycSessionStatus = (
   state: KycControllerState,
-): KycControllerState['sessionStatus'] => state.sessionStatus;
+  vendor: KycVendor,
+): KycSessionStatus | null => state.sessions[vendor]?.sessionStatus ?? null;

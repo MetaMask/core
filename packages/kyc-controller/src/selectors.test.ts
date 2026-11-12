@@ -1,19 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { getDefaultKycControllerState } from './KycController.js';
-import { selectKycSessionStatus, selectKycVendor } from './selectors.js';
+import {
+  getDefaultKycControllerState,
+  getDefaultKycVendorSessionState,
+} from './KycController.js';
+import { selectKycSession, selectKycSessionStatus } from './selectors.js';
 
 describe('selectors', () => {
-  it('selectKycVendor returns the current vendor', () => {
-    const state = {
-      ...getDefaultKycControllerState(),
-      vendor: 'iron' as const,
-    };
-    expect(selectKycVendor(state)).toBe('iron');
+  it('selectKycSession returns the vendor entry', () => {
+    const entry = getDefaultKycVendorSessionState();
+    const state = { sessions: { iron: entry } };
+    expect(selectKycSession(state, 'iron')).toBe(entry);
+    expect(selectKycSession(state, 'moonpay')).toBeUndefined();
   });
 
-  it('selectKycSessionStatus returns the session status', () => {
-    const state = getDefaultKycControllerState();
-    expect(selectKycSessionStatus(state)).toBeNull();
+  it('selectKycSessionStatus returns null when the vendor has no session', () => {
+    expect(
+      selectKycSessionStatus(getDefaultKycControllerState(), 'iron'),
+    ).toBeNull();
   });
 });

@@ -7,49 +7,13 @@
  */
 
 /**
- * A MetaMask feature that consumes KYC. Used to key the per-product
- * "is KYC required" cache so ramps, card, and money can share one controller.
- */
-export type KycProduct = 'ramps' | 'card' | 'money';
-
-/**
  * Identity vendors supported behind the KYC surface.
  *
- * - `moonpay` — MoonPay Check/Auth frames + SumSub documents.
- * - `iron` — Iron-only Money/VBA path: empty-shell customer → consents →
- *   SumSub, with no MoonPay Check/Auth frames.
+ * - `moonpay` — kept as a second session slot. There is no MoonPay-specific
+ *   session API; sessions are created with `createUkycSession`.
+ * - `iron` — Iron Money/VBA path: empty-shell customer → consents → SumSub.
  */
 export type KycVendor = 'moonpay' | 'iron';
-
-/**
- * Phases of the end-to-end identity flow.
- *
- * - `idle` — nothing started.
- * - `terms` — waiting for the customer to accept the vendor terms.
- * - `session` — creating the vendor session (MoonPay) or creating the UKYC
- *   session and recording session-scoped disclaimers (non-MoonPay vendors).
- * - `check` — running the invisible connection-check frame (MoonPay only).
- * - `auth` — running the visible authentication (OTP) frame (MoonPay only).
- * - `form` — authenticated. When the flow is scoped to a product, the
- *   KYC-required check runs automatically from here; otherwise the consumer
- *   drives it manually via `checkKycRequired`. Consents-path vendors skip
- *   this phase.
- * - `submit` — submitting the KYC-required check / launching SumSub.
- * - `done` — flow complete; see `kycRequiredByProduct` / `sumsub` /
- *   `userStatus`. When KYC is required, the document-verification sub-flow is
- *   launched automatically.
- * - `error` — flow halted; see `error`.
- */
-export type KycPhase =
-  | 'idle'
-  | 'terms'
-  | 'session'
-  | 'check'
-  | 'auth'
-  | 'form'
-  | 'submit'
-  | 'done'
-  | 'error';
 
 /**
  * UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
@@ -321,37 +285,22 @@ export type KycConsentRecord = {
 };
 
 /**
- * MoonPay vendor T&C1 acceptance persisted under
- * {@link KycVendorDisclaimersAccepted.moonpay}.
+ * A vendor's T&C acceptance, stored on that vendor's session entry.
+ *
+ * Terms are shown before a session exists and can only be submitted to the
+ * vendor once one does, so acceptance is recorded on the device first
+ * (`submitted: false`) and marked submitted once the vendor has it.
  */
-export type KycMoonpayVendorDisclaimersAccepted = {
-  /** ISO-8601 timestamp of terms acceptance for MoonPay. */
-  termsAcceptedAt: string;
-};
-
-/**
- * Iron vendor T&C1 acceptance persisted under
- * {@link KycVendorDisclaimersAccepted.iron}.
- */
-export type KycIronVendorDisclaimersAccepted = {
-  /** IDs of Iron vendor disclaimers the customer accepted. */
+export type KycVendorDisclaimersAcceptance = {
+  /** IDs of the vendor disclaimers the customer accepted. */
   disclaimerIds: string[];
-};
-
-/**
- * Persisted KYC-provider disclaimer acceptance (T&C2) with a fixed `sumsub`
- * key.
- */
-export type KycProviderDisclaimersAccepted = {
-  sumsub: KycConsentRecord[] | null;
-};
-
-/**
- * Persisted vendor-disclaimer acceptance with fixed `moonpay` and `iron` keys.
- */
-export type KycVendorDisclaimersAccepted = {
-  moonpay: KycMoonpayVendorDisclaimersAccepted | null;
-  iron: KycIronVendorDisclaimersAccepted | null;
+  /**
+   * ISO-8601 timestamp of the acceptance. `null` for acceptance migrated from
+   * a version that did not record when it happened.
+   */
+  acceptedAt: string | null;
+  /** Whether the vendor has recorded the acceptance. */
+  submitted: boolean;
 };
 
 /**
