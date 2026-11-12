@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.0` ([#11391](https://github.com/MetaMask/core/pull/11391))
+- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.1` ([#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/subscription-controller` from `^15.2.0` to `^15.2.1` ([#11437](https://github.com/MetaMask/core/pull/11437))
 - Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0`
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1`
