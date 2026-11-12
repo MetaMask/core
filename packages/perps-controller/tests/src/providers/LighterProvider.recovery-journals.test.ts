@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -36,10 +36,6 @@ vi.mock('../../../src/services/LighterWalletService');
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
   describe('round-21 quarantine persistence, selective acknowledgment and durable manual state', () => {
     it('an unacknowledged recovered outcome blocks the SECOND and THIRD retries too (no empty-entries bypass)', async () => {

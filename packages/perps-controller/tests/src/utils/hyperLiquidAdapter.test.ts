@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FrontendOrder } from '../../../src/types/hyperliquid-types.js';
+import type {
+  ClearinghouseStateResponse,
+  FrontendOrder,
+} from '../../../src/types/hyperliquid-types.js';
 import {
+  adaptAccountStateFromSDK,
   adaptOrderFromSDK,
   adaptMarketFromSDK,
   buildHyperLiquidFillId,
@@ -156,5 +160,153 @@ describe('buildHyperLiquidFillId', () => {
 
   it.each([undefined, null])('returns undefined when tid is %s', (tid) => {
     expect(buildHyperLiquidFillId({ ...fill, tid })).toBeUndefined();
+  });
+});
+
+describe('adaptAccountStateFromSDK cross margin summary', () => {
+  const buildState = (
+    overrides: Partial<ClearinghouseStateResponse> = {},
+  ): ClearinghouseStateResponse => ({
+    assetPositions: [],
+    marginSummary: {
+      accountValue: '1500',
+      totalNtlPos: '4000',
+      totalRawUsd: '1500',
+      totalMarginUsed: '600',
+    },
+    crossMarginSummary: {
+      accountValue: '1200',
+      totalNtlPos: '3000',
+      totalRawUsd: '1200',
+      totalMarginUsed: '400',
+    },
+    crossMaintenanceMarginUsed: '75.5',
+    withdrawable: '800',
+    time: 0,
+    ...overrides,
+  });
+
+  it('maps crossMarginSummary and crossMaintenanceMarginUsed', () => {
+    expect(
+      adaptAccountStateFromSDK(buildState()).crossMarginSummary,
+    ).toStrictEqual({
+      accountValue: '1200',
+      maintenanceMargin: '75.5',
+      marginUsed: '400',
+      notional: '3000',
+    });
+  });
+
+  it('omits the summary when the payload carries no cross fields', () => {
+    const state = buildState();
+    delete (state as Partial<ClearinghouseStateResponse>)
+      .crossMaintenanceMarginUsed;
+    expect(adaptAccountStateFromSDK(state)).not.toHaveProperty(
+      'crossMarginSummary',
+    );
+  });
+
+  it.each([
+    [
+      'accountValue',
+      {
+        crossMarginSummary: {
+          accountValue: 'NaN',
+          totalNtlPos: '0',
+          totalRawUsd: '0',
+          totalMarginUsed: '0',
+        },
+      },
+    ],
+    [
+      'notional',
+      {
+        crossMarginSummary: {
+          accountValue: '1',
+          totalNtlPos: '1e999',
+          totalRawUsd: '0',
+          totalMarginUsed: '0',
+        },
+      },
+    ],
+    [
+      'marginUsed',
+      {
+        crossMarginSummary: {
+          accountValue: '1',
+          totalNtlPos: '0',
+          totalRawUsd: '0',
+          totalMarginUsed: '12oops',
+        },
+      },
+    ],
+    ['maintenanceMargin', { crossMaintenanceMarginUsed: '' }],
+  ])('fails the read on a malformed %s', (field, overrides) => {
+    expect(() =>
+      adaptAccountStateFromSDK(
+        buildState(overrides as Partial<ClearinghouseStateResponse>),
+      ),
+    ).toThrow(`Invalid HyperLiquid cross margin ${field}`);
+  });
+});
+
+describe('adaptAccountStateFromSDK available balance (characterization)', () => {
+  it('reports the account-wide withdrawable for every market and side while positions carry PnL', () => {
+    const state: ClearinghouseStateResponse = {
+      assetPositions: [
+        {
+          position: {
+            coin: 'BTC',
+            szi: '0.0002',
+            entryPx: '75600',
+            positionValue: '15.12',
+            unrealizedPnl: '-0.0312',
+            marginUsed: '7.4688',
+            leverage: { type: 'isolated', value: 2, rawUsd: '-7.4688' },
+            liquidationPx: '38100',
+            maxLeverage: 40,
+            returnOnEquity: '-0.0041',
+            cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+          },
+          type: 'oneWay',
+        },
+        {
+          position: {
+            coin: 'SOL',
+            szi: '0.06',
+            entryPx: '189.2',
+            positionValue: '11.3652',
+            unrealizedPnl: '0.0421',
+            marginUsed: '5.6826',
+            leverage: { type: 'cross', value: 2 },
+            liquidationPx: null,
+            maxLeverage: 10,
+            returnOnEquity: '0.0074',
+            cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+          },
+          type: 'oneWay',
+        },
+      ],
+      marginSummary: {
+        accountValue: '18.5',
+        totalNtlPos: '26.4852',
+        totalRawUsd: '18.5',
+        totalMarginUsed: '13.1514',
+      },
+      crossMarginSummary: {
+        accountValue: '11.0',
+        totalNtlPos: '11.3652',
+        totalRawUsd: '11.0',
+        totalMarginUsed: '5.6826',
+      },
+      crossMaintenanceMarginUsed: '0.57',
+      withdrawable: '0.050136',
+      time: 0,
+    };
+
+    const accountState = adaptAccountStateFromSDK(state);
+
+    expect(accountState.spendableBalance).toBe('0.050136');
+    expect(accountState.withdrawableBalance).toBe('0.050136');
   });
 });

@@ -663,10 +663,6 @@ describe('PerpsController selectors', () => {
       vi.spyOn(Date, 'now').mockReturnValue(now);
     });
 
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
     it('returns mainnet symbols when not on testnet, ordered newest-first', () => {
       const state = {
         isTestnet: false,

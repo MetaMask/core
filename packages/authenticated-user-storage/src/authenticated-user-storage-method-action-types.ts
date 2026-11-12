@@ -133,6 +133,74 @@ export type AuthenticatedUserStorageServiceSetAssetsWatchlistAction = {
 };
 
 /**
+ * Returns the user-assets (custom tokens) blob for the authenticated user.
+ *
+ * @returns The user-assets blob, or `null` if none has been set (404).
+ */
+export type AuthenticatedUserStorageServiceGetUserAssetsAction = {
+  type: `AuthenticatedUserStorageService:getUserAssets`;
+  handler: AuthenticatedUserStorageService['getUserAssets'];
+};
+
+/**
+ * Creates or updates the user-assets (custom tokens) blob for the
+ * authenticated user. The blob is normalized (de-duplicated, conflicts
+ * resolved fail-open in favor of `importedAssets`) before it is sent.
+ *
+ * @param blob - The full user-assets blob, with CAIP-19 asset identifiers.
+ * @param clientType - Optional client type header.
+ * @throws A `StructError` if `blob` is structurally invalid; an `HttpError`
+ * if the API responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServiceSetUserAssetsAction = {
+  type: `AuthenticatedUserStorageService:setUserAssets`;
+  handler: AuthenticatedUserStorageService['setUserAssets'];
+};
+
+/**
+ * Imports custom tokens: adds the given identifiers to `importedAssets`
+ * (de-duplicated, order preserved) and removes them from `hiddenAssets`.
+ * Creates a fresh blob if none exists yet.
+ *
+ * @param ids - The CAIP-19 asset identifiers of the tokens to import.
+ * @param clientType - Optional client type header.
+ * @returns The resolved user-assets blob that was persisted.
+ * @throws A `StructError` if any entry of `ids` is not a CAIP-19 asset
+ * identifier; an `HttpError` if the API responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServiceImportTokensAction = {
+  type: `AuthenticatedUserStorageService:importTokens`;
+  handler: AuthenticatedUserStorageService['importTokens'];
+};
+
+/**
+ * Hides custom tokens: adds the given identifiers to `hiddenAssets`
+ * (de-duplicated, order preserved) and removes them from
+ * `importedAssets`. Creates a fresh blob if none exists yet.
+ *
+ * @param ids - The CAIP-19 asset identifiers of the tokens to hide.
+ * @param clientType - Optional client type header.
+ * @returns The resolved user-assets blob that was persisted.
+ * @throws A `StructError` if any entry of `ids` is not a CAIP-19 asset
+ * identifier; an `HttpError` if the API responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServiceHideTokensAction = {
+  type: `AuthenticatedUserStorageService:hideTokens`;
+  handler: AuthenticatedUserStorageService['hideTokens'];
+};
+
+/**
+ * Wipes the user's custom tokens, restoring a clean slate (empty lists).
+ *
+ * @param clientType - Optional client type header.
+ * @throws An `HttpError` if the API responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServiceClearUserAssetsAction = {
+  type: `AuthenticatedUserStorageService:clearUserAssets`;
+  handler: AuthenticatedUserStorageService['clearUserAssets'];
+};
+
+/**
  * Union of all AuthenticatedUserStorageService action types.
  */
 export type AuthenticatedUserStorageServiceMethodActions =
@@ -146,4 +214,9 @@ export type AuthenticatedUserStorageServiceMethodActions =
   | AuthenticatedUserStorageServiceGetIdentitySharingConsentAction
   | AuthenticatedUserStorageServicePutIdentitySharingConsentAction
   | AuthenticatedUserStorageServiceGetAssetsWatchlistAction
-  | AuthenticatedUserStorageServiceSetAssetsWatchlistAction;
+  | AuthenticatedUserStorageServiceSetAssetsWatchlistAction
+  | AuthenticatedUserStorageServiceGetUserAssetsAction
+  | AuthenticatedUserStorageServiceSetUserAssetsAction
+  | AuthenticatedUserStorageServiceImportTokensAction
+  | AuthenticatedUserStorageServiceHideTokensAction
+  | AuthenticatedUserStorageServiceClearUserAssetsAction;

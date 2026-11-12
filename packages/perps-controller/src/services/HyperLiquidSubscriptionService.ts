@@ -8,6 +8,7 @@ import type {
   UserTwapHistoryWsEvent,
   TwapHistoryResponse,
   ActiveAssetCtxWsEvent,
+  ActiveAssetDataWsEvent,
   ActiveSpotAssetCtxWsEvent,
   BboWsEvent,
   L2BookResponse,
@@ -53,6 +54,7 @@ import type {
 } from '../types/index.js';
 import {
   addSpotBalanceToAccountState,
+  aggregateAccountStates,
   calculateWeightedReturnOnEquity,
 } from '../utils/accountUtils.js';
 import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
@@ -221,6 +223,14 @@ export class HyperLiquidSubscriptionService {
 
   readonly #globalActiveAssetSubscriptions = new Map<string, ISubscription>();
 
+  // Per-caller activeAssetData streams (available to trade). The service owns
+  // them so restoreSubscriptions() can reopen them on a replacement transport
+  // and clearAll() can retire pending and open ones.
+  readonly #activeAssetDataStreams = new Set<{
+    reopen: () => void;
+    retire: () => void;
+  }>();
+
   // Track in-progress activeAssetCtx subscription promises to prevent leaks
   // when cleanup fires before the async subscription resolves (#28141)
   readonly #pendingActiveAssetPromises = new Map<
@@ -235,6 +245,27 @@ export class HyperLiquidSubscriptionService {
 
   // Order fill subscriptions keyed by accountId (normalized: undefined -> 'default')
   readonly #orderFillSubscriptions = new Map<string, ISubscription>();
+
+  // In-flight userFills subscribe calls, so concurrent subscribers / reconnect
+  // share one socket open instead of racing two opens onto the same map key.
+  readonly #pendingOrderFillSubscriptions = new Map<string, Promise<void>>();
+
+  // Bumped per account by teardown and reconnect so an in-flight open for
+  // that account discards its subscription instead of rehydrating a cleared
+  // map (same race TWAP already guards; without it live fills can stick to a
+  // dead pre-reconnect listener — MetaMask/metamask-extension#47287).
+  readonly #orderFillSubscriptionGenerations = new Map<string, number>();
+
+  #orderFillGeneration(normalizedAccountId: string): number {
+    return this.#orderFillSubscriptionGenerations.get(normalizedAccountId) ?? 0;
+  }
+
+  #bumpOrderFillGeneration(normalizedAccountId: string): void {
+    this.#orderFillSubscriptionGenerations.set(
+      normalizedAccountId,
+      this.#orderFillGeneration(normalizedAccountId) + 1,
+    );
+  }
 
   // TWAP subscriptions keyed by accountId (normalized: undefined -> 'default')
   readonly #twapOrderSubscriptions = new Map<string, ISubscription>();
@@ -1000,7 +1031,11 @@ export class HyperLiquidSubscriptionService {
   }
 
   #hashAccountState(account: AccountState): string {
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}`;
+    const summary = account.crossMarginSummary;
+    const summaryHash = summary
+      ? `${summary.accountValue}:${summary.maintenanceMargin}:${summary.marginUsed}:${summary.notional}`
+      : 'none';
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${summaryHash}`;
   }
 
   // Cache hashes to avoid recomputation
@@ -1373,11 +1408,6 @@ export class HyperLiquidSubscriptionService {
         totalBalance: string;
       }
     > = {};
-    let totalSpendableBalance = 0;
-    let totalWithdrawableBalance = 0;
-    let totalBalance = 0;
-    let totalMarginUsed = 0;
-    let totalUnrealizedPnl = 0;
 
     // Collect account states for weighted ROE calculation
     const accountStatesForROE: {
@@ -1394,11 +1424,6 @@ export class HyperLiquidSubscriptionService {
           withdrawableBalance: state.withdrawableBalance,
           totalBalance: state.totalBalance,
         };
-        totalSpendableBalance += parseFloat(state.spendableBalance);
-        totalWithdrawableBalance += parseFloat(state.withdrawableBalance);
-        totalBalance += parseFloat(state.totalBalance);
-        totalMarginUsed += parseFloat(state.marginUsed);
-        totalUnrealizedPnl += parseFloat(state.unrealizedPnl);
 
         // Collect data for weighted ROE calculation
         accountStatesForROE.push({
@@ -1411,18 +1436,19 @@ export class HyperLiquidSubscriptionService {
     // Use first DEX's account state as base and override aggregated values
     const firstDexAccount =
       this.#dexAccountCache.values().next().value ?? ({} as AccountState);
+    const { crossMarginSummary: _firstDexSummary, ...firstDexBase } =
+      firstDexAccount;
+    const aggregatedAccountState = aggregateAccountStates(
+      Array.from(this.#dexAccountCache.values()),
+    );
 
     // Calculate weighted returnOnEquity across all DEXs
     const returnOnEquity = calculateWeightedReturnOnEquity(accountStatesForROE);
 
     return addSpotBalanceToAccountState(
       {
-        ...firstDexAccount,
-        spendableBalance: totalSpendableBalance.toString(),
-        withdrawableBalance: totalWithdrawableBalance.toString(),
-        totalBalance: totalBalance.toString(),
-        marginUsed: totalMarginUsed.toString(),
-        unrealizedPnl: totalUnrealizedPnl.toString(),
+        ...firstDexBase,
+        ...aggregatedAccountState,
         subAccountBreakdown,
         returnOnEquity,
       },
@@ -2901,6 +2927,10 @@ export class HyperLiquidSubscriptionService {
           });
           this.#orderFillSubscriptions.delete(normalizedAccountId);
         }
+        // Invalidate any open still in flight for this account: without this
+        // its continuation installs a live socket nobody is listening to.
+        this.#bumpOrderFillGeneration(normalizedAccountId);
+        this.#pendingOrderFillSubscriptions.delete(normalizedAccountId);
       }
     };
   }
@@ -2923,17 +2953,79 @@ export class HyperLiquidSubscriptionService {
       return;
     }
 
-    const subscriptionClient = this.#clientService.getSubscriptionClient();
+    // Another caller is already opening this account's socket. Await it so
+    // subscribe + reconnect do not race two userFills opens onto one key.
+    // The owner of the pending open logs its failure, so swallow it here and
+    // fall through to open our own. Re-read after each wait: several waiters
+    // resume together and only the first should start the replacement open.
+    let pending = this.#pendingOrderFillSubscriptions.get(normalizedAccountId);
+    while (pending) {
+      await pending.catch(() => undefined);
+      if (this.#orderFillSubscriptions.has(normalizedAccountId)) {
+        return;
+      }
+      pending = this.#pendingOrderFillSubscriptions.get(normalizedAccountId);
+    }
+
+    // A discarded open resolves without registering; if the last subscriber
+    // left meanwhile, opening now would cache frames nobody is listening to.
+    const subscribers = this.#orderFillSubscribers.get(normalizedAccountId);
+    if (!subscribers || subscribers.size === 0) {
+      return;
+    }
+
+    // Captured once here, spanning the whole open including the client
+    // handshake. Capturing inside the open would let a bump that lands during
+    // the handshake be adopted as the baseline and silently forgotten.
+    const startGeneration = this.#orderFillGeneration(normalizedAccountId);
+    const subscriptionPromise = this.#createOrderFillSubscription(
+      normalizedAccountId,
+      accountId,
+      startGeneration,
+    );
+    this.#pendingOrderFillSubscriptions.set(
+      normalizedAccountId,
+      subscriptionPromise,
+    );
+    try {
+      await subscriptionPromise;
+    } finally {
+      // Delete by identity: a reconnect may have cleared the map and installed
+      // a newer open behind this one, which must not be evicted here.
+      if (
+        this.#pendingOrderFillSubscriptions.get(normalizedAccountId) ===
+        subscriptionPromise
+      ) {
+        this.#pendingOrderFillSubscriptions.delete(normalizedAccountId);
+      }
+    }
+  }
+
+  /**
+   * Open one userFills subscription and register it for teardown.
+   *
+   * @param normalizedAccountId - Map key for this account ('default' when unset).
+   * @param accountId - Optional CAIP account ID to resolve the address from.
+   * @param startGeneration - This account's generation when the open began.
+   * @returns A promise that resolves once the subscription is registered.
+   */
+  async #createOrderFillSubscription(
+    normalizedAccountId: string,
+    accountId: CaipAccountId | undefined,
+    startGeneration: number,
+  ): Promise<void> {
+    // Bootstrap the client inline rather than recursing: a recursive call
+    // would re-read the generation after the handshake and adopt a bump that
+    // landed during it as its own baseline.
+    let subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
       await this.#clientService.ensureSubscriptionClient(
         this.#walletService.createWalletAdapter(),
       );
-      const client = this.#clientService.getSubscriptionClient();
-      if (!client) {
+      subscriptionClient = this.#clientService.getSubscriptionClient();
+      if (!subscriptionClient) {
         throw new Error('SubscriptionClient not available');
       }
-      await this.#ensureOrderFillISubscription(accountId);
-      return;
     }
 
     const userAddress =
@@ -2943,6 +3035,13 @@ export class HyperLiquidSubscriptionService {
     const subscription = await subscriptionClient.userFills(
       { user: userAddress },
       (data: UserFillsWsEvent) => {
+        // A frame queued before an unsubscribe or reconnect must not mutate
+        // the replacement's cache or reach its subscribers.
+        if (
+          startGeneration !== this.#orderFillGeneration(normalizedAccountId)
+        ) {
+          return;
+        }
         // Build a Map for O(1) lookup instead of O(n) find per fill
         const orderMap = new Map<string, string>();
         if (this.#cachedOrders) {
@@ -3008,6 +3107,19 @@ export class HyperLiquidSubscriptionService {
       },
     );
 
+    // Teardown, clearAll, or a reconnect may have run while this open was in
+    // flight. Rehydrating the map here would leave a socket with no
+    // subscribers, or clobber the live replacement — so drop ours instead.
+    const subscribers = this.#orderFillSubscribers.get(normalizedAccountId);
+    if (
+      startGeneration !== this.#orderFillGeneration(normalizedAccountId) ||
+      this.#orderFillSubscriptions.has(normalizedAccountId) ||
+      !subscribers ||
+      subscribers.size === 0
+    ) {
+      subscription.unsubscribe().catch(() => undefined);
+      return;
+    }
     this.#orderFillSubscriptions.set(normalizedAccountId, subscription);
   }
 
@@ -4757,6 +4869,179 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Stream the venue's `activeAssetData` for one account and market. Each
+   * caller gets its own venue subscription, which restoreSubscriptions()
+   * reopens on a replacement transport and clearAll() retires. The venue
+   * pushes a new frame when the market's position, leverage or mark price
+   * changes.
+   *
+   * @param params - Subscription parameters.
+   * @param params.symbol - Market symbol, including any DEX prefix.
+   * @param params.accountId - Optional CAIP account ID; defaults to the selected account.
+   * @param params.callback - Receives each frame for this account and market.
+   * @param params.onError - Receives a failure to open the subscription, or
+   * one that stops it after it opened, once transient failures have been
+   * retried on the same transport.
+   * @returns Cleanup function to unsubscribe.
+   */
+  public subscribeToActiveAssetData(params: {
+    symbol: string;
+    accountId?: CaipAccountId;
+    callback: (data: ActiveAssetDataWsEvent) => void;
+    onError?: (error: Error) => void;
+  }): () => void {
+    const { symbol, accountId, callback, onError } = params;
+    const maxAttempts = 3;
+    let subscription: ISubscription | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let retired = false;
+    // Bumped on every open, failure and retirement: a subscription, frame or
+    // error that an older attempt delivers afterwards is dropped.
+    let generation = 0;
+    // Consecutive failures, at open or after it, since the last frame. One
+    // budget for both paths, so a venue that accepts the subscribe and then
+    // fails it cannot retry forever.
+    let failures = 0;
+
+    const unsubscribe = (sub: ISubscription): void => {
+      sub.unsubscribe().catch((error: unknown) => {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+          ),
+          this.#getErrorContext('subscribeToActiveAssetData.unsubscribe', {
+            symbol,
+          }),
+        );
+      });
+    };
+
+    // Cancel a pending retry and release a live subscription, which may sit
+    // on the current transport (a retry can open there before restore runs).
+    const release = (): void => {
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+      if (subscription) {
+        unsubscribe(subscription);
+        subscription = undefined;
+      }
+    };
+
+    const open = (): void => {
+      release();
+      generation += 1;
+      const thisGeneration = generation;
+      const isCurrent = (): boolean =>
+        !retired && thisGeneration === generation;
+
+      // A transient SDK failure retries on the same transport with the
+      // assetCtxs subscribeWithRetry backoff (attempt * 500 ms). The third
+      // consecutive failure, or any non-transient one, reaches onError once;
+      // the stream then waits for restoreSubscriptions() or a new subscribe.
+      const fail = (error: unknown): void => {
+        if (!isCurrent()) {
+          return;
+        }
+        generation += 1;
+        // Never opened, or already dropped by the SDK.
+        subscription = undefined;
+        failures += 1;
+        const safeError = ensureError(
+          error,
+          'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+        );
+        if (failures < maxAttempts && this.#isTransientSdkError(safeError)) {
+          const retryDelayMs = failures * 500;
+          this.#deps.debugLogger.log(
+            'Transient activeAssetData subscription failure, retrying',
+            {
+              symbol,
+              attempt: failures,
+              retryDelayMs,
+              error: safeError.message,
+            },
+          );
+          const retryGeneration = generation;
+          retryTimer = setTimeout(() => {
+            retryTimer = undefined;
+            if (!retired && retryGeneration === generation) {
+              open();
+            }
+          }, retryDelayMs);
+          return;
+        }
+        this.#logErrorUnlessClearing(
+          safeError,
+          this.#getErrorContext('subscribeToActiveAssetData', { symbol }),
+        );
+        onError?.(safeError);
+      };
+
+      (async (): Promise<void> => {
+        await this.#clientService.ensureSubscriptionClient(
+          this.#walletService.createWalletAdapter(),
+        );
+        if (!isCurrent()) {
+          return;
+        }
+        const subscriptionClient = this.#clientService.getSubscriptionClient();
+        if (!subscriptionClient) {
+          throw new Error('Subscription client not available');
+        }
+        const user =
+          await this.#walletService.getUserAddressWithDefault(accountId);
+        if (!isCurrent()) {
+          return;
+        }
+        const sub = await subscriptionClient.activeAssetData(
+          { user, coin: symbol },
+          (data: ActiveAssetDataWsEvent) => {
+            if (
+              !isCurrent() ||
+              data.coin !== symbol ||
+              data.user.toLowerCase() !== user.toLowerCase()
+            ) {
+              return;
+            }
+            failures = 0;
+            callback(data);
+          },
+          {
+            // A failure after the open (a rejected resubscription, a
+            // terminated connection): the SDK has already dropped the
+            // subscription.
+            onError: fail,
+          },
+        );
+        if (!isCurrent()) {
+          unsubscribe(sub);
+          return;
+        }
+        subscription = sub;
+      })().catch(fail);
+    };
+
+    const stream = {
+      reopen: (): void => {
+        // A replacement transport starts a fresh retry budget.
+        failures = 0;
+        open();
+      },
+      retire: (): void => {
+        retired = true;
+        generation += 1;
+        this.#activeAssetDataStreams.delete(stream);
+        release();
+      },
+    };
+
+    this.#activeAssetDataStreams.add(stream);
+    open();
+    return stream.retire;
+  }
+
+  /**
    * Process raw L2Book data into OrderBookData format
    * Calculates cumulative totals, notional values, and spread metrics
    *
@@ -4945,8 +5230,19 @@ export class HyperLiquidSubscriptionService {
 
     // Re-establish order fill subscriptions if there are fill subscribers
     if (this.#orderFillSubscribers.size > 0) {
-      // Clear existing subscription references (they're dead after reconnection)
+      // Existing subscription references are dead after reconnection. Bump
+      // each account's generation first so a pre-reconnect open still in
+      // flight discards itself instead of occupying the map ahead of its
+      // replacement (MetaMask/metamask-extension#47287).
+      for (const normalizedAccountId of new Set([
+        ...this.#orderFillSubscribers.keys(),
+        ...this.#orderFillSubscriptions.keys(),
+        ...this.#pendingOrderFillSubscriptions.keys(),
+      ])) {
+        this.#bumpOrderFillGeneration(normalizedAccountId);
+      }
       this.#orderFillSubscriptions.clear();
+      this.#pendingOrderFillSubscriptions.clear();
 
       // Re-establish subscriptions for all accountIds with subscribers
       // Note: normalizedAccountId is 'default' for undefined, need to convert back
@@ -5010,6 +5306,10 @@ export class HyperLiquidSubscriptionService {
         }),
       );
     }
+
+    // Reopen activeAssetData streams on the replacement transport. A failure
+    // reaches the caller's onError.
+    this.#activeAssetDataStreams.forEach((stream) => stream.reopen());
 
     // Re-establish user data subscriptions if there are user data subscribers
     if (
@@ -5181,6 +5481,15 @@ export class HyperLiquidSubscriptionService {
     ])) {
       this.#bumpTwapOrderGeneration(normalizedAccountId);
     }
+    // Same for order fills: bump before subscriber keys are cleared so an
+    // in-flight userFills open cannot rehydrate after clearAll.
+    for (const normalizedAccountId of new Set([
+      ...this.#orderFillSubscribers.keys(),
+      ...this.#orderFillSubscriptions.keys(),
+      ...this.#pendingOrderFillSubscriptions.keys(),
+    ])) {
+      this.#bumpOrderFillGeneration(normalizedAccountId);
+    }
 
     // Clear all local subscriber collections
     this.#priceSubscribers.clear();
@@ -5193,13 +5502,18 @@ export class HyperLiquidSubscriptionService {
     this.#marketDataSubscribers.clear();
     this.#orderBookSubscribers.clear();
 
-    // Clear order fill subscriptions
+    // Retire activeAssetData streams: pending opens drop their subscription
+    // and open ones stop delivering frames.
+    this.#activeAssetDataStreams.forEach((stream) => stream.retire());
+
+    // Clear order fill subscriptions; generations were bumped above.
     this.#orderFillSubscriptions.forEach((subscription) => {
       subscription.unsubscribe().catch(() => {
         // Ignore errors during cleanup
       });
     });
     this.#orderFillSubscriptions.clear();
+    this.#pendingOrderFillSubscriptions.clear();
 
     // Clear TWAP subscriptions; generations were bumped above, before the
     // subscriber keys naming those accounts were cleared.

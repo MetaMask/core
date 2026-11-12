@@ -21,6 +21,11 @@ import type {
 export const MIN_IDENTIFIERS = 2;
 
 /**
+ * Maximum identifier count escrows accept.
+ */
+export const MAX_IDENTIFIERS = 16;
+
+/**
  * Distinct identifier identities (`type` + `namespace` + `value`).
  *
  * @param identifiers - Identifier list.
@@ -29,7 +34,8 @@ export const MIN_IDENTIFIERS = 2;
 export function countDistinctIdentifiers(identifiers: Identifier[]): number {
   return new Set(
     identifiers.map(
-      ({ type, namespace, value }) => `${type}\0${namespace}\0${value}`,
+      ({ type, namespace, value }) =>
+        `${type}\0${namespace}\0${type === 'siwe' ? value.toLowerCase() : value}`,
     ),
   ).size;
 }
@@ -43,7 +49,17 @@ export function getSiweNamespace(identifier: Identifier): string | undefined {
   if (!isObject(verifier)) {
     return undefined;
   }
-  return `${String(verifier.domain)}:${String(verifier.chainId)}`;
+  const { domain, chainId } = verifier;
+  if (
+    typeof domain !== 'string' ||
+    !/^[^/ ]+$/u.test(domain) ||
+    typeof chainId !== 'number' ||
+    !Number.isSafeInteger(chainId) ||
+    chainId < 0
+  ) {
+    return undefined;
+  }
+  return `${domain}:${chainId}`;
 }
 
 /**

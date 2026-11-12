@@ -4,7 +4,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { RampsControllerMessenger } from './RampsController.js';
@@ -116,10 +116,6 @@ function setupControllerWithOrderSyncingMocks(args?: {
 }
 
 describe('RampsController order syncing', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('exposes the order syncing semaphore getter and setter', () => {
     const { controller } = setupControllerWithOrderSyncingMocks();
 

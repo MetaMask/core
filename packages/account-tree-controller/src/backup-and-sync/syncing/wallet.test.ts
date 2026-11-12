@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
 import type { AccountWalletEntropyObject } from '../../wallet.js';
@@ -51,10 +51,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       },
       isLegacyAccountSyncingDisabled: true,
     };
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('syncWalletMetadataAndCheckIfPushNeeded', () => {

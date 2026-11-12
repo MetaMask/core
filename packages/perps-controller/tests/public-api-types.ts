@@ -1,12 +1,15 @@
 import type {
   ChaseOrder,
   PerpsController,
+  GetAccountSupportParams,
   GetChaseOrderOwnershipParams,
+  PerpsAccountSupport,
   PerpsChaseOrderOwner,
   PerpsChaseOrderChild,
   PerpsChaseOrderDispatch,
   PerpsChaseOrderOwnership,
   PerpsControllerGetChaseOrderOwnershipAction,
+  PerpsControllerGetAccountSupportAction,
   ReconcileChaseOrderCancellationParams,
   ReconcileChaseOrderCancellationResult,
   PerpsControllerReconcileChaseOrderCancellationAction,
@@ -44,6 +47,9 @@ import type {
   PerpsControllerGetRecoveredDispatchesAction,
   PerpsControllerReconcileRecoveredDispatchesAction,
   PerpsControllerAcknowledgeRecoveredDispatchAction,
+  PositionTPSLLeg,
+  ReplacePositionTPSLLegParams,
+  PerpsControllerReplacePositionTPSLLegAction,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -78,6 +84,33 @@ type IsExact<Actual, Expected> =
     ? true
     : false;
 type AssertTrue<Value extends true> = Value;
+export type AccountSupportConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerGetAccountSupportAction['handler']>,
+      [params?: GetAccountSupportParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetAccountSupportAction['handler']>,
+      Promise<PerpsAccountSupport>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerGetAccountSupportAction['type'],
+      'PerpsController:getAccountSupport'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsController['getAccountSupport']>,
+      Promise<PerpsAccountSupport>
+    >
+  >,
+];
+
 export type NativeEditConsumerContracts = [
   AssertTrue<
     IsExact<NonNullable<OrderResult['orderEdit']>, OrderEditObservation>
@@ -673,3 +706,45 @@ export type IndependentProtectionPublicContract = [
 export type ChaseProbePublicContract = AssertTrue<
   IsExact<LighterCredentials['chaseTestnetProbe'], boolean | undefined>
 >;
+
+export type ReplacePositionTPSLLegConsumerContracts = [
+  AssertTrue<IsExact<PositionTPSLLeg, 'tp' | 'sl'>>,
+  AssertTrue<
+    IsExact<
+      ReplacePositionTPSLLegParams,
+      {
+        symbol: string;
+        leg: PositionTPSLLeg;
+        triggerPrice: string;
+        limitPrice?: string;
+        maxSlippageBps?: number;
+        expectedPosition?: UpdatePositionTPSLParams['expectedPosition'];
+        trackingData?: UpdatePositionTPSLParams['trackingData'];
+        providerId?: UpdatePositionTPSLParams['providerId'];
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerReplacePositionTPSLLegAction['type'],
+      'PerpsController:replacePositionTPSLLeg'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerReplacePositionTPSLLegAction['handler']>,
+      [params: ReplacePositionTPSLLegParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsController['replacePositionTPSLLeg']>,
+      Promise<OrderResult>
+    >
+  >,
+  // Optional member: a provider written before the method still type-checks.
+  AssertCompatible<
+    PerpsProvider,
+    Omit<PerpsProvider, 'replacePositionTPSLLeg'>
+  >,
+];

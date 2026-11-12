@@ -3,9 +3,10 @@
 Coordinates MFA recovery through injected auth and escrow providers.
 
 Pending mutations are encrypted in controller state. `resume()` completes them;
-`abort()` is allowed only before writing. If the identifier an update started
-with can no longer authenticate, pass another enrolled one to
-`resume(identifier)`. See [Architecture](ARCHITECTURE.md).
+`abort()` is allowed before writing, or once the write approval expired more
+than 5 minutes ago and no escrow applied the mutation. If the identifier an update started with can no
+longer authenticate, pass another enrolled one to `resume(identifier)`. See
+[Architecture](ARCHITECTURE.md).
 
 ## Replica Repair
 

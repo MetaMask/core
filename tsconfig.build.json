@@ -152,6 +152,9 @@
       "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json"
     },
     {
+      "path": "./packages/key-tree/tsconfig.build.json"
+    },
+    {
       "path": "./packages/keyring-controller/tsconfig.build.json"
     },
     {
@@ -182,13 +185,13 @@
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
-    },
-    {
       "path": "./packages/money-account-balance-service/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-lifecycle-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-mfa-whitelist/tsconfig.build.json"
@@ -342,6 +345,9 @@
     },
     {
       "path": "./packages/watch-only-account-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/eth-sig-util/tsconfig.build.json"
     }
   ],
   "files": [],

@@ -18,6 +18,7 @@ import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { createTpslLegReplaceUnsupportedError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { isProviderOnTestnet } from '../services/providerNetwork.js';
@@ -46,6 +47,7 @@ import type {
   FeeCalculationResult,
   Funding,
   GetAccountStateParams,
+  GetAccountSupportParams,
   GetAvailableDexsParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -74,6 +76,7 @@ import type {
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsAccountSupport,
   PerpsOrderCapabilities,
   PerpsMarginModeLock,
   PerpsScalePriceLadder,
@@ -90,6 +93,7 @@ import type {
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  SubscribeAvailableToTradeParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -100,6 +104,7 @@ import type {
   TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
@@ -302,6 +307,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
     return this.#getDefaultProvider().getWithdrawalRoutes(params);
+  }
+
+  /**
+   * Route account support through the same explicit-provider/default-provider
+   * selection used by writes.
+   *
+   * @param params - Optional provider route.
+   * @returns The selected provider's account support result.
+   */
+  async getAccountSupport(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport> {
+    const [, provider] = this.#getProviderOrDefault(params?.providerId);
+    return provider.getAccountSupport
+      ? provider.getAccountSupport(params)
+      : { isSupported: true };
   }
 
   /**
@@ -881,6 +902,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return { ...result, providerId };
   }
 
+  async replacePositionTPSLLeg(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
+    if (!provider.replacePositionTPSLLeg) {
+      throw createTpslLegReplaceUnsupportedError();
+    }
+    const result = await provider.replacePositionTPSLLeg(params);
+    return { ...result, providerId };
+  }
+
   async updateMargin(params: UpdateMarginParams): Promise<MarginResult> {
     const [, provider] = this.#getProviderOrDefault(params.providerId);
     return provider.updateMargin(params);
@@ -1259,6 +1293,29 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
     // Delegate to default provider
     return this.#getDefaultProvider().subscribeToOrderBook(params);
+  }
+
+  /**
+   * Stream available to trade from the explicit route, else the default
+   * provider, as order placement routes. A route without support returns a
+   * no-op cleanup and never calls back, so the value stays unknown.
+   *
+   * @param params - Market, optional route/account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToAvailableToTrade(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    // Read the map directly: #getProviderOrDefault throws when the route is
+    // unavailable, and this method's contract is a no-op cleanup.
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToAvailableToTrade) {
+      return () => {
+        // No-op: route missing or without a venue value
+      };
+    }
+    return provider.subscribeToAvailableToTrade({ ...params, providerId });
   }
 
   // ============================================================================

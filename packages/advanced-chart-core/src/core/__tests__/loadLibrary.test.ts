@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
 import {
@@ -35,10 +35,6 @@ describe('core/loadLibrary', () => {
     appendSpy = vi
       .spyOn(document.head, 'appendChild')
       .mockImplementation(((node: Node) => node) as never);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('appends the charting_library.js script with the correct URL', async () => {

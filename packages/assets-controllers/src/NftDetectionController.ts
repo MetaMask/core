@@ -36,13 +36,19 @@ import type {
   NftControllerState,
   NftMetadata,
 } from './NftController.js';
+import type { NftDetectionControllerMethodActions } from './NftDetectionController-method-action-types.js';
 
 const controllerName = 'NftDetectionController';
 
+const MESSENGER_EXPOSED_METHODS = ['detectNfts'] as const;
+
 export type NFTDetectionControllerState = Record<never, never>;
 
-export type AllowedActions =
+export type NftDetectionControllerActions =
   | ControllerGetStateAction<typeof controllerName, NFTDetectionControllerState>
+  | NftDetectionControllerMethodActions;
+
+export type AllowedActions =
   | ApprovalControllerAddRequestAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -60,7 +66,7 @@ export type AllowedEvents =
 
 export type NftDetectionControllerMessenger = Messenger<
   typeof controllerName,
-  AllowedActions,
+  NftDetectionControllerActions | AllowedActions,
   AllowedEvents
 >;
 
@@ -465,6 +471,11 @@ export class NftDetectionController extends BaseController<
     this.#getNftState = getNftState;
     this.#addNfts = addNfts;
     this.#removeNft = removeNft;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.messenger.subscribe(
       'PreferencesController:stateChange',

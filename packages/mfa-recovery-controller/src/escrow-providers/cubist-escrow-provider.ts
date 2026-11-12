@@ -11,6 +11,7 @@ import {
   min,
   string,
   type,
+  unknown,
 } from '@metamask/superstruct';
 import {
   bytesToHex,
@@ -306,7 +307,12 @@ const ChallengeStruct = type({
 
 const IdentifiersStruct = type({
   identifiers: array(
-    type({ type: string(), namespace: string(), value: string() }),
+    type({
+      type: string(),
+      namespace: string(),
+      value: string(),
+      verifier: unknown(),
+    }),
   ),
   version: min(integer(), 0),
 });
@@ -348,7 +354,17 @@ function parseIdentifiers(value: unknown): GetIdentifiersResponse {
       'escrow_response_invalid',
     );
   }
-  return { identifiers: value.identifiers, version: value.version };
+  return {
+    identifiers: value.identifiers.map((identifier) => ({
+      type: identifier.type,
+      namespace: identifier.namespace,
+      value: identifier.value,
+      ...(identifier.verifier === undefined
+        ? {}
+        : { verifier: identifier.verifier }),
+    })),
+    version: value.version,
+  };
 }
 
 /**

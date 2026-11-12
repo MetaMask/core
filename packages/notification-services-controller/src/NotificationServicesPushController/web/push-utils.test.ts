@@ -1,7 +1,7 @@
 import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger.js';
@@ -139,10 +139,6 @@ describe('createRegToken() tests', () => {
     };
   }
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should return a registration token when Firebase is supported', async () => {
     const { mockGetApp, mockGetToken } = arrange();
 
@@ -202,10 +198,6 @@ describe('deleteRegToken() tests', () => {
       ...arrangeFirebaseMessagingMocks(),
     };
   }
-
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
 
   it('should return true when the token is successfully deleted', async () => {
     const { mockGetApp, mockDeleteToken } = arrange();
@@ -320,10 +312,6 @@ describe('createSubscribeToPushNotifications() tests', () => {
 
     return unsubscribe;
   }
-
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
 
   it('should initialize subscriptions', async () => {
     const mocks = arrange();

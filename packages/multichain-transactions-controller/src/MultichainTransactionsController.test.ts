@@ -2,6 +2,7 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AccountTransactionsUpdatedEventPayload,
   CaipAssetType,
+  Transaction,
   TransactionsPage,
 } from '@metamask/keyring-api';
 import {
@@ -199,6 +200,7 @@ const setupController = ({
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountTransactionsUpdated',
+      'AccountActivityService:transactionUpdated',
     ],
   });
 
@@ -254,6 +256,32 @@ async function waitForAllPromises(): Promise<void> {
   // synchronous calls.
   await new Promise(process.nextTick);
 }
+
+/**
+ * Sets up a controller with one submitted pending transaction in state for
+ * the mock BTC account, ready to be driven to a terminal status.
+ *
+ * @returns The controller setup plus the pending transaction.
+ */
+const setupPendingTransaction = async (): Promise<
+  ReturnType<typeof setupController> & { pendingTransaction: Transaction }
+> => {
+  const pendingTransaction = {
+    ...mockTransactionResult.data[0],
+    id: 'pending-tx-id',
+    status: 'submitted' as const,
+  };
+  const setup = setupController();
+  // Flush the constructor's initial history fetch so it does not
+  // overwrite the pending entry published below.
+  await waitForAllPromises();
+  setup.rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
+    transactions: {
+      [mockBtcAccount.id]: [pendingTransaction],
+    },
+  });
+  return { ...setup, pendingTransaction };
+};
 
 const NEW_ACCOUNT_ID = 'new-account-id';
 const TEST_ACCOUNT_ID = 'test-account-id';
@@ -1040,6 +1068,212 @@ describe('MultichainTransactionsController', () => {
       'MultichainTransactionsController:transactionFailed',
       transactions[3],
     );
+  });
+
+  describe('AccountActivityService:transactionUpdated', () => {
+    it('marks a pending transaction as confirmed and publishes transactionConfirmed', async () => {
+      const { rootMessenger, messenger, controller, pendingTransaction } =
+        await setupPendingTransaction();
+      const transactionConfirmedListener = vi.fn();
+      messenger.subscribe(
+        'MultichainTransactionsController:transactionConfirmed',
+        transactionConfirmedListener,
+      );
+
+      rootMessenger.publish('AccountActivityService:transactionUpdated', {
+        id: pendingTransaction.id,
+        chain: pendingTransaction.chain,
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: 'from-address',
+        to: 'to-address',
+      });
+
+      await waitForAllPromises();
+
+      const entry =
+        controller.state.nonEvmTransactions[mockBtcAccount.id][
+          pendingTransaction.chain
+        ];
+      expect(
+        entry.transactions.find((tx) => tx.id === pendingTransaction.id)
+          ?.status,
+      ).toBe('confirmed');
+      expect(transactionConfirmedListener).toHaveBeenCalledWith({
+        ...pendingTransaction,
+        status: 'confirmed',
+        timestamp: expect.any(Number),
+      });
+    });
+
+    it('marks a pending transaction as failed and publishes transactionFailed', async () => {
+      const { rootMessenger, messenger, controller, pendingTransaction } =
+        await setupPendingTransaction();
+      const transactionFailedListener = vi.fn();
+      messenger.subscribe(
+        'MultichainTransactionsController:transactionFailed',
+        transactionFailedListener,
+      );
+
+      rootMessenger.publish('AccountActivityService:transactionUpdated', {
+        id: pendingTransaction.id,
+        chain: pendingTransaction.chain,
+        status: 'failed',
+        timestamp: Date.now(),
+        from: 'from-address',
+        to: 'to-address',
+      });
+
+      await waitForAllPromises();
+
+      const entry =
+        controller.state.nonEvmTransactions[mockBtcAccount.id][
+          pendingTransaction.chain
+        ];
+      expect(
+        entry.transactions.find((tx) => tx.id === pendingTransaction.id)
+          ?.status,
+      ).toBe('failed');
+      expect(transactionFailedListener).toHaveBeenCalledWith({
+        ...pendingTransaction,
+        status: 'failed',
+        timestamp: expect.any(Number),
+      });
+    });
+
+    it('ignores updates with an invalid chain id', async () => {
+      const { rootMessenger, messenger, controller, pendingTransaction } =
+        await setupPendingTransaction();
+      const transactionConfirmedListener = vi.fn();
+      messenger.subscribe(
+        'MultichainTransactionsController:transactionConfirmed',
+        transactionConfirmedListener,
+      );
+
+      rootMessenger.publish('AccountActivityService:transactionUpdated', {
+        id: pendingTransaction.id,
+        chain: 'not-a-caip-chain-id',
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: 'from-address',
+        to: 'to-address',
+      });
+
+      await waitForAllPromises();
+
+      const entry =
+        controller.state.nonEvmTransactions[mockBtcAccount.id][
+          pendingTransaction.chain
+        ];
+      expect(
+        entry.transactions.find((tx) => tx.id === pendingTransaction.id)
+          ?.status,
+      ).toBe('submitted');
+      expect(transactionConfirmedListener).not.toHaveBeenCalled();
+    });
+
+    it('ignores updates for unknown transaction ids', async () => {
+      const { rootMessenger, messenger, controller, pendingTransaction } =
+        await setupPendingTransaction();
+      const transactionConfirmedListener = vi.fn();
+      messenger.subscribe(
+        'MultichainTransactionsController:transactionConfirmed',
+        transactionConfirmedListener,
+      );
+
+      rootMessenger.publish('AccountActivityService:transactionUpdated', {
+        id: 'some-other-tx',
+        chain: pendingTransaction.chain,
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: 'from-address',
+        to: 'to-address',
+      });
+
+      await waitForAllPromises();
+
+      const entry =
+        controller.state.nonEvmTransactions[mockBtcAccount.id][
+          pendingTransaction.chain
+        ];
+      expect(
+        entry.transactions.find((tx) => tx.id === pendingTransaction.id)
+          ?.status,
+      ).toBe('submitted');
+      expect(transactionConfirmedListener).not.toHaveBeenCalled();
+    });
+
+    it('ignores non-terminal statuses', async () => {
+      const { rootMessenger, messenger, controller, pendingTransaction } =
+        await setupPendingTransaction();
+      const transactionConfirmedListener = vi.fn();
+      messenger.subscribe(
+        'MultichainTransactionsController:transactionConfirmed',
+        transactionConfirmedListener,
+      );
+
+      rootMessenger.publish('AccountActivityService:transactionUpdated', {
+        id: pendingTransaction.id,
+        chain: pendingTransaction.chain,
+        status: 'submitted',
+        timestamp: Date.now(),
+        from: 'from-address',
+        to: 'to-address',
+      });
+
+      await waitForAllPromises();
+
+      const entry =
+        controller.state.nonEvmTransactions[mockBtcAccount.id][
+          pendingTransaction.chain
+        ];
+      expect(
+        entry.transactions.find((tx) => tx.id === pendingTransaction.id)
+          ?.status,
+      ).toBe('submitted');
+      expect(transactionConfirmedListener).not.toHaveBeenCalled();
+    });
+
+    it('does not overwrite a transaction that already reached a terminal status', async () => {
+      const confirmedTransaction = {
+        ...mockTransactionResult.data[0],
+        id: 'confirmed-tx-id',
+        status: 'confirmed' as const,
+      };
+      const { rootMessenger, messenger, controller } = setupController();
+      await waitForAllPromises();
+      rootMessenger.publish('AccountsController:accountTransactionsUpdated', {
+        transactions: {
+          [mockBtcAccount.id]: [confirmedTransaction],
+        },
+      });
+      const transactionFailedListener = vi.fn();
+      messenger.subscribe(
+        'MultichainTransactionsController:transactionFailed',
+        transactionFailedListener,
+      );
+
+      rootMessenger.publish('AccountActivityService:transactionUpdated', {
+        id: confirmedTransaction.id,
+        chain: confirmedTransaction.chain,
+        status: 'failed',
+        timestamp: Date.now(),
+        from: 'from-address',
+        to: 'to-address',
+      });
+
+      await waitForAllPromises();
+
+      const entry =
+        controller.state.nonEvmTransactions[mockBtcAccount.id][
+          confirmedTransaction.chain
+        ];
+      expect(
+        entry.transactions.find((tx) => tx.id === confirmedTransaction.id)
+          ?.status,
+      ).toBe('confirmed');
+      expect(transactionFailedListener).not.toHaveBeenCalled();
+    });
   });
 
   describe('metadata', () => {

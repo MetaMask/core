@@ -5,7 +5,7 @@ import {
 import { invalidParams } from '@metamask/permission-controller';
 import type { RequestedPermissions } from '@metamask/permission-controller';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 import { requestPermissionsHandler } from './wallet-requestPermissions.js';
@@ -64,10 +64,6 @@ const createMockedHandler = () => {
 };
 
 describe('requestPermissionsHandler', () => {
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
   it('returns an error if params is malformed', async () => {
     const { handler, end } = createMockedHandler();
 

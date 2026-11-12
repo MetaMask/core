@@ -14,21 +14,6 @@ export function getRecoveryPhase(
 }
 
 /**
- * Abort is allowed while idle or authorizing. `writing` must `resume()`.
- *
- * @param pending - Loaded pending operation, if any.
- * @throws If a mutation is already writing.
- */
-export function assertAbortAllowed(pending: PendingOperation | null): void {
-  if (pending?.phase === 'writing') {
-    throw new MfaRecoveryError(
-      'Cannot abort a mutation that may have been applied',
-      'abort_not_allowed',
-    );
-  }
-}
-
-/**
  * Ensures a persisted mutation targets configured escrows, in configured
  * order. Repairs target only the lagging escrows.
  *

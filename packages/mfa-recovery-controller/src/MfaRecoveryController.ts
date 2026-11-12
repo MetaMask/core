@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
@@ -29,6 +29,7 @@ import {
   findNewSiweIdentifiers,
   getIdentifierAuthMode,
   getSiweNamespace,
+  MAX_IDENTIFIERS,
   MIN_IDENTIFIERS,
   requestKeyBoundIdentifierToken,
 } from './identifier-auth.js';
@@ -51,7 +52,7 @@ import {
   getEscrowIdentifiers,
   selectHighestConsistentVersion,
 } from './replica-utils.js';
-import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
+import { getRecoveryPhase } from './state-machine.js';
 import type {
   AuthControllerToken,
   GetIdentifiersResponse,
@@ -80,6 +81,9 @@ import type {
 } from './types.js';
 
 const CONTROLLER_NAME = 'MfaRecoveryController';
+
+// How far the device clock may run ahead of an escrow's.
+const CLOCK_SKEW_SECONDS = 5 * 60;
 
 const MESSENGER_EXPOSED_METHODS = [
   'acquireLock',
@@ -347,7 +351,7 @@ export class MfaRecoveryController extends BaseController<
     identifiers: Identifier[],
   ): Promise<void> {
     this.#assertValidIdentifiers(identifiers);
-    this.#assertMinIdentifiers(identifiers);
+    this.#assertIdentifierSet(identifiers);
     await this.#mutate({
       operation: 'register',
       payload: {
@@ -396,7 +400,7 @@ export class MfaRecoveryController extends BaseController<
     epoch: number,
   ): Promise<void> {
     this.#assertValidIdentifiers([identifier, ...identifiers]);
-    this.#assertMinIdentifiers(identifiers);
+    this.#assertIdentifierSet(identifiers);
     await this.#mutate({
       operation: 'updateIdentifiers',
       payload: { identifiers },
@@ -545,7 +549,9 @@ export class MfaRecoveryController extends BaseController<
    * Completes a persisted pending mutation. With none pending and an
    * `identifier`, copies the highest escrow record to escrows one version
    * behind it; pass an identifier when a mutation fails with
-   * `replica_lagging`.
+   * `replica_lagging`. Clears a `writing` mutation, throwing
+   * `MutationRejectedError`, once its approval expired more than 5 minutes ago
+   * and no escrow applied it.
    *
    * @param identifier - Enrolled identifier that authorizes the repair, or
    * replaces the one authorizing a pending update (e.g. if it was lost).
@@ -568,12 +574,19 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+   * Drops `authorizing` pending. Drops `writing` pending only once its approval
+   * expired more than 5 minutes ago and no escrow applied it; otherwise finish
+   * it with {@link resume}.
    */
   async abort(): Promise<void> {
     await this.#withLock(async () => {
       const pending = await this.#loadPending();
-      assertAbortAllowed(pending);
+      if (pending?.phase === 'writing' && !(await this.#isUnapplied(pending))) {
+        throw new MfaRecoveryError(
+          'Cannot abort a mutation that may have been applied',
+          'abort_not_allowed',
+        );
+      }
       if (pending) {
         await this.#clearPending();
       }
@@ -586,6 +599,33 @@ export class MfaRecoveryController extends BaseController<
   async getPhase(): Promise<RecoveryPhase> {
     return await this.#withLock(async () =>
       getRecoveryPhase(await this.#loadPending()),
+    );
+  }
+
+  // No write can land after its approval expires, and escrow versions only
+  // grow, so every target escrow below `newVersion` means none applied it.
+  async #isUnapplied({
+    mutation,
+    authControllerToken,
+  }: WritingPendingOperation): Promise<boolean> {
+    if (!this.#isExpiredForEscrows(authControllerToken)) {
+      return false;
+    }
+    const escrows = this.#getTargetEscrows(mutation);
+    const { approval } = await this.#authorizeRead(escrows);
+    const results = await Promise.allSettled(
+      escrows.map(async (escrow) => await escrow.getIdentifiers(approval)),
+    );
+    return results.every(
+      (result) =>
+        isFulfilledResult(result) && result.value.version < mutation.newVersion,
+    );
+  }
+
+  #isExpiredForEscrows(token: AuthControllerToken): boolean {
+    const claims = decodeAuthControllerToken(token);
+    return (
+      claims === undefined || claims.exp + CLOCK_SKEW_SECONDS <= this.#now()
     );
   }
 
@@ -666,28 +706,6 @@ export class MfaRecoveryController extends BaseController<
     };
     await this.#assertPending(writing);
     return writing;
-  }
-
-  // Renews an expired write approval. Clears the mutation if Auth no longer
-  // approves it and no escrow applied it.
-  async #reauthorizeWrite(
-    pending: WritingPendingOperation,
-  ): Promise<WritingPendingOperation> {
-    try {
-      return await this.#authorizeWrite(pending);
-    } catch (error) {
-      if (
-        error instanceof MfaRecoveryError &&
-        error.code === 'invalid_pending_operation' &&
-        pending.receipts.length === 0
-      ) {
-        await this.#clearPending();
-        throw new MutationRejectedError(
-          'Auth no longer approves this mutation',
-        );
-      }
-      throw error;
-    }
   }
 
   async #finishPendingMutation(pending: PendingOperation): Promise<void> {
@@ -807,10 +825,22 @@ export class MfaRecoveryController extends BaseController<
       );
     }
 
+    // No escrow applied it and none can now. Renewing would only prompt for
+    // MFA again.
+    if (
+      pending.receipts.length === 0 &&
+      this.#isExpiredForEscrows(pending.authControllerToken)
+    ) {
+      await this.#clearPending();
+      throw new MutationRejectedError(
+        'No escrow applied the mutation before its approval expired',
+      );
+    }
+
     // `resume` can replace the identifier, so check its enrollment again.
     assertEnrolledInEvery(escrowIdentifiers, pending.identifier);
     const writing = isApprovalExpired
-      ? await this.#reauthorizeWrite(pending)
+      ? await this.#authorizeWrite(pending)
       : pending;
     return { writing, remainingEscrows, escrowIdentifiers };
   }
@@ -1078,21 +1108,35 @@ export class MfaRecoveryController extends BaseController<
       getIdentifierAuthMode(identifier.type);
       if (
         identifier.type === 'siwe' &&
-        identifier.namespace !== getSiweNamespace(identifier)
+        (!isHexAddress(identifier.value.toLowerCase()) ||
+          identifier.namespace !== getSiweNamespace(identifier))
       ) {
         throw new MfaRecoveryError(
-          'SIWE namespace must be the verifier domain:chainId',
+          'SIWE value must be an address and namespace the verifier domain:chainId',
           'invalid_identifier',
         );
       }
     }
   }
 
-  #assertMinIdentifiers(identifiers: Identifier[]): void {
-    if (countDistinctIdentifiers(identifiers) < MIN_IDENTIFIERS) {
+  #assertIdentifierSet(identifiers: Identifier[]): void {
+    const distinct = countDistinctIdentifiers(identifiers);
+    if (distinct < MIN_IDENTIFIERS) {
       throw new MfaRecoveryError(
         `Requires at least ${MIN_IDENTIFIERS} identifiers`,
         'too_few_identifiers',
+      );
+    }
+    if (distinct !== identifiers.length) {
+      throw new MfaRecoveryError(
+        'Duplicate identifier',
+        'duplicate_identifier',
+      );
+    }
+    if (identifiers.length > MAX_IDENTIFIERS) {
+      throw new MfaRecoveryError(
+        `Supports at most ${MAX_IDENTIFIERS} identifiers`,
+        'too_many_identifiers',
       );
     }
   }

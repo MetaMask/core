@@ -7,13 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+
+## [0.16.0]
+
+### Changed
+
+- **BREAKING:** `KycController.deleteEncryptedStorage` now requires `{ aal2Token }` instead of taking no arguments ([#11338](https://github.com/MetaMask/core/pull/11338))
+  - Pass an AAL2 token (one whose `ext.aal` is at least 2): `deleteEncryptedStorage({ aal2Token })`
+  - The token is sent as the `Authorization` bearer value for both deletion requests. An empty token throws before any request is made
+- **BREAKING:** `KycService.createDeletion` and `KycService.completeDeletion` require an `aal2Token` parameter, which is sent as the `Authorization` bearer value ([#11338](https://github.com/MetaMask/core/pull/11338))
+  - Callers of the `KycService:createDeletion` and `KycService:completeDeletion` messenger actions must pass `aal2Token` alongside the existing parameters
+  - Both methods throw if the token is empty
+
+## [0.15.0]
+
 ### Added
 
+- Add `KycController.deleteEncryptedStorage`, which deletes the caller's encrypted KYC blobs ([#11262](https://github.com/MetaMask/core/pull/11262))
+  - `KycService.createDeletion` posts `POST /deletions` with a fresh client public key and returns `deletionId` plus the `ukycCapabilityToken` wrapping key
+  - The controller mints a client-presented `delete`-scoped uKYC capability token with a 4 hour lifetime, wraps it with that key, and `KycService.completeDeletion` sends it to `DELETE /deletions/{deletionId}`
+  - Both service methods are exposed as the `KycService:createDeletion` and `KycService:completeDeletion` messenger actions, and the controller method as `KycController:deleteEncryptedStorage`
+  - Controller state is left unchanged
+
+## [0.14.0]
+
+### Added
+
+- Add optional `currentStep` to `KycSessionStatus`. Known values are `processing`, `emailOtpCollection`, `phoneOtpCollection`, `capabilityAuthorization`, `kyc`, `approved`, and `rejected` ([#11094](https://github.com/MetaMask/core/pull/11094))
+  - `KycService.getSessionStatus`, `KycService.getSessionStatusForVendor`, and `KycService.setAuthorizations` read `currentStep` from the kyc-api session response
+  - A missing `currentStep` is left unset. Any other value, including one this package does not know, is returned as sent. Sessions saved before this field existed keep working until the next status fetch
+  - Export `KYC_CURRENT_STEPS` and `KycCurrentStep`
+- Add `KycController.ensureLocalUserSecret` and the `KycController:ensureLocalUserSecret` messenger action, which create and store the UKYC `local_user_secret` when one does not already exist ([#11099](https://github.com/MetaMask/core/pull/11099))
+  - Call it after the user has expressed intent to onboard and before `startSession`, so secret generation and the Encrypted User Storage write happen before session creation
+  - `startSession` still creates the secret when this method has not been called
+  - The secret is not returned
 - Add `KycService.getDataShares` and `KycController.getDataShares`, which list the vendors the customer's verified identity data has been shared with, newest first ([#11158](https://github.com/MetaMask/core/pull/11158))
   - `KycService.getDataShares({ externalUserId })` reads `GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS relay and returns the unwrapped `shares` array. It requires `idosRelayBaseUrl` to be configured
   - `KycController.getDataShares()` takes the external user id from the session status on state, falling back to the latest session for the vendor on state (which it does not write to state), and returns an empty array when no session can be resolved. It stores nothing
   - Both methods are exposed as the `KycService:getDataShares` and `KycController:getDataShares` messenger actions
 - Export the `KycDataShare` and `GetDataSharesParams` types and the `KycServiceGetDataSharesAction` and `KycControllerGetDataSharesAction` action types ([#11158](https://github.com/MetaMask/core/pull/11158))
+
+### Changed
+
+- When a kyc-api session reports `finalStatus` `pending` and `currentStep` `kyc`, the session returned by those endpoints uses `finalStatus` `new`. Every other `finalStatus` is returned unchanged. This resolves a regression where `finalStatus: pending` originally was only possible after sumsub was fully submitted, but now it is possible when partially submitted. ([#11094](https://github.com/MetaMask/core/pull/11094))
+  - After the SumSub SDK completes, the stored session is `finalStatus` `pending` with `currentStep` `processing`
 
 ## [0.13.0]
 
@@ -224,7 +264,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.13.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.16.0...HEAD
+[0.16.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.15.0...@metamask/kyc-controller@0.16.0
+[0.15.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.14.0...@metamask/kyc-controller@0.15.0
+[0.14.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.13.0...@metamask/kyc-controller@0.14.0
 [0.13.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...@metamask/kyc-controller@0.13.0
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0

@@ -6,7 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { create } from '@metamask/superstruct';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -320,10 +320,6 @@ function getTestUrl(env: Env): string {
 }
 
 describe('SubscriptionService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('should create instance with valid config', () => {
       const { service } = createService({ fetchMock: vi.fn() });

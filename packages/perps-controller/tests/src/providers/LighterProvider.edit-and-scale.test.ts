@@ -47,10 +47,6 @@ vi.mock('../../../src/services/LighterWalletService');
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('native ordinary resting-limit edit', () => {
     const target = (): LighterEditableOrder => ({
       orderIndex: '288230376151711745',

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import type { AccountGroupMultichainAccountObject } from '../../group.js';
@@ -92,10 +92,6 @@ describe('BackupAndSync - Syncing - Group', () => {
       id: 'entropy:test-entropy',
       name: 'Test Wallet',
     } as unknown as AccountWalletEntropyObject;
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('createLocalGroupsFromUserStorage', () => {

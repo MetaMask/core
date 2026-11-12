@@ -98,6 +98,7 @@ import type {
   FlipPositionParams,
   Funding,
   GetAccountStateParams,
+  GetAccountSupportParams,
   GetAvailableDexsParams,
   GetFundingParams,
   GetMarketDataWithPricesParams,
@@ -141,6 +142,7 @@ import type {
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  SubscribeAvailableToTradeParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -153,6 +155,7 @@ import type {
   TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   WithdrawParams,
   WithdrawResult,
   GetHistoricalPortfolioParams,
@@ -162,6 +165,7 @@ import type {
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsActiveProviderMode,
+  PerpsAccountSupport,
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
   PerpsProviderType,
@@ -984,6 +988,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchHistoricalCandles',
   'flipPosition',
   'getAccountState',
+  'getAccountSupport',
   'getActiveProvider',
   'getActiveProviderOrNull',
   'getAttributionContext',
@@ -1046,6 +1051,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
+  'replacePositionTPSLLeg',
   'resetFirstTimeUserState',
   'resetSelectedPaymentToken',
   'getMaxSlippage',
@@ -1070,6 +1076,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'stopEligibilityMonitoring',
   'stopMarketDataPreload',
   'subscribeToAccount',
+  'subscribeToAvailableToTrade',
   'subscribeToCandles',
   'subscribeToConnectionState',
   'subscribeToOICaps',
@@ -2957,6 +2964,26 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Return whether the selected account can submit actions through the active
+   * provider route. Providers without an account-support check remain
+   * supported for backward compatibility.
+   *
+   * @param params - Optional provider route.
+   * @returns The provider-owned account support result.
+   */
+  async getAccountSupport(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (this.#hasConflictingProviderRoute(params?.providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return provider.getAccountSupport
+      ? provider.getAccountSupport(params)
+      : { isSupported: true };
+  }
+
+  /**
    * Identify the account, network and provider an action runs under.
    *
    * @returns A key that changes when any of them changes.
@@ -3626,6 +3653,34 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('updatePositionTPSL'),
+    });
+  }
+
+  /**
+   * Replace only the take profit or only the stop loss of an existing
+   * position. The other leg is left as it is, and the new leg keeps protecting
+   * the whole position. Providers that cannot do this reject with
+   * `TPSL_LEG_REPLACE_UNSUPPORTED`.
+   *
+   * @param params - The leg, its new trigger price and optional limit price.
+   * @returns The order result from the leg replacement.
+   */
+  async replacePositionTPSLLeg(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: undefined,
+      providerId: params.providerId,
+    });
+    this.#ensureTradingServiceDeps();
+    // A market leg uses the caller's tolerance, else the saved preference.
+    const maxSlippageBps = params.maxSlippageBps ?? this.state.maxSlippageBps;
+
+    return this.#tradingService.replacePositionTPSLLeg({
+      provider,
+      params:
+        maxSlippageBps === undefined ? params : { ...params, maxSlippageBps },
+      context: this.#createServiceContext('replacePositionTPSLLeg'),
     });
   }
 
@@ -6608,6 +6663,48 @@ export class PerpsController extends BaseController<
       return () => {
         // No-op
       };
+    }
+  }
+
+  /**
+   * Stream one market's per-side available to trade, as the venue reports it,
+   * through the provider route used by order placement. The venue pushes a
+   * new value when the market's position, leverage or mark price changes.
+   *
+   * The callback only ever receives venue values. Until the first arrives the
+   * value is unknown (`undefined` in clients). When no provider is active, the
+   * route conflicts with the active provider, or the provider cannot read the
+   * value from its venue, this returns a no-op cleanup and the value stays
+   * unknown.
+   *
+   * @param params - Market, optional route/account, callback and error handler.
+   * @returns A cleanup function to remove the subscription.
+   */
+  subscribeToAvailableToTrade(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void {
+    const noop = (): void => {
+      // No-op: value unavailable for this route
+    };
+    const provider = this.getActiveProviderOrNull();
+    if (
+      !provider?.subscribeToAvailableToTrade ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      return noop;
+    }
+    try {
+      return provider.subscribeToAvailableToTrade(params);
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.subscribeToAvailableToTrade'),
+        this.#getErrorContext(
+          'subscribeToAvailableToTrade',
+          { symbol: params.symbol, providerId: params.providerId },
+          CONNECTION_ERROR_TAGS,
+        ),
+      );
+      return noop;
     }
   }
 

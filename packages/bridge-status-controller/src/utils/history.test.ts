@@ -142,6 +142,12 @@ describe('History Utils', () => {
       isStxEnabled: false,
     } as unknown as StartPollingForBridgeTxStatusArgsSerialized;
 
+    it('defaults isStxEnabled when omitted', () => {
+      const { isStxEnabled: _ignored, ...argsWithoutStx } = baseArgs;
+      const txHistoryItem = getInitialHistoryItem(argsWithoutStx);
+      expect(txHistoryItem.isStxEnabled).toBe(false);
+    });
+
     it('omits tokenSecurityTypeDestination when not provided', () => {
       const txHistoryItem = getInitialHistoryItem(baseArgs);
       expect(

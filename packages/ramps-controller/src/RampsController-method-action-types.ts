@@ -518,6 +518,18 @@ export type RampsControllerRefreshAutorampAction = {
 };
 
 /**
+ * Fetches the MoonPay customer's rail abilities from the neo-bank proxy and
+ * stores them in `vbaCustomerAbilities`. A failed fetch throws and leaves the
+ * stored value unchanged.
+ *
+ * @returns The fetched abilities.
+ */
+export type RampsControllerRefreshCustomerAbilitiesAction = {
+  type: `RampsController:refreshCustomerAbilities`;
+  handler: RampsController['refreshCustomerAbilities'];
+};
+
+/**
  * Refreshes all known local autoramps from MoonPay.
  * Intended for app resume / unlock catch-up when webhooks were missed.
  *
@@ -988,6 +1000,7 @@ export type RampsControllerMethodActions =
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction
   | RampsControllerRefreshAutorampAction
+  | RampsControllerRefreshCustomerAbilitiesAction
   | RampsControllerRefreshAutorampsAction
   | RampsControllerRefreshAutorampTransactionsAction
   | RampsControllerStartOrderPollingAction

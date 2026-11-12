@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { TradingService } from '../../../src/services/TradingService.js';
 import type {
   CandleData,
@@ -39,8 +40,26 @@ vi.mock('../../../src/services/LighterWalletService');
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+  describe('replacePositionTPSLLeg', () => {
+    it.each([
+      ['tp', '110000'],
+      ['sl', '80000'],
+    ] as const)(
+      'rejects a %s leg replace as unsupported before any venue read or signature',
+      async (leg, triggerPrice) => {
+        const { provider, calls, clientInstance } = buildProvider();
+
+        await expect(
+          provider.replacePositionTPSLLeg({ symbol: 'BTC', leg, triggerPrice }),
+        ).rejects.toMatchObject({
+          errorCode: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+          message: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+        });
+        // Never a sweep: no account read, no cancel, no signer call.
+        expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+        expect(calls).toHaveLength(0);
+      },
+    );
   });
 
   describe('round-11 TP/SL local preflight', () => {
@@ -2537,6 +2556,36 @@ describe('LighterProvider', () => {
       const result = await delayedRead;
       // Cancelled → empty state, never account A's balances.
       expect(result.totalBalance).toBe('0');
+    });
+
+    it('a delayed cross margin metadata read never surfaces the old account', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      let releaseMetadata = (): void => undefined;
+      let signalMetadataRead = (): void => undefined;
+      const metadataReadStarted = new Promise<void>((resolve) => {
+        signalMetadataRead = resolve;
+      });
+      const metadata = await clientInstance.getOrderBookDetails();
+      clientInstance.getOrderBookDetails.mockImplementationOnce(
+        async (): Promise<unknown> => {
+          signalMetadataRead();
+          return await new Promise((resolve) => {
+            releaseMetadata = (): void => resolve(metadata);
+          });
+        },
+      );
+      const delayedRead = provider.getAccountState();
+      await metadataReadStarted;
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      releaseMetadata();
+      const result = await delayedRead;
+      expect(result.totalBalance).toBe('0');
+      expect(result).not.toHaveProperty('crossMarginSummary');
     });
 
     it('getOpenOrders returns nothing when the account switches between index and token', async () => {

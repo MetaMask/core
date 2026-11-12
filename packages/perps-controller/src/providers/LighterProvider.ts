@@ -86,6 +86,7 @@ import {
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
+import { createTpslLegReplaceUnsupportedError } from '../errors.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
@@ -132,6 +133,7 @@ import type {
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   AccountState,
+  CrossMarginSummary,
   TwapOrder,
   AssetRoute,
   CandleData,
@@ -200,6 +202,7 @@ import type {
   ToggleTestnetResult,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
@@ -210,6 +213,7 @@ import type {
   LighterSignModifyOrderWireParams,
   LighterRestTrade,
   LighterApiPosition,
+  LighterSubAccount,
   LighterAccountsByL1AddressResponse,
   LighterAccountSummary,
   LighterAuthConfig,
@@ -250,6 +254,7 @@ import { ensureError, isKeyringLockedError } from '../utils/errorUtils.js';
 import {
   adaptAccountStateFromLighter,
   adaptAccountStateFromLighterUserStats,
+  adaptCrossMarginSummaryFromLighter,
   adaptFillFromLighterTrade,
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
@@ -10111,9 +10116,8 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
-  async getAccountState(
-    _params?: GetAccountStateParams,
-  ): Promise<AccountState> {
+  async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
+    const throwOnUnavailable = params?.throwOnUnavailable === true;
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
@@ -10125,9 +10129,21 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       const account = response.accounts[0];
       if (!account) {
+        if (throwOnUnavailable) {
+          throw new Error(`Lighter account ${accountIndex} not returned`);
+        }
         return EMPTY_ACCOUNT_STATE;
       }
-      return adaptAccountStateFromLighter(account);
+      const accountState = adaptAccountStateFromLighter(account);
+      const crossMarginSummary = await this.#readCrossMarginSummary(
+        account,
+        accountState,
+        throwOnUnavailable,
+      );
+      this.#assertSession(generation);
+      return crossMarginSummary
+        ? { ...accountState, crossMarginSummary }
+        : accountState;
     } catch (caughtError) {
       if (
         this.#isUnsupportedCapabilityError(caughtError) ||
@@ -10136,6 +10152,16 @@ export class LighterProvider implements PerpsProvider {
         // Capability gates and venue-data integrity failures must surface,
         // never degrade into empty state that can preserve stale views.
         throw caughtError;
+      }
+      if (
+        throwOnUnavailable &&
+        !(caughtError instanceof LighterAccountNotFoundError)
+      ) {
+        // Opted-in callers must be able to tell a failed read from a real
+        // zero balance. A wallet without a Lighter account is a real zero.
+        throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED, {
+          cause: caughtError,
+        });
       }
       const wrappedError = ensureError(
         caughtError,
@@ -10148,6 +10174,51 @@ export class LighterProvider implements PerpsProvider {
       return EMPTY_ACCOUNT_STATE;
     }
   }
+
+  /**
+   * Cross-margin summary for an account read. Without positions or
+   * market-margin metadata, default callers keep the account state without
+   * a summary; opted-in callers get the failure.
+   *
+   * @param account - Validated sub-account payload.
+   * @param accountState - The account's adapted state.
+   * @param throwOnUnavailable - Whether the caller opted in to failures.
+   * @returns The summary, or undefined when its inputs are unavailable.
+   */
+  readonly #readCrossMarginSummary = async (
+    account: LighterSubAccount,
+    accountState: AccountState,
+    throwOnUnavailable: boolean,
+  ): Promise<CrossMarginSummary | undefined> => {
+    if (account.positions?.length) {
+      try {
+        await this.#ensureMarketMargins();
+      } catch (error) {
+        if (throwOnUnavailable || this.#mustSurfaceReadError(error)) {
+          throw error;
+        }
+        this.#deps.debugLogger.log(
+          '[LighterProvider] cross margin summary unavailable',
+          {
+            error: ensureError(error, 'LighterProvider.getAccountState')
+              .message,
+          },
+        );
+        return undefined;
+      }
+    }
+    const summary = adaptCrossMarginSummaryFromLighter(
+      account,
+      accountState.totalBalance,
+      this.#maintenanceFractionFor,
+    );
+    if (!summary && throwOnUnavailable) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} cross margin summary unavailable: positions or maintenance margin metadata missing`,
+      );
+    }
+    return summary;
+  };
 
   /** Decorate real venue rows only when they match durable Scale intent.
    * @param rows - Authoritative venue rows.
@@ -14313,6 +14384,20 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
+   * Lighter settles position protection as one journaled TP/SL pair, so it
+   * cannot replace a single leg without rewriting the other. Refuse before any
+   * read or write rather than sweeping the sibling.
+   *
+   * @param _params - The requested leg replacement.
+   * @throws PerpsControllerError with `TPSL_LEG_REPLACE_UNSUPPORTED`.
+   */
+  async replacePositionTPSLLeg(
+    _params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    throw createTpslLegReplaceUnsupportedError();
+  }
+
+  /**
    * Submit a separately selected protection intent for an exact durable source.
    * Reconcile original-slot attempts, then use a matching current registered key.
    *
@@ -17554,17 +17639,29 @@ export class LighterProvider implements PerpsProvider {
   async calculateMaintenanceMargin(
     params: MaintenanceMarginParams,
   ): Promise<number> {
-    // The venue publishes per-market maintenance margin fractions
-    // (hundredths of a percent, e.g. 240 = 2.4%) in orderBookDetails.
     await this.#ensureMarketMargins();
-    const maintenance = this.#marginBySymbol.get(params.asset)?.maintenance;
-    if (maintenance && maintenance > 0) {
-      return maintenance / 10_000;
+    const fraction = this.#maintenanceFractionFor(params.asset);
+    if (fraction === undefined) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} maintenance margin metadata unavailable for ${params.asset || 'unknown market'}`,
+      );
     }
-    throw new Error(
-      `${LIGHTER_DATA_INTEGRITY_PREFIX} maintenance margin metadata unavailable for ${params.asset || 'unknown market'}`,
-    );
+    return fraction;
   }
+
+  /**
+   * Maintenance margin fraction from the loaded market-margin metadata.
+   * The venue publishes it per market in hundredths of a percent
+   * (240 = 2.4%) in orderBookDetails.
+   *
+   * @param asset - Market symbol.
+   * @returns The fraction (0.024 = 2.4%), or undefined when the market has
+   * none.
+   */
+  readonly #maintenanceFractionFor = (asset: string): number | undefined => {
+    const maintenance = this.#marginBySymbol.get(asset)?.maintenance;
+    return maintenance && maintenance > 0 ? maintenance / 10_000 : undefined;
+  };
 
   /**
    * Validate an explicit collateral mode from authoritative account rows.

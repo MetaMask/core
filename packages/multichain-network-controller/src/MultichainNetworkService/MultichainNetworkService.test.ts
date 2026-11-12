@@ -1,7 +1,7 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId } from '@metamask/utils';
 import { chunk } from 'lodash-es';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
@@ -12,10 +12,6 @@ import type { ActiveNetworksResponse } from '../api/accounts-api.js';
 import { MultichainNetworkService } from './MultichainNetworkService.js';
 
 describe('MultichainNetworkService', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   const mockFetch = vi.fn();
   const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
   const MOCK_EVM_CHAIN_1 = '1';

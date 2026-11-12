@@ -1,0 +1,33 @@
+{
+  "extends": ["./tsconfig.json", "../../tsconfig.packages.lint.json"],
+  "compilerOptions": {
+    "outDir": "./.tsc-lint-cache",
+    "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../chomp-api-service/tsconfig.lint.json"
+    },
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../money-account-upgrade-controller/tsconfig.lint.json"
+    }
+  ]
+}

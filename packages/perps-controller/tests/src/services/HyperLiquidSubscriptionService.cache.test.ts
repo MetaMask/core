@@ -1564,9 +1564,10 @@ describe('HyperLiquidSubscriptionService', () => {
       // withdrawable (all three carry the same value when perps balances
       // are zero). Per-DEX subAccountBreakdown entries stay perps-only —
       // the fold is applied once at the aggregation level, not per DEX.
-      expect(accountState.totalBalance).toBe('100.76531791');
-      expect(accountState.spendableBalance).toBe('100.76531791');
-      expect(accountState.withdrawableBalance).toBe('100.76531791');
+      // Emitted USDC balances are canonicalized down to six decimals.
+      expect(accountState.totalBalance).toBe('100.765317');
+      expect(accountState.spendableBalance).toBe('100.765317');
+      expect(accountState.withdrawableBalance).toBe('100.765317');
       expect(accountState.subAccountBreakdown).toEqual({
         main: {
           spendableBalance: '0',
@@ -1580,6 +1581,84 @@ describe('HyperLiquidSubscriptionService', () => {
         },
       });
       expect(mockSpotClearinghouseState).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+    });
+
+    it('sums per-DEX cross margin summaries in the streamed account', async () => {
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation((state) => ({
+        spendableBalance: '0',
+        withdrawableBalance: '0',
+        totalBalance: '0',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        crossMarginSummary: {
+          accountValue: state.withdrawable,
+          maintenanceMargin: state.crossMaintenanceMarginUsed,
+          marginUsed: '2',
+          notional: '3',
+        },
+      }));
+
+      const clearinghouseCallbacks = new Map<string, (data: any) => void>();
+      const emitClearinghouse = (dex: string, maintenance: string): void =>
+        clearinghouseCallbacks.get(dex)?.({
+          dex,
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+            withdrawable: dex ? '20' : '100',
+            crossMaintenanceMarginUsed: maintenance,
+          },
+        });
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
+          const dex = _params.dex || '';
+          clearinghouseCallbacks.set(dex, callback);
+          setTimeout(() => emitClearinghouse(dex, '1'), 0);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => callback({ dex: _params.dex || '', orders: [] }), 0);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+
+      const mockCallback = vi.fn();
+      const unsubscribe = hip3Service.subscribeToAccount({
+        callback: mockCallback,
+      });
+      await vi.runAllTimersAsync();
+
+      expect(mockCallback.mock.calls.at(-1)?.[0].crossMarginSummary).toEqual({
+        accountValue: '120',
+        maintenanceMargin: '2',
+        marginUsed: '4',
+        notional: '6',
+      });
+
+      // A later event that changes only the summary still reaches subscribers.
+      emitClearinghouse('', '5');
+      await vi.runAllTimersAsync();
+
+      expect(
+        mockCallback.mock.calls.at(-1)?.[0].crossMarginSummary,
+      ).toStrictEqual(expect.objectContaining({ maintenanceMargin: '6' }));
 
       unsubscribe();
     });
@@ -1715,9 +1794,9 @@ describe('HyperLiquidSubscriptionService', () => {
       //   total       = perps.accountValue (200) + spot (100.77) = 300.77
       //   spendable   = perps.withdrawable (50)  + spot (100.77) = 150.77
       //   withdrawable = perps.withdrawable (50) + spot (100.77) = 150.77
-      expect(firstUpdate.totalBalance).toBe('300.76531791');
-      expect(firstUpdate.spendableBalance).toBe('150.76531791');
-      expect(firstUpdate.withdrawableBalance).toBe('150.76531791');
+      expect(firstUpdate.totalBalance).toBe('300.765317');
+      expect(firstUpdate.spendableBalance).toBe('150.765317');
+      expect(firstUpdate.withdrawableBalance).toBe('150.765317');
 
       // Simulate a second WebSocket tick — should still include spot balance,
       // not revert to perps-only 200.
@@ -1730,7 +1809,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       if (mockCallback.mock.calls.length > 0) {
         const secondUpdate = mockCallback.mock.calls.at(-1)?.[0];
-        expect(secondUpdate.totalBalance).toBe('300.76531791');
+        expect(secondUpdate.totalBalance).toBe('300.765317');
       }
 
       unsubscribe();

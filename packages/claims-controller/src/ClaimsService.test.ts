@@ -513,10 +513,6 @@ describe('ClaimsService', () => {
       networks: [1, 5, 11155111],
     };
 
-    beforeEach(() => {
-      vi.resetAllMocks();
-    });
-
     it('deduplicates cached GET requests', async () => {
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',

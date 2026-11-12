@@ -16,7 +16,7 @@ import {
   handleMockSocialLogin,
 } from '../../sdk/__fixtures__/auth.js';
 import { buildTotpSetupUri } from '../../sdk/authentication-jwt-bearer/mfa/services.js';
-import type { LoginResponse } from '../../sdk/index.js';
+import type { LoginResponse, VerificationToken } from '../../sdk/index.js';
 import {
   EmailRequiredError,
   Platform,
@@ -29,7 +29,11 @@ import {
   MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
   MOCK_MFA_ENROLL_EMAIL_RESPONSE,
   MOCK_MFA_ENROLL_TOTP_RESPONSE,
+  MOCK_MFA_CREDENTIALS_URL,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_MFA_VERIFY_COMPLETE_URL,
+  MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+  MOCK_MFA_VERIFY_URL,
   MOCK_SOCIAL_LOGIN_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
 } from '../../sdk/mocks/auth.js';
@@ -56,6 +60,7 @@ import type {
   ProfileSignInInfo,
 } from './AuthenticationController.js';
 import {
+  getMockAuthAccessTokenResponse,
   MOCK_LOGIN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
   MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
@@ -1841,9 +1846,34 @@ describe('AuthenticationController', () => {
       },
     );
 
+    it('exchanges the token before the vault is written', async () => {
+      const requests: { body: unknown; authorization: string }[] = [];
+      const mockSocialLoginUrl = handleMockSocialLogin(undefined, (request) =>
+        requests.push(request),
+      );
+      arrangeAuthAPIs();
+      const { controller } = arrangeSocialLogin({ vault: null });
+
+      const result = await controller.exchangeSocialAccessToken();
+
+      expect(mockSocialLoginUrl.isDone()).toBe(true);
+      expect(requests).toStrictEqual([
+        {
+          body: { identifier_type: 'GOOGLE' },
+          authorization: `Bearer ${MOCK_SOCIAL_JWT}`,
+        },
+      ]);
+      expect(result.profile.canonicalProfileId).toBe(
+        MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+      );
+    });
+
     it.each([
-      ['there is no social vault', { vault: null }],
       ['the social provider is unknown', { authConnection: 'github' }],
+      [
+        'the social provider is unknown before the vault is written',
+        { authConnection: 'github', vault: null },
+      ],
     ])('throws when %s', async (_case, options) => {
       const mockSocialLoginUrl = handleMockSocialLogin();
       const { controller } = arrangeSocialLogin(options);
@@ -3874,10 +3904,6 @@ describe('MFA credential verification', () => {
       mockEndpointMfaCredentials();
     });
 
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
     it('completes with the token that began it, even past the default session age', async () => {
       const { controller, verificationToken } = await beginWithSession();
       expect(verificationToken).toBeDefined();
@@ -3992,10 +4018,6 @@ describe('MFA credential verification', () => {
         base: base as string,
       };
     }
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
 
     it('does not let a session older than the default limit authorize enrollment', async () => {
       const { controller, base } = await arrangeAgedSession();
@@ -4475,6 +4497,292 @@ describe('MFA credential verification', () => {
       ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
       expect(fetchSpy).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('MFA while the wallet is locked', () => {
+  const passkeyProof = {
+    type: 'passkey',
+    assertion: {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        authenticatorData: 'authenticator-data',
+        clientDataJSON: 'client-data',
+        signature: 'signature',
+      },
+    },
+  } as const;
+  const socialBearer = `Bearer ${MOCK_OATH_TOKEN_RESPONSE.access_token}`;
+
+  function createController({
+    isUnlocked = false,
+    vault = 'encrypted',
+    authConnection = 'google',
+  }: {
+    isUnlocked?: boolean;
+    vault?: string | null;
+    authConnection?: string;
+  } = {}): {
+    controller: AuthenticationController;
+    baseMessenger: RootMessenger;
+  } {
+    const {
+      messenger,
+      baseMessenger,
+      mockKeyringControllerGetState,
+      mockSeedlessOnboardingGetState,
+      mockSeedlessOnboardingGetAccessToken,
+    } = createMockAuthenticationMessenger();
+    mockKeyringControllerGetState.mockReturnValue({
+      isUnlocked,
+      keyrings: [],
+    });
+    mockSeedlessOnboardingGetState.mockReturnValue({
+      vault,
+      authConnection,
+    });
+    mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+    return {
+      controller: new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: mockSignedInState(),
+      }),
+      baseMessenger,
+    };
+  }
+
+  /**
+   * Mocks the social login and the exchange of its token, then the MFA
+   * endpoint, which only answers a request carrying the social token.
+   *
+   * @param exchangedTokens - Replies of the token endpoint, in order.
+   */
+  function mockSocialLoginExchange(
+    exchangedTokens: object[] = [MOCK_OATH_TOKEN_RESPONSE],
+  ): void {
+    handleMockSocialLogin();
+    const tokenEndpoint = nock(getMockAuthAccessTokenResponse().url);
+    for (const reply of exchangedTokens) {
+      tokenEndpoint.post('').reply(200, reply);
+    }
+  }
+
+  function mockMfaEndpoint(
+    url: string,
+    method: 'get' | 'post',
+    body: object,
+  ): void {
+    nock(url, { reqheaders: { authorization: socialBearer } })
+      [method]('')
+      .reply(200, body);
+  }
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  describe('refreshSocialLoginCredentials', () => {
+    it('lists the credentials with the social login token, without a sign-in or cached state', async () => {
+      mockSocialLoginExchange();
+      mockMfaEndpoint(
+        MOCK_MFA_CREDENTIALS_URL,
+        'get',
+        MOCK_MFA_CREDENTIALS_RESPONSE,
+      );
+      const { controller } = createController();
+      const stateBefore = controller.state;
+
+      const credentials = await controller.refreshSocialLoginCredentials();
+
+      expect(credentials).toHaveLength(2);
+      expect(controller.state).toBe(stateBefore);
+    });
+
+    it('lists the credentials before the vault is written', async () => {
+      mockSocialLoginExchange();
+      mockMfaEndpoint(
+        MOCK_MFA_CREDENTIALS_URL,
+        'get',
+        MOCK_MFA_CREDENTIALS_RESPONSE,
+      );
+      const { controller } = createController({ vault: null });
+
+      expect(await controller.refreshSocialLoginCredentials()).toHaveLength(2);
+    });
+
+    it('is exposed via the messenger registry', async () => {
+      mockSocialLoginExchange();
+      mockMfaEndpoint(
+        MOCK_MFA_CREDENTIALS_URL,
+        'get',
+        MOCK_MFA_CREDENTIALS_RESPONSE,
+      );
+      const { baseMessenger } = createController();
+
+      expect(
+        await baseMessenger.call(
+          'AuthenticationController:refreshSocialLoginCredentials',
+        ),
+      ).toHaveLength(2);
+    });
+  });
+
+  describe('beginSocialLoginVerification', () => {
+    it('begins the verification with the social login token', async () => {
+      mockSocialLoginExchange();
+      mockMfaEndpoint(
+        MOCK_MFA_VERIFY_URL,
+        'post',
+        MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+      );
+      const { controller } = createController();
+
+      expect(
+        await controller.beginSocialLoginVerification({
+          type: 'passkey',
+          reason: { operation: 'recovery.verifyFirstFactor' },
+        }),
+      ).toMatchObject({ type: 'passkey', flowId: 'verify-passkey-flow-id' });
+    });
+
+    it('is exposed via the messenger registry', async () => {
+      mockSocialLoginExchange();
+      mockMfaEndpoint(
+        MOCK_MFA_VERIFY_URL,
+        'post',
+        MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+      );
+      const { baseMessenger } = createController();
+
+      expect(
+        await baseMessenger.call(
+          'AuthenticationController:beginSocialLoginVerification',
+          {
+            type: 'passkey',
+            reason: { operation: 'recovery.verifyFirstFactor' },
+          },
+        ),
+      ).toMatchObject({ flowId: 'verify-passkey-flow-id' });
+    });
+  });
+
+  describe('completeSocialLoginVerification', () => {
+    const complete = async (
+      controller: AuthenticationController,
+    ): Promise<VerificationToken> =>
+      await controller.completeSocialLoginVerification({
+        flowId: 'flow-id',
+        proof: passkeyProof,
+        reason: { operation: 'recovery.verifyFirstFactor' },
+      });
+
+    it('returns the verification token and opens no verification session', async () => {
+      mockSocialLoginExchange([
+        MOCK_OATH_TOKEN_RESPONSE,
+        MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+      ]);
+      mockMfaEndpoint(
+        MOCK_MFA_VERIFY_COMPLETE_URL,
+        'post',
+        MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+      );
+      const { controller, baseMessenger } = createController();
+
+      const token = await complete(controller);
+
+      expect(token.accessToken).toBe(
+        MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE.access_token,
+      );
+      expect(token.claims).toStrictEqual({
+        sub: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
+        amr: ['passkey'],
+        exp: 4102444800,
+      });
+      baseMessenger.publish('KeyringController:unlock');
+      expect(controller.getVerificationToken()).toBeNull();
+      expect(JSON.stringify(controller.state)).not.toContain(token.accessToken);
+    });
+
+    it('is exposed via the messenger registry', async () => {
+      mockSocialLoginExchange([
+        MOCK_OATH_TOKEN_RESPONSE,
+        MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+      ]);
+      mockMfaEndpoint(
+        MOCK_MFA_VERIFY_COMPLETE_URL,
+        'post',
+        MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+      );
+      const { baseMessenger } = createController();
+
+      const token = await baseMessenger.call(
+        'AuthenticationController:completeSocialLoginVerification',
+        {
+          flowId: 'flow-id',
+          proof: passkeyProof,
+          reason: { operation: 'recovery.verifyFirstFactor' },
+        },
+      );
+
+      expect(token.claims.amr).toStrictEqual(['passkey']);
+    });
+  });
+
+  describe('when the wallet is unlocked', () => {
+    const reason = { operation: 'recovery.verifyFirstFactor' };
+    const calls: [
+      string,
+      (controller: AuthenticationController) => Promise<unknown>,
+    ][] = [
+      [
+        'refreshSocialLoginCredentials',
+        async (controller): Promise<unknown> =>
+          await controller.refreshSocialLoginCredentials(),
+      ],
+      [
+        'beginSocialLoginVerification',
+        async (controller): Promise<unknown> =>
+          await controller.beginSocialLoginVerification({
+            type: 'passkey',
+            reason,
+          }),
+      ],
+      [
+        'completeSocialLoginVerification',
+        async (controller): Promise<unknown> =>
+          await controller.completeSocialLoginVerification({
+            flowId: 'flow-id',
+            proof: passkeyProof,
+            reason,
+          }),
+      ],
+    ];
+
+    it.each(calls)(
+      '%s throws without calling the social login',
+      async (name, call) => {
+        const mockSocialLoginUrl = handleMockSocialLogin();
+        const { controller } = createController({ isUnlocked: true });
+
+        await expect(call(controller)).rejects.toThrow(
+          `${name} - unable to proceed, the wallet is unlocked`,
+        );
+        expect(mockSocialLoginUrl.isDone()).toBe(false);
+      },
+    );
+  });
+
+  it('throws when the wallet has no social login', async () => {
+    const mockSocialLoginUrl = handleMockSocialLogin();
+    const { controller } = createController({ authConnection: 'github' });
+
+    await expect(controller.refreshSocialLoginCredentials()).rejects.toThrow(
+      'exchangeSocialAccessToken - the wallet has no social login',
+    );
+    expect(mockSocialLoginUrl.isDone()).toBe(false);
   });
 });
 

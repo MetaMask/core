@@ -11,12 +11,82 @@ import {
   buildBrazilMusdAutorampRequest,
   buildMusdAutorampRequest,
   createAutorampAccount,
+  getMusdAutorampDepositRailReadiness,
   isTerminalAutorampStatus,
   markAutorampNotified,
   normalizeAutorampStatus,
 } from './autorampAccount.js';
+import type {
+  NeoBankAbilityStatus,
+  NeoBankCustomerAbilities,
+} from './NeoBankService.js';
+
+const abilitiesWith = (
+  fiatDeposit: Record<string, Record<string, NeoBankAbilityStatus>>,
+): NeoBankCustomerAbilities => ({
+  fiat_deposit: fiatDeposit,
+  fiat_payout: {},
+  currencies: [],
+  blocking_abilities: {},
+});
 
 describe('autorampAccount', () => {
+  describe('getMusdAutorampDepositRailReadiness', () => {
+    it.each([
+      ['BRL', { pix: 'Active', pix_thirdparty: 'Active' }],
+      ['USD', { ach: 'Active', ach_thirdparty: 'Active' }],
+      ['usd', { ach: 'Active', ach_thirdparty: 'Active' }],
+    ] as const)('is active when every %s rail is Active', (code, rails) => {
+      expect(
+        getMusdAutorampDepositRailReadiness(
+          abilitiesWith({ [code.toLowerCase()]: rails }),
+          code,
+        ),
+      ).toBe('active');
+    });
+
+    it.each([
+      ['BRL', { pix: 'Active', pix_thirdparty: 'Pending' }],
+      ['BRL', { pix: 'Active' }],
+      ['USD', { ach: 'Maintenance', ach_thirdparty: 'Active' }],
+      ['USD', {}],
+    ] as const)(
+      'is pending when a %s rail is not Active yet (%j)',
+      (code, rails) => {
+        expect(
+          getMusdAutorampDepositRailReadiness(
+            abilitiesWith({ [code.toLowerCase()]: rails }),
+            code,
+          ),
+        ).toBe('pending');
+      },
+    );
+
+    it('is pending when the fiat is missing from the abilities', () => {
+      expect(
+        getMusdAutorampDepositRailReadiness(abilitiesWith({}), 'BRL'),
+      ).toBe('pending');
+    });
+
+    it.each(['Unavailable', 'Blocked'] as const)(
+      'is blocked when a rail is %s, even if another is pending',
+      (status) => {
+        expect(
+          getMusdAutorampDepositRailReadiness(
+            abilitiesWith({ usd: { ach: 'Pending', ach_thirdparty: status } }),
+            'USD',
+          ),
+        ).toBe('blocked');
+      },
+    );
+
+    it('is active for a fiat with no required rails', () => {
+      expect(
+        getMusdAutorampDepositRailReadiness(abilitiesWith({}), 'EUR'),
+      ).toBe('active');
+    });
+  });
+
   describe('buildMusdAutorampRequest', () => {
     it('builds a standing USD to mUSD autoramp on Monad', () => {
       expect(buildMusdAutorampRequest('0xabc', 'USD')).toMatchInlineSnapshot(`

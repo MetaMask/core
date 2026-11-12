@@ -110,7 +110,9 @@ export type MfaRecoveryControllerGetIdentifiersAction = {
  * Completes a persisted pending mutation. With none pending and an
  * `identifier`, copies the highest escrow record to escrows one version
  * behind it; pass an identifier when a mutation fails with
- * `replica_lagging`.
+ * `replica_lagging`. Clears a `writing` mutation, throwing
+ * `MutationRejectedError`, once its approval expired more than 5 minutes ago
+ * and no escrow applied it.
  *
  * @param identifier - Enrolled identifier that authorizes the repair, or
  * replaces the one authorizing a pending update (e.g. if it was lost).
@@ -121,7 +123,9 @@ export type MfaRecoveryControllerResumeAction = {
 };
 
 /**
- * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+ * Drops `authorizing` pending. Drops `writing` pending only once its approval
+ * expired more than 5 minutes ago and no escrow applied it; otherwise finish
+ * it with {@link resume}.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;
