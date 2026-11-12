@@ -133,6 +133,7 @@ export type {
   Pagination,
   PerChainBreakdown,
   Position,
+  PositionOwner,
   PositionsResponse,
   ProfileIdentity,
   ProfileSummary,

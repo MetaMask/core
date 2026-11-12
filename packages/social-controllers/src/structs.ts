@@ -59,6 +59,11 @@ const FeedActorStruct = assign(
   }),
 );
 
+export const PositionOwnerStruct = structType({
+  profileId: string(),
+  addresses: array(string()),
+});
+
 export const PositionStruct = structType({
   positionId: string(),
   tokenSymbol: string(),
@@ -85,6 +90,7 @@ export const PositionStruct = structType({
   positionAmountWithLeverage: optional(nullable(number())),
   // Open set: a flag this package does not know yet must still validate.
   flags: optional(nullable(array(string()))),
+  owner: optional(PositionOwnerStruct),
 });
 
 export const CommentTranslationStruct = structType({

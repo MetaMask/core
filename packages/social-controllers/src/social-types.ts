@@ -391,6 +391,21 @@ export type Position = {
    * social-api builds; `null` when the deployment sends an explicit empty mark.
    */
   flags?: string[] | null;
+  /**
+   * The trader who owns the position: their profile ID and the addresses
+   * linked to that profile. Lets a client confirm that a position belongs to a
+   * given trader before attributing it to them. Absent on social-api builds
+   * that predate the field.
+   */
+  owner?: PositionOwner;
+};
+
+/**
+ * Owner of a {@link Position}.
+ */
+export type PositionOwner = {
+  profileId: string;
+  addresses: string[];
 };
 
 export type Pagination = {

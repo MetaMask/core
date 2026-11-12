@@ -1006,6 +1006,50 @@ describe('SocialService', () => {
       expect(result.positions[1].flags).toBeNull();
     });
 
+    it('passes the position owner through and accepts positions without one', async () => {
+      const owner = {
+        profileId: 'profile-1',
+        addresses: ['0x1234', '0x5678'],
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [{ ...mockPosition, owner }, mockPosition],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0].owner).toStrictEqual(owner);
+      expect(result.positions[1].owner).toBeUndefined();
+    });
+
+    it('rejects a position whose owner is malformed', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [{ ...mockPosition, owner: { profileId: 'profile-1' } }],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchOpenPositions({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
+      );
+    });
+
     it('rejects a position whose flags are not an array of strings', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1400,6 +1444,61 @@ describe('SocialService', () => {
       );
     });
 
+    it('returns the position owner unchanged', async () => {
+      const owner = {
+        profileId: 'profile-1',
+        addresses: ['0x1234', 'So11111111111111111111111111111111111111112'],
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...mockPosition, owner }),
+      });
+
+      const service = createService();
+      const result = await service.fetchPositionById({
+        positionId: 'position-1',
+      });
+
+      expect(result).toStrictEqual({ ...mockPosition, owner });
+    });
+
+    it('accepts a position without an owner', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      const result = await service.fetchPositionById({
+        positionId: 'position-1',
+      });
+
+      expect(result.owner).toBeUndefined();
+    });
+
+    it.each([
+      ['null', null],
+      ['missing addresses', { profileId: 'profile-1' }],
+      ['a non-string address', { profileId: 'profile-1', addresses: [1] }],
+      ['a non-string profileId', { profileId: 1, addresses: [] }],
+    ])('throws when the owner is %s', async (_label, owner) => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...mockPosition, owner }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchPositionById({ positionId: 'position-1' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
+      );
+    });
+
     it('keeps every author comment on each trade', async () => {
       const tradeComment = {
         uid: 'comment-1',
@@ -1541,6 +1640,25 @@ describe('SocialService', () => {
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed`, {
         headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
+    });
+
+    it('passes the position owner through on feed items', async () => {
+      const owner = { profileId: 'profile-1', addresses: ['0x1234'] };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockFeedResponse,
+            items: [{ ...mockFeedItem, owner }, mockFeedItem],
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'leaderboard' });
+
+      expect(result.items[0].owner).toStrictEqual(owner);
+      expect(result.items[1].owner).toBeUndefined();
     });
 
     it('appends scope, chains, limit, and pagination cursors', async () => {
