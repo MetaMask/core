@@ -122,7 +122,7 @@ async function main(flags: Record<string, string>): Promise<void> {
 
   const client = await CubeSignerClient.create(defaultUserSessionManager());
   const escrow = new CubistEscrowProvider({
-    client,
+    getClient: async (): Promise<CubeSignerClient> => client,
     authAudience,
     wrapPublicKey: hexToBytes(wrapPublicKey),
     receiptPublicKey: hexToBytes(receiptPublicKey),

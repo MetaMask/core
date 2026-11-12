@@ -355,7 +355,7 @@ jobs:
         # only be done on the merged data, because a package's files are split
         # over shards.
         run: |
-          ARGS=(--merge-reports --coverage --reporter default --reporter github-actions --silent)
+          ARGS=(--merge-reports --coverage --reporter ./scripts/vitest/sorted-reporter.ts --reporter github-actions --silent)
 
           # Use the same packages as the test shards.
           if [[ "$CHANGED_PATHS" != "full" ]]; then

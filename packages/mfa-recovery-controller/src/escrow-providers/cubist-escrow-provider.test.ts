@@ -133,6 +133,41 @@ describe('CubistEscrowProvider', () => {
       const { provider } = createProvider({ stdout: { ok: false } });
       expect(await provider.isAvailable()).toBe(false);
     });
+
+    it('returns false when getClient throws', async () => {
+      const { provider, invoke } = createProvider({
+        getClient: async () => {
+          throw new MfaRecoveryError('Feature disabled', 'feature_disabled');
+        },
+      });
+      expect(await provider.isAvailable()).toBe(false);
+      expect(invoke).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getClient', () => {
+    it('gets the client for every command', async () => {
+      const { provider, getClient } = createProvider({
+        stdout: { ok: true },
+      });
+      await provider.isAvailable();
+      await provider.isAvailable();
+      expect(getClient).toHaveBeenCalledTimes(2);
+    });
+
+    it('propagates getClient errors unchanged from commands', async () => {
+      const error = new MfaRecoveryError(
+        'Registration failed',
+        'registration_request_failed',
+      );
+      const { provider, invoke } = createProvider({
+        getClient: async () => {
+          throw error;
+        },
+      });
+      await expect(provider.generateChallenge(TOKEN)).rejects.toBe(error);
+      expect(invoke).not.toHaveBeenCalled();
+    });
   });
 
   describe('generateChallenge', () => {
@@ -537,10 +572,12 @@ function createProvider(
       | { response: 'Deny'; reason: string }
       | { response: 'Error'; error: string };
     invoke?: () => Promise<unknown>;
+    getClient?: () => Promise<CubeSignerClient>;
   } = {},
 ): {
   provider: CubistEscrowProvider;
   invoke: Mock;
+  getClient: Mock;
 } {
   const stdoutBytes =
     options.stdoutBytes ??
@@ -559,9 +596,12 @@ function createProvider(
   const client = {
     apiClient: { policyInvoke: invoke },
   } as unknown as CubeSignerClient;
+  const getClient = vi.fn(
+    options.getClient ?? (async (): Promise<CubeSignerClient> => client),
+  );
   return {
     provider: new CubistEscrowProvider({
-      client,
+      getClient,
       authAudience: 'gamma.signer.cubist.dev',
       wrapPublicKey: wrapKey.publicKey,
       receiptPublicKey: receiptKey.publicKey,
@@ -569,6 +609,7 @@ function createProvider(
       version: options.version,
     }),
     invoke,
+    getClient,
   };
 }
 
