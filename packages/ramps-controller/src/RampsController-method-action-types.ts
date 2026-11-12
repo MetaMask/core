@@ -360,6 +360,9 @@ export type RampsControllerGetQuoteWithFeesAction = {
  * Unchanged syncable payloads (including unchanged poll results) are ignored
  * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
  *
+ * When network access is denied, the order is still written locally and the
+ * remote push is deferred to the next full sync.
+ *
  * @param order - The RampsOrder to add or update.
  */
 export type RampsControllerAddOrderAction = {
@@ -369,6 +372,9 @@ export type RampsControllerAddOrderAction = {
 
 /**
  * Removes a V2 order from controller state by providerOrderId.
+ *
+ * When network access is denied, the order is still removed locally and the
+ * remote tombstone is deferred to the next full sync.
  *
  * @param providerOrderId - The provider order ID to remove.
  */
@@ -615,6 +621,9 @@ export type RampsControllerGetFallbackBuyWidgetDataAction = {
  * Adds a minimal stub order to controller state; the existing order polling
  * will fetch the full order when the provider has created it.
  *
+ * When network access is denied, the stub is still written locally and its
+ * remote push is deferred to the next full sync.
+ *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
  * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
@@ -730,6 +739,9 @@ export type RampsControllerTransakVerifyUserOtpAction = {
 /**
  * Logs the user out of Transak. Clears authentication state and user details
  * regardless of whether the API call succeeds or fails.
+ *
+ * When network access is denied, the local session is cleared and a message
+ * is returned without calling the Transak service.
  *
  * @returns A message indicating the logout result.
  */
