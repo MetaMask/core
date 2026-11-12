@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.2]
+
 ### Changed
 
-- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.0` ([#11391](https://github.com/MetaMask/core/pull/11391))
+- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.1` ([#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/subscription-controller` from `^15.2.0` to `^15.2.1` ([#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0`
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1`
+- Bump `@metamask/network-enablement-controller` from `^7.1.1` to `^7.1.2`
 
 ## [21.0.1]
 
@@ -464,7 +469,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.2...HEAD
+[21.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.1...@metamask/wallet@21.0.2
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.0...@metamask/wallet@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...@metamask/wallet@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...@metamask/wallet@20.0.0
