@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.22.0]
+
 ### Added
 
 - Add optional `profileId` to `Position` and `PositionStruct` ([#11455](https://github.com/MetaMask/core/pull/11455))
@@ -447,7 +449,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.21.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.22.0...HEAD
+[3.22.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.21.0...@metamask/social-controllers@3.22.0
 [3.21.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.20.0...@metamask/social-controllers@3.21.0
 [3.20.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.19.0...@metamask/social-controllers@3.20.0
 [3.19.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.18.0...@metamask/social-controllers@3.19.0
