@@ -7,21 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [23.1.0]
-
 ### Added
 
-- Add display formatters for the perps values Mobile, Extension and Terminal still format locally. Each takes the same `formatters` and `sign` options and renders the shared placeholder for a missing value ([#11415](https://github.com/MetaMask/core/pull/11415))
-  - `formatFeeBps(rate, options)` formats a fee rate in basis points: `formatFeeBps(0.00045)` returns `4.5 bps`
-  - `formatLiquidationDistance(entryPrice, liquidationPrice, options)` formats the distance to the liquidation price: `formatLiquidationDistance(100, 70)` returns `30.00%`, and a missing or non-positive price returns `--%`
-  - `formatPerpsCompact(value, { field })` abbreviates with `K`, `M`, `B` or `T` for the field shown: `volume` (`$1.23M`, `$123K`, `$999.50`), `orderBookUsd` (`$2.1K`, and `PRICE_RANGES_UNIVERSAL` below 1,000) and `orderBookSize` (`604.9K`, and `formatPositionSize` with `szDecimals` below 1,000). A volume that rounds up to 1,000 at its scale moves to the next one (`999999` returns `$1.00M`)
-  - `getPerpsOrderBookPriceFormat(grouping, { midPrice, szDecimals })` and `formatPerpsOrderBookPrice(price, format, options)` render every order book price with the decimals of the selected grouping, capped at `MaxPriceDecimals` minus `szDecimals`, abbreviated (`$87K`) when that is not longer
-  - `formatPerpsUsdInput(input, options)` masks a USD amount input to 2 decimals and 9 digits with the locale's separators, and returns the canonical `value` and the `display`. Typed text reads the locale's decimal separator, so in `de` `1.2345` returns `{ value: '12345', display: '12.345' }`; pass `source: 'value'` for a stored canonical amount: `formatPerpsUsdInput('1234567.5', { formatters: createFormatters({ locale: 'de' }), source: 'value' })` returns `{ value: '1234567.5', display: '1.234.567,5' }`
-  - Types `PerpsCompactField`, `PerpsCompactFormatOptions`, `PerpsOrderBookLadderOptions`, `PerpsOrderBookPriceFormat`, `PerpsOrderBookPriceFormatOptions`, `PerpsPercentageFormatOptions`, `PerpsUsdInput` and `PerpsUsdInputFormatOptions`
-- Add a `symbol` option to `formatPerpsFiat` and `formatPerpsOrderBookPrice`: `false` omits the currency symbol for chart labels, e.g. `formatPerpsFiat(2480.37, { ranges: PRICE_RANGES_UNIVERSAL, symbol: false })` returns `2,480.4` ([#11415](https://github.com/MetaMask/core/pull/11415))
-- Add a `stripTrailingZeros` option to `formatPercentage`, for TWAP progress: `formatPercentage(25, { decimals: PERPS_DISPLAY_PRECISION.TwapProgressPercent, stripTrailingZeros: true, sign: 'never' })` returns `25%` ([#11415](https://github.com/MetaMask/core/pull/11415))
-  - It takes a percentage: Mobile's `formatTwapProgressPercent` takes basis points and clamps to 0–100%, so callers divide by 100 and clamp before switching
-- Add `PERPS_DISPLAY_PRECISION` values for these displays, following Mobile: `FeeBps` 2, `LiquidationDistancePercent` 2, `TwapProgressPercent` 2, `UsdInput` 2, `UsdInputMaxDigits` 9, `VolumeCompact` 2, `VolumeCompactThousands` 0, `OrderBookCompact` 1 and `OrderBookAbbreviatedPriceMax` 3 ([#11415](https://github.com/MetaMask/core/pull/11415))
 - Add `PerpsController.setDefaultProvider` (messenger action `PerpsController:setDefaultProvider`) to save the default venue for aggregated-mode routing, and a persisted `defaultProvider` state field separate from `activeProvider` ([#11421](https://github.com/MetaMask/core/pull/11421))
   - Unlike `switchProvider`, changing the default never re-initializes the controller or reconnects provider transports: the live aggregated provider's routing default is updated in place and both venues stay connected
   - Default-routed streams (account, available to trade, candles, order book, open-interest caps, TWAP and connection-state listeners) move to the new venue, and the cached `accountState` snapshot is cleared until the new venue delivers matching data
@@ -63,6 +50,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Discard a `getAccountState` response that belongs to a previous venue: the REST write is guarded by the response's captured `providerId`, so a request that resolves after the default moved cannot overwrite the new venue's balance snapshot ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Require an explicit provider route only when the resolved aggregated provider has multiple registered venues, including writes queued across cold-start migration; HyperLiquid-only fallback accepts unrouted writes ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Harden the trade-configuration state writes against prototype pollution: `symbol` and venue keys are validated before they index persisted state, so a `__proto__`/`constructor`/`prototype` key (or an unknown venue id) from a JS caller or tampered persisted state is ignored instead of corrupting the record's prototype chain ([#11421](https://github.com/MetaMask/core/pull/11421))
+
+## [23.1.0]
+
+### Added
+
+- Add display formatters for the perps values Mobile, Extension and Terminal still format locally. Each takes the same `formatters` and `sign` options and renders the shared placeholder for a missing value ([#11415](https://github.com/MetaMask/core/pull/11415))
+  - `formatFeeBps(rate, options)` formats a fee rate in basis points: `formatFeeBps(0.00045)` returns `4.5 bps`
+  - `formatLiquidationDistance(entryPrice, liquidationPrice, options)` formats the distance to the liquidation price: `formatLiquidationDistance(100, 70)` returns `30.00%`, and a missing or non-positive price returns `--%`
+  - `formatPerpsCompact(value, { field })` abbreviates with `K`, `M`, `B` or `T` for the field shown: `volume` (`$1.23M`, `$123K`, `$999.50`), `orderBookUsd` (`$2.1K`, and `PRICE_RANGES_UNIVERSAL` below 1,000) and `orderBookSize` (`604.9K`, and `formatPositionSize` with `szDecimals` below 1,000). A volume that rounds up to 1,000 at its scale moves to the next one (`999999` returns `$1.00M`)
+  - `getPerpsOrderBookPriceFormat(grouping, { midPrice, szDecimals })` and `formatPerpsOrderBookPrice(price, format, options)` render every order book price with the decimals of the selected grouping, capped at `MaxPriceDecimals` minus `szDecimals`, abbreviated (`$87K`) when that is not longer
+  - `formatPerpsUsdInput(input, options)` masks a USD amount input to 2 decimals and 9 digits with the locale's separators, and returns the canonical `value` and the `display`. Typed text reads the locale's decimal separator, so in `de` `1.2345` returns `{ value: '12345', display: '12.345' }`; pass `source: 'value'` for a stored canonical amount: `formatPerpsUsdInput('1234567.5', { formatters: createFormatters({ locale: 'de' }), source: 'value' })` returns `{ value: '1234567.5', display: '1.234.567,5' }`
+  - Types `PerpsCompactField`, `PerpsCompactFormatOptions`, `PerpsOrderBookLadderOptions`, `PerpsOrderBookPriceFormat`, `PerpsOrderBookPriceFormatOptions`, `PerpsPercentageFormatOptions`, `PerpsUsdInput` and `PerpsUsdInputFormatOptions`
+- Add a `symbol` option to `formatPerpsFiat` and `formatPerpsOrderBookPrice`: `false` omits the currency symbol for chart labels, e.g. `formatPerpsFiat(2480.37, { ranges: PRICE_RANGES_UNIVERSAL, symbol: false })` returns `2,480.4` ([#11415](https://github.com/MetaMask/core/pull/11415))
+- Add a `stripTrailingZeros` option to `formatPercentage`, for TWAP progress: `formatPercentage(25, { decimals: PERPS_DISPLAY_PRECISION.TwapProgressPercent, stripTrailingZeros: true, sign: 'never' })` returns `25%` ([#11415](https://github.com/MetaMask/core/pull/11415))
+  - It takes a percentage: Mobile's `formatTwapProgressPercent` takes basis points and clamps to 0–100%, so callers divide by 100 and clamp before switching
+- Add `PERPS_DISPLAY_PRECISION` values for these displays, following Mobile: `FeeBps` 2, `LiquidationDistancePercent` 2, `TwapProgressPercent` 2, `UsdInput` 2, `UsdInputMaxDigits` 9, `VolumeCompact` 2, `VolumeCompactThousands` 0, `OrderBookCompact` 1 and `OrderBookAbbreviatedPriceMax` 3 ([#11415](https://github.com/MetaMask/core/pull/11415))
 
 ## [23.0.0]
 
