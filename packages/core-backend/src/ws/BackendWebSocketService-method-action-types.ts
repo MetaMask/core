@@ -243,7 +243,9 @@ export type BackendWebSocketServiceGetChannelCallbacksAction = {
  * @param options.callback - Callback function for handling notifications
  * @param options.requestId - Optional request ID for testing (will generate UUID if not provided)
  * @param options.channelType - Channel type identifier
- * @returns Subscription object with unsubscribe method
+ * @returns Subscription object with unsubscribe method. Channels the socket
+ * already tracks are left out. When every channel is already open, this
+ * resolves with an empty channel list and does not send a frame.
  *
  * @example
  * ```typescript

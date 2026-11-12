@@ -232,8 +232,19 @@ export type WebSocketSubscription = {
   channelType: string;
   /** Callback function for handling notifications (optional for external use) */
   callback?: (notification: ServerNotificationMessage) => void;
-  /** Function to unsubscribe and clean up */
-  unsubscribe: (requestId?: string) => Promise<void>;
+  /**
+   * Unsubscribe these channels and drop the subscription when none remain.
+   * Omit `channelsToRemove` to unsubscribe every channel in the subscription.
+   */
+  unsubscribe: (
+    requestId?: string,
+    channelsToRemove?: string[],
+  ) => Promise<void>;
+  /**
+   * Channels the gateway rejected on a subscribe that still opened.
+   * Absent when every requested channel was accepted.
+   */
+  failedChannels?: string[];
 };
 
 /**
@@ -348,6 +359,8 @@ export class BackendWebSocketService {
       resolve: (value: unknown) => void;
       reject: (error: Error) => void;
       timeout: NodeJS.Timeout;
+      /** Channels for an in-flight subscribe, used when an error has no request id. */
+      channels?: string[];
     }
   >();
 
@@ -714,6 +727,10 @@ export class BackendWebSocketService {
         resolve: resolve as (value: unknown) => void,
         reject,
         timeout,
+        channels:
+          message.event === 'subscribe'
+            ? subscribeChannels(message.data)
+            : undefined,
       });
 
       // Send the request
@@ -939,7 +956,9 @@ export class BackendWebSocketService {
    * @param options.callback - Callback function for handling notifications
    * @param options.requestId - Optional request ID for testing (will generate UUID if not provided)
    * @param options.channelType - Channel type identifier
-   * @returns Subscription object with unsubscribe method
+   * @returns Subscription object with unsubscribe method. Channels the socket
+   * already tracks are left out. When every channel is already open, this
+   * resolves with an empty channel list and does not send a frame.
    *
    * @example
    * ```typescript
@@ -975,10 +994,24 @@ export class BackendWebSocketService {
       );
     }
 
+    // The gateway already has these channels. Sending them again opens a
+    // second subscription for the same name.
+    const channelsToOpen = channels.filter(
+      (channel) => !this.channelHasSubscription(channel),
+    );
+    if (channelsToOpen.length === 0) {
+      return {
+        subscriptionId: '',
+        channels: [],
+        channelType,
+        unsubscribe: async () => undefined,
+      };
+    }
+
     // Send subscription request and wait for response
     const subscriptionResponse = await this.sendRequest({
       event: 'subscribe',
-      data: { channels, requestId },
+      data: { channels: channelsToOpen, requestId },
     });
 
     if (!subscriptionResponse?.subscriptionId) {
@@ -986,37 +1019,72 @@ export class BackendWebSocketService {
     }
 
     const { subscriptionId } = subscriptionResponse;
+    const failedChannels = stringList(subscriptionResponse.failed);
+    const succeeded = stringList(subscriptionResponse.succeeded);
+    const openChannels =
+      succeeded.length > 0
+        ? channelsToOpen.filter((channel) => succeeded.includes(channel))
+        : channelsToOpen.filter((channel) => !failedChannels.includes(channel));
 
-    // Create unsubscribe function
-    const unsubscribe = async (unsubRequestId?: string): Promise<void> => {
-      // Send unsubscribe request first
+    if (openChannels.length === 0) {
+      throw new Error(
+        `Request failed: ${(failedChannels.length > 0
+          ? failedChannels
+          : channelsToOpen
+        ).join(', ')}`,
+      );
+    }
+
+    // Create unsubscribe function. One subscription may hold many channels;
+    // removing a subset leaves the rest open.
+    const unsubscribe = async (
+      unsubRequestId?: string,
+      channelsToRemove?: string[],
+    ): Promise<void> => {
+      const stored = this.#subscriptions.get(subscriptionId);
+      if (!stored) {
+        return;
+      }
+      const removing = (channelsToRemove ?? stored.channels).filter((channel) =>
+        stored.channels.includes(channel),
+      );
+      if (removing.length === 0) {
+        return;
+      }
       await this.sendRequest({
         event: 'unsubscribe',
         data: {
           subscription: subscriptionId,
-          channels,
+          channels: removing,
           requestId: unsubRequestId,
         },
       });
-
-      // Clean up subscription mapping
-      this.#subscriptions.delete(subscriptionId);
+      const remaining = stored.channels.filter(
+        (channel) => !removing.includes(channel),
+      );
+      if (remaining.length === 0) {
+        this.#subscriptions.delete(subscriptionId);
+        return;
+      }
+      stored.channels.splice(0, stored.channels.length, ...remaining);
     };
 
     const subscription = {
       subscriptionId,
-      channels: [...channels],
+      channels: [...openChannels],
       channelType,
       unsubscribe,
+      ...(failedChannels.length > 0 && { failedChannels }),
     };
 
     // Store subscription with subscription ID as key
     this.#subscriptions.set(subscriptionId, {
       subscriptionId,
-      channels: [...channels], // Store copy of channels
+      channels: [...openChannels],
       channelType,
       callback,
       unsubscribe,
+      ...(failedChannels.length > 0 && { failedChannels }),
     });
 
     return subscription;
@@ -1216,6 +1284,10 @@ export class BackendWebSocketService {
    * @param message - The WebSocket message to handle
    */
   #handleMessage(message: WebSocketMessage): void {
+    if (this.#rejectSubscribeForUncorrelatedError(message)) {
+      return;
+    }
+
     if (this.#isServerResponse(message)) {
       this.#handleServerResponse(message);
       return;
@@ -1290,11 +1362,18 @@ export class BackendWebSocketService {
     this.#pendingRequests.delete(requestId);
     clearTimeout(request.timeout);
 
-    // Check if the response indicates failure
-    if (message.data.failed && message.data.failed.length > 0) {
-      request.reject(
-        new Error(`Request failed: ${message.data.failed.join(', ')}`),
-      );
+    // A subscribe that opened some channels and rejected others still
+    // resolves. The caller keeps the open channels and retries the rest.
+    const failed = stringList(message.data.failed);
+    const succeeded = stringList(message.data.succeeded);
+    const partialSuccess =
+      failed.length > 0 &&
+      succeeded.length > 0 &&
+      typeof message.data.subscriptionId === 'string' &&
+      message.data.subscriptionId.length > 0;
+
+    if (failed.length > 0 && !partialSuccess) {
+      request.reject(new Error(`Request failed: ${failed.join(', ')}`));
     } else {
       request.resolve(message.data);
     }
@@ -1473,6 +1552,47 @@ export class BackendWebSocketService {
   }
 
   /**
+   * An `error` event for an invalid channel carries only `data.message`.
+   * It is not tied to a request id, so the matching in-flight subscribe is
+   * failed here. The socket stays up and other subscribes continue.
+   *
+   * @param message - Incoming socket message.
+   * @returns Whether this message rejected one or more subscribes.
+   */
+  #rejectSubscribeForUncorrelatedError(message: WebSocketMessage): boolean {
+    if (
+      message.event !== 'error' ||
+      !message.data ||
+      typeof message.data !== 'object'
+    ) {
+      return false;
+    }
+    if ('requestId' in message.data && message.data.requestId) {
+      return false;
+    }
+    const text = message.data.message;
+    if (typeof text !== 'string' || text.length === 0) {
+      return false;
+    }
+
+    let rejected = false;
+    for (const [requestId, request] of this.#pendingRequests) {
+      if (
+        !request.channels?.some((channel) =>
+          errorMentionsChannel(channel, text),
+        )
+      ) {
+        continue;
+      }
+      clearTimeout(request.timeout);
+      this.#pendingRequests.delete(requestId);
+      request.reject(new Error(text));
+      rejected = true;
+    }
+    return rejected;
+  }
+
+  /**
    * Clears all active subscriptions
    */
   #clearSubscriptions(): void {
@@ -1497,4 +1617,68 @@ export class BackendWebSocketService {
       );
     }
   }
+}
+
+/**
+ * String entries of a subscribe response list.
+ *
+ * @param value - `succeeded` or `failed` from a subscribe response.
+ * @returns The string entries. An absent list is empty.
+ */
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+/**
+ * Channel names from a subscribe request, when the payload has them.
+ *
+ * @param data - Request data.
+ * @returns Channel names, or undefined when this request is not a subscribe.
+ */
+function subscribeChannels(data: unknown): string[] | undefined {
+  if (!data || typeof data !== 'object' || !('channels' in data)) {
+    return undefined;
+  }
+  const { channels } = data as { channels?: unknown };
+  if (!Array.isArray(channels)) {
+    return undefined;
+  }
+  const names = channels.filter(
+    (channel): channel is string => typeof channel === 'string',
+  );
+  return names.length > 0 ? names : undefined;
+}
+
+/**
+ * True when a gateway `error` message is about this market-stats channel.
+ * Those errors name the chain id and do not include the request id.
+ *
+ * @param channel - Fully-qualified channel from the in-flight subscribe.
+ * @param message - `data.message` from the error event.
+ * @returns Whether the error is about this channel.
+ */
+function errorMentionsChannel(channel: string, message: string): boolean {
+  if (message.includes(channel)) {
+    return true;
+  }
+  const prefix = 'market-stats.v1.';
+  if (!channel.startsWith(prefix)) {
+    return false;
+  }
+  const rest = channel.slice(prefix.length);
+  const slash = rest.indexOf('/');
+  if (slash <= 0) {
+    return false;
+  }
+  const chainId = rest.slice(0, slash);
+  const needle = `unsupported chainId: ${chainId}`;
+  const index = message.indexOf(needle);
+  if (index === -1) {
+    return false;
+  }
+  const next = message.charAt(index + needle.length);
+  return next === '' || next === ' ' || next === '(' || next === ',';
 }

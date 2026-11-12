@@ -657,6 +657,7 @@ describe('wallet-balance selectors', () => {
     return {
       assetPriceType: 'fungible',
       price,
+      usdPrice: price,
       pricePercentChange1d,
       lastUpdated: 0,
     };

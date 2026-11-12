@@ -398,19 +398,16 @@ describe('CustomAssetGraduationMiddleware', () => {
     const { middleware, removeCustomAsset } = setup({
       [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
     });
-    const context = createContext(
-      {
-        request: createDataRequest({ dataTypes: ['metadata'] }),
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [EVM_CUSTOM_ASSET]: { amount: '1000' },
-            },
+    const context = createContext({
+      request: createDataRequest({ dataTypes: ['metadata'] }),
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [EVM_CUSTOM_ASSET]: { amount: '1000' },
           },
         },
       },
-      { [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET] },
-    );
+    });
     const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
@@ -481,19 +478,16 @@ describe('CustomAssetGraduationMiddleware', () => {
     const { middleware, removeCustomAsset } = setup({
       [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
     });
-    const context = createContext(
-      {
-        request: createDataRequest({ dataTypes: ['balance', 'metadata'] }),
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [EVM_CUSTOM_ASSET]: { amount: '1000' },
-            },
+    const context = createContext({
+      request: createDataRequest({ dataTypes: ['balance', 'metadata'] }),
+      response: {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [EVM_CUSTOM_ASSET]: { amount: '1000' },
           },
         },
       },
-      { [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET] },
-    );
+    });
     const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);

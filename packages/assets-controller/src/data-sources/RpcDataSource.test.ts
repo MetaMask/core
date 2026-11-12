@@ -1782,7 +1782,6 @@ describe('RpcDataSource', () => {
         const context: Context = {
           request: createDataRequest({ chainIds: ['eip155:999'] }),
           response: {},
-          getAssetsState: vi.fn(),
         };
         const next = vi
           .fn()
@@ -1797,7 +1796,6 @@ describe('RpcDataSource', () => {
         const context: Context = {
           request: createDataRequest(),
           response: { assetsBalance: {}, assetsInfo: {} },
-          getAssetsState: vi.fn(),
         };
         const next = vi
           .fn()
@@ -1813,7 +1811,6 @@ describe('RpcDataSource', () => {
         const context: Context = {
           request: createDataRequest(),
           response: {},
-          getAssetsState: vi.fn(),
         };
         const next = vi
           .fn()
@@ -1834,7 +1831,6 @@ describe('RpcDataSource', () => {
         const context: Context = {
           request: createDataRequest(),
           response: { assetsInfo: {} },
-          getAssetsState: vi.fn(),
         };
         const next = vi
           .fn()
@@ -1859,7 +1855,6 @@ describe('RpcDataSource', () => {
         const context: Context = {
           request: createDataRequest(),
           response: {},
-          getAssetsState: vi.fn(),
         };
         const next = vi
           .fn()
@@ -1880,7 +1875,6 @@ describe('RpcDataSource', () => {
         const context: Context = {
           request: createDataRequest(),
           response: {},
-          getAssetsState: vi.fn(),
         };
         const next = vi
           .fn()
@@ -1901,7 +1895,6 @@ describe('RpcDataSource', () => {
         const context: Context = {
           request: createDataRequest(),
           response: {},
-          getAssetsState: vi.fn(),
         };
         const next = vi
           .fn()
@@ -1921,7 +1914,6 @@ describe('RpcDataSource', () => {
           const context: Context = {
             request: createDataRequest(),
             response: {},
-            getAssetsState: vi.fn(),
           };
           const next = vi
             .fn()

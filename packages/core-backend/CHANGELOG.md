@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MarketStatsService` for real-time spot prices over the shared backend WebSocket. `subscribe` and `unsubscribe` take one `{ assetId, currency }` or a list. `getSubscriptions` returns the open channels and `getChainStatuses` returns chain health. Price batches are published as `MarketStatsService:pricesUpdated` and chain health as `MarketStatsService:chainStatusChanged` ([#11193](https://github.com/MetaMask/core/pull/11193))
+- Export `wssSupport` on `V3SpotPricesResponse` ([#11193](https://github.com/MetaMask/core/pull/11193))
+
 ### Changed
 
+- `BackendWebSocketService.subscribe` skips channels the socket already has. When the gateway rejects some channels in a list, the result lists them in `failedChannels` and the accepted channels stay open ([#11193](https://github.com/MetaMask/core/pull/11193))
+- An `error` event with no request id rejects only the in-flight subscribe whose channels it names. Other subscribes and the socket are unaffected ([#11193](https://github.com/MetaMask/core/pull/11193))
+- `getV3SpotPricesQueryOptions` requests `wssSupport` by default. Pass `includeWssSupportField: false` to omit it ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))

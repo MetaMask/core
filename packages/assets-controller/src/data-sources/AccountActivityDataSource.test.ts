@@ -337,7 +337,7 @@ describe('AccountActivityDataSource', () => {
       };
       const account = createMockAccount({
         address: STELLAR_ADDRESS,
-        type: 'stellar:ss58',
+        type: 'stellar:account',
         scopes: [STELLAR_CHAIN],
       });
       const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({

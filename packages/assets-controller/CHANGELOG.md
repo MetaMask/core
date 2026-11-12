@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MarketStatsStore`, a UI cache of live quotes from `MarketStatsService:pricesUpdated`. It keeps one currency, keyed by CAIP-19 asset id, and is not `AssetsController` state ([#11193](https://github.com/MetaMask/core/pull/11193))
+- Poll `/v3/spot-prices` as before, and stream prices over `market-stats.v1` for tracked assets that report `wssSupport`. Assets without streaming support keep polling into `assetsPrice`. Without a registered `MarketStatsService`, every asset stays on the poll ([#11193](https://github.com/MetaMask/core/pull/11193))
+
 ### Changed
 
+- **BREAKING:** `AssetsControllerMessenger` now includes `MarketStatsService:subscribe`, `unsubscribe`, `getSubscriptions`, `getChainStatuses`, and `chainStatusChanged`. Delegate them from the root messenger ([#11193](https://github.com/MetaMask/core/pull/11193))
+- **BREAKING:** `PriceDataSource` requires `messenger` ([#11193](https://github.com/MetaMask/core/pull/11193))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Removed
+
+- **BREAKING:** Remove `AssetsController:priceChanged`. Socket prices are not written to `assetsPrice`. Read them from `MarketStatsStore`, or subscribe to `MarketStatsService:pricesUpdated` ([#11193](https://github.com/MetaMask/core/pull/11193))
 
 ## [20.4.1]
 

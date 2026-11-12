@@ -20,8 +20,11 @@ describe('buildNativeAssetsFromConstant', () => {
   it('includes a normalized entry for every NATIVE_ASSETS chain', () => {
     const result = buildNativeAssetsFromConstant();
 
-    for (const [chainId, assetId] of Object.entries(NATIVE_ASSETS)) {
-      expect(result[chainId]).toBe(normalizeAssetId(assetId));
+    for (const chainId of Object.keys(NATIVE_ASSETS)) {
+      const assetId = NATIVE_ASSETS[chainId as keyof typeof NATIVE_ASSETS];
+      expect(result[chainId as keyof typeof result]).toBe(
+        normalizeAssetId(assetId),
+      );
     }
 
     expect(result['bip122:000000000019d6689c085ae165831e93']).toBe(

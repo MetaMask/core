@@ -18,7 +18,10 @@ import type {
 } from '../types.js';
 import { safeNormalizeAssetId } from '../utils/index.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
-import type { DataSourceState } from './AbstractDataSource.js';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource.js';
 
 // ============================================================================
 // CONSTANTS
@@ -236,8 +239,10 @@ export class AccountActivityDataSource extends AbstractDataSource<
    * (see `#onBalanceUpdated`), and updates are pushed through the injected
    * `#onAssetsUpdate` callback. This override exists only to satisfy the
    * abstract contract and is intentionally a no-op.
+   *
+   * @param _request - Ignored. Account activity does not subscribe per request.
    */
-  async subscribe(): Promise<void> {
+  async subscribe(_request?: SubscriptionRequest): Promise<void> {
     // Intentionally empty — see method doc.
   }
 

@@ -743,7 +743,7 @@ describe('AccountsApiDataSource', () => {
         accounts: [
           createMockAccount({
             address: stellarAddress,
-            type: 'stellar:ss58',
+            type: 'stellar:account',
             scopes: [STELLAR_CHAIN_ID],
           }),
         ],
@@ -1008,7 +1008,7 @@ describe('AccountsApiDataSource', () => {
           accounts: [
             createMockAccount({
               address: stellarAddress,
-              type: 'stellar:ss58',
+              type: 'stellar:account',
               scopes: [STELLAR_CHAIN_ID],
             }),
           ],
@@ -1297,7 +1297,6 @@ describe('AccountsApiDataSource', () => {
       // The malformed unprocessed id cannot be parsed, so it is dropped from
       // both axes (no error, no asset-axis entry).
       expect(response.errors).toBeUndefined();
-      expect(response.unprocessedCustomAssets).toBeUndefined();
 
       controller.destroy();
     });

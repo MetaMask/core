@@ -110,6 +110,11 @@ export function createMockAssetsControllerMessenger(
       'AuthenticatedUserStorageService:setUserAssets',
       'AuthenticatedUserStorageService:importTokens',
       'AuthenticatedUserStorageService:hideTokens',
+      // PriceDataSource market-stats stream
+      'MarketStatsService:subscribe',
+      'MarketStatsService:unsubscribe',
+      'MarketStatsService:getSubscriptions',
+      'MarketStatsService:getChainStatuses',
     ],
 
     events: [
@@ -139,6 +144,8 @@ export function createMockAssetsControllerMessenger(
       'AccountActivityService:statusChanged',
       // AccountsApiDataSource
       'RemoteFeatureFlagController:stateChange',
+      // PriceDataSource market-stats stream
+      'MarketStatsService:chainStatusChanged',
     ],
   });
 

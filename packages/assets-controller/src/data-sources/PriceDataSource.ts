@@ -25,6 +25,15 @@ import {
 import { fetchWithTimeout } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
+import type {
+  MarketStatsPriceStreamMessenger,
+  StreamCandidate,
+} from './MarketStatsPriceStream.js';
+import {
+  MarketStatsPriceStream,
+  chainIdFromAssetId,
+  readSpotPriceStreamEligibility,
+} from './MarketStatsPriceStream.js';
 
 // ============================================================================
 // CONSTANTS
@@ -101,6 +110,8 @@ export type PriceDataSourceConfig = {
   priceFreshnessTtlMs?: number;
 };
 
+export type { MarketStatsPriceStreamMessenger } from './MarketStatsPriceStream.js';
+
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
@@ -108,6 +119,12 @@ export type PriceDataSourceOptions = PriceDataSourceConfig & {
   getSelectedCurrency: () => SupportedCurrency;
   /** Current AssetsController state. Used for balance-based pricing and freshness checks. */
   getAssetsState: () => AssetsControllerState;
+  /**
+   * Messenger that can call MarketStatsService. When the service is registered,
+   * assets with `wssSupport` stream and the rest keep polling. When it is not
+   * registered, every asset stays on the poll.
+   */
+  messenger: MarketStatsPriceStreamMessenger;
 };
 
 // ============================================================================
@@ -151,8 +168,15 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
  * - Fetches prices from Price API v3 spot-prices endpoint
  * - Supports one-time fetch and subscription-based polling
  * - In subscribe mode, uses constructor `getAssetsState` to read assetsBalance and fetch prices
+ * - Streams the same assets the price poll tracks, when the spot-price
+ *   response marks them `wssSupport: true`, on market-stats.v1. Socket ticks
+ *   are not written into controller state. The UI reads
+ *   `MarketStatsService:pricesUpdated`. The poll still writes `assetsPrice`
+ *   for tracked assets that are not streaming. A price for an asset this
+ *   controller does not track is a `MarketStatsService` subscription, not a
+ *   call into this data source.
  *
- * Usage: Create with queryApiClient and getAssetsState; subscribe() polls prices for held assets.
+ * Usage: Create with queryApiClient, messenger, and getAssetsState; subscribe() polls prices for held assets.
  */
 export class PriceDataSource {
   static readonly controllerName = CONTROLLER_NAME;
@@ -180,6 +204,14 @@ export class PriceDataSource {
 
   readonly #getAssetsState: () => AssetsControllerState;
 
+  readonly #marketStats: MarketStatsPriceStream;
+
+  /** Poll interval of the active subscription, used to size chain-down jitter. */
+  #effectivePollInterval: number;
+
+  /** Delays the next poll after a chain goes down or comes back. */
+  #fallbackTimer?: ReturnType<typeof setTimeout>;
+
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
@@ -196,6 +228,21 @@ export class PriceDataSource {
     this.#apiClient = options.queryApiClient;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#getAssetsState = options.getAssetsState;
+    this.#effectivePollInterval = this.#pollInterval;
+    this.#marketStats = new MarketStatsPriceStream({
+      messenger: options.messenger,
+      getSelectedCurrency: (): SupportedCurrency => this.#getSelectedCurrency(),
+      getPollIntervalMs: (): number => this.#effectivePollInterval,
+      requestPoll: (
+        delayMs: number,
+        details: { chainIds: string[]; status: 'up' | 'down' },
+      ): void => {
+        if (details.status === 'down') {
+          this.#invalidateChains(details.chainIds);
+        }
+        this.#scheduleStreamPoll(delayMs);
+      },
+    });
     this.#deduper = new DedupingBatchFetcher({
       fetchBatch: (
         assetIds,
@@ -297,6 +344,7 @@ export class PriceDataSource {
           this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
             currency: selectedCurrency,
             includeMarketData: true,
+            includeWssSupportField: true,
           }),
         this.#fetchTimeoutMs,
       );
@@ -309,6 +357,7 @@ export class PriceDataSource {
           this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
             currency: selectedCurrency,
             includeMarketData: true,
+            includeWssSupportField: true,
           }),
         this.#fetchTimeoutMs,
       ),
@@ -317,6 +366,7 @@ export class PriceDataSource {
           this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
             currency: 'usd',
             includeMarketData: true,
+            includeWssSupportField: true,
           }),
         this.#fetchTimeoutMs,
       ),
@@ -488,18 +538,27 @@ export class PriceDataSource {
    * @returns DataResponse containing asset prices.
    */
   async fetch(request: DataRequest): Promise<DataResponse> {
-    const response: DataResponse = {};
-
     const assetIds = await this.#filterToSupportedPriceableAssets(
       this.#getAssetIdsFromBalanceState(request),
     );
+    return this.#fetchAssetIdList(assetIds);
+  }
+
+  /**
+   * Fetch spot prices for an explicit id list. Empty when there is nothing to
+   * price or the Price API call fails.
+   *
+   * @param assetIds - CAIP-19 asset IDs already filtered to priceable assets.
+   * @returns DataResponse containing asset prices.
+   */
+  async #fetchAssetIdList(assetIds: Caip19AssetId[]): Promise<DataResponse> {
+    const response: DataResponse = {};
     if (assetIds.length === 0) {
       return response;
     }
 
     try {
       const spotPrices = await this.#fetchSpotPrices(assetIds);
-
       response.assetsPrice = {
         ...(response.assetsPrice ?? {}),
         ...spotPrices,
@@ -517,7 +576,7 @@ export class PriceDataSource {
 
   /**
    * Subscribe to price updates.
-   * Sets up polling that fetches prices for all assets in assetsBalance state.
+   * Polls the Price API, and streams assets that support market-stats.v1.
    *
    * @param subscriptionRequest - The subscription request configuration.
    */
@@ -544,6 +603,7 @@ export class PriceDataSource {
               updateMode: 'merge',
             });
           }
+          await this.#reconcileMarketStats();
         } catch (error) {
           log('Subscription update fetch failed', { subscriptionId, error });
         }
@@ -555,6 +615,7 @@ export class PriceDataSource {
     await this.unsubscribe(subscriptionId);
 
     const pollInterval = request.updateInterval ?? this.#pollInterval;
+    this.#effectivePollInterval = pollInterval;
 
     // Cap the freshness TTL strictly below the effective poll interval.
     // `fetchedAt` is stamped when a fetch completes (slightly after the tick
@@ -566,41 +627,11 @@ export class PriceDataSource {
       Math.floor(pollInterval * FRESHNESS_TTL_POLL_RATIO),
     );
 
-    // Create poll function - fetches prices using constructor getAssetsState.
-    // The freshness TTL naturally gates re-fetches: assets fetched less than
-    // `priceFreshnessTtlMs` ago are skipped, preventing duplicates when middleware
-    // or other triggers already fetched the same assets between polls.
-    // Concurrent middleware calls will join the inflight promise rather than
-    // issuing duplicate requests.
-    const pollFn = async (): Promise<void> => {
-      try {
-        const subscription = this.#activeSubscriptions.get(subscriptionId);
-        if (!subscription) {
-          return;
-        }
-
-        const fetchResponse = await this.fetch(subscription.request);
-
-        // Only report if we got prices
-        if (
-          fetchResponse.assetsPrice &&
-          Object.keys(fetchResponse.assetsPrice).length > 0
-        ) {
-          await subscription.onAssetsUpdate({
-            ...fetchResponse,
-            // merge overwrites existing spot prices on each poll; update would
-            // seed-only and leave the first price forever.
-            updateMode: 'merge',
-          });
-        }
-      } catch (error) {
-        log('Subscription poll failed', { subscriptionId, error });
-      }
-    };
-
-    // Set up polling
+    // Each tick skips assets `getSubscriptions` already has open on a healthy chain.
     const timer = setInterval(() => {
-      pollFn().catch(console.error);
+      this.#runPoll(subscriptionId).catch((error: unknown) => {
+        log('Subscription poll failed', { subscriptionId, error });
+      });
     }, pollInterval);
 
     // Store subscription
@@ -613,7 +644,7 @@ export class PriceDataSource {
     });
 
     // Initial fetch
-    await pollFn();
+    await this.#runPoll(subscriptionId);
   }
 
   /**
@@ -623,10 +654,49 @@ export class PriceDataSource {
    */
   async unsubscribe(subscriptionId: string): Promise<void> {
     const subscription = this.#activeSubscriptions.get(subscriptionId);
-    if (subscription) {
-      subscription.cleanup();
-      this.#activeSubscriptions.delete(subscriptionId);
+    if (!subscription) {
+      return;
     }
+
+    subscription.cleanup();
+    this.#activeSubscriptions.delete(subscriptionId);
+
+    if (this.#activeSubscriptions.size === 0) {
+      this.#clearFallbackTimer();
+      await this.#marketStats.releaseSubscriptions();
+      return;
+    }
+
+    await this.#reconcileMarketStats();
+  }
+
+  /**
+   * Drop market-stats channels and open them again for the current currency.
+   * Called when the selected currency changes so batches match `assetsPrice`.
+   */
+  async resubscribeForCurrencyChange(): Promise<void> {
+    if (this.#activeSubscriptions.size === 0) {
+      return;
+    }
+
+    await this.#marketStats.releaseSubscriptions();
+    await this.#reconcileMarketStats();
+  }
+
+  /**
+   * Align market-stats channels with the price-fetch set and the `wssSupport`
+   * already stored in `assetsPrice`.
+   *
+   * The poll calls this after it writes the spot-price response. A balance
+   * update does not. Stored flags can be from an earlier response, and
+   * subscribing from them opens channels the latest response marks
+   * `wssSupport: false`. A new balance waits for the next poll.
+   */
+  async reconcileMarketStreams(): Promise<void> {
+    if (this.#activeSubscriptions.size === 0) {
+      return;
+    }
+    await this.#reconcileMarketStats();
   }
 
   /**
@@ -646,6 +716,106 @@ export class PriceDataSource {
       subscription.cleanup();
     }
     this.#activeSubscriptions.clear();
+    this.#clearFallbackTimer();
+    this.#marketStats.destroy();
     this.#deduper.destroy();
+  }
+
+  /**
+   * One poll tick: REST-fetch assets that are not streaming, then align the
+   * market-stats subscription with what the latest spot response can stream.
+   *
+   * @param subscriptionId - Active subscription to poll.
+   */
+  async #runPoll(subscriptionId: string): Promise<void> {
+    const subscription = this.#activeSubscriptions.get(subscriptionId);
+    if (!subscription) {
+      return;
+    }
+
+    try {
+      const assetIds = await this.#filterToSupportedPriceableAssets(
+        this.#getAssetIdsFromBalanceState(subscription.request),
+      );
+      const now = Date.now();
+      const [subscribed, downChains] = await Promise.all([
+        this.#marketStats.subscribedAssetIds(),
+        this.#marketStats.downChainIds(),
+      ]);
+      const idsToFetch = assetIds.filter((assetId) =>
+        this.#marketStats.shouldPoll(assetId, now, subscribed, downChains),
+      );
+
+      const fetchResponse = await this.#fetchAssetIdList(idsToFetch);
+      if (
+        fetchResponse.assetsPrice &&
+        Object.keys(fetchResponse.assetsPrice).length > 0
+      ) {
+        await subscription.onAssetsUpdate({
+          ...fetchResponse,
+          updateMode: 'merge',
+        });
+      }
+
+      await this.#reconcileMarketStats();
+    } catch (error) {
+      log('Subscription poll failed', { subscriptionId, error });
+    }
+  }
+
+  async #reconcileMarketStats(): Promise<void> {
+    const assetIds = new Set<Caip19AssetId>();
+    for (const subscription of this.#activeSubscriptions.values()) {
+      const ids = await this.#filterToSupportedPriceableAssets(
+        this.#getAssetIdsFromBalanceState(subscription.request),
+      );
+      for (const assetId of ids) {
+        assetIds.add(assetId);
+      }
+    }
+
+    await this.#marketStats.reconcile(this.#candidatesFor([...assetIds]));
+  }
+
+  #candidatesFor(assetIds: Caip19AssetId[]): StreamCandidate[] {
+    const prices = this.#getAssetsState().assetsPrice ?? {};
+    return assetIds.map((assetId) => ({
+      assetId,
+      wssSupport:
+        prices[assetId] !== undefined &&
+        readSpotPriceStreamEligibility(prices[assetId]),
+    }));
+  }
+
+  #invalidateChains(chainIds: string[]): void {
+    const chains = new Set(chainIds);
+    const assetIds = Object.keys(
+      this.#getAssetsState().assetsPrice ?? {},
+    ).filter((assetId) => {
+      const chainId = chainIdFromAssetId(assetId);
+      return chainId !== undefined && chains.has(chainId);
+    }) as Caip19AssetId[];
+    if (assetIds.length > 0) {
+      this.#deduper.invalidateKeys(assetIds);
+    }
+  }
+
+  #scheduleStreamPoll(delayMs: number): void {
+    this.#clearFallbackTimer();
+    this.#fallbackTimer = setTimeout(() => {
+      this.#fallbackTimer = undefined;
+      for (const subscriptionId of this.#activeSubscriptions.keys()) {
+        this.#runPoll(subscriptionId).catch((error: unknown) => {
+          log('Market stats fallback poll failed', { subscriptionId, error });
+        });
+      }
+    }, delayMs);
+  }
+
+  #clearFallbackTimer(): void {
+    if (this.#fallbackTimer) {
+      clearTimeout(this.#fallbackTimer);
+      this.#fallbackTimer = undefined;
+    }
   }
 }

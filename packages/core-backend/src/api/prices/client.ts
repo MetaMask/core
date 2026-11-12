@@ -641,6 +641,7 @@ export class PricesApiClient extends BaseApiClient {
    * @param queryOptions - Query options.
    * @param queryOptions.currency - The currency for prices.
    * @param queryOptions.includeMarketData - Whether to include market data.
+   * @param queryOptions.includeWssSupportField - Whether to ask for `wssSupport`. Defaults to true. The Price API omits that field otherwise.
    * @param queryOptions.cacheOnly - Whether to use cache only.
    * @param options - Fetch options including cache settings.
    * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
@@ -650,12 +651,14 @@ export class PricesApiClient extends BaseApiClient {
     queryOptions?: {
       currency?: SupportedCurrency;
       includeMarketData?: boolean;
+      includeWssSupportField?: boolean;
       cacheOnly?: boolean;
     },
     options?: FetchOptions,
   ): FetchQueryOptions<V3SpotPricesResponse> {
     const currency = queryOptions?.currency ?? 'usd';
     const includeMarketData = queryOptions?.includeMarketData ?? true;
+    const includeWssSupportField = queryOptions?.includeWssSupportField ?? true;
     const cacheOnly = queryOptions?.cacheOnly ?? false;
     return {
       queryKey: [
@@ -665,6 +668,7 @@ export class PricesApiClient extends BaseApiClient {
           assetIds: [...assetIds].sort(),
           currency,
           includeMarketData,
+          includeWssSupportField,
           cacheOnly,
         },
       ],
@@ -683,6 +687,9 @@ export class PricesApiClient extends BaseApiClient {
               assetIds,
               vsCurrency: currency,
               includeMarketData,
+              // The Price API omits `wssSupport` unless this is set. Without it
+              // every asset stays on the poll and no market-stats channel opens.
+              includeWssSupportField,
               cacheOnly,
             },
           },
@@ -701,6 +708,7 @@ export class PricesApiClient extends BaseApiClient {
    * @param queryOptions - Query options.
    * @param queryOptions.currency - The currency for prices.
    * @param queryOptions.includeMarketData - Whether to include market data.
+   * @param queryOptions.includeWssSupportField - Whether to ask for `wssSupport`. Defaults to true.
    * @param queryOptions.cacheOnly - Whether to use cache only.
    * @param options - Fetch options including cache settings.
    * @returns The spot prices response.
@@ -710,6 +718,7 @@ export class PricesApiClient extends BaseApiClient {
     queryOptions?: {
       currency?: SupportedCurrency;
       includeMarketData?: boolean;
+      includeWssSupportField?: boolean;
       cacheOnly?: boolean;
     },
     options?: FetchOptions,

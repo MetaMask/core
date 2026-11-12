@@ -294,24 +294,11 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
 
         expect(mocks.connect).toHaveBeenCalledTimes(1);
-        expect(mocks.channelHasSubscription).toHaveBeenCalledWith(
-          EXPECTED_CHANNEL,
-        );
         expect(mocks.subscribe).toHaveBeenCalledWith({
           channels: [EXPECTED_CHANNEL],
           channelType: 'ohlcv.v1',
           callback: expect.any(Function),
         });
-      });
-    });
-
-    it('should skip WS subscribe if the channel already has a subscription', async () => {
-      await withService(async ({ service, mocks }) => {
-        mocks.channelHasSubscription.mockReturnValue(true);
-
-        await service.subscribe(SUB_OPTS);
-
-        expect(mocks.subscribe).not.toHaveBeenCalled();
       });
     });
 
@@ -459,15 +446,10 @@ describe('OHLCVService', () => {
         // WS subscription still exists (no disconnect happened)
         mocks.channelHasSubscription.mockReturnValue(true);
 
-        // Re-subscribe during grace period
+        // Re-subscribe during grace period. The socket drops a channel it
+        // already tracks, so this subscribe does not open a second record.
         vi.advanceTimersByTime(1000);
-        mocks.subscribe.mockClear();
-        mocks.connect.mockClear();
         await service.subscribe(SUB_OPTS);
-
-        // Should NOT have called connect/subscribe again — subscription is still alive
-        expect(mocks.connect).not.toHaveBeenCalled();
-        expect(mocks.subscribe).not.toHaveBeenCalled();
 
         // Advance past original grace period — should NOT unsubscribe
         vi.advanceTimersByTime(5000);
@@ -517,8 +499,6 @@ describe('OHLCVService', () => {
           EXPECTED_CHANNEL,
         );
         expect(mockUnsub1h).not.toHaveBeenCalled();
-        expect(mocks.connect).not.toHaveBeenCalled();
-        expect(mocks.subscribe).not.toHaveBeenCalled();
       });
     });
 
@@ -953,7 +933,7 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should skip resubscribe if channel already has a subscription after reconnect', async () => {
+    it('skips resubscribe if the channel is already open after reconnect', async () => {
       await withService(async ({ service, mocks, rootMessenger }) => {
         await service.subscribe(SUB_OPTS);
         mocks.subscribe.mockClear();
@@ -1328,12 +1308,7 @@ describe('OHLCVService', () => {
         vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
-        mocks.subscribe.mockClear();
-        mocks.connect.mockClear();
         await service.subscribe(SUB_OPTS);
-
-        expect(mocks.connect).not.toHaveBeenCalled();
-        expect(mocks.subscribe).not.toHaveBeenCalled();
 
         vi.advanceTimersByTime(7000);
         await completeAsyncOperations();
@@ -1377,15 +1352,11 @@ describe('OHLCVService', () => {
         mocks.getSubscriptionsByChannel.mockClear();
         mockUnsub1h.mockClear();
         mocks.channelHasSubscription.mockReturnValue(true);
-        mocks.connect.mockClear();
-        mocks.subscribe.mockClear();
 
         await service.subscribe(SUB_OPTS);
 
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(channel1h);
         expect(mockUnsub1h).toHaveBeenCalledTimes(1);
-        expect(mocks.connect).not.toHaveBeenCalled();
-        expect(mocks.subscribe).not.toHaveBeenCalled();
       });
     });
 

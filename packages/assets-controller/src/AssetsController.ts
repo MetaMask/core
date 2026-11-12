@@ -29,6 +29,8 @@ import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
+  MarketStatsServiceActions,
+  MarketStatsServiceChainStatusChangedEvent,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
@@ -314,15 +316,9 @@ export type AssetsControllerBalanceChangedEvent = {
   ];
 };
 
-export type AssetsControllerPriceChangedEvent = {
-  type: `${typeof CONTROLLER_NAME}:priceChanged`;
-  payload: [{ prices: Record<Caip19AssetId, AssetPrice> }];
-};
-
 export type AssetsControllerEvents =
   | AssetsControllerStateChangeEvent
-  | AssetsControllerBalanceChangedEvent
-  | AssetsControllerPriceChangedEvent;
+  | AssetsControllerBalanceChangedEvent;
 
 type AllowedActions =
   // AssetsController
@@ -350,7 +346,9 @@ type AllowedActions =
   | AuthenticatedUserStorageServiceGetUserAssetsAction
   | AuthenticatedUserStorageServiceSetUserAssetsAction
   | AuthenticatedUserStorageServiceImportTokensAction
-  | AuthenticatedUserStorageServiceHideTokensAction;
+  | AuthenticatedUserStorageServiceHideTokensAction
+  // PriceDataSource market-stats stream. Absent at runtime, prices stay on the poll.
+  | MarketStatsServiceActions;
 
 type AllowedEvents =
   // AssetsController — account tree lifecycle and group switches
@@ -384,7 +382,10 @@ type AllowedEvents =
   | AccountActivityServiceStatusChangedEvent
   // AccountsApiDataSource subscribes to react to Snaps → AssetsController
   // migration flag changes (which gate the chains it surfaces as active)
-  | RemoteFeatureFlagControllerStateChangeEvent;
+  | RemoteFeatureFlagControllerStateChangeEvent
+  // PriceDataSource market-stats stream. Price ticks are not consumed here.
+  // The UI subscribes to MarketStatsService:pricesUpdated on the root messenger.
+  | MarketStatsServiceChainStatusChangedEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -1056,6 +1057,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      messenger: this.messenger,
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       getAssetsState: (): AssetsControllerState => this.state,
       ...priceDataSourceConfig,
@@ -2099,8 +2101,8 @@ export class AssetsController extends BaseController<
    * `fiatValue`) for an account directly from controller state.
    *
    * Reuses the same state-composition and filtering logic as `getAssets`
-   * (balance and metadata are required, a missing price falls back to
-   * `{ price: 0, lastUpdated: 0 }` with `fiatValue: 0`, and hidden or
+   * (balance and metadata are required, a missing price falls back to a
+   * fungible price of `0` with `fiatValue: 0`, and hidden or
    * otherwise filtered assets are excluded) so the returned shape never
    * drifts from `getAssets`. Reads from current state only and does not
    * trigger a data-source refresh.
@@ -2604,6 +2606,9 @@ export class AssetsController extends BaseController<
 
     // Currency changed — old cached prices are in the wrong currency.
     this.#priceDataSource.invalidatePriceCache();
+    this.#priceDataSource.resubscribeForCurrencyChange().catch((error) => {
+      log('Failed to resubscribe market stats after currency change', error);
+    });
 
     this.syncAssetsPrices(
       Object.values(this.state.assetsBalance).flatMap(
@@ -3312,22 +3317,6 @@ export class AssetsController extends BaseController<
           newAmount: change.newAmount,
         });
       }
-
-      // Publish price changed event with full price data
-      if (changedPriceAssets.length > 0 && normalizedResponse.assetsPrice) {
-        // Build prices object with only changed prices
-        const changedPrices: Record<Caip19AssetId, AssetPrice> = {};
-        for (const assetId of changedPriceAssets) {
-          const price =
-            normalizedResponse.assetsPrice[assetId as Caip19AssetId];
-          if (price) {
-            changedPrices[assetId as Caip19AssetId] = price;
-          }
-        }
-        this.messenger.publish('AssetsController:priceChanged', {
-          prices: changedPrices,
-        });
-      }
     } finally {
       releaseLock();
     }
@@ -3430,7 +3419,9 @@ export class AssetsController extends BaseController<
 
     const priceRaw = this.state.assetsPrice[assetId];
     const price: AssetPrice = priceRaw ?? {
+      assetPriceType: 'fungible',
       price: 0,
+      usdPrice: 0,
       lastUpdated: 0,
     };
 
@@ -4272,9 +4263,9 @@ export class AssetsController extends BaseController<
 
     if (this.#isBalanceV6Enabled()) {
       await this.#handleAssetsUpdateV6(response, sourceId, request);
-      return;
+    } else {
+      await this.#handleAssetsUpdateV5(response, sourceId, request);
     }
-    await this.#handleAssetsUpdateV5(response, sourceId, request);
   }
 
   async #handleAssetsUpdateV5(

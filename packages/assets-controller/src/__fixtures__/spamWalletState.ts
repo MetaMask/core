@@ -358,7 +358,7 @@ export function buildManyTokensState(count: number): {
     const address = getChecksumAddress(
       `0x${(index + 1).toString(16).padStart(40, '0')}`,
     );
-    return `eip155:10/erc20:${address}`;
+    return `eip155:10/erc20:${address}` as Caip19AssetId;
   });
 
   return {

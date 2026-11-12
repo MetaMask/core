@@ -15,6 +15,11 @@ export type V3SpotPricesResponse = Record<
     pricePercentChange1d?: number;
     marketCap?: number;
     totalVolume?: number;
+    /**
+     * True when this asset can be streamed on `market-stats.v1`.
+     * Absent or false means the client keeps polling `/v3/spot-prices`.
+     */
+    wssSupport?: boolean;
   } | null
 >;
 

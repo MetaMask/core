@@ -1,13 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AssetsDataSource, ChainId } from '../types.js';
-import type { Context, DataResponse } from '../types.js';
+import type {
+  AssetsDataSource,
+  Caip19AssetId,
+  ChainId,
+  Context,
+  DataResponse,
+} from '../types.js';
 import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
 } from './ParallelMiddleware.js';
 
-const MOCK_ASSET = 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+const MOCK_ASSET =
+  'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 
 function createMockContext(overrides?: Partial<Context>): Context {
   return {
@@ -157,7 +163,9 @@ describe('createParallelMiddleware', () => {
       const priceSource = createMockSource('PriceSource', {
         assetsPrice: {
           [MOCK_ASSET]: {
+            assetPriceType: 'fungible',
             price: 1.0,
+            usdPrice: 1.0,
             lastUpdated: Date.now(),
           },
         },
@@ -194,7 +202,7 @@ describe('createParallelMiddleware', () => {
       const context = createMockContext({
         response: {
           assetsBalance: {
-            'account-1': { [MOCK_ASSET]: { balance: '100' as `${number}` } },
+            'account-1': { [MOCK_ASSET]: { amount: '100' } },
           },
         },
       });
@@ -224,7 +232,9 @@ describe('createParallelMiddleware', () => {
       const priceSource = createMockSource('PriceDataSource', {
         assetsPrice: {
           [MOCK_ASSET]: {
+            assetPriceType: 'fungible',
             price: 1.0,
+            usdPrice: 1.0,
             lastUpdated: Date.now(),
           },
         },
