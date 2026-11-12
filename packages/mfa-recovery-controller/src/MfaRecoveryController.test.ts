@@ -256,6 +256,26 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('drops the lock ID on release when another operation holds the lease', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        await controller.acquireLock();
+        const release = vi.spyOn(lockProvider, 'release');
+        release.mockRejectedValueOnce(
+          new MfaRecoveryError('Unavailable', 'recovery_lock_unavailable'),
+        );
+        await expect(controller.releaseLock()).rejects.toMatchObject({
+          code: 'recovery_lock_unavailable',
+        });
+        expect(controller.state.lockId).toStrictEqual(expect.any(String));
+
+        release.mockRejectedValueOnce(
+          new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict'),
+        );
+        await controller.releaseLock();
+        expect(controller.state.lockId).toBeNull();
+      });
+    });
+
     it('reuses the persisted lock ID and releases it', async () => {
       await withController(async ({ controller, lockProvider }) => {
         await controller.acquireLock();
