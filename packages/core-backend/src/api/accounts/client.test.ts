@@ -465,6 +465,126 @@ describe('AccountsApiClient', () => {
       );
     });
 
+    it('fetches a v5 transaction by id', async () => {
+      const accountId =
+        'eip155:137:0xcc765934f460bf4ba43244a36f7561cbf618daca' as const;
+      const txId =
+        '0xe4c664be6a9518384cd9de7c4ed75736267b4c8423fcf4cdb94a2fcf1892413d';
+      const mockResponse = {
+        data: {
+          accountId,
+          tx: {
+            id: txId,
+            chainId: 'eip155:137',
+            status: 'confirmed',
+            timestamp: 1791544969000,
+            date: '2026-10-09T11:22:49.000Z',
+            from: '0xcc765934f460bf4ba43244a36f7561cbf618daca',
+            to: '0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31',
+            blockNumber: '95226500',
+            blockHash:
+              '0x7a33a4d4cf8b6df980e1671e3305dc01a8d2c6846eba342e1fe5049288a9825a',
+          },
+          valueTransfers: [
+            {
+              assetClass: 'ft',
+              from: '0xcc765934f460bf4ba43244a36f7561cbf618daca',
+              to: '0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31',
+              assetId: 'eip155:137/slip44:966',
+              amount: '5000000000000000000',
+              decimal: 18,
+              symbol: 'POL',
+              name: 'Polygon Ecosystem Token',
+            },
+          ],
+          fee: {
+            payer: accountId,
+            asset: {
+              assetId: 'eip155:137/slip44:966',
+              amount: '85120590887535808',
+              decimals: 18,
+              symbol: 'POL',
+            },
+          },
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.accounts.fetchV5TransactionById(
+        accountId,
+        txId,
+        {
+          includeLogs: false,
+          includeMiscOperations: true,
+          includeTxMetadata: true,
+          lang: 'en',
+        },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `/v5/accounts/${accountId}/transactions/${txId}`,
+        ),
+        expect.any(Object),
+      );
+      const requestUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(requestUrl).toContain('includeTxMetadata=true');
+      expect(requestUrl).toContain('includeMiscOperations=true');
+      expect(requestUrl).toContain('includeLogs=false');
+      expect(requestUrl).toContain('lang=en');
+      expect(requestUrl).not.toContain('%3A');
+    });
+
+    it('returns query options for a v5 transaction by id usable with fetchQuery', async () => {
+      const accountId = 'stellar:pubnet:GABC' as const;
+      const txId = '8d0f';
+      const mockResponse = {
+        data: {
+          accountId,
+          tx: {
+            id: txId,
+            chainId: 'stellar:pubnet',
+            status: 'confirmed',
+            timestamp: 1714440000000,
+            date: '2024-04-30T01:20:00.000Z',
+            from: 'GABC',
+            to: 'GDEF',
+            blockNumber: '50123456',
+            blockHash: '0xabc',
+          },
+          valueTransfers: [],
+          fee: null,
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const queryOptions = client.accounts.getV5TransactionByIdQueryOptions(
+        accountId,
+        txId,
+        { includeTxMetadata: true },
+      );
+
+      expect(queryOptions).toMatchObject({
+        queryKey: [
+          'accounts',
+          'transactions',
+          'v5ById',
+          {
+            accountId,
+            txId,
+            options: { includeTxMetadata: true },
+          },
+        ],
+      });
+      expect(typeof queryOptions.queryFn).toBe('function');
+      expect(queryOptions.staleTime).toBe(30 * 1000);
+      expect(queryOptions.gcTime).toBe(5 * 60 * 1000);
+
+      const result = await client.queryClient.fetchQuery(queryOptions);
+      expect(result).toStrictEqual(mockResponse);
+    });
+
     it('fetches account transactions', async () => {
       const mockResponse = {
         data: [],
