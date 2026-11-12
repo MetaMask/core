@@ -166,12 +166,20 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
     ],
   });
 
+  // The `isResumable` hook reads feature flags through `payMessenger` during
+  // TC boot cleanup (which runs synchronously inside the TC constructor), so
+  // delegate that action before constructing the TC.
+  unrestrictedMessenger.delegate({
+    messenger: payMessenger,
+    actions: ['RemoteFeatureFlagController:getState'],
+  });
+
   const transactionController = new TransactionController({
     disableSwaps: false,
     getPermittedAccounts: async (): Promise<Hex[]> => [WALLET_ADDRESS_MOCK],
     hooks: {
       isResumable: (transaction): boolean =>
-        isPayTransactionResumable(transaction, flags),
+        isPayTransactionResumable(payMessenger, transaction),
     },
     messenger: transactionControllerMessenger,
     state: { transactions: [getParentTransactionMock()] },
@@ -189,7 +197,6 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
       'NetworkController:getNetworkConfigurationByChainId',
       'RampsController:getOrder',
       'RampsController:getQuoteWithFees',
-      'RemoteFeatureFlagController:getState',
       'SentinelApiService:simulateTransactions',
       'TransactionController:addTransaction',
       'TransactionController:addTransactionBatch',
