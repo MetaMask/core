@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `profileId` to `Position` and `PositionStruct` ([#11455](https://github.com/MetaMask/core/pull/11455))
+  - `profileId` is the profile ID of the trader who owns the position, so a client can confirm a position belongs to a trader before attributing it to them.
+  - `fetchPositionById`, `fetchOpenPositions`, `fetchClosedPositions` and `fetchFeed` return it unchanged when social-api sends it. Responses without it still validate.
+  - A `profileId` that is not a string fails validation like any other malformed position field.
+
 ## [3.21.0]
 
 ### Added
