@@ -153,6 +153,34 @@ describe('analyticsControllerSelectors', () => {
     });
   });
 
+  describe('selectMarketingConsentSyncPending', () => {
+    it.each([[true], [false]])(
+      'returns %s when marketingConsentSyncPending is %s',
+      (marketingConsentSyncPending) => {
+        const state: AnalyticsControllerState = {
+          optedIn: false,
+          marketingConsentSyncPending,
+          analyticsId: defaultAnalyticsId,
+        };
+
+        expect(
+          analyticsControllerSelectors.selectMarketingConsentSyncPending(state),
+        ).toBe(marketingConsentSyncPending);
+      },
+    );
+
+    it('defaults to false when the field is absent', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      expect(
+        analyticsControllerSelectors.selectMarketingConsentSyncPending(state),
+      ).toBe(false);
+    });
+  });
+
   describe('event fragment selectors', () => {
     const fragment: AnalyticsEventFragment = {
       id: 'signature-1',
