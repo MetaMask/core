@@ -2281,6 +2281,15 @@
     "typescript/no-unsafe-argument": {
       "count": 18
     },
+    "typescript/no-unsafe-call": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
     "typescript/prefer-nullish-coalescing": {
       "count": 18
     },
@@ -4416,11 +4425,6 @@
   "packages/profile-sync-controller/src/controllers/user-storage/utils.ts": {
     "id-length": {
       "count": 2
-    }
-  },
-  "packages/profile-sync-controller/src/sdk/__fixtures__/auth.ts": {
-    "typescript/no-misused-promises": {
-      "count": 1
     }
   },
   "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
