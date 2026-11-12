@@ -63,9 +63,7 @@ export async function commitFiles(
  *
  * @param directoryPath - The repository.
  */
-export async function commitStagedChanges(
-  directoryPath: string,
-): Promise<void> {
+async function commitStagedChanges(directoryPath: string): Promise<void> {
   await execa('git', ['commit', '--quiet', '-m', 'Change'], {
     cwd: directoryPath,
   });

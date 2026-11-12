@@ -6065,6 +6065,7 @@ __metadata:
     knip: "npm:^6.39.0"
     lodash: "npm:^4.18.1"
     nock: "npm:^15.0.5"
+    outdent: "npm:^0.8.0"
     oxfmt: "npm:^0.72.0"
     oxlint: "npm:^1.85.0"
     oxlint-tsgolint: "npm:^7.0.2002"
@@ -21503,6 +21504,13 @@ __metadata:
   bin:
     opener: bin/opener-bin.js
   checksum: 10/0504efcd6546e14c016a261f58a68acf9f2e5c23d84865d7d5470d5169788327ceaa5386253682f533b3fba4821748aa37ecb395f3dae7acb3261b9b22e36814
+  languageName: node
+  linkType: hard
+
+"outdent@npm:^0.8.0":
+  version: 0.8.0
+  resolution: "outdent@npm:0.8.0"
+  checksum: 10/a556c5c308705ad4e3441be435f2b2cf014cb5f9753a24cbd080eadc473b988c77d0d529a6a9a57c3931fb4178e5a81d668cc4bc49892b668191a5d0ba3df76e
   languageName: node
   linkType: hard
 

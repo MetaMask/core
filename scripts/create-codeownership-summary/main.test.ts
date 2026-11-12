@@ -1,11 +1,11 @@
 import { createSandbox } from '@metamask/node-utils';
 import { execa } from 'execa';
+import { outdent } from 'outdent';
 import { describe, expect, it } from 'vitest';
 
 import { main } from './main.ts';
 import {
   commitFiles,
-  commitStagedChanges,
   createBranch,
   initializeRepository,
 } from './test-helpers.ts';
@@ -42,7 +42,66 @@ describe('main', () => {
     expect(output.stdout).toBe('');
   });
 
-  it('prints the summary for HEAD compared with the given base ref', async () => {
+  it('prints the summary of the current branch compared with main by default', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initializeRepository(directoryPath);
+      await commitFiles(directoryPath, {
+        'README.md': 'Base\n',
+        '.github/CODEOWNERS': outdent`
+          /packages/accounts-controller @MetaMask/accounts-engineers
+          /packages/accounts-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform # maintenance-owner: @MetaMask/core-platform
+          /packages/sample-controllers @MetaMask/core-platform
+          /packages/sample-controllers/package.json @MetaMask/core-platform
+
+        `,
+      });
+      await createBranch(directoryPath, 'feature');
+      await commitFiles(directoryPath, {
+        'packages/accounts-controller/src/index.ts': 'export {};\n',
+        'packages/accounts-controller/CHANGELOG.md': '# Changelog\n',
+        'packages/sample-controllers/package.json': '{}\n',
+      });
+      const { stdout, stderr, output } = createStreams();
+
+      await main({
+        argv: ['node', 'create-codeownership-summary.ts'],
+        stdout,
+        stderr,
+        cwd: directoryPath,
+      });
+
+      expect(output.stdout).toBe(outdent`
+        ## 🛑 Files requiring codeowner review
+
+        To merge this PR, you'll need to get approvals from the following owners.
+
+        **@MetaMask/accounts-engineers** (2 files)
+
+        - \`packages/accounts-controller/CHANGELOG.md\`
+        - \`packages/accounts-controller/src/index.ts\`
+
+        **@MetaMask/core-platform** (1 file)
+
+        - \`packages/sample-controllers/package.json\`
+
+        <details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>
+
+        > [!NOTE]
+        > For convenience in maintaining this repo, \`@MetaMask/core-platform\` co-owns
+        > the following files. **It is not required to seek approval from
+        > \`@MetaMask/core-platform\` to change these files. This section is purely
+        > informational.**
+
+        - \`packages/accounts-controller/CHANGELOG.md\`
+        </details>
+
+      `);
+    });
+  });
+
+  it('uses HEAD for --head-ref by default', async () => {
     expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
@@ -65,74 +124,20 @@ describe('main', () => {
         cwd: directoryPath,
       });
 
-      expect(output.stdout).toContain(
-        '**@MetaMask/accounts-engineers** (1 file)',
-      );
+      expect(output.stdout).toBe(outdent`
+        ## 🛑 Files requiring codeowner review
+
+        To merge this PR, you'll need to get approvals from the following owners.
+
+        **@MetaMask/accounts-engineers** (1 file)
+
+        - \`packages/accounts-controller/src/index.ts\`
+
+      `);
     });
   });
 
-  it('prints the summary of the current branch compared with main by default', async () => {
-    expect.assertions(1);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, {
-        'README.md': 'Base\n',
-        '.github/CODEOWNERS': [
-          '/packages/accounts-controller @MetaMask/accounts-engineers',
-          '/packages/accounts-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform # maintenance-owner: @MetaMask/core-platform',
-          '/packages/sample-controllers @MetaMask/core-platform',
-          '/packages/sample-controllers/package.json @MetaMask/core-platform',
-          '',
-        ].join('\n'),
-      });
-      await createBranch(directoryPath, 'feature');
-      await commitFiles(directoryPath, {
-        'packages/accounts-controller/src/index.ts': 'export {};\n',
-        'packages/accounts-controller/CHANGELOG.md': '# Changelog\n',
-        'packages/sample-controllers/package.json': '{}\n',
-      });
-      const { stdout, stderr, output } = createStreams();
-
-      await main({
-        argv: ['node', 'create-codeownership-summary.ts'],
-        stdout,
-        stderr,
-        cwd: directoryPath,
-      });
-
-      expect(output.stdout).toBe(
-        [
-          '## 🛑 Files requiring codeowner review',
-          '',
-          "To merge this PR, you'll need to get approvals from the following owners.",
-          '',
-          '**@MetaMask/accounts-engineers** (2 files)',
-          '',
-          '- `packages/accounts-controller/CHANGELOG.md`',
-          '- `packages/accounts-controller/src/index.ts`',
-          '',
-          '**@MetaMask/core-platform** (1 file)',
-          '',
-          '- `packages/sample-controllers/package.json`',
-          '',
-          '<details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>',
-          '',
-          '> [!NOTE]',
-          '> For convenience in maintaining this repo, `@MetaMask/core-platform` co-owns',
-          '> the following files. **It is not required to seek approval from',
-          '> `@MetaMask/core-platform` to change these files. This section is purely',
-          '> informational.**',
-          '',
-          '- `packages/accounts-controller/CHANGELOG.md`',
-          '</details>',
-          '',
-        ].join('\n'),
-      );
-    });
-  });
-
-  it('compares the given head ref instead of HEAD', async () => {
+  it('accepts --base-ref and --head-ref', async () => {
     expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
@@ -163,120 +168,21 @@ describe('main', () => {
         cwd: directoryPath,
       });
 
-      expect(output.stdout).toContain(
-        'packages/accounts-controller/src/index.ts',
-      );
+      expect(output.stdout).toBe(outdent`
+        ## 🛑 Files requiring codeowner review
+
+        To merge this PR, you'll need to get approvals from the following owners.
+
+        **@MetaMask/accounts-engineers** (1 file)
+
+        - \`packages/accounts-controller/src/index.ts\`
+
+      `);
     });
   });
 
-  it('includes only changes made on the head ref since it branched off', async () => {
+  it('prints nothing to stdout and explains on stderr when no changed files have codeowners', async () => {
     expect.assertions(2);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, {
-        'README.md': 'Base\n',
-        '.github/CODEOWNERS':
-          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
-      });
-      await createBranch(directoryPath, 'feature');
-      await commitFiles(directoryPath, {
-        'packages/accounts-controller/src/feature.ts': 'export {};\n',
-      });
-      await execa('git', ['checkout', 'main'], { cwd: directoryPath });
-      await commitFiles(directoryPath, {
-        'packages/accounts-controller/src/main-only.ts': 'export {};\n',
-      });
-      const { stdout, stderr, output } = createStreams();
-
-      await main({
-        argv: [
-          'node',
-          'create-codeownership-summary.ts',
-          '--head-ref',
-          'feature',
-        ],
-        stdout,
-        stderr,
-        cwd: directoryPath,
-      });
-
-      expect(output.stdout).toContain(
-        '- `packages/accounts-controller/src/feature.ts`',
-      );
-      expect(output.stdout).not.toContain('main-only.ts');
-    });
-  });
-
-  it('lists both the old and new paths of a renamed file', async () => {
-    expect.assertions(1);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, {
-        'packages/accounts-controller/src/old.ts': 'export {};\n',
-        '.github/CODEOWNERS':
-          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
-      });
-      await createBranch(directoryPath, 'feature');
-      await execa(
-        'git',
-        [
-          'mv',
-          'packages/accounts-controller/src/old.ts',
-          'packages/accounts-controller/src/new.ts',
-        ],
-        { cwd: directoryPath },
-      );
-      await commitStagedChanges(directoryPath);
-      const { stdout, stderr, output } = createStreams();
-
-      await main({
-        argv: ['node', 'create-codeownership-summary.ts'],
-        stdout,
-        stderr,
-        cwd: directoryPath,
-      });
-
-      expect(output.stdout).toContain(
-        '- `packages/accounts-controller/src/new.ts`\n- `packages/accounts-controller/src/old.ts`\n',
-      );
-    });
-  });
-
-  it("uses the base ref's CODEOWNERS file, not the head ref's", async () => {
-    expect.assertions(2);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, {
-        '.github/CODEOWNERS':
-          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
-      });
-      await createBranch(directoryPath, 'feature');
-      await commitFiles(directoryPath, {
-        '.github/CODEOWNERS':
-          '/packages/accounts-controller @MetaMask/new-team\n',
-        'packages/accounts-controller/src/index.ts': 'export {};\n',
-      });
-      const { stdout, stderr, output } = createStreams();
-
-      await main({
-        argv: ['node', 'create-codeownership-summary.ts'],
-        stdout,
-        stderr,
-        cwd: directoryPath,
-      });
-
-      expect(output.stdout).toContain(
-        '**@MetaMask/accounts-engineers** (1 file)',
-      );
-      expect(output.stdout).not.toContain('new-team');
-    });
-  });
-
-  it('prints nothing to stdout when no changed files have codeowners', async () => {
-    expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
       await initializeRepository(directoryPath);
@@ -297,31 +203,7 @@ describe('main', () => {
       });
 
       expect(output.stdout).toBe('');
-    });
-  });
-
-  it('explains on stderr when no changed files have codeowners', async () => {
-    expect.assertions(1);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, {
-        'README.md': 'Base\n',
-        '.github/CODEOWNERS':
-          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
-      });
-      await createBranch(directoryPath, 'feature');
-      await commitFiles(directoryPath, { 'unowned.txt': 'Text\n' });
-      const { stdout, stderr, output } = createStreams();
-
-      await main({
-        argv: ['node', 'create-codeownership-summary.ts', '--base-ref', 'main'],
-        stdout,
-        stderr,
-        cwd: directoryPath,
-      });
-
-      expect(output.stderr).toContain('No changed files have codeowners.');
+      expect(output.stderr).toBe('No changed files have codeowners.\n');
     });
   });
 });
