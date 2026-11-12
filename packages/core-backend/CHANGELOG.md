@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 
-### Uncategorized
-
-- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
-
 ### Added
 
 - Add `AccountsApiClient.fetchV5TransactionById` and `getV5TransactionByIdQueryOptions` for Accounts API `GET /v5/accounts/{accountId}/transactions/{txId}` ([#11444](https://github.com/MetaMask/core/pull/11444))
@@ -24,13 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `V5TransactionRecord.accountId`, fee `payer`, `unprocessedAccounts`, and the `accountIds` arguments of the v5 transaction fetch methods are `CaipAccountId`
   - `V5Transaction.chainId` and the `networks` filter are `CaipChainId`
   - Value-transfer, fee, and misc-operation `assetId` fields, and the `assetIds` filter, are `CaipAssetType`
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 - Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
 
 ### Deprecated
 
 - Deprecate `AccountsApiClient.fetchV1TransactionByHash` and `getV1TransactionByHashQueryOptions` ([#11444](https://github.com/MetaMask/core/pull/11444))
   - Fetch one transaction with `fetchV5TransactionById` (`GET /v5/accounts/{accountId}/transactions/{txId}`) instead of `GET /v1/networks/{chainId}/transactions/{txHash}`
-- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
 ## [14.0.0]
 
