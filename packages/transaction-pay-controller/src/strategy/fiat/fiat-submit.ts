@@ -162,26 +162,28 @@ function getFiatOptions(
  * @param options.messenger - Controller messenger for calling `RampsController:getOrder`.
  * @param options.orderCode - The order identifier within the provider.
  * @param options.providerCode - The on-ramp provider code (e.g. "transak").
+ * @param options.startTime - Optional poll start time, defaults to now.
  * @param options.transactionId - Transaction ID for logging.
  * @param options.walletAddress - Wallet address associated with the order.
  * @returns The completed order data.
  */
-async function waitForOrderCompletion({
+export async function waitForOrderCompletion({
   messenger,
   orderCode,
   providerCode,
+  startTime = Date.now(),
   transactionId,
   walletAddress,
 }: {
   messenger: TransactionPayControllerMessenger;
   orderCode: string;
   providerCode: string;
+  startTime?: number;
   transactionId: string;
   walletAddress: string;
 }): Promise<RampsOrder> {
   const pollIntervalMs = getFiatOrderPollIntervalMs(messenger);
   const pollTimeoutMs = getFiatOrderPollTimeoutMs(messenger);
-  const startTime = Date.now();
   let lastStatus: string | undefined;
 
   while (true) {
@@ -253,8 +255,9 @@ async function submitRelayAfterFiatCompletion({
 
   if (isDirectMusd) {
     return await submitDirectMusdAfterFiatCompletion({
+      messenger,
       order,
-      request,
+      transaction,
     });
   }
 

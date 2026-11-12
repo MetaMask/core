@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `getResumeEnabledTypes(messenger, strategy)`: reads the per-strategy resume flag from `confirmations_pay_extended.resume` through the messenger ([#11450](https://github.com/MetaMask/core/pull/11450))
 - `isPayTransactionResumable(messenger, transaction)`: pure sync gate for the TC `isResumable` hook, reading feature flags through the messenger ([#11450](https://github.com/MetaMask/core/pull/11450))
 - `PayStrategy.canResume?` and `PayStrategy.resume?` optional methods; `PayStrategyResumeRequest` type ([#11450](https://github.com/MetaMask/core/pull/11450))
+- `FiatStrategy.canResume` and `FiatStrategy.resume`: resumes fiat → direct mUSD deposits after an app restart, covering `moneyAccountDeposit` and `membershipSubscription` transaction types ([#11451](https://github.com/MetaMask/core/pull/11451))
 - `TransactionPayControllerOptions.waitForClientReady?: () => Promise<void>` option; `#resumePayTransactions()` self-scheduled from the constructor ([#11450](https://github.com/MetaMask/core/pull/11450))
 
 ### Changed
