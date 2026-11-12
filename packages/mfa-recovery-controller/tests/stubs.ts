@@ -1,4 +1,5 @@
 import type { KeyPair } from '@metamask/cryptography';
+import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import {
   bytesToBase64,
   bytesToHex,
@@ -29,7 +30,8 @@ import type {
   GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
-  KeyBoundIdentifierToken,
+  KeyBoundIdentifierLogin,
+  KeyBoundIdentifierTokenRequest,
   Mutation,
   MutationPayload,
   MutationReceipt,
@@ -43,6 +45,7 @@ import type {
   RecoveryLockProvider,
   GetRecoverySecretResponse,
   RegisterPayload,
+  SeedlessAuthData,
   UpdateIdentifiersPayload,
   UpdateRecoverySecretPayload,
   WrappedSecret,
@@ -159,21 +162,61 @@ export class StubRecoveryLockProvider implements RecoveryLockProvider {
  * In-memory identifier IdP used in tests.
  */
 export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvider {
-  async getKeyBoundIdentifierToken(params: {
-    identifier: Identifier;
-    proofPublicKey: Uint8Array;
-    requestHash: string;
-  }): Promise<KeyBoundIdentifierToken> {
+  async getKeyBoundIdentifierLogin(
+    params: KeyBoundIdentifierTokenRequest,
+  ): Promise<KeyBoundIdentifierLogin> {
     return {
-      identifier: params.identifier,
-      proofPublicKey: params.proofPublicKey,
-      requestHash: params.requestHash,
-      providerAssertion: {
-        bound: await hash({
-          proofPublicKey: params.proofPublicKey,
-          requestHash: params.requestHash,
-        }),
+      token: {
+        identifier: params.identifier,
+        proofPublicKey: params.proofPublicKey,
+        requestHash: params.requestHash,
+        providerAssertion: {
+          bound: await hash({
+            proofPublicKey: params.proofPublicKey,
+            requestHash: params.requestHash,
+          }),
+        },
       },
+    };
+  }
+}
+
+export const STUB_SEEDLESS_AUTH_DATA: SeedlessAuthData = {
+  idTokens: ['seedless-id-token'],
+  accessToken: 'seedless-access-token',
+  metadataAccessToken: 'seedless-metadata-access-token',
+  refreshToken: 'seedless-refresh-token',
+  revokeToken: 'seedless-revoke-token',
+  authConnection: AuthConnection.Google,
+  authConnectionId: 'auth-connection-id',
+  groupedAuthConnectionId: 'grouped-auth-connection-id',
+  userId: 'user@example.com',
+  socialLoginEmail: 'user@example.com',
+};
+
+/**
+ * In-memory native ID-token IdP used in tests. One login exchanges the
+ * provider ID token once and returns both the key-bound token and the
+ * seedless auth-server tokens.
+ */
+export class StubSeedlessIdentifierAuthProvider extends StubIdentifierAuthProvider {
+  seedlessAuthData: SeedlessAuthData | undefined = STUB_SEEDLESS_AUTH_DATA;
+
+  async getKeyBoundIdentifierLogin(
+    params: KeyBoundIdentifierTokenRequest,
+  ): Promise<KeyBoundIdentifierLogin> {
+    const { token } = await super.getKeyBoundIdentifierLogin(params);
+    return {
+      token: {
+        ...token,
+        providerAssertion: {
+          ...(token.providerAssertion as Record<string, unknown>),
+          providerIdToken: 'provider-id-token',
+        },
+      },
+      ...(this.seedlessAuthData === undefined
+        ? {}
+        : { seedlessAuthData: this.seedlessAuthData }),
     };
   }
 }

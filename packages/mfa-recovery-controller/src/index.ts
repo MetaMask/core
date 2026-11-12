@@ -44,6 +44,7 @@ export {
 export {
   IDENTIFIER_AUTH_MODES,
   MIN_IDENTIFIERS,
+  expectedSeedlessAuthConnection,
   getIdentifierAuthMode,
 } from './identifier-auth.js';
 export type {
@@ -53,6 +54,9 @@ export type {
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
+  KeyBoundIdentifierLogin,
+  KeyBoundIdentifierToken,
+  KeyBoundIdentifierTokenRequest,
   Mutation,
   MutationPayload,
   MutationReceipt,
@@ -71,6 +75,7 @@ export type {
   RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
+  SeedlessAuthData,
   WrappedSecret,
   WrappedSecretOutput,
 } from './types.js';

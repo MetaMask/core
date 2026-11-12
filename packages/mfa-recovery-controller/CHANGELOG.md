@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `authenticateIdentifier` returns an `IdentifierSession` from one identifier login: key-bound recovery material for `getRecoverySecret`, plus optional `seedlessAuthData` on that session when the login returned it (social logins; passkey / SIWE omit it) ([#11224](https://github.com/MetaMask/core/pull/11224))
+  - `RecoveryIdentifierAuthProvider` has a single method, `getKeyBoundIdentifierLogin`, which returns the key-bound `token` and optional `seedlessAuthData` (`KeyBoundIdentifierLogin`). It replaces `getKeyBoundIdentifierToken`; reads and mutation writes both call it.
+  - Callers decide whether they need `session.seedlessAuthData`, including checking `revokeToken` for the seedless password unlock path. Mutation writes and `getRecoverySecret` use only the key-bound credential fields and never send seedless tokens to escrows.
+  - Validates that the key-bound token matches the requested identifier, proof key, and request hash. Empty request `identifier.value` (provider-discovered subject) is allowed only on `authenticateIdentifier`, not on mutation writes.
+  - `seedlessAuthData` is `SeedlessAuthData` from `@metamask/seedless-onboarding-controller` (the `authenticate` parameters, without `skipLock`; based on `AuthenticatedUserDetails` without `nodeAuthTokens`). Shape checks use that package's `parseSeedlessAuthData`, and the issuer-namespace map is its `AUTH_CONNECTION_BY_NAMESPACE`. `authConnection` is still checked against the social identifier's issuer namespace (provider check only; subject / `userId` are not compared).
 - Initial release of `MfaRecoveryController`, which manages MFA recovery flows and persists in-flight operations in its state ([#10022](https://github.com/MetaMask/core/pull/10022), [#11280](https://github.com/MetaMask/core/pull/11280))
   - Requires recent, request-bound AAL2 approvals for writes and reads.
   - Sends the approval's identifiers to escrows as `approvedIdentifiers` with `register` and `updateIdentifiers` mutations, and rejects payload identifiers that are not exactly among them before writing ([#10883](https://github.com/MetaMask/core/pull/10883))

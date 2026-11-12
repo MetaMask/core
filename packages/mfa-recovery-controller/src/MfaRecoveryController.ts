@@ -35,7 +35,8 @@ import {
   getSiweNamespace,
   MAX_IDENTIFIERS,
   MIN_IDENTIFIERS,
-  requestKeyBoundIdentifierToken,
+  requestIdentifierLogin,
+  validateSeedlessAuthData,
 } from './identifier-auth.js';
 import type { MfaRecoveryControllerMethodActions } from './MfaRecoveryController-method-action-types.js';
 import {
@@ -388,10 +389,16 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Authenticates an identifier for a subsequent recovery-secret read.
+   * Authenticates an identifier with a single login. Returns an ephemeral
+   * {@link IdentifierSession} for {@link getRecoverySecret}. For seedless
+   * social logins, the session also carries `seedlessAuthData` for
+   * `SeedlessOnboardingController.authenticate`. Callers decide whether they
+   * need `seedlessAuthData` (and its `revokeToken`), drop it after seedless
+   * authenticate, and keep the key-bound session fields for recovery reads.
    *
    * @param identifier - Identifier to authenticate.
-   * @returns Ephemeral session data required by {@link getRecoverySecret}.
+   * @returns Session for recovery reads, with seedless auth data when the
+   * login returned it.
    */
   async authenticateIdentifier(
     identifier: Identifier,
@@ -405,7 +412,7 @@ export class MfaRecoveryController extends BaseController<
       requestId,
       pkE,
     });
-    const credential = await requestKeyBoundIdentifierToken({
+    const { seedlessAuthData, ...credential } = await requestIdentifierLogin({
       identifier,
       requestHash,
       identifierAuthProvider: this.#identifierAuthProvider,
@@ -415,6 +422,14 @@ export class MfaRecoveryController extends BaseController<
       requestId,
       ephemeralPrivateKey: ephemeral.privateKey,
       pkE,
+      ...(seedlessAuthData === undefined
+        ? {}
+        : {
+            seedlessAuthData: validateSeedlessAuthData(
+              seedlessAuthData,
+              identifier,
+            ),
+          }),
     };
   }
 
@@ -458,7 +473,12 @@ export class MfaRecoveryController extends BaseController<
       });
       const authorizedEscrows = await authorizeEscrowsWithToken({
         escrows: available,
-        credentials: [session],
+        credentials: [
+          {
+            token: session.token,
+            proofPrivateKey: session.proofPrivateKey,
+          },
+        ],
         authControllerToken: approval,
       });
       const results = await Promise.allSettled(
@@ -859,13 +879,20 @@ export class MfaRecoveryController extends BaseController<
     const credentials: KeyBoundCredential[] = [];
     for (const identifier of identifiers) {
       getIdentifierAuthMode(identifier.type);
-      credentials.push(
-        await requestKeyBoundIdentifierToken({
-          identifier,
-          requestHash: writing.mutation.requestHash,
-          identifierAuthProvider: this.#identifierAuthProvider,
-        }),
-      );
+      const { token, proofPrivateKey } = await requestIdentifierLogin({
+        identifier,
+        requestHash: writing.mutation.requestHash,
+        identifierAuthProvider: this.#identifierAuthProvider,
+      });
+      // Writes authorize registered/enrolled identifiers, so the subject must
+      // match exactly; only reads may discover it from an empty value.
+      if (token.identifier.value !== identifier.value) {
+        throw new MfaRecoveryError(
+          'Identifier token is not bound to this request',
+          'invalid_identifier_token',
+        );
+      }
+      credentials.push({ token, proofPrivateKey });
     }
     const authorized = await authorizeEscrowsWithToken({
       escrows,

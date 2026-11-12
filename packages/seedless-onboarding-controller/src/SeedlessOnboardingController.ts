@@ -57,6 +57,7 @@ import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
+  SeedlessAuthData,
   SocialBackupsMetadata,
   RefreshJWTToken,
   RevokeRefreshToken,
@@ -298,19 +299,9 @@ export class SeedlessOnboardingController<
    * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to the authentication result.
    */
-  async authenticate(params: {
-    idTokens: string[];
-    accessToken: string;
-    metadataAccessToken: string;
-    authConnection: AuthConnection;
-    authConnectionId: string;
-    userId: string;
-    groupedAuthConnectionId?: string;
-    socialLoginEmail?: string;
-    refreshToken: string;
-    revokeToken?: string;
-    skipLock?: boolean;
-  }): Promise<AuthenticateResult> {
+  async authenticate(
+    params: SeedlessAuthData & { skipLock?: boolean },
+  ): Promise<AuthenticateResult> {
     const doAuthenticateWithNodes = async (): Promise<AuthenticateResult> => {
       try {
         const {

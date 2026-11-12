@@ -71,6 +71,32 @@ export type AuthenticatedUserDetails = {
   refreshToken: string;
 };
 
+/**
+ * Auth-server tokens and social login details passed to
+ * {@link SeedlessOnboardingController.authenticate}, except `skipLock`.
+ *
+ * Extends {@link AuthenticatedUserDetails} without `nodeAuthTokens` (those are
+ * produced by authenticate) and with optional `socialLoginEmail` (not always
+ * returned by the IdP).
+ */
+export type SeedlessAuthData = Omit<
+  AuthenticatedUserDetails,
+  'nodeAuthTokens' | 'socialLoginEmail'
+> & {
+  /**
+   * ID token(s) verified by the TOPRF nodes.
+   */
+  idTokens: string[];
+  accessToken: string;
+  metadataAccessToken: string;
+  /**
+   * Needed to unlock an existing vault. Callers that need it should check it
+   * is present.
+   */
+  revokeToken?: string;
+  socialLoginEmail?: string;
+};
+
 export type SRPBackedUpUserDetails = {
   /**
    * The public key of the authentication key pair in base64 format.
