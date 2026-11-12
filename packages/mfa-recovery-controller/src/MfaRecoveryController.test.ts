@@ -268,11 +268,10 @@ describe('MfaRecoveryController', () => {
         });
         expect(controller.state.lockId).toStrictEqual(expect.any(String));
 
-        release.mockRejectedValueOnce(
-          new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict'),
-        );
+        lockProvider.lockId = 'other-operation';
         await controller.releaseLock();
         expect(controller.state.lockId).toBeNull();
+        expect(lockProvider.lockId).toBe('other-operation');
       });
     });
 

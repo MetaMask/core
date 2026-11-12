@@ -148,9 +148,10 @@ export class StubRecoveryLockProvider implements RecoveryLockProvider {
   }
 
   async release(lockId: string): Promise<void> {
-    if (this.lockId === lockId) {
-      this.lockId = null;
+    if (this.lockId !== null && this.lockId !== lockId) {
+      throw new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict');
     }
+    this.lockId = null;
   }
 }
 
