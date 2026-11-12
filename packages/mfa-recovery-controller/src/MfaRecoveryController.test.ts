@@ -12,6 +12,7 @@ import {
   StubAuthProvider,
   StubEscrowProvider,
   StubIdentifierAuthProvider,
+  StubRecoveryLockProvider,
   createAuthControllerToken,
   passthroughEncryptor,
 } from '../tests/stubs.js';
@@ -21,7 +22,11 @@ import {
   hash,
   unixNow,
 } from './crypto.js';
-import { IncompleteMutationError, MutationRejectedError } from './errors.js';
+import {
+  IncompleteMutationError,
+  MfaRecoveryError,
+  MutationRejectedError,
+} from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
@@ -70,6 +75,7 @@ describe('MfaRecoveryController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "lockId": null,
             "pendingOperation": null,
           }
         `);
@@ -83,6 +89,7 @@ describe('MfaRecoveryController', () => {
           new MfaRecoveryController({
             messenger: getMessenger(rootMessenger),
             authProvider: new StubAuthProvider(),
+            lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             escrows: [],
             pendingOperationEncryptor: passthroughEncryptor,
@@ -99,6 +106,7 @@ describe('MfaRecoveryController', () => {
           new MfaRecoveryController({
             messenger: getMessenger(rootMessenger),
             authProvider: new StubAuthProvider(),
+            lockProvider: new StubRecoveryLockProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             escrows: [
               new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
@@ -145,6 +153,7 @@ describe('MfaRecoveryController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "lockId": null,
             "pendingOperation": null,
           }
         `);
@@ -164,6 +173,145 @@ describe('MfaRecoveryController', () => {
             "pendingOperation": null,
           }
         `);
+      });
+    });
+  });
+
+  describe('recovery lock', () => {
+    it('acquires the lease with the same ID before every approval', async () => {
+      await withController(
+        async ({ controller, authProvider, lockProvider }) => {
+          const calls: string[] = [];
+          vi.spyOn(lockProvider, 'acquire').mockImplementation(
+            async (lockId) => {
+              calls.push(`acquire ${lockId}`);
+            },
+          );
+          const authorize =
+            authProvider.authorizeRecoveryRequest.bind(authProvider);
+          vi.spyOn(authProvider, 'authorizeRecoveryRequest').mockImplementation(
+            async (params) => {
+              calls.push('approval');
+              return await authorize(params);
+            },
+          );
+
+          await controller.register(SECRET, IDENTIFIERS);
+          await controller.updateRecoverySecret(
+            PASSKEY,
+            SECRET_2,
+            REGISTERED_EPOCH,
+          );
+
+          const { lockId } = controller.state;
+          expect(calls).toStrictEqual([
+            `acquire ${lockId}`,
+            'approval',
+            `acquire ${lockId}`,
+            'approval',
+          ]);
+          expect(lockId).toStrictEqual(expect.any(String));
+        },
+      );
+    });
+
+    it('requests no approval when another operation holds the lease', async () => {
+      await withController(
+        async ({ controller, authProvider, lockProvider }) => {
+          lockProvider.lockId = 'other-operation';
+          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+
+          await expect(
+            controller.register(SECRET, IDENTIFIERS),
+          ).rejects.toMatchObject({ code: 'recovery_lock_conflict' });
+          expect(authorize).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('drops the lock ID when another operation holds the lease', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        lockProvider.lockId = 'other-operation';
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'recovery_lock_conflict' });
+        expect(controller.state.lockId).toBeNull();
+
+        lockProvider.lockId = null;
+        await controller.resume();
+        expect(await controller.getPhase()).toBe('idle');
+        expect(controller.state.lockId).toBe(lockProvider.lockId);
+      });
+    });
+
+    it('keeps the lock ID when acquiring fails otherwise', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        vi.spyOn(lockProvider, 'acquire').mockRejectedValueOnce(
+          new MfaRecoveryError('Unavailable', 'recovery_lock_unavailable'),
+        );
+        await expect(controller.acquireLock()).rejects.toMatchObject({
+          code: 'recovery_lock_unavailable',
+        });
+        expect(controller.state.lockId).toStrictEqual(expect.any(String));
+      });
+    });
+
+    it('drops the lock ID on release when another operation holds the lease', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        await controller.acquireLock();
+        const release = vi.spyOn(lockProvider, 'release');
+        release.mockRejectedValueOnce(
+          new MfaRecoveryError('Unavailable', 'recovery_lock_unavailable'),
+        );
+        await expect(controller.releaseLock()).rejects.toMatchObject({
+          code: 'recovery_lock_unavailable',
+        });
+        expect(controller.state.lockId).toStrictEqual(expect.any(String));
+
+        lockProvider.lockId = 'other-operation';
+        await controller.releaseLock();
+        expect(controller.state.lockId).toBeNull();
+        expect(lockProvider.lockId).toBe('other-operation');
+      });
+    });
+
+    it('reuses the persisted lock ID and releases it', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        await controller.acquireLock();
+        const { lockId } = controller.state;
+        await controller.acquireLock();
+        expect(controller.state.lockId).toBe(lockId);
+        expect(lockProvider.lockId).toBe(lockId);
+
+        await controller.releaseLock();
+        expect(controller.state.lockId).toBeNull();
+        expect(lockProvider.lockId).toBeNull();
+        await controller.releaseLock();
+      });
+    });
+
+    it('reacquires an expired lease before an approval', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        await controller.acquireLock();
+        const { lockId } = controller.state;
+        lockProvider.lockId = null;
+
+        await controller.register(SECRET, IDENTIFIERS);
+
+        expect(lockProvider.lockId).toBe(lockId);
+      });
+    });
+
+    it('keeps the lease while a mutation is pending', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        await expect(controller.releaseLock()).rejects.toMatchObject({
+          code: 'pending_mutation',
+        });
       });
     });
   });
@@ -228,7 +376,7 @@ describe('MfaRecoveryController', () => {
 
         expect(listener).toHaveBeenCalled();
         expect(listener).toHaveBeenLastCalledWith(
-          { pendingOperation: null },
+          { lockId: expect.any(String), pendingOperation: null },
           expect.any(Array),
         );
       });
@@ -1072,6 +1220,7 @@ describe('MfaRecoveryController', () => {
             ...options,
             messenger: getMessenger(getRootMessenger()),
             state: {
+              lockId: controller.state.lockId,
               pendingOperation: await passthroughEncryptor.encrypt(pending),
             },
           });
@@ -1388,6 +1537,7 @@ describe('MfaRecoveryController', () => {
           ...options,
           messenger: getMessenger(getRootMessenger()),
           state: {
+            lockId: controller.state.lockId,
             pendingOperation: await passthroughEncryptor.encrypt(authorizing),
           },
         });
@@ -1737,7 +1887,10 @@ describe('MfaRecoveryController', () => {
         const resumed = new MfaRecoveryController({
           ...options,
           messenger: getMessenger(getRootMessenger()),
-          state: { pendingOperation: JSON.stringify(pending) },
+          state: {
+            lockId: controller.state.lockId,
+            pendingOperation: JSON.stringify(pending),
+          },
         });
         options.authProvider.identifiers = [...IDENTIFIERS, OTHER_PASSKEY];
         const apply = vi.spyOn(escrowA, 'applyMutation');
@@ -2110,6 +2263,7 @@ type RootMessenger = Messenger<
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: MfaRecoveryController;
   authProvider: StubAuthProvider;
+  lockProvider: StubRecoveryLockProvider;
   rootMessenger: RootMessenger;
   controllerMessenger: MfaRecoveryControllerMessenger;
   escrowA: StubEscrowProvider;
@@ -2133,10 +2287,14 @@ function getMessenger(
 function getOptions(
   escrowA: StubEscrowProvider,
   escrowB: StubEscrowProvider,
-): MfaRecoveryControllerOptions & { authProvider: StubAuthProvider } {
+): MfaRecoveryControllerOptions & {
+  authProvider: StubAuthProvider;
+  lockProvider: StubRecoveryLockProvider;
+} {
   return {
     messenger: getMessenger(getRootMessenger()),
     authProvider: new StubAuthProvider(IDENTIFIERS),
+    lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrowA, escrowB],
     pendingOperationEncryptor: passthroughEncryptor,
@@ -2214,6 +2372,7 @@ async function withController<ReturnValue>(
   return await testFunction({
     controller,
     authProvider: options.authProvider,
+    lockProvider: options.lockProvider,
     rootMessenger,
     controllerMessenger,
     escrowA,
