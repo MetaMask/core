@@ -484,7 +484,7 @@
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "id-length": {
-      "count": 15
+      "count": 10
     },
     "no-useless-return": {
       "count": 3
@@ -536,9 +536,6 @@
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.test.ts": {
-    "id-length": {
-      "count": 2
-    },
     "typescript/no-unsafe-argument": {
       "count": 2
     },
