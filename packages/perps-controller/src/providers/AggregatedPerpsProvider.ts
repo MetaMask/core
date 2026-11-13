@@ -40,6 +40,7 @@ import type {
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
+  ClosePositionsTarget,
   DepositParams,
   DisconnectResult,
   EditOrderParams,
@@ -1218,12 +1219,32 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async closePositions(
     params: ClosePositionsParams,
   ): Promise<ClosePositionsResult> {
-    // Single-venue aggregation keeps the direct passthrough: there is no
-    // cross-venue ambiguity to resolve.
+    // Single-venue aggregation keeps the direct passthrough for legacy
+    // `symbols` / `closeAll` calls: there is no cross-venue ambiguity to
+    // resolve. Tagged targets are not part of that legacy contract — a venue
+    // that only reads `symbols` and `closeAll` would treat a missing symbol
+    // list as close-every-position.
     if (this.#providers.size <= 1) {
-      const [, provider] = this.#getProviderOrDefault(
-        params.targets?.[0]?.providerId,
-      );
+      if (params.targets && params.targets.length > 0) {
+        const active = this.#getActiveProviders();
+        const only = active[0];
+        if (!only) {
+          return {
+            success: false,
+            successCount: 0,
+            failureCount: params.targets.length,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+            results: params.targets.map((target) => ({
+              symbol: target.symbol,
+              success: false,
+              error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+              providerId: target.providerId,
+            })),
+          };
+        }
+        return this.#closeSingleVenueTargets(only[0], only[1], params.targets);
+      }
+      const [, provider] = this.#getProviderOrDefault();
       if (!provider.closePositions) {
         return {
           success: false,
@@ -1247,28 +1268,29 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           byProvider.set(target.providerId, [target.symbol]);
         }
       }
+      const batches = Array.from(byProvider.entries()).map(
+        ([providerId, symbols]) => ({ providerId, symbols }),
+      );
       return this.#mergeCloseResults(
         await Promise.allSettled(
-          Array.from(byProvider.entries()).map(
-            async ([providerId, symbols]) => {
-              const provider = this.#providers.get(providerId);
-              if (!provider) {
-                throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
-              }
-              const result = await this.#closePositionsOnProvider(provider, {
-                symbols,
-              });
-              return {
-                ...result,
-                results: result.results.map((item) => ({
-                  ...item,
-                  providerId,
-                })),
-              };
-            },
-          ),
+          batches.map(async ({ providerId, symbols }) => {
+            const provider = this.#providers.get(providerId);
+            if (!provider) {
+              throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+            }
+            const result = await this.#closePositionsOnProvider(provider, {
+              symbols,
+            });
+            return {
+              ...result,
+              results: result.results.map((item) => ({
+                ...item,
+                providerId,
+              })),
+            };
+          }),
         ),
-        Array.from(byProvider.keys()),
+        batches,
       );
     }
 
@@ -1279,9 +1301,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     }
 
     // closeAll (or an empty request) fans out to every enabled venue.
+    // Capture the venue list once so a thrown batch is attributed to the
+    // provider that was actually called.
+    const activeProviders = this.#getActiveProviders();
     return this.#mergeCloseResults(
       await Promise.allSettled(
-        this.#getActiveProviders().map(async ([providerId, provider]) => {
+        activeProviders.map(async ([providerId, provider]) => {
           const result = await this.#closePositionsOnProvider(provider, {
             closeAll: true,
           });
@@ -1294,8 +1319,65 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           };
         }),
       ),
-      this.#getActiveProviders().map(([providerId]) => providerId),
+      activeProviders.map(([providerId]) => ({ providerId })),
     );
+  }
+
+  /**
+   * Close tagged targets when only one venue is registered.
+   *
+   * Targets for that venue become a symbol list. Targets for any other venue
+   * fail on their own and are not forwarded, so they cannot be read as a
+   * request to close every position on the venue that is actually loaded.
+   *
+   * @param providerId - The only registered venue.
+   * @param provider - That venue's provider.
+   * @param targets - The caller's tagged close targets.
+   * @returns The close result, including per-target failures for other venues.
+   */
+  async #closeSingleVenueTargets(
+    providerId: PerpsProviderType,
+    provider: PerpsProvider,
+    targets: ClosePositionsTarget[],
+  ): Promise<ClosePositionsResult> {
+    const symbols: string[] = [];
+    const misrouted: ClosePositionsResult['results'] = [];
+    for (const target of targets) {
+      if (target.providerId === providerId) {
+        symbols.push(target.symbol);
+      } else {
+        misrouted.push({
+          symbol: target.symbol,
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: target.providerId,
+        });
+      }
+    }
+
+    const local =
+      symbols.length === 0
+        ? {
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          }
+        : await this.#closePositionsOnProvider(provider, { symbols });
+
+    return {
+      success: local.successCount > 0,
+      successCount: local.successCount,
+      failureCount: local.failureCount + misrouted.length,
+      ...(local.error !== undefined && { error: local.error }),
+      results: [
+        ...local.results.map((item) => ({
+          ...item,
+          providerId: item.providerId ?? providerId,
+        })),
+        ...misrouted,
+      ],
+    };
   }
 
   /**
@@ -1356,17 +1438,20 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   /**
    * Merge per-venue close results into one batch outcome. Successful work on
    * one venue is never hidden by another venue's rejection: a thrown venue
-   * batch contributes an explicit venue-attributed batch-level error, and
-   * `success` stays true when at least one close landed.
+   * batch contributes an explicit venue-attributed error, and when the caller
+   * named the symbols that batch was closing, each of them is a failed result
+   * so a partial close cannot look complete. `success` stays true when at
+   * least one close landed.
    *
    * @param results - Settled per-venue results.
-   * @param providerIds - The venues, in the same order as the settled
-   * results, for attributing thrown batches.
+   * @param batches - The venues, in the same order as the settled results.
+   * `symbols` is set for a tagged close, where the failed positions are known
+   * without another read. A `closeAll` throw has no symbol list.
    * @returns The merged close result.
    */
   #mergeCloseResults(
     results: PromiseSettledResult<ClosePositionsResult>[],
-    providerIds: PerpsProviderType[],
+    batches: { providerId: PerpsProviderType; symbols?: string[] }[],
   ): ClosePositionsResult {
     const merged: ClosePositionsResult = {
       success: false,
@@ -1376,7 +1461,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     };
     const batchErrors: string[] = [];
     results.forEach((result, index) => {
-      const providerId = providerIds[index];
+      const batch = batches[index];
+      const providerId = batch?.providerId;
       if (result.status === 'fulfilled') {
         merged.successCount += result.value.successCount;
         merged.failureCount += result.value.failureCount;
@@ -1390,6 +1476,18 @@ export class AggregatedPerpsProvider implements PerpsProvider {
             ? result.reason.message
             : String(result.reason);
         batchErrors.push(`${providerId}: ${message}`);
+        const symbols = batch?.symbols ?? [];
+        if (symbols.length > 0 && providerId !== undefined) {
+          merged.failureCount += symbols.length;
+          merged.results.push(
+            ...symbols.map((symbol) => ({
+              symbol,
+              success: false,
+              error: message,
+              providerId,
+            })),
+          );
+        }
       }
     });
     if (batchErrors.length > 0) {

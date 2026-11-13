@@ -3335,6 +3335,37 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('closes only the tagged symbol instead of every cached position', async () => {
+      primeFrozenAggregate(null, [
+        createCachedPosition({ size: '0.1', symbol: 'BTC' }),
+        createCachedPosition({ size: '2', symbol: 'ETH' }),
+      ]);
+
+      const result = await provider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(getSubmittedOrders()).toEqual([
+        expect.objectContaining({ s: '0.1', r: true }),
+      ]);
+    });
+
+    it('does not submit a close when every target names another venue', async () => {
+      primeFrozenAggregate(null, [createCachedPosition({ size: '0.1' })]);
+
+      const result = await provider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'lighter' }],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.successCount).toBe(0);
+      expect(
+        mockClientService.getExchangeClient().order as Mock,
+      ).not.toHaveBeenCalled();
+    });
+
     it('closes the live per-DEX size, not the frozen aggregate size', async () => {
       // Aggregate still says 0.1 BTC; the fresh slice says a TP/SL fill left
       // 0.03. Submitting 0.1 reduce-only is rejected as increasing the position.

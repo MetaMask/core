@@ -4329,7 +4329,12 @@ export class PerpsController extends BaseController<
         // before any asynchronous work so later default changes cannot
         // re-attribute the record.
         providerId: depositProviderId,
-      } = await this.#depositService.prepareTransaction({ provider });
+      } = await this.#depositService.prepareTransaction({
+        provider,
+        ...(params.providerId !== undefined && {
+          providerId: params.providerId,
+        }),
+      });
       currentDepositId = depositId;
 
       // Get current account address via messenger (outside of update() for proper typing)
@@ -5360,25 +5365,35 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('getAccountState', {
         accountDataContext: {
-          // Match the live account data context. An aggregated result spans
-          // venues: it stays current while the aggregated wrapper is still
-          // the active provider, regardless of which venue is the routing
-          // default. A single-venue result is matched against the venue it
-          // names (or the active direct provider), to reject balances from a
-          // previous venue when the route changed while the request was in
-          // flight.
+          // Match the live account data context. A combined snapshot is
+          // current only while more than one venue is still registered: an
+          // in-flight result from before a venue was removed must not replace
+          // the remaining venue. A one-venue fallback (no `providerStates`)
+          // is current only while the wrapper still has that single venue
+          // and the result names it. After another venue recovers, that
+          // in-flight fallback must not replace the combined snapshot, even
+          // when it names the routing default. A direct-provider result is
+          // matched against the active venue, so a response from a previous
+          // venue is dropped when the route changed while it was in flight.
           isCurrent: (accountState) => {
-            if (accountState.providerStates) {
+            const active = this.activeProviderInstance;
+            if (active instanceof AggregatedPerpsProvider) {
+              const venueCount = active.getProviderIds().length;
+              if (accountState.providerStates) {
+                return venueCount > 1;
+              }
               return (
-                this.activeProviderInstance instanceof AggregatedPerpsProvider
+                venueCount <= 1 &&
+                (accountState.providerId === undefined ||
+                  accountState.providerId === active.getWriteProviderId())
               );
+            }
+            if (accountState.providerStates) {
+              return false;
             }
             return (
               accountState.providerId === undefined ||
-              accountState.providerId ===
-                (this.activeProviderInstance instanceof AggregatedPerpsProvider
-                  ? this.activeProviderInstance.getWriteProviderId()
-                  : this.state.activeProvider)
+              accountState.providerId === this.state.activeProvider
             );
           },
         },

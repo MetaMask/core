@@ -2503,12 +2503,35 @@ export class TradingService {
         }
         const positions = await context.getPositions();
 
-        const positionsToClose =
+        // Tagged targets name the positions to close. A provider without a
+        // batch method must not treat a target list as close-all just because
+        // `symbols` was omitted.
+        let positionsToClose: typeof positions;
+        if (params.targets && params.targets.length > 0) {
+          positionsToClose = positions.filter((position) =>
+            params.targets?.some((target) => {
+              if (target.symbol !== position.symbol) {
+                return false;
+              }
+              if (position.providerId !== undefined) {
+                return target.providerId === position.providerId;
+              }
+              // Direct-provider positions are unlabeled. They belong to this
+              // provider, so a target for a different venue does not match.
+              return target.providerId === provider.protocolId;
+            }),
+          );
+        } else if (
           params.closeAll === true ||
           !params.symbols ||
           params.symbols.length === 0
-            ? positions
-            : positions.filter((pos) => params.symbols?.includes(pos.symbol));
+        ) {
+          positionsToClose = positions;
+        } else {
+          positionsToClose = positions.filter((pos) =>
+            params.symbols?.includes(pos.symbol),
+          );
+        }
 
         if (positionsToClose.length === 0) {
           operationResult = {

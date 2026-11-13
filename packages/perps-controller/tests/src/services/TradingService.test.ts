@@ -3203,6 +3203,58 @@ describe('TradingService', () => {
       expect(result.results).toHaveLength(2);
     });
 
+    it('closes only tagged positions in the per-position fallback', async () => {
+      mockGetPositions.mockResolvedValue(mockPositions);
+      delete mockProvider.closePositions;
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: {
+          targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }],
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockProvider.closePosition).toHaveBeenCalledTimes(1);
+      expect(mockProvider.closePosition).toHaveBeenCalledWith(
+        expect.objectContaining({ symbol: 'BTC' }),
+      );
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+    });
+
+    it('does not close unlabeled positions for a different venue target', async () => {
+      mockGetPositions.mockResolvedValue(mockPositions);
+      delete mockProvider.closePositions;
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+      });
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: {
+          targets: [{ symbol: 'BTC', providerId: 'lighter' }],
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockProvider.closePosition).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+      });
+    });
+
     it('uses fallback when provider does not support batch closing', async () => {
       const params: ClosePositionsParams = {
         symbols: ['BTC'],

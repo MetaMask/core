@@ -953,6 +953,62 @@ describe('PerpsController default provider', () => {
       expect(controller.state.accountState?.totalBalance).toBe('300');
     });
 
+    it('keeps the combined balance when a stale fallback names the routing default', async () => {
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'hyperliquid' },
+        true,
+      );
+      loadLighterProvider.mockRejectedValueOnce(
+        new Error('Temporary chunk load failure'),
+      );
+      await controller.init();
+      const { MarketDataService: RealMarketDataService } =
+        await vi.importActual<
+          typeof import('../../src/services/MarketDataService.js')
+        >('../../src/services/MarketDataService.js');
+      const service = new RealMarketDataService(mockInfrastructure as never);
+      mockMarketDataServiceInstance.getAccountState.mockImplementation(
+        (options: never) => service.getAccountState(options),
+      );
+      const account: AccountState = {
+        providerId: 'hyperliquid',
+        spendableBalance: '100',
+        withdrawableBalance: '100',
+        totalBalance: '100',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      };
+      mockProvider.getAccountState.mockResolvedValue(account);
+
+      // The loaded venue is the routing default, so provider id alone cannot
+      // tell this one-venue fallback from a later single-venue read.
+      await controller.getAccountState();
+      expect(controller.state.accountState?.totalBalance).toBe('100');
+
+      const pendingFallback = createDeferred<AccountState>();
+      mockProvider.getAccountState.mockReturnValueOnce(pendingFallback.promise);
+      const oldRequest = controller.getAccountState();
+      await controller.disconnect();
+      await controller.init();
+      (lighterProvider.getAccountState as Mock).mockResolvedValue({
+        ...account,
+        providerId: 'lighter',
+        totalBalance: '200',
+      });
+      await controller.getAccountState();
+      expect(controller.state.accountState?.totalBalance).toBe('300');
+      expect(controller.state.accountState?.providerStates).toBeDefined();
+
+      // The in-flight fallback settles after both venues are live. It names
+      // the routing default and has no per-venue breakdown, and must not
+      // replace the combined snapshot.
+      pendingFallback.resolve(account);
+      await oldRequest;
+      expect(controller.state.accountState?.totalBalance).toBe('300');
+      expect(controller.state.accountState?.providerStates).toBeDefined();
+    });
+
     it('combines a late venue response instead of letting it overwrite the other venue', async () => {
       setupAggregatedMode('hyperliquid');
       const { MarketDataService: RealMarketDataService } =

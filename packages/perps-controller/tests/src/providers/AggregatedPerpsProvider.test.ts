@@ -1599,6 +1599,105 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.closePositions).not.toHaveBeenCalled();
     });
 
+    it('records a per-symbol failure when a tagged venue close throws', async () => {
+      mockHLProvider.closePositions.mockRejectedValue(
+        new Error('batch rejected'),
+      );
+      mockLighterProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'ETH', success: true }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [
+          { symbol: 'BTC', providerId: 'hyperliquid' },
+          { symbol: 'ETH', providerId: 'lighter' },
+        ],
+      });
+
+      // The thrown venue's target stays in the result. A partial close is
+      // not reported as fully successful.
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.error).toBe('hyperliquid: batch rejected');
+      expect(result.results).toEqual([
+        {
+          symbol: 'BTC',
+          success: false,
+          error: 'batch rejected',
+          providerId: 'hyperliquid',
+        },
+        { symbol: 'ETH', success: true, providerId: 'lighter' },
+      ]);
+    });
+
+    it('closes only the tagged symbols when one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }],
+      });
+
+      // The venue must see a symbol list. Forwarding `targets` alone is
+      // close-all on a provider that only reads `symbols` and `closeAll`.
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+      expect(result.results).toEqual([
+        { symbol: 'BTC', success: true, providerId: 'hyperliquid' },
+      ]);
+    });
+
+    it('does not close the loaded venue when the only target names another venue', async () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'lighter' }],
+      });
+
+      expect(mockHLProvider.closePositions).not.toHaveBeenCalled();
+      expect(mockHLProvider.closePosition).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [
+          {
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+            providerId: 'lighter',
+          },
+        ],
+      });
+    });
+
+    it('closes tagged symbols one by one when the only venue has no batch close', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      delete (mockHLProvider as Partial<MockPerpsProvider>).closePositions;
+      mockHLProvider.closePosition.mockResolvedValue({ success: true });
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }],
+      });
+
+      expect(mockHLProvider.closePosition).toHaveBeenCalledTimes(1);
+      expect(mockHLProvider.closePosition).toHaveBeenCalledWith({
+        symbol: 'BTC',
+      });
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+    });
+
     it('passes a legacy symbols-only close through when only one venue is registered', async () => {
       aggregatedProvider.removeProvider('lighter');
       mockHLProvider.closePositions.mockResolvedValue({

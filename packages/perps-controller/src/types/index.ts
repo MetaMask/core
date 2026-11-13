@@ -1485,6 +1485,12 @@ export type DepositWithConfirmationParams = {
   amount?: string;
   /** If true, uses addTransaction instead of submit to avoid navigation (e.g. deposit + place order flow) */
   placeOrder?: boolean;
+  /**
+   * Venue the deposit should settle on. In aggregated mode, omitting it uses
+   * the routing default's route. A venue with no deposit route fails closed
+   * instead of funding a different exchange.
+   */
+  providerId?: PerpsProviderType;
 };
 
 export type DepositResult = {
