@@ -130,6 +130,7 @@ type BuiltProvider = {
     getNextNonce: Mock;
     getTx: Mock;
     runTradingSection: Mock;
+    cancelHeldRequests: Mock;
   };
   accountSigner: { signPersonalMessage: Mock };
   call: MockInstance;
@@ -189,6 +190,7 @@ function buildProvider({
     runTradingSection: vi.fn(
       async (section: () => Promise<unknown>) => await section(),
     ),
+    cancelHeldRequests: vi.fn(),
   };
   MockedClientService.mockImplementation(function () {
     return client as unknown as LighterClientService;

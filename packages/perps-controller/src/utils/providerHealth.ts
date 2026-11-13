@@ -7,7 +7,9 @@ import type {
 
 /**
  * Health for a provider without its own health API, from its socket state:
- * degraded while it is reconnecting after a drop.
+ * degraded while it is disconnected or reconnecting after a drop. Such a
+ * provider does not close its socket by choice while registered, so
+ * `disconnected` reads as down even at attempt 0 (a failed first connect).
  *
  * @param providerId - Provider the state belongs to.
  * @param connectionState - The provider's socket state.
@@ -19,13 +21,14 @@ export const getHealthFromConnectionState = (
   connectionState: WebSocketConnectionState,
   reconnectionAttempt: number,
 ): PerpsProviderHealth => {
-  const reconnecting =
-    connectionState !== WebSocketConnectionState.Connected &&
-    reconnectionAttempt > 0;
+  const isDown =
+    connectionState === WebSocketConnectionState.Disconnected ||
+    (connectionState !== WebSocketConnectionState.Connected &&
+      reconnectionAttempt > 0);
   return {
     providerId,
-    status: reconnecting ? 'degraded' : 'healthy',
-    reasons: reconnecting ? ['socket_down'] : [],
+    status: isDown ? 'degraded' : 'healthy',
+    reasons: isDown ? ['socket_down'] : [],
     connectionState,
     reconnectionAttempt,
     updatedAt: Date.now(),

@@ -622,6 +622,59 @@ describe('LighterProvider stream lifecycle', () => {
       await provider.disconnect();
     });
 
+    it('reports attempt 0 when a reconnect attempt fails after the last listener left', async () => {
+      vi.spyOn(Math, 'random').mockReturnValue(1);
+      const { provider } = buildStreamProvider();
+      const states: string[] = [];
+      provider.subscribeToConnectionState((state, attempt) =>
+        states.push(`${state}:${attempt}`),
+      );
+      const leave = provider.subscribeToPrices({
+        symbols: [],
+        callback: vi.fn(),
+      });
+      await settle();
+      latestSocket().open();
+      latestSocket().close();
+      await vi.advanceTimersByTimeAsync(getLighterReconnectDelayMs(1));
+      expect(states.at(-1)).toBe('connecting:1');
+
+      leave();
+      latestSocket().close();
+
+      expect(states.at(-1)).toBe('disconnected:0');
+      await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_IDLE_CLOSE_MS);
+      expect(states.at(-1)).toBe('disconnected:0');
+      expect(StreamFakeWebSocket.instances).toHaveLength(2);
+      await provider.disconnect();
+    });
+
+    it('reports attempt 0 once the idle teardown drops a pending reconnect', async () => {
+      vi.spyOn(Math, 'random').mockReturnValue(1);
+      const { provider } = buildStreamProvider();
+      const states: string[] = [];
+      provider.subscribeToConnectionState((state, attempt) =>
+        states.push(`${state}:${attempt}`),
+      );
+      const leave = provider.subscribeToPrices({
+        symbols: [],
+        callback: vi.fn(),
+      });
+      await settle();
+      latestSocket().open();
+      latestSocket().close();
+      expect(states.at(-1)).toBe('disconnected:1');
+
+      leave();
+      await vi.advanceTimersByTimeAsync(
+        LIGHTER_CHANNEL_RELEASE_DELAY_MS + LIGHTER_SOCKET_IDLE_CLOSE_MS,
+      );
+
+      expect(states.at(-1)).toBe('disconnected:0');
+      expect(StreamFakeWebSocket.instances).toHaveLength(1);
+      await provider.disconnect();
+    });
+
     it('jitters each delay within the upper half of its window', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0);
       expect(getLighterReconnectDelayMs(1)).toBe(500);

@@ -2,12 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
+  LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS,
   LIGHTER_TX_TYPE_CANCEL_ORDER,
   LIGHTER_TX_TYPE_CREATE_ORDER,
 } from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
-import type { OrderParams } from '../../../src/types/index.js';
+import type { OrderParams, OrderResult } from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
   LighterSignerOperation,
@@ -23,7 +24,10 @@ import {
   getLoggerErrorMock,
   StreamFakeWebSocket,
 } from '../../helpers/lighterProvider.js';
-import type { MockClientInstance } from '../../helpers/lighterProvider.js';
+import type {
+  BuiltProvider,
+  MockClientInstance,
+} from '../../helpers/lighterProvider.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 vi.mock(
@@ -68,6 +72,66 @@ const recordSendsInTradingSection = (
   return seen;
 };
 
+/** REST calls the provider makes through its client service. */
+const REST_CALLS = [
+  'getAccountByIndex',
+  'getAccountsByL1Address',
+  'getActiveOrders',
+  'getApiKeys',
+  'getCandles',
+  'getEditableOrders',
+  'getInactiveOrders',
+  'getNextNonce',
+  'getOrderBookDetails',
+  'getOrderBookOrders',
+  'getOrderBooks',
+  'getOrdersByClientIds',
+  'getTrades',
+  'getTx',
+  'sendTx',
+] as const;
+
+/**
+ * Hold each REST call made outside a trading section for the longest 429/405
+ * cooldown, the way the client service holds reads during a cooldown or with
+ * a full request budget.
+ *
+ * @param clientInstance - The provider's mocked client service.
+ * @returns Names of the held calls.
+ */
+const holdCallsOutsideTradingSection = (
+  clientInstance: MockClientInstance,
+): string[] => {
+  let depth = 0;
+  const held: string[] = [];
+  clientInstance.runTradingSection.mockImplementation(
+    async (section: () => Promise<unknown>) => {
+      depth += 1;
+      try {
+        return await section();
+      } finally {
+        depth -= 1;
+      }
+    },
+  );
+  const hold = (name: (typeof REST_CALLS)[number]): void => {
+    const call = clientInstance[name].getMockImplementation();
+    clientInstance[name].mockImplementation(
+      async (...args: unknown[]): Promise<unknown> => {
+        if (depth === 0) {
+          held.push(name);
+          await new Promise((resolve) =>
+            setTimeout(resolve, LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS),
+          );
+        }
+        return await call?.(...args);
+      },
+    );
+  };
+  REST_CALLS.forEach(hold);
+  return held;
+};
+
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
 
@@ -89,6 +153,14 @@ describe('LighterProvider', () => {
       clientInstance.getOrderBooks.mockRejectedValue(new Error('down'));
       const result = await provider.initialize();
       expect(result).toStrictEqual({ success: false, error: 'down' });
+    });
+
+    it('cancels the reads its REST client holds when it disconnects', async () => {
+      const { provider, clientInstance } = buildProvider();
+
+      await provider.disconnect();
+
+      expect(clientInstance.cancelHeldRequests).toHaveBeenCalledOnce();
     });
 
     it('disconnects cleanly', async () => {
@@ -1657,6 +1729,67 @@ describe('LighterProvider', () => {
       expect(sends.length).toBeGreaterThan(0);
       expect(sends).not.toContain(false);
     });
+
+    it.each<
+      [string, (provider: BuiltProvider['provider']) => Promise<OrderResult>]
+    >([
+      [
+        'a market order',
+        async (provider): Promise<OrderResult> =>
+          await provider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.001',
+            orderType: 'market',
+            currentPrice: 100000,
+          }),
+      ],
+      [
+        'a market order with TP/SL',
+        async (provider): Promise<OrderResult> =>
+          await provider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.001',
+            orderType: 'market',
+            currentPrice: 100000,
+            takeProfitPrice: '110000',
+            stopLossPrice: '90000',
+          }),
+      ],
+      [
+        'a stop-market trigger order',
+        async (provider): Promise<OrderResult> =>
+          await provider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.001',
+            orderType: 'stop_market',
+            triggerPrice: '95000',
+            maxSlippageBps: 100,
+          }),
+      ],
+      [
+        'a position close',
+        async (provider): Promise<OrderResult> =>
+          await provider.closePosition({ symbol: 'BTC' }),
+      ],
+    ])(
+      'places %s without waiting behind a read cooldown or a full budget',
+      async (_flow, place) => {
+        const { provider, clientInstance } = buildProvider();
+        const held = holdCallsOutsideTradingSection(clientInstance);
+        const startedAt = Date.now();
+
+        const result = await place(provider);
+
+        expect(held).toStrictEqual([]);
+        expect(Date.now() - startedAt).toBeLessThan(
+          LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS,
+        );
+        expect(result).toMatchObject({ success: true });
+      },
+    );
 
     it('enforces the maker minimum for a trigger limit before signer setup', async () => {
       const { provider, calls } = buildProvider();

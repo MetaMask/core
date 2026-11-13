@@ -667,6 +667,12 @@ export class LighterClientService {
   /** Write sections running now; the reads they issue skip the waits. */
   #tradingSections = 0;
 
+  /** Ends the waits of reads held by the budget or a cooldown. */
+  readonly #heldRequestReleases = new Set<() => void>();
+
+  /** Bumped by `cancelHeldRequests`, so a released read knows to stop. */
+  #heldRequestGeneration = 0;
+
   constructor(
     deps: PerpsPlatformDependencies,
     config: {
@@ -700,10 +706,10 @@ export class LighterClientService {
   }
 
   /**
-   * Run a venue write section. Reads it issues skip the budget and cooldown
-   * waits like trading calls, so a held read never delays the orders queued
-   * behind the section. Reads from other callers made meanwhile skip them
-   * too.
+   * Run a venue write flow. Reads it issues skip the budget and cooldown
+   * waits like trading calls, so a held read never delays an order or the
+   * orders queued behind it. Reads from other callers made meanwhile skip
+   * them too.
    *
    * @param section - The write section.
    * @returns The section's result.
@@ -716,6 +722,18 @@ export class LighterClientService {
       return await section();
     } finally {
       this.#tradingSections -= 1;
+    }
+  }
+
+  /**
+   * End every read held by the budget or a cooldown without sending it, for
+   * example when the provider disconnects. Held reads reject; later requests
+   * are unaffected.
+   */
+  cancelHeldRequests(): void {
+    this.#heldRequestGeneration += 1;
+    for (const release of [...this.#heldRequestReleases]) {
+      release();
     }
   }
 
@@ -1242,6 +1260,7 @@ export class LighterClientService {
   readonly #acquireRequestSlot = async (
     priority: LighterRequestPriority,
   ): Promise<void> => {
+    const generation = this.#heldRequestGeneration;
     for (;;) {
       const now = Date.now();
       while (
@@ -1264,7 +1283,20 @@ export class LighterClientService {
         this.#recentRequests.push(now);
         return;
       }
-      await new Promise((resolveWait) => setTimeout(resolveWait, waitMs));
+      let release = (): void => undefined;
+      const waited = new Promise<void>((resolveWait) => {
+        const timer = setTimeout(resolveWait, waitMs);
+        release = (): void => {
+          clearTimeout(timer);
+          resolveWait();
+        };
+      });
+      this.#heldRequestReleases.add(release);
+      await waited;
+      this.#heldRequestReleases.delete(release);
+      if (this.#heldRequestGeneration !== generation) {
+        throw new Error('Lighter request cancelled while held');
+      }
     }
   };
 

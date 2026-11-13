@@ -357,6 +357,7 @@ export type MockClientInstance = {
   getOrderBookDetails: Mock;
   getRequestHealth: Mock;
   runTradingSection: Mock;
+  cancelHeldRequests: Mock;
   getAccountsByL1Address: Mock;
   getAccountByIndex: Mock;
   getApiKeys: Mock;
@@ -472,6 +473,7 @@ export function buildProvider(
     runTradingSection: vi.fn(
       async (section: () => Promise<unknown>) => await section(),
     ),
+    cancelHeldRequests: vi.fn(),
     getOrderBookDetails: vi.fn().mockResolvedValue({
       code: 200,
       orderBookDetails: [

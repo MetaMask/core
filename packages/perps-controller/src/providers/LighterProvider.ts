@@ -1902,15 +1902,22 @@ export class LighterProvider implements PerpsProvider {
   /** Consecutive reconnect attempts since the last successful open. */
   #wsReconnectAttempts = 0;
 
+  /** The attempt connection listeners last received with a state. */
+  #notifiedReconnectAttempts = 0;
+
   readonly #connectionListeners = new Set<
     (state: WebSocketConnectionState, reconnectionAttempt: number) => void
   >();
 
   readonly #setConnectionState = (state: WebSocketConnectionState): void => {
-    if (this.#connectionState === state) {
+    if (
+      this.#connectionState === state &&
+      this.#notifiedReconnectAttempts === this.#wsReconnectAttempts
+    ) {
       return;
     }
     this.#connectionState = state;
+    this.#notifiedReconnectAttempts = this.#wsReconnectAttempts;
     for (const listener of this.#connectionListeners) {
       try {
         listener(state, this.#wsReconnectAttempts);
@@ -2197,6 +2204,7 @@ export class LighterProvider implements PerpsProvider {
     // fences instead of submitting after the provider was torn down.
     this.#interruptChase();
     this.#isDisconnected = true;
+    this.#clientService.cancelHeldRequests();
     this.#invalidateSessionState();
     this.#removeSignerResetListener();
     this.#teardownStream();
@@ -11359,7 +11367,31 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Run a venue write flow as one REST trading section, so the reads it makes
+   * before the write lock (fresh prices, the forced market refresh, account
+   * and signer checks) never wait behind the read budget or a 429/405
+   * cooldown.
+   *
+   * @param flow - The write flow.
+   * @returns The flow's result.
+   */
+  async #runTradingFlow<Result>(flow: () => Promise<Result>): Promise<Result> {
+    return await this.#clientService.runTradingSection(flow);
+  }
+
   async placeOrder(
+    input: OrderParams,
+    inheritedGeneration?: number,
+    reportFailure = true,
+  ): Promise<OrderResult> {
+    return await this.#runTradingFlow(
+      async () =>
+        await this.#placeOrder(input, inheritedGeneration, reportFailure),
+    );
+  }
+
+  async #placeOrder(
     input: OrderParams,
     inheritedGeneration?: number,
     reportFailure = true,
@@ -13722,6 +13754,15 @@ export class LighterProvider implements PerpsProvider {
     params: CancelOrderParams,
     inheritedGeneration?: number,
   ): Promise<CancelOrderResult> {
+    return await this.#runTradingFlow(
+      async () => await this.#cancelOrder(params, inheritedGeneration),
+    );
+  }
+
+  async #cancelOrder(
+    params: CancelOrderParams,
+    inheritedGeneration?: number,
+  ): Promise<CancelOrderResult> {
     if (params.orderType === 'chase') {
       try {
         return await this.#cancelChase(params);
@@ -13831,6 +13872,12 @@ export class LighterProvider implements PerpsProvider {
    * @returns Truthful durable same-order outcome, never a placement receipt.
    */
   async editOrder(params: EditOrderParams): Promise<OrderResult> {
+    return await this.#runTradingFlow(
+      async () => await this.#editOrder(params),
+    );
+  }
+
+  async #editOrder(params: EditOrderParams): Promise<OrderResult> {
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
@@ -14452,6 +14499,12 @@ export class LighterProvider implements PerpsProvider {
   };
 
   async closePosition(rawParams: ClosePositionParams): Promise<OrderResult> {
+    return await this.#runTradingFlow(
+      async () => await this.#closePosition(rawParams),
+    );
+  }
+
+  async #closePosition(rawParams: ClosePositionParams): Promise<OrderResult> {
     const params = this.#normalizeCloseParams(rawParams);
     try {
       // One intent identity from the position read through the final write:
@@ -14514,7 +14567,9 @@ export class LighterProvider implements PerpsProvider {
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
-    return this.#updatePositionTPSL(params);
+    return await this.#runTradingFlow(
+      async () => await this.#updatePositionTPSL(params),
+    );
   }
 
   /**
@@ -14541,7 +14596,9 @@ export class LighterProvider implements PerpsProvider {
   async resolveRecoveryProtection(
     params: ResolveRecoveryProtectionParams,
   ): Promise<PerpsRecoveryProtectionResult> {
-    const result = await this.#resolveRecoveryProtection(params);
+    const result = await this.#runTradingFlow(
+      async () => await this.#resolveRecoveryProtection(params),
+    );
     return {
       ...result,
       status: result.success ? 'settled' : 'unresolved',
@@ -16771,6 +16828,12 @@ export class LighterProvider implements PerpsProvider {
   };
 
   async updateMargin(input: UpdateMarginParams): Promise<MarginResult> {
+    return await this.#runTradingFlow(
+      async () => await this.#updateMargin(input),
+    );
+  }
+
+  async #updateMargin(input: UpdateMarginParams): Promise<MarginResult> {
     const params = { ...input };
     try {
       this.#ensureSessionBinding();
@@ -16884,6 +16947,10 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
+    return await this.#runTradingFlow(async () => await this.#withdraw(params));
+  }
+
+  async #withdraw(params: WithdrawParams): Promise<WithdrawResult> {
     try {
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
@@ -18781,6 +18848,8 @@ export class LighterProvider implements PerpsProvider {
       this.#priceWs = null;
       this.#clearKeepalive();
       if (!this.#hasAnySubscriber()) {
+        // Nothing listens, so nothing reconnects: report attempt 0.
+        this.#wsReconnectAttempts = 0;
         this.#setConnectionState(WebSocketConnectionState.Disconnected);
         return;
       }

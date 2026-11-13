@@ -1415,6 +1415,27 @@ describe('LighterClientService', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
+    it('ends reads held by a cooldown when they are cancelled, without sending them', async () => {
+      vi.useFakeTimers();
+      const service = buildService();
+      fetchMock.mockResolvedValueOnce(rateLimited(429, '30'));
+      await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+        code: 429,
+      });
+      fetchMock.mockResolvedValue(okDetails());
+      const heldRead = service.getOrderBookDetails();
+
+      service.cancelHeldRequests();
+
+      await expect(heldRead).rejects.toThrow('Lighter request cancelled');
+      expect(sentPaths()).toStrictEqual(['/api/v1/orderBookDetails']);
+      // Reads made after the cancel wait for the cooldown as usual.
+      const laterRead = service.getOrderBookDetails();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(await laterRead).toMatchObject({ code: 200 });
+      expect(sentPaths()).toHaveLength(2);
+    });
+
     it('caps a long Retry-After at the maximum cooldown', async () => {
       vi.useFakeTimers();
       const service = buildService();
