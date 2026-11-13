@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1424.0.0 ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Release 1422.0.0 ([#11472](https://github.com/MetaMask/core/pull/11472))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
