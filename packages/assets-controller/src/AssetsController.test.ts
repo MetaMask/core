@@ -6016,9 +6016,9 @@ describe('AssetsController', () => {
           'entropy:mock-keyring-id-1/0',
         );
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalled();
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalled();
+        });
         getAssetsSpy.mockRestore();
       });
     });
@@ -6033,7 +6033,7 @@ describe('AssetsController', () => {
           'entropy:mock-keyring-id-1/0',
         );
 
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
         getAssetsSpy.mockRestore();
@@ -6050,14 +6050,14 @@ describe('AssetsController', () => {
           }
         ).publish('ClientController:stateChanged', { isUiOpen: true });
         messenger.publish('KeyringController:unlock');
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
           '',
         );
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
@@ -6065,9 +6065,9 @@ describe('AssetsController', () => {
           'AccountTreeController:initialized',
           {},
         );
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalled();
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalled();
+        });
         getAssetsSpy.mockRestore();
       });
     });
@@ -6087,7 +6087,7 @@ describe('AssetsController', () => {
           'entropy:mock-keyring-id-1/0',
           'entropy:mock-keyring-id-1/0',
         );
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
         getAssetsSpy.mockRestore();
