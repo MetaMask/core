@@ -1300,7 +1300,6 @@ describe('SnapDataSource', () => {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
     });
-    await new Promise(process.nextTick);
 
     const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
@@ -1324,7 +1323,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
     });
-    await new Promise(process.nextTick);
 
     const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext();
@@ -1354,7 +1352,6 @@ describe('SnapDataSource', () => {
         hiddenAssetIds: [],
       }),
     });
-    await new Promise(process.nextTick);
 
     const next = vi.fn(async (middlewareContext: Context) => middlewareContext);
     const context = createMiddlewareContext();
@@ -1378,7 +1375,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
     });
-    await new Promise(process.nextTick);
 
     const next = vi.fn((middlewareContext: Context) =>
       Promise.resolve(middlewareContext),
@@ -1403,7 +1399,6 @@ describe('SnapDataSource', () => {
     const { controller, cleanup } = setupController({
       installedSnaps: {},
     });
-    await new Promise(process.nextTick);
 
     const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
@@ -1430,7 +1425,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
     });
-    await new Promise(process.nextTick);
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
@@ -1445,7 +1439,7 @@ describe('SnapDataSource', () => {
     expect(true).toBe(true);
   });
 
-  it('createSnapDataSource factory creates instance', async () => {
+  it('createSnapDataSource factory creates instance', () => {
     const rootMessenger = new Messenger<
       MockAnyNamespace,
       AllActions,
@@ -1497,8 +1491,6 @@ describe('SnapDataSource', () => {
       }),
       getAssetsState: getDefaultAssetsControllerState,
     });
-
-    await new Promise(process.nextTick);
 
     expect(instance).toBeInstanceOf(SnapDataSource);
     expect(instance.getName()).toBe('SnapDataSource');
