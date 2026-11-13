@@ -42,6 +42,12 @@ import {
   LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_SUPPORTED_RESOLUTIONS,
+  LIGHTER_CHANNEL_RELEASE_DELAY_MS,
+  LIGHTER_RECONNECT_BASE_DELAY_MS,
+  LIGHTER_RECONNECT_MAX_DELAY_MS,
+  LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD,
+  LIGHTER_SOCKET_DOWN_GRACE_MS,
+  LIGHTER_SOCKET_IDLE_CLOSE_MS,
   LIGHTER_DEFAULT_API_KEY_INDEX,
   LIGHTER_MIN_TRADING_API_KEY_INDEX,
   LIGHTER_TX_EXPIRY_SLACK_MS,
@@ -130,6 +136,8 @@ import type {
   ReconcileChaseOrderCancellationResult,
   PerpsChaseOrderOwnership,
   PerpsChaseOrderDispatch,
+  PerpsProviderHealth,
+  PerpsProviderHealthReason,
 } from '../types/index.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
@@ -1746,6 +1754,74 @@ const EMPTY_ACCOUNT_STATE: AccountState = {
   providerId: 'lighter',
 };
 
+/** Channels owned by the bound account; they are released as one group. */
+const LIGHTER_ACCOUNT_CHANNEL_PREFIXES = [
+  'user_stats/',
+  'account_all_positions/',
+  'account_all_trades/',
+  'account_all_orders/',
+];
+
+/** Channel prefixes whose frames are dropped once the channel is released. */
+const LIGHTER_STREAM_FRAME_PREFIXES = [
+  'market_stats/',
+  ...LIGHTER_ACCOUNT_CHANNEL_PREFIXES,
+];
+
+/** Release key for the account channel group. */
+const LIGHTER_ACCOUNT_CHANNELS_KEY = 'account';
+
+const isLighterAccountChannel = (channel: string): boolean =>
+  LIGHTER_ACCOUNT_CHANNEL_PREFIXES.some((prefix) => channel.startsWith(prefix));
+
+/**
+ * Split a per-market channel name (`order_book/{id}`, `trade/{id}`,
+ * `candle/{id}/{resolution}`) into its registry keys.
+ *
+ * @param channel - Venue channel name.
+ * @returns The channel kind, market ID and candle series key.
+ */
+const parseLighterMarketChannel = (
+  channel: string,
+): { kind: string; marketId: number; seriesKey: string } => {
+  const [kind, marketId, resolution] = channel.split('/');
+  return {
+    kind,
+    marketId: Number(marketId),
+    seriesKey: `${marketId}:${resolution}`,
+  };
+};
+
+/**
+ * Drop registry entries whose subscriber set is empty.
+ *
+ * @param registry - Subscribers keyed by market or series.
+ */
+const deleteEmptyRegistries = <Key, Subscriber>(
+  registry: Map<Key, Set<Subscriber>>,
+): void => {
+  for (const [key, subscribers] of registry) {
+    if (subscribers.size === 0) {
+      registry.delete(key);
+    }
+  }
+};
+
+/**
+ * Reconnect delay with equal jitter: 1 s doubling per attempt, capped at
+ * 30 s, then a random point in the upper half of that window.
+ *
+ * @param attempt - Reconnect attempt since the last successful open (1-based).
+ * @returns Delay in milliseconds, between half and all of the window.
+ */
+export const getLighterReconnectDelayMs = (attempt: number): number => {
+  const windowMs = Math.min(
+    LIGHTER_RECONNECT_MAX_DELAY_MS,
+    LIGHTER_RECONNECT_BASE_DELAY_MS * 2 ** Math.max(0, attempt - 1),
+  );
+  return Math.round(windowMs / 2 + (Math.random() * windowMs) / 2);
+};
+
 // ============================================================================
 // LighterProvider
 // ============================================================================
@@ -1842,9 +1918,34 @@ export class LighterProvider implements PerpsProvider {
         this.#logSubscriberError('connection-state', error);
       }
     }
+    this.#emitHealth();
   };
 
   #wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Delayed releases keyed by channel, or the account channel group. */
+  readonly #channelReleaseTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+
+  /** Closes the socket once it has had no listener for the idle period. */
+  #wsIdleCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+  readonly #socketIdleCloseMs: number;
+
+  /** Set once the socket has stayed down past the grace period. */
+  #isSocketDown = false;
+
+  #socketDownTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Re-reports health when a REST rate-limit cooldown ends. */
+  #cooldownTimer: ReturnType<typeof setTimeout> | null = null;
+
+  readonly #healthListeners = new Set<(health: PerpsProviderHealth) => void>();
+
+  /** Last health signature sent to listeners, to skip repeats. */
+  #lastHealthSignature: string | null = null;
 
   /** Merged latest price per symbol, replayed to late price subscribers. */
   readonly #lastPriceBySymbol: Map<string, PriceUpdate> = new Map();
@@ -1918,6 +2019,8 @@ export class LighterProvider implements PerpsProvider {
     lighterAuthConfig?: LighterAuthConfig;
     signerBridge?: LighterSignerBridge;
     webSocketCtor?: LighterWebSocketCtor | null;
+    /** Idle time before the socket closes (defaults to 30 s). */
+    socketIdleCloseMs?: number;
   }) {
     this.#deps = options.platformDependencies;
     this.#chaseService = new LighterChaseService({
@@ -1949,8 +2052,14 @@ export class LighterProvider implements PerpsProvider {
     this.#preferredApiKeyIndex = this.#apiKeyIndex;
     this.#configuredAccountIndex = options.lighterAuthConfig?.accountIndex;
 
+    this.#socketIdleCloseMs =
+      options.socketIdleCloseMs ?? LIGHTER_SOCKET_IDLE_CLOSE_MS;
     this.#clientService = new LighterClientService(this.#deps, {
       isTestnet: this.#isTestnet,
+      onRequestHealthChange: (): void => {
+        this.#scheduleCooldownReport();
+        this.#emitHealth();
+      },
     });
     this.#walletService = new LighterWalletService(this.#deps, {
       isTestnet: this.#isTestnet,
@@ -2091,6 +2200,12 @@ export class LighterProvider implements PerpsProvider {
     this.#invalidateSessionState();
     this.#removeSignerResetListener();
     this.#teardownStream();
+    if (this.#cooldownTimer !== null) {
+      clearTimeout(this.#cooldownTimer);
+      this.#cooldownTimer = null;
+    }
+    this.#healthListeners.clear();
+    this.#lastHealthSignature = null;
     this.#priceSubscribers.clear();
     this.#oiCapSubscribers.clear();
     this.#accountSubscribers.clear();
@@ -2434,13 +2549,20 @@ export class LighterProvider implements PerpsProvider {
     if (this.#priceSubscribers.size > 0 || this.#oiCapSubscribers.size > 0) {
       this.#requestChannel('market_stats/all');
     }
-    for (const marketId of this.#orderBookSubscribers.keys()) {
-      this.#requestChannel(`order_book/${marketId}`);
+    for (const [marketId, subscribers] of this.#orderBookSubscribers) {
+      if (subscribers.size > 0) {
+        this.#requestChannel(`order_book/${marketId}`);
+      }
     }
-    for (const marketId of this.#publicTradeSubscribers.keys()) {
-      this.#requestChannel(`trade/${marketId}`);
+    for (const [marketId, subscribers] of this.#publicTradeSubscribers) {
+      if (subscribers.size > 0) {
+        this.#requestChannel(`trade/${marketId}`);
+      }
     }
-    for (const seriesKey of this.#candleSubscribers.keys()) {
+    for (const [seriesKey, subscribers] of this.#candleSubscribers) {
+      if (subscribers.size === 0) {
+        continue;
+      }
       // Series keys are `${marketId}:${resolution}`; the channel form uses
       // slashes. The teardown cleared the series state, and the message
       // router drops updates for unknown series — recreate an empty series
@@ -2448,12 +2570,7 @@ export class LighterProvider implements PerpsProvider {
       this.#candleSeries.set(seriesKey, new Map());
       this.#requestChannel(`candle/${seriesKey.replace(':', '/')}`);
     }
-    if (
-      this.#accountSubscribers.size > 0 ||
-      this.#positionSubscribers.size > 0 ||
-      this.#orderSubscribers.size > 0 ||
-      this.#fillSubscribers.size > 0
-    ) {
+    if (this.#hasAccountSubscriber()) {
       // The promise was cleared by the teardown, so this re-resolves the
       // account channels against the newly bound address.
       this.#ensureAccountChannels();
@@ -8171,7 +8288,8 @@ export class LighterProvider implements PerpsProvider {
         async () =>
           await withProcessMutex(
             bridgeMutexKey(this.#rawSignerBridge()),
-            criticalSection,
+            async () =>
+              await this.#clientService.runTradingSection(criticalSection),
           ),
       );
     const run = this.#writeChain.then(guardedSection, guardedSection);
@@ -18043,7 +18161,7 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureStream();
     return () => {
       this.#priceSubscribers.delete(params);
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved('market_stats/all');
     };
   }
 
@@ -18056,7 +18174,7 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureStream();
     return () => {
       this.#oiCapSubscribers.delete(params);
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved('market_stats/all');
     };
   }
 
@@ -18068,7 +18186,7 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureAccountChannels();
     return () => {
       this.#accountSubscribers.delete(params);
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
     };
   }
 
@@ -18083,7 +18201,7 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureAccountChannels();
     return () => {
       this.#positionSubscribers.delete(params);
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
     };
   }
 
@@ -18098,7 +18216,7 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureAccountChannels();
     return () => {
       this.#orderSubscribers.delete(params);
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
     };
   }
 
@@ -18126,7 +18244,7 @@ export class LighterProvider implements PerpsProvider {
       .catch(() => undefined);
     return () => {
       this.#fillSubscribers.delete(params);
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
     };
   }
 
@@ -18165,6 +18283,7 @@ export class LighterProvider implements PerpsProvider {
     if (this.#isDisconnected) {
       return;
     }
+    this.#cancelChannelRelease(LIGHTER_ACCOUNT_CHANNELS_KEY);
     if (this.#accountChannelsPromise) {
       this.#ensureStream();
       return;
@@ -18185,6 +18304,10 @@ export class LighterProvider implements PerpsProvider {
         // Fails closed when no wallet account is bound — a configured
         // account index alone must never subscribe user channels.
         this.#assertSession(generation);
+        // Released (no account listener left) or replaced while resolving.
+        if (this.#accountChannelsPromise !== setupPromise) {
+          return;
+        }
         this.#requestChannel(`user_stats/${accountIndex}`);
         this.#requestChannel(`account_all_positions/${accountIndex}`);
         this.#requestChannel(`account_all_trades/${accountIndex}`);
@@ -18193,6 +18316,9 @@ export class LighterProvider implements PerpsProvider {
         try {
           const auth = await this.#getAuthToken();
           this.#assertSession(generation);
+          if (this.#accountChannelsPromise !== setupPromise) {
+            return;
+          }
           this.#requestChannel(`account_all_orders/${accountIndex}`, auth);
         } catch (error) {
           this.#deps.debugLogger.log(
@@ -18266,10 +18392,7 @@ export class LighterProvider implements PerpsProvider {
     return (
       this.#priceSubscribers.size > 0 ||
       this.#oiCapSubscribers.size > 0 ||
-      this.#accountSubscribers.size > 0 ||
-      this.#positionSubscribers.size > 0 ||
-      this.#orderSubscribers.size > 0 ||
-      this.#fillSubscribers.size > 0 ||
+      this.#hasAccountSubscriber() ||
       [...this.#orderBookSubscribers.values()].some(
         (subscribers) => subscribers.size > 0,
       ) ||
@@ -18282,16 +18405,206 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
+  readonly #hasAccountSubscriber = (): boolean =>
+    this.#accountSubscribers.size > 0 ||
+    this.#positionSubscribers.size > 0 ||
+    this.#orderSubscribers.size > 0 ||
+    this.#fillSubscribers.size > 0;
+
+  /**
+   * Whether a channel (or the account group key) still has a listener.
+   *
+   * @param channel - Venue channel name, or the account group key.
+   * @returns True while some subscriber needs the channel.
+   */
+  readonly #channelHasListeners = (channel: string): boolean => {
+    if (channel === 'market_stats/all') {
+      return this.#priceSubscribers.size > 0 || this.#oiCapSubscribers.size > 0;
+    }
+    if (
+      channel === LIGHTER_ACCOUNT_CHANNELS_KEY ||
+      isLighterAccountChannel(channel)
+    ) {
+      return this.#hasAccountSubscriber();
+    }
+    const { kind, marketId, seriesKey } = parseLighterMarketChannel(channel);
+    let subscribers: { size: number } | undefined;
+    if (kind === 'order_book') {
+      subscribers = this.#orderBookSubscribers.get(marketId);
+    } else if (kind === 'trade') {
+      subscribers = this.#publicTradeSubscribers.get(marketId);
+    } else if (kind === 'candle') {
+      subscribers = this.#candleSubscribers.get(seriesKey);
+    }
+    return (subscribers?.size ?? 0) > 0;
+  };
+
   readonly #requestChannel = (channel: string, auth?: string): void => {
     if (this.#isDisconnected) {
       return;
     }
+    this.#cancelChannelRelease(channel);
     if (this.#wsWantedChannels.has(channel)) {
       return;
     }
     this.#wsWantedChannels.set(channel, { auth });
     if (this.#priceWs?.readyState === 1) {
       this.#sendSubscribe(channel, auth);
+    }
+    this.#logChannelCount('subscribed', channel);
+  };
+
+  /**
+   * Whether a price or account frame still has its channel. Frames that
+   * arrive after a release would refill caches nobody reads; per-market
+   * handlers check their own channel.
+   *
+   * @param type - Frame type, such as `update/market_stats`.
+   * @returns False for a price or account frame whose channel was released.
+   */
+  readonly #isStreamFrameWanted = (type: string): boolean => {
+    const prefix = LIGHTER_STREAM_FRAME_PREFIXES.find((candidate) =>
+      type.includes(candidate.slice(0, -1)),
+    );
+    if (prefix === undefined) {
+      return true;
+    }
+    for (const channel of this.#wsWantedChannels.keys()) {
+      if (channel.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  readonly #logChannelCount = (change: string, channel: string): void => {
+    this.#deps.debugLogger.log('[LighterProvider] stream channels', {
+      change,
+      channel,
+      subscribedChannels: this.#wsWantedChannels.size,
+    });
+  };
+
+  /**
+   * A listener left: release its channel after the wait if nothing else
+   * needs it, and close the socket after the idle period if nothing is left.
+   *
+   * @param channel - Channel (or account group key) the listener used, or
+   * null when it never reached a channel.
+   */
+  readonly #onListenerRemoved = (channel: string | null): void => {
+    if (
+      channel !== null &&
+      !this.#isDisconnected &&
+      !this.#channelHasListeners(channel)
+    ) {
+      this.#scheduleChannelRelease(channel);
+    }
+    this.#scheduleIdleClose();
+  };
+
+  readonly #scheduleChannelRelease = (channel: string): void => {
+    if (this.#channelReleaseTimers.has(channel)) {
+      return;
+    }
+    this.#channelReleaseTimers.set(
+      channel,
+      setTimeout(() => {
+        this.#channelReleaseTimers.delete(channel);
+        if (this.#isDisconnected || this.#channelHasListeners(channel)) {
+          return;
+        }
+        if (channel === LIGHTER_ACCOUNT_CHANNELS_KEY) {
+          this.#releaseAccountChannels(true);
+        } else {
+          this.#releaseChannel(channel, true);
+        }
+      }, LIGHTER_CHANNEL_RELEASE_DELAY_MS),
+    );
+  };
+
+  readonly #cancelChannelRelease = (channel: string): void => {
+    const timer = this.#channelReleaseTimers.get(channel);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.#channelReleaseTimers.delete(channel);
+    }
+  };
+
+  /**
+   * Drop a channel from the wanted set with its cached state.
+   *
+   * @param channel - Venue channel name.
+   * @param notifyVenue - Send `unsubscribe` on the open socket.
+   */
+  readonly #releaseChannel = (channel: string, notifyVenue: boolean): void => {
+    this.#wsWantedChannels.delete(channel);
+    if (notifyVenue && this.#priceWs?.readyState === 1) {
+      this.#priceWs.send(JSON.stringify({ type: 'unsubscribe', channel }));
+    }
+    const { kind, marketId, seriesKey } = parseLighterMarketChannel(channel);
+    if (kind === 'order_book') {
+      this.#orderBookState.delete(marketId);
+      this.#orderBookSubscribers.delete(marketId);
+    } else if (kind === 'trade') {
+      this.#publicTradeSubscribers.delete(marketId);
+    } else if (kind === 'candle') {
+      this.#candleSeries.delete(seriesKey);
+      this.#candleSubscribers.delete(seriesKey);
+    } else if (channel === 'market_stats/all') {
+      this.#lastPriceBySymbol.clear();
+    }
+    this.#logChannelCount('released', channel);
+  };
+
+  /**
+   * Drop every account channel and its cached account data. The next
+   * account listener resolves and requests them again.
+   *
+   * @param notifyVenue - Send `unsubscribe` on the open socket.
+   */
+  readonly #releaseAccountChannels = (notifyVenue: boolean): void => {
+    for (const channel of [...this.#wsWantedChannels.keys()]) {
+      if (isLighterAccountChannel(channel)) {
+        this.#wsWantedChannels.delete(channel);
+        if (notifyVenue && this.#priceWs?.readyState === 1) {
+          this.#priceWs.send(JSON.stringify({ type: 'unsubscribe', channel }));
+        }
+      }
+    }
+    this.#resetAccountStreamState();
+    this.#logChannelCount('released', LIGHTER_ACCOUNT_CHANNELS_KEY);
+  };
+
+  /** Forget the account channel setup and the account data it streamed. */
+  readonly #resetAccountStreamState = (): void => {
+    this.#accountChannelsPromise = null;
+    this.#wsPositions.clear();
+    this.#hasOrdersSnapshot = false;
+    this.#wsFills = null;
+    this.#wsOrders.clear();
+  };
+
+  /**
+   * Forget channels that lost every listener while the socket was down, so
+   * a reconnect subscribes only what is still watched.
+   */
+  readonly #pruneUnwatchedChannels = (): void => {
+    if (
+      !this.#hasAccountSubscriber() &&
+      [...this.#wsWantedChannels.keys()].some(isLighterAccountChannel)
+    ) {
+      this.#cancelChannelRelease(LIGHTER_ACCOUNT_CHANNELS_KEY);
+      this.#releaseAccountChannels(false);
+    }
+    for (const channel of [...this.#wsWantedChannels.keys()]) {
+      if (
+        !isLighterAccountChannel(channel) &&
+        !this.#channelHasListeners(channel)
+      ) {
+        this.#cancelChannelRelease(channel);
+        this.#releaseChannel(channel, false);
+      }
     }
   };
 
@@ -18305,14 +18618,45 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
-  readonly #releaseChannelIfUnused = (): void => {
-    if (!this.#hasAnySubscriber()) {
+  /** Close the stream once it has had no listener for the idle period. */
+  readonly #scheduleIdleClose = (): void => {
+    if (
+      this.#isDisconnected ||
+      this.#wsIdleCloseTimer !== null ||
+      this.#hasAnySubscriber()
+    ) {
+      return;
+    }
+    if (!this.#webSocketCtor) {
+      // REST polling has no socket to keep warm: stop it at once.
       this.#teardownStream();
+      return;
+    }
+    this.#wsIdleCloseTimer = setTimeout(() => {
+      this.#wsIdleCloseTimer = null;
+      if (!this.#hasAnySubscriber()) {
+        this.#deps.debugLogger.log('[LighterProvider] stream idle; closing', {
+          idleMs: this.#socketIdleCloseMs,
+        });
+        this.#teardownStream();
+      }
+    }, this.#socketIdleCloseMs);
+  };
+
+  readonly #cancelIdleClose = (): void => {
+    if (this.#wsIdleCloseTimer !== null) {
+      clearTimeout(this.#wsIdleCloseTimer);
+      this.#wsIdleCloseTimer = null;
     }
   };
 
   readonly #ensureStream = (): void => {
-    if (this.#isDisconnected || this.#priceWs || this.#pricePollTimer) {
+    if (this.#isDisconnected) {
+      return;
+    }
+    this.#cancelIdleClose();
+    // A pending reconnect keeps its backoff; it resubscribes every channel.
+    if (this.#priceWs || this.#pricePollTimer || this.#wsReconnectTimer) {
       return;
     }
     if (this.#webSocketCtor) {
@@ -18349,7 +18693,9 @@ export class LighterProvider implements PerpsProvider {
       }
       const generationAtOpen = this.#sessionGeneration;
       this.#wsReconnectAttempts = 0;
+      this.#clearSocketDown();
       this.#setConnectionState(WebSocketConnectionState.Connected);
+      this.#pruneUnwatchedChannels();
       for (const [channel, meta] of this.#wsWantedChannels) {
         if (meta.auth) {
           // Auth tokens are short-lived; a reconnect after the deadline must
@@ -18393,7 +18739,11 @@ export class LighterProvider implements PerpsProvider {
       }, 60_000);
       this.#deps.debugLogger.log(
         '[LighterProvider] price stream connected (ws)',
-        { url, channels: [...this.#wsWantedChannels.keys()] },
+        {
+          url,
+          channels: [...this.#wsWantedChannels.keys()],
+          subscribedChannels: this.#wsWantedChannels.size,
+        },
       );
     };
 
@@ -18430,17 +18780,30 @@ export class LighterProvider implements PerpsProvider {
       }
       this.#priceWs = null;
       this.#clearKeepalive();
-      this.#setConnectionState(WebSocketConnectionState.Disconnected);
-      if (this.#hasAnySubscriber()) {
-        this.#deps.debugLogger.log(
-          '[LighterProvider] price stream closed; reconnecting in 5s',
-        );
-        this.#wsReconnectAttempts += 1;
-        this.#wsReconnectTimer = setTimeout((): void => {
-          this.#wsReconnectTimer = null;
-          this.#ensureStream();
-        }, 5_000);
+      if (!this.#hasAnySubscriber()) {
+        this.#setConnectionState(WebSocketConnectionState.Disconnected);
+        return;
       }
+      // Counted before the state change, so listeners can tell a pending
+      // reconnect (`disconnected` with attempt > 0) from an idle socket.
+      this.#wsReconnectAttempts += 1;
+      const delayMs = getLighterReconnectDelayMs(this.#wsReconnectAttempts);
+      this.#deps.debugLogger.log(
+        '[LighterProvider] price stream closed; reconnecting',
+        {
+          attempt: this.#wsReconnectAttempts,
+          delayMs,
+          subscribedChannels: this.#wsWantedChannels.size,
+        },
+      );
+      this.#setConnectionState(WebSocketConnectionState.Disconnected);
+      this.#startSocketDownGrace();
+      this.#wsReconnectTimer = setTimeout((): void => {
+        this.#wsReconnectTimer = null;
+        if (this.#hasAnySubscriber()) {
+          this.#ensureStream();
+        }
+      }, delayMs);
     };
 
     ws.onerror = (): void => {
@@ -18460,6 +18823,9 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     const type = message.type ?? '';
+    if (!this.#isStreamFrameWanted(type)) {
+      return;
+    }
     if (type.includes('market_stats') && message.marketStats) {
       const timestamp = message.timestamp ?? Date.now();
       const updates = Object.values(message.marketStats).map((stat) =>
@@ -18599,6 +18965,11 @@ export class LighterProvider implements PerpsProvider {
     const channel = message.channel ?? '';
     const marketId = Number(channel.split(':')[1] ?? Number.NaN);
     if (!Number.isFinite(marketId) || !message.orderBook) {
+      return;
+    }
+    // A frame that arrives after the channel was released does no work and
+    // must not trigger a resync, which would subscribe it again.
+    if (!this.#wsWantedChannels.has(`order_book/${marketId}`)) {
       return;
     }
     const { nonce, beginNonce } = message.orderBook;
@@ -19019,13 +19390,19 @@ export class LighterProvider implements PerpsProvider {
       clearTimeout(this.#wsReconnectTimer);
       this.#wsReconnectTimer = null;
     }
+    this.#cancelIdleClose();
+    for (const timer of this.#channelReleaseTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.#channelReleaseTimers.clear();
+    // Registries left empty by a pending release would otherwise linger.
+    deleteEmptyRegistries(this.#orderBookSubscribers);
+    deleteEmptyRegistries(this.#publicTradeSubscribers);
+    deleteEmptyRegistries(this.#candleSubscribers);
+    this.#clearSocketDown();
     this.#clearKeepalive();
     this.#wsWantedChannels.clear();
-    this.#accountChannelsPromise = null;
-    this.#wsPositions.clear();
-    this.#hasOrdersSnapshot = false;
-    this.#wsFills = null;
-    this.#wsOrders.clear();
+    this.#resetAccountStreamState();
     this.#orderBookState.clear();
     this.#candleSeries.clear();
     this.#lastPriceBySymbol.clear();
@@ -19038,7 +19415,9 @@ export class LighterProvider implements PerpsProvider {
         // Socket may already be closed.
       }
     }
+    this.#wsReconnectAttempts = 0;
     this.#setConnectionState(WebSocketConnectionState.Disconnected);
+    this.#emitHealth();
   };
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
@@ -19092,7 +19471,9 @@ export class LighterProvider implements PerpsProvider {
       if (seriesKey !== null) {
         this.#candleSubscribers.get(seriesKey)?.delete(params);
       }
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved(
+        seriesKey === null ? null : `candle/${seriesKey.replace(':', '/')}`,
+      );
     };
   }
 
@@ -19177,7 +19558,9 @@ export class LighterProvider implements PerpsProvider {
       if (marketId !== null) {
         this.#orderBookSubscribers.get(marketId)?.delete(params);
       }
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved(
+        marketId === null ? null : `order_book/${marketId}`,
+      );
     };
   }
 
@@ -19232,22 +19615,9 @@ export class LighterProvider implements PerpsProvider {
     return () => {
       released = true;
       if (marketId !== null) {
-        const subscribers = this.#publicTradeSubscribers.get(marketId);
-        if (subscribers?.delete(params) && subscribers.size === 0) {
-          // Release the market's venue channel even while other streams keep
-          // the socket open, so it stops pushing trades and is not
-          // resubscribed on a reconnect or account rebind.
-          this.#publicTradeSubscribers.delete(marketId);
-          const channel = `trade/${marketId}`;
-          this.#wsWantedChannels.delete(channel);
-          if (this.#priceWs?.readyState === 1) {
-            this.#priceWs.send(
-              JSON.stringify({ type: 'unsubscribe', channel }),
-            );
-          }
-        }
+        this.#publicTradeSubscribers.get(marketId)?.delete(params);
       }
-      this.#releaseChannelIfUnused();
+      this.#onListenerRemoved(marketId === null ? null : `trade/${marketId}`);
     };
   }
 
@@ -19282,13 +19652,148 @@ export class LighterProvider implements PerpsProvider {
     };
   }
 
+  /**
+   * Lighter's health: degraded while the socket stays down past its grace
+   * period with listeners, after repeated 5xx responses, or during a 429/405
+   * cooldown.
+   *
+   * @returns The current health snapshot.
+   */
+  getProviderHealth(): PerpsProviderHealth {
+    const connectionState = this.getWebSocketConnectionState();
+    if (this.#isDisconnected) {
+      return {
+        providerId: 'lighter',
+        status: 'unavailable',
+        reasons: [],
+        connectionState,
+        reconnectionAttempt: 0,
+        updatedAt: Date.now(),
+      };
+    }
+    const { consecutiveServerErrors, cooldownUntil } =
+      this.#clientService.getRequestHealth();
+    const reasons: PerpsProviderHealthReason[] = [];
+    if (this.#isSocketDown) {
+      reasons.push('socket_down');
+    }
+    if (consecutiveServerErrors >= LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD) {
+      reasons.push('server_errors');
+    }
+    if (cooldownUntil !== null) {
+      reasons.push('rate_limited');
+    }
+    return {
+      providerId: 'lighter',
+      status: reasons.length > 0 ? 'degraded' : 'healthy',
+      reasons,
+      connectionState,
+      reconnectionAttempt: this.#wsReconnectAttempts,
+      ...(cooldownUntil === null ? {} : { cooldownUntil }),
+      updatedAt: Date.now(),
+    };
+  }
+
+  subscribeToProviderHealth(
+    listener: (health: PerpsProviderHealth) => void,
+  ): () => void {
+    if (this.#isDisconnected) {
+      listener(this.getProviderHealth());
+      return NOOP_UNSUBSCRIBE;
+    }
+    this.#healthListeners.add(listener);
+    listener(this.getProviderHealth());
+    return (): void => {
+      this.#healthListeners.delete(listener);
+      if (this.#healthListeners.size === 0) {
+        // Changes go unreported with nobody listening; the next subscriber
+        // must hear the next change even if it matches the last one sent.
+        this.#lastHealthSignature = null;
+      }
+    };
+  }
+
+  /** Notify health listeners when the health snapshot changed. */
+  readonly #emitHealth = (): void => {
+    if (this.#healthListeners.size === 0) {
+      return;
+    }
+    const health = this.getProviderHealth();
+    const signature = JSON.stringify([
+      health.status,
+      health.reasons,
+      health.connectionState,
+      health.reconnectionAttempt,
+      health.cooldownUntil,
+    ]);
+    if (signature === this.#lastHealthSignature) {
+      return;
+    }
+    this.#lastHealthSignature = signature;
+    for (const listener of this.#healthListeners) {
+      try {
+        listener(health);
+      } catch (error) {
+        this.#logSubscriberError('provider-health', error);
+      }
+    }
+  };
+
+  /** Report degraded if the socket is still down after the grace period. */
+  readonly #startSocketDownGrace = (): void => {
+    if (this.#socketDownTimer !== null || this.#isSocketDown) {
+      return;
+    }
+    this.#socketDownTimer = setTimeout(() => {
+      this.#socketDownTimer = null;
+      if (
+        this.#connectionState !== WebSocketConnectionState.Connected &&
+        this.#hasAnySubscriber()
+      ) {
+        this.#isSocketDown = true;
+        this.#deps.debugLogger.log('[LighterProvider] stream down past grace', {
+          graceMs: LIGHTER_SOCKET_DOWN_GRACE_MS,
+          attempt: this.#wsReconnectAttempts,
+        });
+        this.#emitHealth();
+      }
+    }, LIGHTER_SOCKET_DOWN_GRACE_MS);
+  };
+
+  readonly #clearSocketDown = (): void => {
+    if (this.#socketDownTimer !== null) {
+      clearTimeout(this.#socketDownTimer);
+      this.#socketDownTimer = null;
+    }
+    this.#isSocketDown = false;
+  };
+
+  /** Re-report health when the current REST cooldown ends. */
+  readonly #scheduleCooldownReport = (): void => {
+    if (this.#cooldownTimer !== null) {
+      clearTimeout(this.#cooldownTimer);
+      this.#cooldownTimer = null;
+    }
+    const { cooldownUntil } = this.#clientService.getRequestHealth();
+    if (cooldownUntil === null || this.#isDisconnected) {
+      return;
+    }
+    this.#cooldownTimer = setTimeout(
+      () => {
+        this.#cooldownTimer = null;
+        this.#emitHealth();
+      },
+      Math.max(0, cooldownUntil - Date.now()) + 1,
+    );
+  };
+
   async reconnect(): Promise<void> {
     if (this.#isDisconnected) {
       return;
     }
     const ws = this.#priceWs;
     if (ws) {
-      // Detach first so the onclose handler's 5s backoff never races the
+      // Detach first so the onclose handler's backoff never races the
       // immediate reconnect below.
       this.#priceWs = null;
       this.#clearKeepalive();

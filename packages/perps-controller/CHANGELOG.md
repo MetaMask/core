@@ -7,9 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PerpsController.getProviderHealth(providerId)` and `PerpsController.subscribeToProviderHealth({ providerId, callback })` (messenger actions `PerpsController:getProviderHealth` and `PerpsController:subscribeToProviderHealth`) to report each provider's health separately, including in aggregated mode ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - New types `PerpsProviderHealth`, `PerpsProviderHealthReason` and `SubscribeProviderHealthParams`, and messenger action types `PerpsControllerGetProviderHealthAction` and `PerpsControllerSubscribeToProviderHealthAction`
+  - Status is `healthy`, `degraded` (with `reasons`: `socket_down`, `server_errors`, `rate_limited`) or `unavailable` when the provider is not registered or has disconnected
+  - Lighter reports `degraded` while its socket stays down for more than 10 seconds with live streams, after 3 consecutive 5xx responses, or during a 429/405 cooldown, and returns to `healthy` when the socket reopens, a response other than 5xx, 429 or 405 arrives, or the cooldown ends
+  - HyperLiquid's health is derived from its connection state and reconnect attempt: `degraded` while it reconnects after a drop
+  - `PerpsProvider` has optional `getProviderHealth` and `subscribeToProviderHealth` methods
+- Add `providerCredentials.lighter.socketIdleCloseMs` to set how long the Lighter socket stays open after its last listener leaves (default 30 seconds) ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Lighter releases a stream channel 5 seconds after its last listener leaves: it sends `unsubscribe`, drops the channel from the reconnect set and drops its cached order book, candle series or price snapshot ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Applies to `order_book`, `candle`, `trade` and `market_stats` channels; account channels are released as a group once no account, position, order or fill listener is left
+  - A listener that returns within the wait keeps the channel without new frames
+  - Frames that arrive after a release are ignored, so they no longer refill cached prices, positions or orders, or trigger an order-book resync
+- Lighter keeps its socket open for an idle period after the last listener leaves instead of closing it at once, so moving between screens does not reconnect, re-authenticate or re-request account channels ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Lighter reconnects with exponential backoff and jitter (1 second doubling to 30 seconds) instead of every 5 seconds, and resets the delay after a successful open ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Connection-state listeners receive the pending attempt number with `disconnected`, and attempt 0 when the socket closed because nothing listens
+  - A reconnect subscribes only channels that still have listeners
+  - A new subscription made while a reconnect is pending waits for it instead of connecting at once
+  - The debug logger records the subscribed-channel count and each reconnect attempt and delay
+- Lighter holds its REST reads back during a 429/405 cooldown (Retry-After, else 1 second doubling, capped at 60 seconds) and within a 60-requests-per-minute budget; order submission, nonce and transaction lookups, the order-book and exact-order reads that order and chase flows check for freshness, and every read made while a venue write is in progress, are never held back ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - A non-2xx Lighter response with a non-JSON body (such as a rate-limit page) now fails with the HTTP status as its error code instead of a JSON parse error
 
 ## [24.0.0]
 

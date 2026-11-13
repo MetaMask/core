@@ -129,6 +129,7 @@ type BuiltProvider = {
     getApiKeys: Mock;
     getNextNonce: Mock;
     getTx: Mock;
+    runTradingSection: Mock;
   };
   accountSigner: { signPersonalMessage: Mock };
   call: MockInstance;
@@ -185,6 +186,9 @@ function buildProvider({
     getNextNonce: vi.fn().mockResolvedValue({ code: 200, nonce: NEXT_NONCE }),
     getTx: vi.fn().mockResolvedValue(null),
     sendTx: vi.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
+    runTradingSection: vi.fn(
+      async (section: () => Promise<unknown>) => await section(),
+    ),
   };
   MockedClientService.mockImplementation(function () {
     return client as unknown as LighterClientService;

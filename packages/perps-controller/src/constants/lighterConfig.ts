@@ -241,6 +241,47 @@ export const LIGHTER_RECENT_TRADES_MAX_LIMIT = 100;
 export const LIGHTER_PRICE_POLLING_INTERVAL_MS = 5000;
 
 /**
+ * Standard-account REST budget: Lighter allows 60 requests per minute per IP
+ * and per L1 address, and answers 429 or 405 above it.
+ */
+export const LIGHTER_REST_REQUESTS_PER_MINUTE = 60;
+
+/** Sliding window the REST budget is counted over. */
+export const LIGHTER_REST_BUDGET_WINDOW_MS = 60_000;
+
+/** First cooldown after a 429/405 without Retry-After; doubles per strike. */
+export const LIGHTER_RATE_LIMIT_BASE_COOLDOWN_MS = 1_000;
+
+/** Longest cooldown after repeated 429/405 responses. */
+export const LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS = 60_000;
+
+/** Consecutive 5xx responses after which Lighter health reports degraded. */
+export const LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD = 3;
+
+// ============================================================================
+// WebSocket stream lifecycle
+// ============================================================================
+
+/**
+ * Wait after a channel's last listener leaves before unsubscribing it, so
+ * quick back-and-forth between markets does not churn frames (Lighter counts
+ * them against 200 messages per minute per IP).
+ */
+export const LIGHTER_CHANNEL_RELEASE_DELAY_MS = 5_000;
+
+/** Default time the shared socket stays open after its last listener leaves. */
+export const LIGHTER_SOCKET_IDLE_CLOSE_MS = 30_000;
+
+/** First reconnect delay after the socket drops; doubles per attempt. */
+export const LIGHTER_RECONNECT_BASE_DELAY_MS = 1_000;
+
+/** Longest reconnect delay. */
+export const LIGHTER_RECONNECT_MAX_DELAY_MS = 30_000;
+
+/** How long the socket may stay down with listeners before health degrades. */
+export const LIGHTER_SOCKET_DOWN_GRACE_MS = 10_000;
+
+/**
  * Maximum leverage placeholder until per-market margin fractions are wired.
  */
 export const LIGHTER_MAX_LEVERAGE = 50;

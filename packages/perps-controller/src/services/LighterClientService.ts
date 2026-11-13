@@ -35,6 +35,10 @@ import {
   LIGHTER_MAX_CLIENT_ORDER_INDEX,
   LIGHTER_MAX_ORDER_ID,
   LIGHTER_CLIENT_ORDER_LOOKUP_LIMIT,
+  LIGHTER_RATE_LIMIT_BASE_COOLDOWN_MS,
+  LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS,
+  LIGHTER_REST_BUDGET_WINDOW_MS,
+  LIGHTER_REST_REQUESTS_PER_MINUTE,
 } from '../constants/lighterConfig.js';
 import {
   getLighterHttpEndpoint,
@@ -600,6 +604,42 @@ export class LighterApiError extends Error {
 }
 
 /**
+ * Request priority. Trading calls never wait for the REST budget or a
+ * rate-limit cooldown: order submission, the nonce and receipt reads around
+ * it, and the book and exact-order reads that order and chase flows check for
+ * freshness. Every other read does.
+ */
+type LighterRequestPriority = 'read' | 'trading';
+
+/** REST health signals the provider folds into its health report. */
+export type LighterRequestHealth = {
+  /** Consecutive 5xx responses; reset by any response that is not 5xx, 429 or 405. */
+  consecutiveServerErrors: number;
+  /** Epoch ms when the current 429/405 cooldown ends, or null when none. */
+  cooldownUntil: number | null;
+};
+
+const RATE_LIMIT_STATUSES = new Set([405, 429]);
+
+/**
+ * Parse a Retry-After header (seconds or an HTTP date) into milliseconds.
+ *
+ * @param value - Header value.
+ * @returns Delay in milliseconds, or null when absent or invalid.
+ */
+const parseRetryAfterMs = (value: string | null): number | null => {
+  if (value === null || value.trim() === '') {
+    return null;
+  }
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) {
+    return seconds >= 0 ? seconds * 1000 : null;
+  }
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
+};
+
+/**
  * REST client for the zkLighter API.
  */
 export class LighterClientService {
@@ -611,9 +651,72 @@ export class LighterClientService {
 
   #marketsCacheTime = 0;
 
-  constructor(deps: PerpsPlatformDependencies, config: { isTestnet: boolean }) {
+  readonly #onRequestHealthChange: (() => void) | undefined;
+
+  readonly #requestsPerMinute: number;
+
+  /** Start times of requests inside the current budget window. */
+  readonly #recentRequests: number[] = [];
+
+  #consecutiveServerErrors = 0;
+
+  #rateLimitStrikes = 0;
+
+  #cooldownUntil: number | null = null;
+
+  /** Write sections running now; the reads they issue skip the waits. */
+  #tradingSections = 0;
+
+  constructor(
+    deps: PerpsPlatformDependencies,
+    config: {
+      isTestnet: boolean;
+      /** Called when the 5xx streak or the rate-limit cooldown changes. */
+      onRequestHealthChange?: () => void;
+      /** REST budget per minute (defaults to the Standard-account limit). */
+      requestsPerMinute?: number;
+    },
+  ) {
     this.#deps = deps;
     this.#isTestnet = config.isTestnet;
+    this.#onRequestHealthChange = config.onRequestHealthChange;
+    this.#requestsPerMinute =
+      config.requestsPerMinute ?? LIGHTER_REST_REQUESTS_PER_MINUTE;
+  }
+
+  /**
+   * Current REST health: the 5xx streak and any active 429/405 cooldown.
+   *
+   * @returns REST health signals.
+   */
+  getRequestHealth(): LighterRequestHealth {
+    return {
+      consecutiveServerErrors: this.#consecutiveServerErrors,
+      cooldownUntil:
+        this.#cooldownUntil !== null && this.#cooldownUntil > Date.now()
+          ? this.#cooldownUntil
+          : null,
+    };
+  }
+
+  /**
+   * Run a venue write section. Reads it issues skip the budget and cooldown
+   * waits like trading calls, so a held read never delays the orders queued
+   * behind the section. Reads from other callers made meanwhile skip them
+   * too.
+   *
+   * @param section - The write section.
+   * @returns The section's result.
+   */
+  async runTradingSection<Result>(
+    section: () => Promise<Result>,
+  ): Promise<Result> {
+    this.#tradingSections += 1;
+    try {
+      return await section();
+    } finally {
+      this.#tradingSections -= 1;
+    }
   }
 
   get network(): LighterNetwork {
@@ -664,6 +767,8 @@ export class LighterClientService {
     return await this.#get<LighterOrderBookOrdersResponse>(
       `/api/v1/orderBookOrders?market_id=${marketId}&limit=250`,
       ResponseStructs.orderBookOrders,
+      undefined,
+      'trading',
     );
   }
 
@@ -740,6 +845,8 @@ export class LighterClientService {
     return await this.#get<LighterNextNonceResponse>(
       `/api/v1/nextNonce?account_index=${accountIndex}&api_key_index=${apiKeyIndex}`,
       ResponseStructs.nextNonce,
+      undefined,
+      'trading',
     );
   }
 
@@ -761,6 +868,8 @@ export class LighterClientService {
       return await this.#get<LighterTxLookupResponse>(
         `/api/v1/tx?by=hash&value=${encodeURIComponent(txHash)}`,
         ResponseStructs.transaction,
+        undefined,
+        'trading',
       );
     } catch (error) {
       if (error instanceof LighterApiError && error.code === 21500) {
@@ -824,6 +933,7 @@ export class LighterClientService {
       `/api/v1/accountOrders?account_index=${accountIndex}&client_order_indexes=${encodeURIComponent(clientOrderIds.join(','))}`,
       ResponseStructs.activeOrders,
       { authorization: authToken },
+      'trading',
     );
   }
 
@@ -866,6 +976,7 @@ export class LighterClientService {
       { method: 'GET', headers: { authorization: authToken } },
       EditableOrdersStruct,
       true,
+      'trading',
     );
   }
 
@@ -1101,6 +1212,8 @@ export class LighterClientService {
         body: body.toString(),
       },
       ResponseStructs.sendTransaction,
+      false,
+      'trading',
     );
     return response;
   }
@@ -1109,12 +1222,88 @@ export class LighterClientService {
     path: string,
     responseStruct: Struct<Result, unknown>,
     headers?: Record<string, string>,
+    priority: LighterRequestPriority = 'read',
   ): Promise<Result> => {
     return await this.#request<Result>(
       path,
       { method: 'GET', headers },
       responseStruct,
+      false,
+      priority,
     );
+  };
+
+  /**
+   * Take a slot in the REST budget. Reads wait for a free slot and for any
+   * rate-limit cooldown; trading calls go out at once but still count.
+   *
+   * @param priority - Request priority.
+   */
+  readonly #acquireRequestSlot = async (
+    priority: LighterRequestPriority,
+  ): Promise<void> => {
+    for (;;) {
+      const now = Date.now();
+      while (
+        this.#recentRequests.length > 0 &&
+        this.#recentRequests[0] <= now - LIGHTER_REST_BUDGET_WINDOW_MS
+      ) {
+        this.#recentRequests.shift();
+      }
+      const cooldownWait =
+        this.#cooldownUntil === null ? 0 : this.#cooldownUntil - now;
+      const budgetWait =
+        this.#recentRequests.length < this.#requestsPerMinute
+          ? 0
+          : this.#recentRequests[0] + LIGHTER_REST_BUDGET_WINDOW_MS - now;
+      const waitMs =
+        priority === 'trading' || this.#tradingSections > 0
+          ? 0
+          : Math.max(cooldownWait, budgetWait);
+      if (waitMs <= 0) {
+        this.#recentRequests.push(now);
+        return;
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, waitMs));
+    }
+  };
+
+  /**
+   * Track the 5xx streak and 429/405 cooldowns from one response status.
+   *
+   * @param status - HTTP status.
+   * @param retryAfter - Retry-After header, read only for rate-limit statuses.
+   */
+  readonly #recordResponseStatus = (
+    status: number,
+    retryAfter: string | null,
+  ): void => {
+    const before = `${this.#consecutiveServerErrors}:${this.#cooldownUntil}`;
+    if (RATE_LIMIT_STATUSES.has(status)) {
+      this.#rateLimitStrikes += 1;
+      const delayMs = Math.min(
+        LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS,
+        parseRetryAfterMs(retryAfter) ??
+          LIGHTER_RATE_LIMIT_BASE_COOLDOWN_MS *
+            2 ** (this.#rateLimitStrikes - 1),
+      );
+      this.#cooldownUntil = Math.max(
+        this.#cooldownUntil ?? 0,
+        Date.now() + delayMs,
+      );
+      this.#deps.debugLogger?.log?.('[LighterClientService] rate limited', {
+        status,
+        strike: this.#rateLimitStrikes,
+        cooldownMs: this.#cooldownUntil - Date.now(),
+      });
+    } else {
+      this.#rateLimitStrikes = 0;
+      this.#consecutiveServerErrors =
+        status >= 500 ? this.#consecutiveServerErrors + 1 : 0;
+    }
+    if (`${this.#consecutiveServerErrors}:${this.#cooldownUntil}` !== before) {
+      this.#onRequestHealthChange?.();
+    }
   };
 
   readonly #request = async <Result extends { code: number; message?: string }>(
@@ -1122,7 +1311,9 @@ export class LighterClientService {
     init: { method: string; headers?: Record<string, string>; body?: string },
     responseStruct: Struct<Result, unknown>,
     lossless = false,
+    priority: LighterRequestPriority = 'read',
   ): Promise<Result> => {
+    await this.#acquireRequestSlot(priority);
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -1137,13 +1328,30 @@ export class LighterClientService {
         body: init.body,
         signal: controller.signal,
       });
-
-      const payload: unknown = convertKeysToCamelCase(
-        lossless
-          ? parseLighterLosslessJson(await response.text())
-          : await response.json(),
-        lossless,
+      this.#recordResponseStatus(
+        response.status,
+        RATE_LIMIT_STATUSES.has(response.status)
+          ? response.headers.get('retry-after')
+          : null,
       );
+
+      let body: unknown;
+      try {
+        body = lossless
+          ? parseLighterLosslessJson(await response.text())
+          : await response.json();
+      } catch (parseError) {
+        // A rate-limit or gateway error page is not JSON: keep its HTTP
+        // status as the error code instead of a parser message.
+        if (!response.ok) {
+          throw new LighterApiError(
+            `Lighter API error (HTTP ${response.status})`,
+            response.status,
+          );
+        }
+        throw parseError;
+      }
+      const payload: unknown = convertKeysToCamelCase(body, lossless);
       assert(payload, BaseResponseStruct);
 
       // Lighter returns HTTP 200 with an application-level error code, and

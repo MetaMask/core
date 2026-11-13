@@ -15,6 +15,7 @@ import { LighterWalletService } from '../../src/services/LighterWalletService.js
 import type {
   PerpsActiveProviderMode,
   PerpsProvider,
+  PerpsProviderType,
 } from '../../src/types/index.js';
 import type {
   LighterSignerBridge,
@@ -354,6 +355,8 @@ export type MockClientInstance = {
   getOrderBookOrders: Mock;
   getOrderBooks: Mock;
   getOrderBookDetails: Mock;
+  getRequestHealth: Mock;
+  runTradingSection: Mock;
   getAccountsByL1Address: Mock;
   getAccountByIndex: Mock;
   getApiKeys: Mock;
@@ -414,6 +417,8 @@ export function buildProvider(
     apiKeyIndex?: number;
     /** Share ANOTHER provider's bridge OBJECT (singleton-client model). */
     sharedBridge?: MockBridgeBundle;
+    /** Idle time before the socket closes. */
+    socketIdleCloseMs?: number;
   } = {},
 ): BuiltProvider {
   const {
@@ -461,6 +466,12 @@ export function buildProvider(
       ],
     }),
     getOrderBooks: vi.fn().mockResolvedValue([BTC_MARKET]),
+    getRequestHealth: vi
+      .fn()
+      .mockReturnValue({ consecutiveServerErrors: 0, cooldownUntil: null }),
+    runTradingSection: vi.fn(
+      async (section: () => Promise<unknown>) => await section(),
+    ),
     getOrderBookDetails: vi.fn().mockResolvedValue({
       code: 200,
       orderBookDetails: [
@@ -632,6 +643,7 @@ export function buildProvider(
     },
     // Tests default to the REST-polling transport; the WS suite injects a fake.
     webSocketCtor: webSocketCtor ?? null,
+    socketIdleCloseMs: options.socketIdleCloseMs,
     ...(withBridge ? { signerBridge: bridge } : {}),
   });
 
@@ -707,6 +719,17 @@ export class ChaseOwnershipController extends PerpsController {
       state.activeProvider = mode;
       state.initializationState = InitializationState.Initialized;
     });
+  }
+
+  /**
+   * @param providerId - Registry key.
+   * @param provider - Provider the controller should hold for that venue.
+   */
+  registerProvider(
+    providerId: PerpsProviderType,
+    provider: PerpsProvider,
+  ): void {
+    this.providers.set(providerId, provider);
   }
 
   /**

@@ -23,6 +23,7 @@ import {
   getLoggerErrorMock,
   StreamFakeWebSocket,
 } from '../../helpers/lighterProvider.js';
+import type { MockClientInstance } from '../../helpers/lighterProvider.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 vi.mock(
@@ -35,6 +36,37 @@ vi.mock(
   }),
 );
 vi.mock('../../../src/services/LighterWalletService');
+
+/**
+ * Record, for each `sendTx`, whether it ran inside a REST trading section.
+ *
+ * @param clientInstance - The provider's mocked client service.
+ * @returns One entry per `sendTx` call.
+ */
+const recordSendsInTradingSection = (
+  clientInstance: MockClientInstance,
+): boolean[] => {
+  let depth = 0;
+  const seen: boolean[] = [];
+  clientInstance.runTradingSection.mockImplementation(
+    async (section: () => Promise<unknown>) => {
+      depth += 1;
+      try {
+        return await section();
+      } finally {
+        depth -= 1;
+      }
+    },
+  );
+  const send = clientInstance.sendTx.getMockImplementation();
+  clientInstance.sendTx.mockImplementation(
+    async (...args: unknown[]): Promise<unknown> => {
+      seen.push(depth > 0);
+      return await send?.(...args);
+    },
+  );
+  return seen;
+};
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
@@ -1604,6 +1636,26 @@ describe('LighterProvider', () => {
       expect(
         calls.find((call) => call.function === '_signCreateOrder')?.params[3],
       ).toBe('100');
+    });
+
+    it('submits orders inside a REST trading section, so reads in the write lock never wait', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const sends = recordSendsInTradingSection(clientInstance);
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: 'NaN',
+        usdAmount: '95',
+        orderType: 'stop_market',
+        triggerPrice: '95000',
+        maxSlippageBps: 100,
+        priceAtCalculation: 100000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(sends.length).toBeGreaterThan(0);
+      expect(sends).not.toContain(false);
     });
 
     it('enforces the maker minimum for a trigger limit before signer setup', async () => {

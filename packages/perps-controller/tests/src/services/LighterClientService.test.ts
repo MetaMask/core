@@ -69,9 +69,10 @@ describe('LighterClientService', () => {
     payload: unknown,
     ok = true,
     status = 200,
-  ): { ok: boolean; status: number; json: Mock } => ({
+  ): { ok: boolean; status: number; headers: Headers; json: Mock } => ({
     ok,
     status,
+    headers: new Headers(),
     json: vi.fn().mockResolvedValue(payload),
   });
 
@@ -1252,6 +1253,239 @@ describe('LighterClientService', () => {
       expect(init.body).toBe(
         `tx_type=14&tx_info=${encodeURIComponent('{"foo":1}').replace(/%20/gu, '+')}`,
       );
+    });
+  });
+  describe('rate limits and request budget', () => {
+    const okDetails = (): ReturnType<typeof mockJsonResponse> =>
+      mockJsonResponse({ code: 200, order_book_details: [] });
+    const rateLimited = (
+      status: number,
+      retryAfter?: string,
+    ): ReturnType<typeof mockJsonResponse> => ({
+      ...mockJsonResponse(
+        { code: status, message: 'too many requests' },
+        false,
+        status,
+      ),
+      headers: new Headers(
+        retryAfter === undefined ? {} : { 'retry-after': retryAfter },
+      ),
+    });
+    const sentPaths = (): string[] =>
+      fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname);
+    const cooldownMs = (service: LighterClientService): number => {
+      const { cooldownUntil } = service.getRequestHealth();
+      return cooldownUntil === null ? 0 : cooldownUntil - Date.now();
+    };
+    const respondByPath = async (
+      url: string,
+    ): Promise<ReturnType<typeof mockJsonResponse>> =>
+      url.includes('sendTx')
+        ? mockJsonResponse({ code: 200, tx_hash: '0xsent' })
+        : okDetails();
+
+    it('keeps the HTTP status of a non-JSON rate-limit page', async () => {
+      vi.useFakeTimers();
+      const service = new LighterClientService(createMockInfrastructure(), {
+        isTestnet: true,
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 405,
+        headers: new Headers({ 'retry-after': '3' }),
+        json: vi.fn().mockRejectedValue(new SyntaxError('Unexpected token <')),
+      });
+
+      await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+        name: 'LighterApiError',
+        message: 'Lighter API error (HTTP 405)',
+        code: 405,
+      });
+      expect(service.getRequestHealth().cooldownUntil).toBe(Date.now() + 3_000);
+    });
+
+    it('holds reads during a 429 cooldown while trading requests go out at once', async () => {
+      vi.useFakeTimers();
+      const onRequestHealthChange = vi.fn();
+      const service = new LighterClientService(createMockInfrastructure(), {
+        isTestnet: true,
+        onRequestHealthChange,
+      });
+      fetchMock.mockResolvedValueOnce(rateLimited(429, '2'));
+      await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+        name: 'LighterApiError',
+        code: 429,
+      });
+      expect(onRequestHealthChange).toHaveBeenCalledTimes(1);
+      expect(service.getRequestHealth().cooldownUntil).toBe(Date.now() + 2_000);
+
+      fetchMock.mockResolvedValue(okDetails());
+      const heldRead = service.getOrderBookDetails();
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, tx_hash: '0xsent' }),
+      );
+      expect(await service.sendTx(14, '{}')).toMatchObject({
+        txHash: '0xsent',
+      });
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, nonce: 7 }),
+      );
+      expect(await service.getNextNonce(28, 7)).toMatchObject({ nonce: 7 });
+      // Order and chase flows check these reads for freshness.
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          total_bids: 0,
+          total_asks: 0,
+          bids: [],
+          asks: [],
+        }),
+      );
+      expect(await service.getOrderBookOrders(1)).toMatchObject({
+        totalBids: 0,
+      });
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, orders: [] }),
+      );
+      expect(
+        await service.getOrdersByClientIds(28, 'auth-token', ['12']),
+      ).toMatchObject({ orders: [] });
+      // The read has not been sent yet: the trading calls overtook it.
+      expect(sentPaths()).toStrictEqual([
+        '/api/v1/orderBookDetails',
+        '/api/v1/sendTx',
+        '/api/v1/nextNonce',
+        '/api/v1/orderBookOrders',
+        '/api/v1/accountOrders',
+      ]);
+
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(await heldRead).toMatchObject({ code: 200 });
+      expect(sentPaths().at(-1)).toBe('/api/v1/orderBookDetails');
+      expect(service.getRequestHealth().cooldownUntil).toBeNull();
+    });
+
+    it('doubles the cooldown on each consecutive 429 or 405 without Retry-After, capped at 60 s', async () => {
+      vi.useFakeTimers();
+      const service = buildService();
+      const cooldowns: number[] = [];
+      for (const status of [429, 405, 429, 429, 429, 429, 429, 429]) {
+        fetchMock.mockResolvedValueOnce(rateLimited(status));
+        await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+          code: status,
+        });
+        cooldowns.push(cooldownMs(service));
+        // Let the cooldown pass before the next request.
+        await vi.advanceTimersByTimeAsync(60_000);
+      }
+      expect(cooldowns).toStrictEqual([
+        1_000, 2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000,
+      ]);
+
+      // Any other response resets the streak.
+      fetchMock.mockResolvedValueOnce(okDetails());
+      await service.getOrderBookDetails();
+      fetchMock.mockResolvedValueOnce(rateLimited(429));
+      await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+        code: 429,
+      });
+      expect(cooldownMs(service)).toBe(1_000);
+    });
+
+    it('lets reads inside a write section skip the cooldown, and holds them again after it', async () => {
+      vi.useFakeTimers();
+      const service = buildService();
+      fetchMock.mockResolvedValueOnce(rateLimited(429, '5'));
+      await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+        code: 429,
+      });
+      fetchMock.mockResolvedValue(mockJsonResponse({ code: 200, orders: [] }));
+
+      const inSection = await service.runTradingSection(
+        async () => await service.getActiveOrders(28, 'auth-token'),
+      );
+      expect(inSection).toMatchObject({ orders: [] });
+      expect(sentPaths().at(-1)).toBe('/api/v1/accountActiveOrders');
+
+      const held = service.getActiveOrders(28, 'auth-token');
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await held).toMatchObject({ orders: [] });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('caps a long Retry-After at the maximum cooldown', async () => {
+      vi.useFakeTimers();
+      const service = buildService();
+      fetchMock.mockResolvedValueOnce(rateLimited(429, '86400'));
+      await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+        code: 429,
+      });
+      expect(cooldownMs(service)).toBe(60_000);
+    });
+
+    it('reads an HTTP-date Retry-After', async () => {
+      vi.useFakeTimers();
+      const service = buildService();
+      fetchMock.mockResolvedValueOnce(
+        rateLimited(429, new Date(Date.now() + 5_000).toUTCString()),
+      );
+      await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+        code: 429,
+      });
+      const remaining = cooldownMs(service);
+      expect(remaining).toBeGreaterThan(4_000);
+      expect(remaining).toBeLessThanOrEqual(5_000);
+    });
+
+    it('counts consecutive 5xx responses and resets the streak on a non-error response', async () => {
+      const onRequestHealthChange = vi.fn();
+      const service = new LighterClientService(createMockInfrastructure(), {
+        isTestnet: true,
+        onRequestHealthChange,
+      });
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({ code: 503, message: 'unavailable' }, false, 503),
+      );
+      for (let index = 0; index < 3; index++) {
+        await expect(service.getOrderBookDetails()).rejects.toMatchObject({
+          code: 503,
+        });
+      }
+      expect(service.getRequestHealth().consecutiveServerErrors).toBe(3);
+      expect(onRequestHealthChange).toHaveBeenCalledTimes(3);
+
+      fetchMock.mockResolvedValue(okDetails());
+      await service.getOrderBookDetails();
+      await service.getOrderBookDetails();
+      expect(service.getRequestHealth().consecutiveServerErrors).toBe(0);
+      expect(onRequestHealthChange).toHaveBeenCalledTimes(4);
+    });
+
+    it('holds reads above the per-minute budget but never trading requests', async () => {
+      vi.useFakeTimers();
+      const service = new LighterClientService(createMockInfrastructure(), {
+        isTestnet: true,
+        requestsPerMinute: 2,
+      });
+      fetchMock.mockImplementation(respondByPath);
+      await service.getOrderBookDetails();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await service.getOrderBookDetails();
+      const held = service.getOrderBookDetails();
+      expect(await service.sendTx(14, '{}')).toMatchObject({
+        txHash: '0xsent',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+
+      // The trading request also took a slot: the read waits until two of
+      // the three requests in the window have aged out (70 s after start).
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(1);
+      await held;
+      expect(fetchMock).toHaveBeenCalledTimes(4);
     });
   });
 });
