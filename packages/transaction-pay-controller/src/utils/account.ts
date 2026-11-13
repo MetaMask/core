@@ -118,27 +118,28 @@ export function withNonAtomicRequests<
 }
 
 /**
- * Whether the quote payer is an MPC Money account.
+ * Whether a Money Account payment is signed by an MPC keyring.
  *
- * Perps and Predict deposits funded by a Money Account set `paymentOverride`
- * and put that account on `refundTo`. The account signs the delegation inside
- * the client payment-override callback. Quote simulation calls that callback,
- * so an MPC keyring would prompt for MFA on every quote and again on submit.
+ * Perps and Predict deposits funded by a Money Account set `paymentOverride`.
+ * The account that signs the delegation is `transaction.txParams.from`, not
+ * `refundTo`. Quote simulation calls the payment-override callback, so an MPC
+ * keyring would prompt for MFA on every quote and again on submit.
  *
- * @param messenger - Controller messenger used to resolve the payer keyring.
- * @param request - Quote request carrying the payment override and refund recipient.
- * @returns Whether the payer is an MPC Money account.
+ * @param messenger - Controller messenger used to resolve the signing keyring.
+ * @param request - Quote request carrying the payment override.
+ * @param signingAccount - Account that signs the embedded delegation.
+ * @returns Whether this Money Account payment is signed by an MPC keyring.
  */
 export function isMpcMoneyAccountPayer(
   messenger: TransactionPayControllerMessenger,
   request: {
     paymentOverride?: PaymentOverride;
-    refundTo?: string;
   },
+  signingAccount: string | undefined,
 ): boolean {
   return (
     request.paymentOverride === PaymentOverride.MoneyAccount &&
-    accountRequiresMfa(messenger, request.refundTo)
+    accountRequiresMfa(messenger, signingAccount)
   );
 }
 
