@@ -5825,7 +5825,14 @@ describe('AssetsController', () => {
           'AccountTreeController:initialized',
           {},
         );
-        await flushPromises();
+        await waitFor(() => {
+          expect(fetchV2SupportedNetworks).toHaveBeenCalled();
+          expect(getAssetsSpy).toHaveBeenCalled();
+        });
+        await waitUntilStable(() => [
+          fetchV2SupportedNetworks.mock.calls.length,
+          getAssetsSpy.mock.calls.length,
+        ]);
 
         getAssetsSpy.mockClear();
         fetchV2SupportedNetworks.mockClear();
@@ -5836,20 +5843,19 @@ describe('AssetsController', () => {
           getNetworkState(),
         );
 
-        await flushPromises();
-
-        expect(fetchV2SupportedNetworks).toHaveBeenCalled();
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          expect.objectContaining({
-            chainIds: ['eip155:1'],
-            forceUpdate: true,
-            dataTypes: ['balance', 'metadata', 'price'],
-          }),
-        );
+        await waitFor(() => {
+          expect(fetchV2SupportedNetworks).toHaveBeenCalled();
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            expect.objectContaining({
+              chainIds: ['eip155:1'],
+              forceUpdate: true,
+              dataTypes: ['balance', 'metadata', 'price'],
+            }),
+          );
+        });
       } finally {
         getAssetsSpy.mockRestore();
-        await flushPromises();
         controller.destroy();
       }
     });
@@ -5974,7 +5980,10 @@ describe('AssetsController', () => {
           'AccountTreeController:initialized',
           {},
         );
-        await flushPromises();
+        await waitFor(() => {
+          expect(fetchSpy).toHaveBeenCalled();
+        });
+        await waitUntilStable(() => [fetchSpy.mock.calls.length]);
 
         // A new account has no native row yet. The switch must seed it
         // before the price subscription snapshots state.
@@ -5988,18 +5997,18 @@ describe('AssetsController', () => {
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
-        await flushPromises();
 
-        expect(fetchSpy).toHaveBeenCalled();
-        expect(nativePresentAtPriceFetch).toBe(true);
-        expect(
-          controller.state.assetsBalance[switchedAccountId]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '0' });
+        await waitFor(() => {
+          expect(fetchSpy).toHaveBeenCalled();
+          expect(nativePresentAtPriceFetch).toBe(true);
+          expect(
+            controller.state.assetsBalance[switchedAccountId]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          ).toStrictEqual({ amount: '0' });
+        });
       } finally {
         fetchSpy.mockRestore();
-        await flushPromises();
         controller.destroy();
       }
     });
