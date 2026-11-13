@@ -36,6 +36,7 @@ describe('autorampAccount', () => {
       ['BRL', { pix: 'Active', pix_thirdparty: 'Active' }],
       ['USD', { ach: 'Active', ach_thirdparty: 'Active' }],
       ['usd', { ach: 'Active', ach_thirdparty: 'Active' }],
+      ['EUR', { sepa: 'Active' }],
     ] as const)('is active when every %s rail is Active', (code, rails) => {
       expect(
         getMusdAutorampDepositRailReadiness(
@@ -50,6 +51,8 @@ describe('autorampAccount', () => {
       ['BRL', { pix: 'Active' }],
       ['USD', { ach: 'Maintenance', ach_thirdparty: 'Active' }],
       ['USD', {}],
+      ['EUR', { sepa: 'Pending' }],
+      ['EUR', {}],
     ] as const)(
       'is pending when a %s rail is not Active yet (%j)',
       (code, rails) => {
@@ -80,9 +83,32 @@ describe('autorampAccount', () => {
       },
     );
 
+    it.each(['Unavailable', 'Blocked'] as const)(
+      'is blocked when the EUR sepa rail is %s',
+      (status) => {
+        expect(
+          getMusdAutorampDepositRailReadiness(
+            abilitiesWith({ eur: { sepa: status } }),
+            'EUR',
+          ),
+        ).toBe('blocked');
+      },
+    );
+
+    it('is active for EUR while sepa_thirdparty is unavailable', () => {
+      expect(
+        getMusdAutorampDepositRailReadiness(
+          abilitiesWith({
+            eur: { sepa: 'Active', sepa_thirdparty: 'Unavailable' },
+          }),
+          'EUR',
+        ),
+      ).toBe('active');
+    });
+
     it('is active for a fiat with no required rails', () => {
       expect(
-        getMusdAutorampDepositRailReadiness(abilitiesWith({}), 'EUR'),
+        getMusdAutorampDepositRailReadiness(abilitiesWith({}), 'GBP'),
       ).toBe('active');
     });
   });
@@ -107,10 +133,18 @@ describe('autorampAccount', () => {
               "type": "Fiat",
             },
           ],
-          "source_is_third_party": false,
         }
       `);
     });
+
+    it.each(['BRL', 'USD', 'EUR'] as const)(
+      'leaves source_is_third_party to the proxy for %s creates',
+      (sourceCurrencyCode) => {
+        expect(
+          buildMusdAutorampRequest('0xabc', sourceCurrencyCode),
+        ).not.toHaveProperty('source_is_third_party');
+      },
+    );
   });
 
   describe('buildBrazilMusdAutorampRequest', () => {
@@ -133,7 +167,6 @@ describe('autorampAccount', () => {
               "type": "Fiat",
             },
           ],
-          "source_is_third_party": false,
         }
       `);
     });

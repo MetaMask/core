@@ -73,6 +73,9 @@ export type CreateAutorampRequest = Record<string, unknown>;
  * `customer_id` is omitted; {@link RampsController.createAutoramp} injects it.
  * The fiat code is required: this helper does not default to BRL.
  *
+ * The body does not set `source_is_third_party`: neobank-proxy overwrites it
+ * on every market create, choosing per customer from the eligible rails.
+ *
  * @param walletAddress - Money Account address that receives mUSD.
  * @param sourceCurrencyCode - Fiat code placed in `source_currencies[0].code`.
  * @returns MoonPay `POST /autoramps` market body.
@@ -93,7 +96,6 @@ export function buildMusdAutorampRequest(
       chain: 'Monad',
       address: walletAddress,
     },
-    source_is_third_party: false,
   };
 }
 
@@ -115,13 +117,16 @@ export function buildBrazilMusdAutorampRequest(
 /**
  * Deposit rails MoonPay needs Active before it accepts a
  * {@link buildMusdAutorampRequest} create, keyed by fiat code. neobank-proxy
- * sends every create as third-party, so that rail is required too.
+ * normally sends creates as third-party, so that rail is required too. EUR is
+ * the exception: the proxy falls back to a first-party autoramp when
+ * `sepa_thirdparty` is not Active, so only the base rail is required.
  */
 const MUSD_AUTORAMP_REQUIRED_DEPOSIT_RAILS: Readonly<
   Record<string, readonly string[]>
 > = {
   BRL: ['pix', 'pix_thirdparty'],
   USD: ['ach', 'ach_thirdparty'],
+  EUR: ['sepa'],
 };
 
 const BLOCKED_ABILITY_STATUSES: ReadonlySet<string> = new Set([
