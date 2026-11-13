@@ -2506,11 +2506,14 @@ export class AnalyticsController extends BaseController<
    * @returns A promise that resolves once opt-in processing has completed.
    */
   async applyRemoteMarketingConsent(optedIn: boolean): Promise<void> {
-    if (
-      this.state.marketingConsentSyncPending === true ||
-      (this.state.marketingConsentDecisionMade === true &&
-        (this.state.optedInToMarketing === true) === optedIn)
-    ) {
+    if (this.state.marketingConsentSyncPending === true) {
+      return;
+    }
+
+    const sameDecisionMade =
+      this.state.marketingConsentDecisionMade === true &&
+      (this.state.optedInToMarketing === true) === optedIn;
+    if (sameDecisionMade) {
       return;
     }
 
