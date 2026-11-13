@@ -3353,7 +3353,9 @@ describe('AggregatedPerpsProvider', () => {
       const lighterCallback =
         mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
 
-      // First venue emits: the aggregate is explicitly incomplete.
+      // First venue emits: the aggregate is explicitly incomplete. The venue
+      // that has not reported yet is `pending` — no verdict about its
+      // balances — not `unavailable`.
       hlCallback({
         totalBalance: '1000.10',
         spendableBalance: '700.05',
@@ -3367,7 +3369,9 @@ describe('AggregatedPerpsProvider', () => {
       expect(first?.totalBalance).toBe('1000.1');
       expect(first?.aggregate?.status).toBe('partial');
       expect(first?.aggregate?.availableProviders).toEqual(['hyperliquid']);
-      expect(first?.aggregate?.unavailableProviders).toEqual(['lighter']);
+      expect(first?.aggregate?.unavailableProviders).toEqual([]);
+      expect(first?.aggregate?.pendingProviders).toEqual(['lighter']);
+      expect(first?.providerStates?.lighter?.status).toBe('pending');
 
       // Second venue emits: totals cover every venue.
       lighterCallback({
@@ -3414,12 +3418,56 @@ describe('AggregatedPerpsProvider', () => {
       expect(callback.mock.calls[1][0].totalBalance).toBe('1250.3');
 
       // Lighter's balance is no longer known: it must not stay in the total,
-      // and must not become a zero either.
+      // and must not become a zero either. Having reported before, it is
+      // explicitly `unavailable`, not `pending`.
       lighterCallback(null);
       const invalid = callback.mock.calls[2][0] as AccountState | null;
       expect(invalid?.totalBalance).toBe('1000.1');
       expect(invalid?.aggregate?.status).toBe('partial');
       expect(invalid?.aggregate?.unavailableProviders).toEqual(['lighter']);
+      expect(invalid?.aggregate?.pendingProviders).toBeUndefined();
+      expect(invalid?.providerStates?.lighter?.status).toBe('unavailable');
+    });
+
+    it('keeps a pending venue pending after another venue reports, then marks it available when it reports', () => {
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback =
+        mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback({
+        totalBalance: '1000.10',
+        spendableBalance: '700.05',
+        withdrawableBalance: '600.02',
+        marginUsed: '200',
+        unrealizedPnl: '30',
+        returnOnEquity: '15',
+      });
+      expect(callback.mock.calls[0][0].providerStates?.lighter?.status).toBe(
+        'pending',
+      );
+
+      lighterCallback(null);
+      // A null before the venue ever reported data leaves no verdict: it is
+      // still pending, not unavailable.
+      expect(callback.mock.calls[1][0].providerStates?.lighter?.status).toBe(
+        'pending',
+      );
+
+      lighterCallback({
+        totalBalance: '250.20',
+        spendableBalance: '150.15',
+        withdrawableBalance: '120.08',
+        marginUsed: '50',
+        unrealizedPnl: '-5',
+        returnOnEquity: '-10',
+      });
+      expect(callback.mock.calls[2][0].providerStates?.lighter?.status).toBe(
+        'available',
+      );
     });
 
     it('emits null when no enabled venue has usable data', () => {

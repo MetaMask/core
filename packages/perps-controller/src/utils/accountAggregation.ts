@@ -111,20 +111,27 @@ export function buildAggregatedAccountState(params: {
   const availableStates: AccountState[] = [];
   const availableProviders: PerpsProviderType[] = [];
   const unavailableProviders: PerpsProviderType[] = [];
+  const pendingProviders: PerpsProviderType[] = [];
 
   for (const entry of entries) {
     if (entry.status === 'available') {
       availableStates.push(entry.state);
       availableProviders.push(entry.providerId);
-    } else {
+    } else if (entry.status === 'unavailable') {
       unavailableProviders.push(entry.providerId);
+    } else {
+      pendingProviders.push(entry.providerId);
     }
   }
 
   const metadata: AccountAggregateMetadata = {
-    status: unavailableProviders.length > 0 ? 'partial' : 'complete',
+    status:
+      unavailableProviders.length + pendingProviders.length > 0
+        ? 'partial'
+        : 'complete',
     availableProviders,
     unavailableProviders,
+    ...(pendingProviders.length > 0 && { pendingProviders }),
   };
 
   if (availableStates.length === 0) {

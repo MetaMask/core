@@ -1002,9 +1002,12 @@ export type AccountState = {
 /**
  * One venue's account data inside an aggregated {@link AccountState}.
  *
- * A venue that failed to report (or has not reported yet) is an explicit
- * `unavailable` entry — never a zero balance. A confirmed zero or
- * nonexistent venue account is an `available` entry whose balances are zero.
+ * A venue that failed to report (its latest stream update was `null`) is an
+ * explicit `unavailable` entry — never a zero balance. A venue that has not
+ * reported yet is a `pending` entry: no verdict about its balances, so its
+ * previously persisted data stays valid until the venue reports. A confirmed
+ * zero or nonexistent venue account is an `available` entry whose balances
+ * are zero.
  */
 export type PerpsProviderAccountStateEntry =
   | {
@@ -1017,6 +1020,12 @@ export type PerpsProviderAccountStateEntry =
       status: 'unavailable';
       /** The venue read failed; its balances contribute nothing to totals. */
       error?: string;
+      providerId: PerpsProviderType;
+    }
+  | {
+      status: 'pending';
+      /** The venue has not reported on this stream yet; no verdict.
+       * Stream-only: the read path always awaits every venue. */
       providerId: PerpsProviderType;
     };
 
@@ -1033,6 +1042,10 @@ export type AccountAggregateMetadata = {
   status: 'complete' | 'partial';
   availableProviders: PerpsProviderType[];
   unavailableProviders: PerpsProviderType[];
+  /** Stream updates only: venues that have not reported yet. They make the
+   * totals partial, but unlike `unavailableProviders` there is no verdict
+   * about their balances. */
+  pendingProviders?: PerpsProviderType[];
 };
 
 export type ClosePositionParams = {

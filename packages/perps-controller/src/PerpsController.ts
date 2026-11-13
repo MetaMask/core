@@ -7613,11 +7613,15 @@ export class PerpsController extends BaseController<
                       }
                       if (entry.status === 'available') {
                         writeBalance(providerId, entry.state);
-                      } else {
+                      } else if (entry.status === 'unavailable') {
                         // The venue's data is unavailable: drop its entry
                         // rather than keep exposing a stale value as live.
                         delete state.perpsBalances[providerId];
                       }
+                      // A `pending` venue has not reported on this stream
+                      // yet: no verdict about its balances, so its persisted
+                      // entry (with the 1d-ago history it carries) stays
+                      // until the venue reports data or an explicit null.
                     }
                   } else {
                     const directVenueId =

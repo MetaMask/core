@@ -1993,6 +1993,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         },
       });
     }
+    // Per-subscription report state: distinguishes a venue whose latest
+    // update was null (`unavailable`) from one that has not reported yet
+    // (`pending`). A not-yet-reported venue has no verdict: consumers must
+    // keep its previously persisted data until it reports.
+    const lastReport = new Map<PerpsProviderType, 'available'>();
     return this.#subscriptionMux.subscribeToAccount({
       ...(params.accountId !== undefined && { accountId: params.accountId }),
       providers: this.#getActiveProviders(),
@@ -2003,11 +2008,15 @@ export class AggregatedPerpsProvider implements PerpsProvider {
               (account) => account.providerId === providerId,
             );
             if (state) {
+              lastReport.set(providerId, 'available');
               return { status: 'available', state, providerId };
             }
-            // Not yet reported, or its latest update was null: no current
-            // balance is known for this venue.
-            return { status: 'unavailable', providerId };
+            // Reported before and its latest update was null: no current
+            // balance is known for this venue. Never seen: it simply has
+            // not reported yet.
+            return lastReport.has(providerId)
+              ? { status: 'unavailable', providerId }
+              : { status: 'pending', providerId };
           });
         params.callback(buildAggregatedAccountState({ entries }));
       },
