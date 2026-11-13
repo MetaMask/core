@@ -1241,6 +1241,11 @@ type ChaseSession = {
   repricings: number;
   /** Replacements the venue refused in a row since one last rested. */
   replacementRefusals: number;
+  /**
+   * True while a refused replacement waits for the next tick: nothing rests,
+   * but the chase is still running.
+   */
+  replacementRetryDue: boolean;
   /** Cleared when the session stops; null while no tick is pending. */
   timer: ReturnType<typeof setTimeout> | null;
   /** False once the chase has stopped re-pricing, whatever the reason. */
@@ -8320,6 +8325,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       maxRepricings: params.chaseMaxRepricings ?? Number.POSITIVE_INFINITY,
       repricings: 0,
       replacementRefusals: 0,
+      replacementRetryDue: false,
       timer: null,
       active: true,
       status: CHASE_ORDER_STATUS.Active,
@@ -8601,6 +8607,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    *   report a live chase with no timer, and every later cancel would try to
    *   cancel the dead order and keep the handle forever.
    *
+   * A session waiting to retry a refused replacement also owns no order, but
+   * its tick failed before placing anything, so it keeps going like the first
+   * case.
+   *
    * @param sessionId - Session whose tick failed.
    */
   #recoverFailedChaseTick(sessionId: string): void {
@@ -8609,7 +8619,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
 
-    if (session.orderId === null) {
+    if (session.orderId === null && !session.replacementRetryDue) {
       session.active = false;
       session.status = CHASE_ORDER_STATUS.Failed;
       this.#deps.debugLogger.log('Chase ended with nothing resting', {
@@ -8997,6 +9007,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     try {
+      // Cleared first, so a refusal that ends the chase leaves no retry due.
+      session.replacementRetryDue = false;
       session.orderId = await this.#restChaseOrder({
         assetId: session.assetId,
         isBuy: session.isBuy,
@@ -9022,6 +9034,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       ) {
         throw error;
       }
+      session.replacementRetryDue = true;
       this.#deps.debugLogger.log('Chase replacement refused, retrying', {
         sessionId,
         error: ensureError(error, 'HyperLiquidProvider.restChaseReplacement')
@@ -9783,7 +9796,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           continue;
         }
         this.#stopChaseSession(sessionId);
-        session.status = CHASE_ORDER_STATUS.Backgrounded;
+        // A refused replacement left nothing resting, and its retry will not
+        // run while backgrounded, so it ends as the refusal would have.
+        session.status =
+          session.orderId === null
+            ? CHASE_ORDER_STATUS.Failed
+            : CHASE_ORDER_STATUS.Backgrounded;
       }
       return await this.getChaseOrders();
     } finally {

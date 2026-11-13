@@ -334,4 +334,88 @@ describe('HyperLiquidProvider - Chase re-pricing edge cases', () => {
       }),
     ]);
   });
+
+  it('keeps a refused replacement retrying when the next book read fails', async () => {
+    const order = vi
+      .fn()
+      .mockResolvedValueOnce(restedAs(55))
+      .mockRejectedValueOnce(
+        new Error('Post only order would have immediately matched'),
+      )
+      .mockResolvedValue(restedAs(77));
+    const l2Book = vi
+      .fn()
+      .mockResolvedValueOnce(ethBook([{ px: '2999', sz: '10' }]))
+      .mockResolvedValueOnce(ethBook([{ px: '2998', sz: '10' }]))
+      .mockRejectedValueOnce(new Error('Network request failed'))
+      .mockResolvedValue(ethBook([{ px: '2997', sz: '10' }]));
+    const { exchangeClient } = useStrategyClients({
+      exchange: { order },
+      info: { l2Book },
+    });
+
+    const placed = await provider.placeOrder({
+      ...baseOrder,
+      orderType: 'chase',
+      chaseIntervalMs: 1000,
+    });
+
+    // The replacement is refused, then the retry tick cannot read the book.
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(order).toHaveBeenCalledTimes(2);
+    expect(await provider.getChaseOrders()).toStrictEqual([
+      expect.objectContaining({
+        handle: placed.orderId,
+        restingOrderId: null,
+        status: CHASE_ORDER_STATUS.Active,
+      }),
+    ]);
+
+    // The following tick rests the remainder at the touch it reads.
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+    expect(order).toHaveBeenCalledTimes(3);
+    expect(await provider.getChaseOrders()).toStrictEqual([
+      expect.objectContaining({
+        handle: placed.orderId,
+        restingOrderId: '77',
+        restingPrice: '2997.1',
+        status: CHASE_ORDER_STATUS.Active,
+      }),
+    ]);
+  });
+
+  it('ends a chase failed rather than backgrounded when nothing rests', async () => {
+    const order = vi
+      .fn()
+      .mockResolvedValueOnce(restedAs(55))
+      .mockRejectedValueOnce(
+        new Error('Post only order would have immediately matched'),
+      )
+      .mockResolvedValue(restedAs(77));
+    const l2Book = vi
+      .fn()
+      .mockResolvedValueOnce(ethBook([{ px: '2999', sz: '10' }]))
+      .mockResolvedValue(ethBook([{ px: '2998', sz: '10' }]));
+    useStrategyClients({ exchange: { order }, info: { l2Book } });
+
+    const placed = await provider.placeOrder({
+      ...baseOrder,
+      orderType: 'chase',
+      chaseIntervalMs: 1000,
+    });
+    // The replacement is refused, so the client backgrounds a chase with no
+    // child on the book.
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(await provider.suspendChaseOrders()).toStrictEqual([
+      expect.objectContaining({
+        handle: placed.orderId,
+        restingOrderId: null,
+        status: CHASE_ORDER_STATUS.Failed,
+      }),
+    ]);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(order).toHaveBeenCalledTimes(2);
+  });
 });
