@@ -63,7 +63,7 @@ export type SwapRelatedTraceName<TNameEnum extends string> = {
  */
 export type SwapTraceRequest<TTraceName> = Omit<
   TraceRequest,
-  'name' | 'tags' | 'parentContext'
+  'name' | 'tags'
 > & {
   name: TTraceName;
   op?: TraceOperation;
