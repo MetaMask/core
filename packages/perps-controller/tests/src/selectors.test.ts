@@ -25,6 +25,18 @@ import {
 } from '../../src/selectors.js';
 
 describe('PerpsController selectors', () => {
+  it('returns no configuration when selector state has not been hydrated', () => {
+    for (const selector of [
+      selectTradeConfiguration,
+      selectPendingTradeConfiguration,
+      selectOrderBookGrouping,
+      selectMarginMode,
+    ]) {
+      // @ts-expect-error Selector state may be absent at runtime before hydration.
+      expect(selector(undefined, 'BTC')).toBeUndefined();
+    }
+  });
+
   describe('selectIsFirstTimeUser', () => {
     it('returns true when state is undefined', () => {
       expect(selectIsFirstTimeUser(undefined)).toBe(true);
@@ -56,7 +68,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { leverage: 10 },
+            hyperliquid: {
+              BTC: { leverage: 10 },
+            },
           },
           testnet: {},
         },
@@ -73,7 +87,9 @@ describe('PerpsController selectors', () => {
         tradeConfigurations: {
           mainnet: {},
           testnet: {
-            ETH: { leverage: 5 },
+            hyperliquid: {
+              ETH: { leverage: 5 },
+            },
           },
         },
       } as unknown as PerpsControllerState;
@@ -102,7 +118,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {},
+            hyperliquid: {
+              BTC: {},
+            },
           },
           testnet: {},
         },
@@ -118,9 +136,11 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { leverage: 10 },
-            ETH: { leverage: 5 },
-            SOL: { leverage: 3 },
+            hyperliquid: {
+              BTC: { leverage: 10 },
+              ETH: { leverage: 5 },
+              SOL: { leverage: 3 },
+            },
           },
           testnet: {},
         },
@@ -340,18 +360,20 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                takeProfitPrice: '50000',
-                stopLossPrice: '40000',
-                limitPrice: '45000',
-                orderType: 'limit',
-                reduceOnly: true,
-                direction: 'short',
-                timestamp: now,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  takeProfitPrice: '50000',
+                  stopLossPrice: '40000',
+                  limitPrice: '45000',
+                  orderType: 'limit',
+                  reduceOnly: true,
+                  direction: 'short',
+                  timestamp: now,
+                },
               },
             },
           },
@@ -379,12 +401,14 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                timestamp: expiredAt,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  timestamp: expiredAt,
+                },
               },
             },
           },
@@ -403,13 +427,15 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                orderType: 'market',
-                timestamp: validAt,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  orderType: 'market',
+                  timestamp: validAt,
+                },
               },
             },
           },
@@ -431,8 +457,10 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+              },
             },
           },
           testnet: {},
@@ -451,12 +479,14 @@ describe('PerpsController selectors', () => {
         tradeConfigurations: {
           mainnet: {},
           testnet: {
-            ETH: {
-              leverage: 5,
-              pendingConfig: {
-                amount: '200',
-                leverage: 10,
-                timestamp: now,
+            hyperliquid: {
+              ETH: {
+                leverage: 5,
+                pendingConfig: {
+                  amount: '200',
+                  leverage: 10,
+                  timestamp: now,
+                },
               },
             },
           },
@@ -476,8 +506,10 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+              },
             },
           },
           testnet: {},
@@ -495,12 +527,14 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                timestamp: now,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  timestamp: now,
+                },
               },
             },
           },
@@ -531,12 +565,14 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: {
-              leverage: 10,
-              pendingConfig: {
-                amount: '100',
-                leverage: 5,
-                timestamp: now,
+            hyperliquid: {
+              BTC: {
+                leverage: 10,
+                pendingConfig: {
+                  amount: '100',
+                  leverage: 5,
+                  timestamp: now,
+                },
               },
             },
           },
@@ -557,7 +593,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { orderBookGrouping: 10 },
+            hyperliquid: {
+              BTC: { orderBookGrouping: 10 },
+            },
           },
           testnet: {},
         },
@@ -574,7 +612,9 @@ describe('PerpsController selectors', () => {
         tradeConfigurations: {
           mainnet: {},
           testnet: {
-            ETH: { orderBookGrouping: 0.01 },
+            hyperliquid: {
+              ETH: { orderBookGrouping: 0.01 },
+            },
           },
         },
       } as unknown as PerpsControllerState;
@@ -603,7 +643,9 @@ describe('PerpsController selectors', () => {
         isTestnet: false,
         tradeConfigurations: {
           mainnet: {
-            BTC: { leverage: 10 },
+            hyperliquid: {
+              BTC: { leverage: 10 },
+            },
           },
           testnet: {},
         },
@@ -620,7 +662,9 @@ describe('PerpsController selectors', () => {
       const state = {
         isTestnet: false,
         tradeConfigurations: {
-          mainnet: { BTC: { marginMode: 'cross' } },
+          mainnet: {
+            hyperliquid: { BTC: { marginMode: 'cross' } },
+          },
           testnet: { BTC: { marginMode: 'isolated' } },
         },
       } as unknown as PerpsControllerState;
@@ -633,7 +677,9 @@ describe('PerpsController selectors', () => {
         isTestnet: true,
         tradeConfigurations: {
           mainnet: { BTC: { marginMode: 'cross' } },
-          testnet: { BTC: { marginMode: 'isolated' } },
+          testnet: {
+            hyperliquid: { BTC: { marginMode: 'isolated' } },
+          },
         },
       } as unknown as PerpsControllerState;
 

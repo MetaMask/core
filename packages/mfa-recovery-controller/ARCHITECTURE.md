@@ -32,9 +32,11 @@ flowchart LR
 
 | Piece                       | Role                                                                        |
 | --------------------------- | --------------------------------------------------------------------------- |
-| `pendingOperation`          | Only persisted field: encrypted `authorizing` / `writing` blob, or `null`   |
+| `pendingOperation`          | Persisted encrypted `authorizing` / `writing` blob, or `null`               |
+| `lockId`                    | Persisted lease ID, reused on retry and restart, or `null`                  |
 | `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
 | `authProvider`              | Profile id + request-bound Auth API approval                                |
+| `lockProvider`              | Per-profile lease, acquired before every approval                           |
 | `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
 | `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
 | `now`                       | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow` |
@@ -67,7 +69,9 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`.
+`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`,
+`acquireLock`, `releaseLock` (see
+[Recovery Lock](README.md#recovery-lock)).
 
 `getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
 at the highest consistent escrow version as `epoch`, plus Auth's identifiers.
@@ -153,7 +157,7 @@ sequenceDiagram
     M->>E: getIdentifiers (enrolled set at expectedVersion)
   end
   opt update identifier, or SIWE identifiers not yet enrolled
-    M->>I: getKeyBoundIdentifierToken per identifier
+    M->>I: getKeyBoundIdentifierLogin per identifier (uses token, ignores seedlessAuthData)
     M->>E: generateChallenge + PoPs per remaining escrow (all required)
   end
   M->>M: wrap secret per escrow, persist writing
@@ -265,8 +269,8 @@ sequenceDiagram
   C->>M: authenticateIdentifier(identifier)
   M->>M: generate requestId, proof key, and ephemeral pkE
   M->>M: requestHash = hash(getRecoverySecret, requestId, pkE)
-  M->>I: getKeyBoundIdentifierToken
-  M-->>C: IdentifierSession
+  M->>I: getKeyBoundIdentifierLogin
+  M-->>C: IdentifierSession with seedlessAuthData if returned
   C->>M: getRecoverySecret(session)
   M->>M: recompute and validate requestHash
   M->>E: isAvailable (failures skipped)
@@ -291,9 +295,10 @@ sequenceDiagram
 ```
 
 `IdentifierSession` contains the key-bound token, its proof private key, the
-`requestId`, and the ephemeral `pkE` key pair needed for the read. The
-controller does not persist or store the session; callers must keep it in
-memory and must not log it.
+`requestId`, and the ephemeral `pkE` key pair needed for the read. For seedless
+social logins it may also include `seedlessAuthData`; callers should drop that
+before holding the session for a later read. The controller does not persist or
+store the session; callers must keep it in memory and must not log it.
 
 A replica whose `wrapKeyId` does not match its configured `wrapPublicKey`, or
 whose ciphertext fails to unwrap, counts as a failed read. Among successful

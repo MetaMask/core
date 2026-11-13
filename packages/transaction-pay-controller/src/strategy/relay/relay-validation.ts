@@ -11,6 +11,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   getEIP7702UpgradeContractAddress,
   isRelayValidationEnabled,
@@ -50,7 +51,7 @@ export async function validateRelayQuotes(
 
   await validateQuotes({
     buildSimulation: async (quote) =>
-      shouldSkipValidation(quote, request.transaction)
+      shouldSkipValidation(quote, request.transaction, request.messenger)
         ? undefined
         : await buildValidationSimulation(request, quote),
     messenger: request.messenger,
@@ -62,6 +63,7 @@ export async function validateRelayQuotes(
 function shouldSkipValidation(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
 ): boolean {
   const { request } = quote;
 
@@ -80,6 +82,17 @@ function shouldSkipValidation(
   ) {
     log('Skipping quote validation: legacy Safe Predict withdraw', {
       from: request.from,
+    });
+    return true;
+  }
+
+  // Simulation rebuilds the submit calls, which signs a delegation through the
+  // client payment-override callback. Skip that for an MPC Money payer so
+  // quote refresh does not prompt for MFA ahead of the real submit.
+  if (isMpcMoneyAccountPayer(messenger, request)) {
+    log('Skipping quote validation: MPC Money account payer', {
+      from: request.from,
+      refundTo: request.refundTo,
     });
     return true;
   }

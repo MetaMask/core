@@ -113,7 +113,7 @@ type BaseSLIP10NodeConstructorOptions = {
 type SLIP10NodePrivateKeyConstructorOptions =
   BaseSLIP10NodeConstructorOptions & {
     readonly privateKey: Uint8Array<ArrayBuffer>;
-    readonly publicKey?: Uint8Array<ArrayBuffer> | undefined;
+    readonly publicKey: Uint8Array<ArrayBuffer>;
   };
 
 type SLIP10NodePublicKeyConstructorOptions =
@@ -306,12 +306,12 @@ export class SLIP10Node implements SLIP10NodeInterface {
       );
 
       const trustedPublicKey =
-        guard === PUBLIC_KEY_GUARD && publicKey
+        guard === PUBLIC_KEY_GUARD
           ? // `publicKey` is typed as `string | Uint8Array`, but we know it's
             // a `Uint8Array` because of the guard. We use `getBytes` to ensure
             // the type is correct.
             getBytes(publicKey, curveObject.publicKeyLength)
-          : undefined;
+          : await curveObject.getPublicKey(privateKeyBytes);
 
       return new SLIP10Node(
         {
@@ -474,7 +474,7 @@ export class SLIP10Node implements SLIP10NodeInterface {
 
   public readonly privateKeyBytes?: Uint8Array<ArrayBuffer> | undefined;
 
-  #publicKeyBytes: Uint8Array<ArrayBuffer> | undefined;
+  readonly #publicKeyBytes: Uint8Array<ArrayBuffer>;
 
   // eslint-disable-next-line no-restricted-syntax
   private constructor(
@@ -530,28 +530,7 @@ export class SLIP10Node implements SLIP10NodeInterface {
     return bytesToHex(this.publicKeyBytes);
   }
 
-  /**
-   * Get the public key bytes. This will lazily derive the public key from the
-   * private key if it is not already set.
-   *
-   * @returns The public key bytes.
-   */
   public get publicKeyBytes(): Uint8Array<ArrayBuffer> {
-    if (this.#publicKeyBytes !== undefined) {
-      return this.#publicKeyBytes;
-    }
-
-    // This assertion is mainly for type safety, as `SLIP10Node` requires either
-    // a private key or a public key to always be set.
-    assert(
-      this.privateKeyBytes,
-      'Either a private key or public key is required.',
-    );
-
-    this.#publicKeyBytes = getCurveByName(this.curve).getPublicKey(
-      this.privateKeyBytes,
-    );
-
     return this.#publicKeyBytes;
   }
 

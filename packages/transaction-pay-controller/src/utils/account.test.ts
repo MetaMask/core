@@ -2,7 +2,9 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 import {
+  accountRequiresMfa,
   getCaipAccountId,
   getEvmAccountAddress,
   getEvmAccountOverride,
@@ -271,5 +273,23 @@ describe('Account Utils', () => {
         `${SOLANA_CHAIN_ID_MOCK}:${SOLANA_ADDRESS_MOCK}`,
       );
     });
+  });
+});
+
+describe('accountRequiresMfa', () => {
+  it('returns false when account is undefined', () => {
+    const messenger = {} as TransactionPayControllerMessenger;
+
+    const result = accountRequiresMfa(messenger, undefined);
+
+    expect(result).toBe(false);
+  });
+
+  it('returns false when account is empty string', () => {
+    const messenger = {} as TransactionPayControllerMessenger;
+
+    const result = accountRequiresMfa(messenger, '');
+
+    expect(result).toBe(false);
   });
 });

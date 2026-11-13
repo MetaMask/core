@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-lifecycle-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Manages the money account’s life cycle",
   "keywords": [
     "Ethereum",
@@ -53,12 +53,13 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^10.1.0",
-    "@metamask/chomp-api-service": "^7.0.0",
+    "@metamask/chomp-api-service": "^7.1.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/money-account-controller": "^3.0.0",
-    "@metamask/money-account-upgrade-controller": "^6.0.1",
+    "@metamask/money-account-upgrade-controller": "^7.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
+    "@metamask/subscription-controller": "^15.2.2",
     "@metamask/utils": "^12.0.1",
     "fast-deep-equal": "^3.1.3"
   },

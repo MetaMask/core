@@ -55,6 +55,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
     errorMessage: string,
     sentryContext?: Record<string, unknown>,
   ) => void;
+  isNetworkAccessAllowed?: () => boolean;
 }): {
   controller: RampsController;
   performBatchSetStorage: Mock;
@@ -104,6 +105,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
 
   const controller = new RampsController({
     messenger,
+    isNetworkAccessAllowed: args?.isNetworkAccessAllowed,
     onOrderSyncErroneousSituation: args?.onOrderSyncErroneousSituation,
   });
 
@@ -389,6 +391,129 @@ describe('RampsController order syncing', () => {
 
     expect(controller.state.orders).toStrictEqual([]);
     expect(controller.getPendingRemoteDeletes()).toStrictEqual([]);
+  });
+
+  it('uploads an order added while network access is denied on the next full sync', async () => {
+    let allowed = false;
+    const { controller, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks({
+        isNetworkAccessAllowed: () => allowed,
+      });
+    const order = createMockOrder({
+      id: '/providers/transak/orders/deferred-add',
+      providerOrderId: 'deferred-add',
+    });
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'deferred-add' }),
+    ]);
+
+    allowed = true;
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+    const [, entries] = performBatchSetStorage.mock.calls[0];
+    expect(entries).toStrictEqual([
+      ['deferred-add', expect.stringContaining('deferred-add')],
+    ]);
+  });
+
+  it('uploads the tombstone on the next full sync when removeOrder ran while network access is denied', async () => {
+    let allowed = true;
+    const { controller, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks({
+        isNetworkAccessAllowed: () => allowed,
+      });
+
+    controller.addOrder(createMockOrder());
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+
+    allowed = false;
+    controller.removeOrder('abc-123');
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders).toStrictEqual([]);
+    expect(controller.getPendingRemoteDeletes()).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'abc-123' }),
+    ]);
+
+    allowed = true;
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+    const [, entries] = performBatchSetStorage.mock.calls[0];
+    expect(entries).toStrictEqual([
+      ['abc-123', expect.stringContaining('"dt"')],
+    ]);
+  });
+
+  it('does not run a queued sync pass when network access is revoked mid-sync', async () => {
+    let allowed = true;
+    const {
+      controller,
+      performBatchSetStorage,
+      performGetStorageAllFeatureEntries,
+    } = setupControllerWithOrderSyncingMocks({
+      isNetworkAccessAllowed: () => allowed,
+    });
+
+    controller.addOrder(
+      createMockOrder({
+        providerOrderId: 'seed-order',
+        id: '/providers/transak/orders/seed-order',
+      }),
+    );
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+
+    performBatchSetStorage.mockImplementationOnce(async () => {
+      // Host revokes access while the full sync is uploading, then a local
+      // edit lands before the in-flight pass settles.
+      allowed = false;
+      controller.addOrder(
+        createMockOrder({
+          providerOrderId: 'mid-sync-denied',
+          id: '/providers/transak/orders/mid-sync-denied',
+        }),
+      );
+    });
+
+    await controller.syncOrdersWithUserStorage();
+
+    // The in-flight pass may finish its already-started upload, but the queued
+    // follow-up pass must not start another User Storage read or write.
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(1);
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+    expect(controller.state.orders).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'seed-order' }),
+      expect.objectContaining({ providerOrderId: 'mid-sync-denied' }),
+    ]);
+
+    allowed = true;
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(2);
+    const [, entries] = performBatchSetStorage.mock.calls[1];
+    expect(entries).toStrictEqual(
+      expect.arrayContaining([
+        ['mid-sync-denied', expect.stringContaining('mid-sync-denied')],
+      ]),
+    );
   });
 
   it('does not restore an order when its fetch finishes after removal', async () => {

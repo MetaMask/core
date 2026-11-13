@@ -6,6 +6,23 @@
 import type { MfaRecoveryController } from './MfaRecoveryController.js';
 
 /**
+ * Acquires or extends the per-profile recovery lease. Hold it from the first
+ * read through any Auth identifier changes and mutations.
+ */
+export type MfaRecoveryControllerAcquireLockAction = {
+  type: `MfaRecoveryController:acquireLock`;
+  handler: MfaRecoveryController['acquireLock'];
+};
+
+/**
+ * Releases the lease. A pending mutation must finish first.
+ */
+export type MfaRecoveryControllerReleaseLockAction = {
+  type: `MfaRecoveryController:releaseLock`;
+  handler: MfaRecoveryController['releaseLock'];
+};
+
+/**
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
@@ -43,10 +60,16 @@ export type MfaRecoveryControllerUpdateIdentifiersAction = {
 };
 
 /**
- * Authenticates an identifier for a subsequent recovery-secret read.
+ * Authenticates an identifier with a single login. Returns an ephemeral
+ * {@link IdentifierSession} for {@link getRecoverySecret}. For seedless
+ * social logins, the session also carries `seedlessAuthData` for
+ * `SeedlessOnboardingController.authenticate`. Callers decide whether they
+ * need `seedlessAuthData` (and its `revokeToken`), drop it after seedless
+ * authenticate, and keep the key-bound session fields for recovery reads.
  *
  * @param identifier - Identifier to authenticate.
- * @returns Ephemeral session data required by {@link getRecoverySecret}.
+ * @returns Session for recovery reads, with seedless auth data when the
+ * login returned it.
  */
 export type MfaRecoveryControllerAuthenticateIdentifierAction = {
   type: `MfaRecoveryController:authenticateIdentifier`;
@@ -111,6 +134,8 @@ export type MfaRecoveryControllerGetPhaseAction = {
  * Union of all MfaRecoveryController action types.
  */
 export type MfaRecoveryControllerMethodActions =
+  | MfaRecoveryControllerAcquireLockAction
+  | MfaRecoveryControllerReleaseLockAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction

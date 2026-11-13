@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
+- Accept full RPC provider objects (not just URL strings) in `rpcProviders.fallbacks`, so a single chain using the new object form (e.g. Pharos Mainnet) no longer fails validation for the entire networks config response ([#11436](https://github.com/MetaMask/core/pull/11436))
 - **BREAKING:** Change `FetchConfigResult` and `FetchEventsConfigResult` to use `null` instead of omitted properties ([#11134](https://github.com/MetaMask/core/pull/11134))
   - `etag` is now `string | null`, and is `null` when the response has no `ETag` header. Previously it was `undefined`.
   - `data` is now `null` when the server returns 304 and the service has no cached data. Previously it was omitted.
@@ -202,7 +205,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@5.0.0...@metamask/config-registry-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@4.0.0...@metamask/config-registry-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.1.0...@metamask/config-registry-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@3.0.0...@metamask/config-registry-controller@3.1.0

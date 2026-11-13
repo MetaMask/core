@@ -485,6 +485,28 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('returns gasless max quote without transaction steps', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.metamask.isExecute = true;
+      quoteMock.steps = [];
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      });
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('sends request with EXACT_INPUT trade type for token transfers', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
       quoteMock.details.currencyOut.minimumAmount = '100';

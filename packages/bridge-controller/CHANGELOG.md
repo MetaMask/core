@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [83.1.5]
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+- Bump `@metamask/assets-controller` from `^20.3.1` to `^20.4.1` ([#11447](https://github.com/MetaMask/core/pull/11447), [#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/assets-controllers` from `^113.3.1` to `^113.3.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 
 ## [83.1.4]
 
@@ -2215,7 +2221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...HEAD
+[83.1.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...@metamask/bridge-controller@83.1.5
 [83.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.3...@metamask/bridge-controller@83.1.4
 [83.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.2...@metamask/bridge-controller@83.1.3
 [83.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.1...@metamask/bridge-controller@83.1.2

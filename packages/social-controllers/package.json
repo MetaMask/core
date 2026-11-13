@@ -1,6 +1,6 @@
 {
   "name": "@metamask/social-controllers",
-  "version": "3.20.0",
+  "version": "3.22.0",
   "description": "A collection of social related controllers",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
     "@metamask/base-controller": "^10.1.0",
     "@metamask/base-data-service": "^2.1.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/core-backend": "^14.0.0",
+    "@metamask/core-backend": "^14.1.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^36.1.1",
     "@metamask/superstruct": "^3.4.1",

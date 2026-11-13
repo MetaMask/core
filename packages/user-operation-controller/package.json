@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "42.1.1",
+  "version": "42.1.2",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "Ethereum",
@@ -60,11 +60,11 @@
     "@metamask/gas-fee-controller": "^27.1.1",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^38.0.0",
+    "@metamask/network-controller": "^38.0.1",
     "@metamask/polling-controller": "^17.0.0",
     "@metamask/rpc-errors": "^7.0.3",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^73.1.2",
+    "@metamask/transaction-controller": "^74.0.0",
     "@metamask/utils": "^12.0.1",
     "bn.js": "^5.2.5",
     "immer": "^11.1.18",

@@ -6,6 +6,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   getEIP7702UpgradeContractAddress,
   isServerValidationEnabled,
@@ -59,7 +60,7 @@ export async function validateServerQuotes(
 
   await validateQuotes({
     buildSimulation: async (quote) =>
-      shouldSkipValidation(quote, transaction)
+      shouldSkipValidation(quote, transaction, messenger)
         ? undefined
         : await buildServerSimulation(quote, messenger, transaction),
     messenger,
@@ -71,6 +72,7 @@ export async function validateServerQuotes(
 function shouldSkipValidation(
   quote: TransactionPayQuote<ServerQuote>,
   transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
 ): boolean {
   const { request } = quote;
 
@@ -96,6 +98,17 @@ function shouldSkipValidation(
   if (!quote.original.steps.some((step) => step.type === 'transaction')) {
     log('Skipping quote validation: no transaction steps', {
       from: request.from,
+    });
+    return true;
+  }
+
+  // Simulation rebuilds the submit calls, which signs a delegation through the
+  // client payment-override callback. Skip that for an MPC Money payer so
+  // quote refresh does not prompt for MFA ahead of the real submit.
+  if (isMpcMoneyAccountPayer(messenger, request)) {
+    log('Skipping quote validation: MPC Money account payer', {
+      from: request.from,
+      refundTo: request.refundTo,
     });
     return true;
   }
