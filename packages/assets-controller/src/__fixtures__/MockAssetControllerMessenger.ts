@@ -68,9 +68,12 @@ export function registerKeyringUnlockMock(
   });
 }
 
-export function createMockRootMessenger(): MockRootMessenger {
+export function createMockRootMessenger(options?: {
+  captureException?: (error: Error) => void;
+}): MockRootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: options?.captureException,
   });
 }
 
@@ -148,13 +151,14 @@ export function createMockAssetsControllerMessenger(
 
 export function createMockMessengers(options?: {
   registerCustomRootActions?: (rootMessenger: MockRootMessenger) => void;
+  captureException?: (error: Error) => void;
 }): {
   rootMessenger: MockRootMessenger;
   assetsControllerMessenger: AssetsControllerMessenger;
 } {
-  const { registerCustomRootActions } = options ?? {};
+  const { registerCustomRootActions, captureException } = options ?? {};
 
-  const rootMessenger = createMockRootMessenger();
+  const rootMessenger = createMockRootMessenger({ captureException });
 
   registerCustomRootActions?.(rootMessenger);
 
