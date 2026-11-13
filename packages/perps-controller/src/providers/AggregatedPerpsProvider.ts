@@ -1148,20 +1148,6 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           });
         }
       }
-      if (!onlyProvider?.cancelOrders) {
-        return {
-          success: false,
-          successCount: 0,
-          failureCount: params.length,
-          results: params.map((param) => ({
-            orderId: param.orderId,
-            symbol: param.symbol,
-            success: false,
-            error: 'Batch cancel not supported',
-            providerId: param.providerId ?? onlyProviderId,
-          })),
-        };
-      }
       if (routed.length === 0) {
         return {
           success: false,
@@ -1171,10 +1157,26 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           results: misrouted,
         };
       }
+      if (!onlyProvider?.cancelOrders) {
+        return {
+          success: false,
+          successCount: 0,
+          failureCount: params.length,
+          results: [
+            ...routed.map((param) => ({
+              orderId: param.orderId,
+              symbol: param.symbol,
+              success: false,
+              error: 'Batch cancel not supported',
+              providerId: param.providerId ?? onlyProviderId,
+            })),
+            ...misrouted,
+          ],
+        };
+      }
       const result = await onlyProvider.cancelOrders(routed);
       return {
         ...result,
-        successCount: result.successCount,
         failureCount: result.failureCount + misrouted.length,
         results: [
           ...result.results.map((item) => ({
@@ -1353,36 +1355,17 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // ['BTC'] }` closes every position on every venue. Only a symbols-only
     // request (no `closeAll`) is ambiguous once two venues are registered,
     // and is refused rather than resolved against the default.
-    if (params.closeAll === true) {
-      // Capture the venue list once so a thrown batch is attributed to the
-      // provider that was actually called.
-      const activeProviders = this.#getActiveProviders();
-      return this.#mergeCloseResults(
-        await Promise.allSettled(
-          activeProviders.map(async ([providerId, provider]) => {
-            const result = await this.#closePositionsOnProvider(provider, {
-              closeAll: true,
-            });
-            return {
-              ...result,
-              results: result.results.map((item) => ({
-                ...item,
-                providerId,
-              })),
-            };
-          }),
-        ),
-        activeProviders.map(([providerId]) => ({ providerId })),
-      );
-    }
-
-    if (params.symbols && params.symbols.length > 0) {
+    if (
+      params.closeAll !== true &&
+      params.symbols &&
+      params.symbols.length > 0
+    ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
     }
 
-    // An empty request means every position, so it fans out to every enabled
-    // venue. Capture the venue list once so a thrown batch is attributed to
-    // the provider that was actually called.
+    // `closeAll`, or an empty request, means every position, so it fans out
+    // to every enabled venue. Capture the venue list once so a thrown batch
+    // is attributed to the provider that was actually called.
     const activeProviders = this.#getActiveProviders();
     return this.#mergeCloseResults(
       await Promise.allSettled(
@@ -2219,8 +2202,21 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
-  setUserFeeResolution(resolution: PerpsFeeResolution | undefined): void {
-    this.#providers.forEach((provider) => {
+  setUserFeeResolution(
+    resolution: PerpsFeeResolution | undefined,
+    providerId?: PerpsProviderType,
+  ): void {
+    // A venue-scoped resolution reaches only that venue: a fan-out close
+    // prices each venue against its own positions and fee route, and one
+    // venue's resolution must not overwrite another's.
+    let targets: PerpsProvider[];
+    if (providerId === undefined) {
+      targets = Array.from(this.#providers.values());
+    } else {
+      const provider = this.#providers.get(providerId);
+      targets = provider ? [provider] : [];
+    }
+    targets.forEach((provider) => {
       if (provider.setUserFeeResolution) {
         provider.setUserFeeResolution(resolution);
       } else if (provider.setUserFeeDiscount) {

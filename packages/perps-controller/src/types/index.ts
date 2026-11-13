@@ -3175,8 +3175,19 @@ export type PerpsProvider = {
   getWriteProviderId?(providerId?: PerpsProviderType): PerpsProviderType;
 
   setUserFeeDiscount?(discountBips: number | undefined): void;
-  // Full fee resolution context, including attribution source.
-  setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
+  /**
+   * Set the full fee resolution context, including attribution source.
+   *
+   * @param resolution - Resolved fee, or undefined to clear it.
+   * @param providerId - Venue the resolution is for. An aggregating provider
+   * applies it to that venue only, so a fan-out write can price each venue on
+   * its own; when omitted it applies to every venue. A single provider is its
+   * only venue and may ignore it.
+   */
+  setUserFeeResolution?(
+    resolution: PerpsFeeResolution | undefined,
+    providerId?: PerpsProviderType,
+  ): void;
   /**
    * Approve the dedicated subscription builder outside order submission.
    *

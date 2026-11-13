@@ -1621,12 +1621,11 @@ describe('LighterProvider', () => {
       ordersCallback.mockClear();
       getUserAddressMock.mockReturnValue('0xbbbb');
       await provider.getAccountState();
-      expect(accountCallback).toHaveBeenCalledWith(
-        expect.objectContaining({
-          totalBalance: '0',
-          spendableBalance: '0',
-          providerId: 'lighter',
-        }),
+      // Account B's balance is not known yet: subscribers get no data, never
+      // a zero balance that would read as confirmed.
+      expect(accountCallback).toHaveBeenCalledWith(null);
+      expect(accountCallback).not.toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: '0' }),
       );
       expect(positionsCallback).toHaveBeenCalledWith([]);
       expect(ordersCallback).toHaveBeenCalledWith([]);
@@ -1652,6 +1651,34 @@ describe('LighterProvider', () => {
       unsubscribeAccount();
       unsubscribePositions();
       unsubscribeOrders();
+    });
+
+    it('emits no account data, not a zero balance, when the wallet account is deselected', async () => {
+      const { provider, getUserAddressMock } = buildProvider({
+        webSocketCtor: fakeStreamCtor,
+        configuredAccountIndex: null,
+      });
+      StreamFakeWebSocket.instances = [];
+      const accountCallback = vi.fn();
+      const unsubscribeAccount = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      StreamFakeWebSocket.instances[0]?.open();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      accountCallback.mockClear();
+      getUserAddressMock.mockImplementation(() => {
+        throw new Error('No account selected');
+      });
+      await provider.getAccountState().catch(() => undefined);
+
+      expect(accountCallback).toHaveBeenCalledWith(null);
+      expect(accountCallback).not.toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: '0' }),
+      );
+      unsubscribeAccount();
+      await provider.disconnect();
     });
 
     it('cancels a queued write when the wallet switches accounts first', async () => {

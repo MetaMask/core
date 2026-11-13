@@ -623,6 +623,40 @@ export class TradingService {
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
     const { provider, resolveFee, operation } = options;
+    return this.#withFeeResolutions({
+      provider,
+      resolveFees: async () => [{ resolution: await resolveFee() }],
+      operation,
+    });
+  }
+
+  /**
+   * Execute a trading operation with one or more venue fee resolutions set.
+   *
+   * A write that reaches one venue sets a single, unscoped resolution. A
+   * fan-out write through an aggregating provider sets one per venue, so each
+   * venue charges the fee priced for its own part of the write. Every
+   * resolution is cleared after the operation, success or failure.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.resolveFees - Resolves the fees after this operation
+   * acquires the fee context, so an expiring candidate cannot go stale in the
+   * queue. An entry without a `providerId` applies to the whole provider.
+   * @param options.operation - The operation value.
+   * @returns The result of the operation.
+   */
+  async #withFeeResolutions<TResult>(options: {
+    provider: PerpsProvider;
+    resolveFees: () => Promise<
+      {
+        providerId?: PerpsProviderType;
+        resolution: PerpsFeeResolution | undefined;
+      }[]
+    >;
+    operation: () => Promise<TResult>;
+  }): Promise<TResult> {
+    const { provider, resolveFees, operation } = options;
     const previous = this.#feeContextTail;
     let release: () => void = () => undefined;
     this.#feeContextTail = new Promise<void>((resolve) => {
@@ -631,26 +665,34 @@ export class TradingService {
     await previous;
 
     try {
-      const feeResolution = await resolveFee();
-      if (provider.setUserFeeResolution) {
-        provider.setUserFeeResolution(feeResolution);
-      } else if (provider.setUserFeeDiscount) {
-        provider.setUserFeeDiscount(feeResolution?.discountBips);
-      }
-      if (feeResolution) {
-        this.#deps.debugLogger.log(
-          'TradingService: Fee resolution set in provider',
-          {
-            feeDiscountBips: feeResolution.discountBips,
-            feeSource: feeResolution.source,
-          },
-        );
+      const feeResolutions = await resolveFees();
+      for (const { providerId, resolution } of feeResolutions) {
+        if (provider.setUserFeeResolution) {
+          if (providerId === undefined) {
+            provider.setUserFeeResolution(resolution);
+          } else {
+            provider.setUserFeeResolution(resolution, providerId);
+          }
+        } else if (provider.setUserFeeDiscount) {
+          provider.setUserFeeDiscount(resolution?.discountBips);
+        }
+        if (resolution) {
+          this.#deps.debugLogger.log(
+            'TradingService: Fee resolution set in provider',
+            {
+              providerId,
+              feeDiscountBips: resolution.discountBips,
+              feeSource: resolution.source,
+            },
+          );
+        }
       }
 
       // Execute the operation
       return await operation();
     } finally {
-      // Always clear discount context, even on exception
+      // Always clear discount context, even on exception. An unscoped clear
+      // reaches every venue a scoped resolution was set on.
       if (provider.setUserFeeResolution) {
         provider.setUserFeeResolution(undefined);
       } else if (provider.setUserFeeDiscount) {
@@ -1333,80 +1375,98 @@ export class TradingService {
   }
 
   /**
-   * Resolve the total USD notional a batch close will submit.
+   * Resolve the USD notional a batch close submits on each venue it reaches.
    *
-   * HyperLiquid takes one builder context for the whole batch, so the fee is
-   * resolved once against everything it closes rather than per position.
-   * Positions are read through the service context; when that read is
-   * unavailable or empty the notional is undefined, which the resolver reads as
-   * "no notional to blend against".
+   * A venue takes one builder context for its whole batch, so its fee is
+   * resolved once against everything it closes rather than per position. The
+   * selection mirrors execution: non-empty `targets` win and name exact
+   * `(symbol, venue)` positions; otherwise `closeAll` or an empty request fans
+   * out to every venue; a legacy `symbols` list is a single write through the
+   * default route. Each venue is priced against only its own positions, since
+   * each applies its own fee to its own batch.
+   *
+   * When positions cannot be read, or nothing matches, a single unscoped route
+   * with no notional is returned, which the resolver reads as "no notional to
+   * blend against".
    *
    * @param options - The configuration options.
    * @param options.params - Which positions the batch will close.
-   * @param options.provider - The provider that will submit the batch, and so
-   * the only one whose positions it can close.
-   * @returns The summed notional in USD, or undefined when it cannot be read.
+   * @param options.provider - The provider that will submit the batch.
+   * @returns One entry per venue the batch reaches. `providerId` is omitted
+   * when the provider is not an aggregator, or for the unpriced fallback.
    */
-  async #resolveBatchCloseNotionalUsd(options: {
+  async #resolveBatchCloseFeeRoutes(options: {
     params: ClosePositionsParams;
     provider: PerpsProvider;
-  }): Promise<number | undefined> {
+  }): Promise<
+    { providerId?: PerpsProviderType; notionalUsd: number | undefined }[]
+  > {
     const { params, provider } = options;
 
     try {
-      // Read through the provider that will actually submit the batch, then
-      // keep only what that route can close: an aggregating provider's
-      // `getPositions` still spans every active provider, so summing the rest
-      // would inflate the notional and shrink the waiver for positions this
-      // call never touches.
-      const positions = this.#positionsForWriteRoute({
-        positions: await provider.getPositions(),
-        provider,
-      });
-      // `closeAll`, or an omitted/empty symbol list, means every position.
-      // `closeAll` is checked first because the provider gives it precedence
-      // over a symbol list: pricing a filtered subset while the batch closes
-      // everything would resolve the fee against too small a notional and
-      // over-grant the waiver.
-      let selected: typeof positions;
-      if (params.closeAll === true) {
-        selected = positions;
-      } else if (params.targets && params.targets.length > 0) {
+      const positions = await provider.getPositions();
+      // A direct provider's positions are untagged and all its own; an
+      // aggregator tags each position with the venue that holds it.
+      const writeRoute = provider.getWriteProviderId?.();
+      const venueOf = (position: Position): string =>
+        position.providerId ?? writeRoute ?? provider.protocolId;
+
+      let selected: Position[];
+      if (params.targets && params.targets.length > 0) {
         selected = positions.filter((position) =>
           params.targets?.some(
             (target) =>
               target.symbol === position.symbol &&
-              target.providerId === position.providerId,
+              target.providerId === venueOf(position),
           ),
         );
-      } else if (params.symbols && params.symbols.length > 0) {
-        selected = positions.filter((position) =>
-          params.symbols?.includes(position.symbol),
-        );
-      } else {
+      } else if (
+        params.closeAll === true ||
+        !params.symbols ||
+        params.symbols.length === 0
+      ) {
         selected = positions;
+      } else {
+        // A symbol list names no venue, so it is one write through the default
+        // route: another venue's same-symbol position is not part of it.
+        selected = this.#positionsForWriteRoute({ positions, provider }).filter(
+          (position) => params.symbols?.includes(position.symbol),
+        );
       }
 
-      const total = selected.reduce((sum, position) => {
+      const notionalByVenue = new Map<PerpsProviderType | undefined, number>();
+      for (const position of selected) {
+        // Only an aggregator can apply a venue-scoped resolution.
+        const venue =
+          writeRoute === undefined
+            ? undefined
+            : (position.providerId ?? writeRoute);
         const value = Math.abs(Number.parseFloat(position.positionValue));
-        return Number.isFinite(value) ? sum + value : sum;
-      }, 0);
+        notionalByVenue.set(
+          venue,
+          (notionalByVenue.get(venue) ?? 0) +
+            (Number.isFinite(value) ? value : 0),
+        );
+      }
 
-      return total > 0 ? total : undefined;
+      if (notionalByVenue.size > 0) {
+        return Array.from(notionalByVenue, ([providerId, total]) => ({
+          ...(providerId === undefined ? {} : { providerId }),
+          notionalUsd: total > 0 ? total : undefined,
+        }));
+      }
     } catch (error) {
       // Pricing the batch must never fail the close. Without a notional the
       // resolver quotes the full waiver, which is what it did before.
       this.#deps.debugLogger.log(
         'TradingService: Could not price batch close for the fee resolver',
         {
-          error: ensureError(
-            error,
-            'TradingService.resolveBatchCloseNotionalUsd',
-          ).message,
+          error: ensureError(error, 'TradingService.resolveBatchCloseFeeRoutes')
+            .message,
         },
       );
-      return undefined;
     }
+    return [{ notionalUsd: undefined }];
   }
 
   /**
@@ -2474,20 +2534,27 @@ export class TradingService {
 
       // Use batch close if provider supports it (provider handles filtering)
       if (provider.closePositions) {
-        // The batch submits under one builder context, so its notional is the
-        // sum of the positions it will close, not any single one of them.
-        const batchCloseNotionalUsd = await this.#resolveBatchCloseNotionalUsd({
+        // Each venue submits its batch under one builder context, so its fee
+        // is priced against the sum of the positions it will close — and only
+        // those: a fan-out reaches several venues, each with its own fee.
+        const feeRoutes = await this.#resolveBatchCloseFeeRoutes({
           params,
           provider,
         });
 
-        operationResult = await this.#withFeeDiscount({
+        operationResult = await this.#withFeeResolutions({
           provider,
-          resolveFee: () =>
-            this.#calculateFeeDiscountWithMeasurement(
-              batchCloseNotionalUsd,
-              provider,
-              context,
+          resolveFees: () =>
+            Promise.all(
+              feeRoutes.map(async ({ providerId, notionalUsd }) => ({
+                providerId,
+                resolution: await this.#calculateFeeDiscountWithMeasurement(
+                  notionalUsd,
+                  provider,
+                  context,
+                  providerId,
+                ),
+              })),
             ),
           operation: async () => {
             if (!provider.closePositions) {

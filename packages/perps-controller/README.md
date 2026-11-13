@@ -115,7 +115,11 @@ data the read throws (REST) or the stream emits `null`.
 The controller writes `perpsBalances[providerId]` from live account updates —
 one entry per available venue with `totalBalance`, `unrealizedPnl` and
 `lastUpdated`. A venue whose data becomes unavailable has its entry removed
-rather than left looking live. Combined `spendableBalance` and
+rather than left looking live. Each entry records the `accountAddress` and
+`isTestnet` it was observed for; an optional `accountValue1dAgo` carries
+forward only within that same account and network, and entries for another
+account or network are dropped when the selected account changes or the
+network is toggled. Combined `spendableBalance` and
 `withdrawableBalance` span venues: neither is a limit any single venue will
 enforce on a new order or a withdrawal.
 

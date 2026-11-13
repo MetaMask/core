@@ -1621,6 +1621,56 @@ describe('AggregatedPerpsProvider', () => {
       ]);
     });
 
+    it('keeps the foreign-venue refusal code when the only venue cannot batch cancel', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      delete (mockHLProvider as Partial<MockPerpsProvider>).cancelOrders;
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.successCount).toBe(0);
+      expect(result.failureCount).toBe(2);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: false,
+          error: 'Batch cancel not supported',
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('refuses an all-foreign batch as not found even when the only venue cannot batch cancel', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      delete (mockHLProvider as Partial<MockPerpsProvider>).cancelOrders;
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(result.results).toEqual([
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
     it('fails every target without a venue call when all name other venues', async () => {
       aggregatedProvider.removeProvider('lighter');
 
@@ -2425,6 +2475,45 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.setUserFeeDiscount).toHaveBeenCalledWith(
         10000,
       );
+    });
+
+    it('applies a venue-scoped fee resolution to that venue only', () => {
+      const resolution = {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant' as const,
+        subscription: { eligible: false, reason: 'no-source' as const },
+      };
+
+      aggregatedProvider.setUserFeeResolution(resolution, 'lighter');
+
+      expect(mockLighterProvider.setUserFeeResolution).toHaveBeenCalledWith(
+        resolution,
+      );
+      expect(mockHLProvider.setUserFeeResolution).not.toHaveBeenCalled();
+      expect(mockHLProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the discount for a venue-scoped resolution', () => {
+      const resolution = {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant' as const,
+        subscription: { eligible: false, reason: 'no-source' as const },
+      };
+      mockLighterProvider.setUserFeeResolution = undefined;
+
+      aggregatedProvider.setUserFeeResolution(resolution, 'lighter');
+
+      expect(mockLighterProvider.setUserFeeDiscount).toHaveBeenCalledWith(8000);
+      expect(mockHLProvider.setUserFeeResolution).not.toHaveBeenCalled();
+    });
+
+    it('ignores a venue-scoped resolution for an unregistered venue', () => {
+      aggregatedProvider.setUserFeeResolution(undefined, 'unknown' as never);
+
+      expect(mockHLProvider.setUserFeeResolution).not.toHaveBeenCalled();
+      expect(mockLighterProvider.setUserFeeResolution).not.toHaveBeenCalled();
     });
 
     it('delegates subscription builder approval to the default provider', async () => {

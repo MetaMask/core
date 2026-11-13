@@ -2357,7 +2357,7 @@ export class LighterProvider implements PerpsProvider {
       if (this.#boundAddress !== null) {
         // All accounts deselected while a session existed: invalidate so
         // nothing in flight can still act for the old account.
-        this.#emitAccountBindingReset();
+        this.#emitAccountBindingReset(null);
         this.#invalidateSessionState();
         this.#removeSignerResetListener();
         this.#teardownStream();
@@ -2393,7 +2393,7 @@ export class LighterProvider implements PerpsProvider {
     // #tpslUnsettled is NOT cleared: entries are keyed by
     // address+accountIndex+symbol, so B never consumes A's pending ids and
     // switching back to A retains its reconciliation obligation.
-    this.#emitAccountBindingReset();
+    this.#emitAccountBindingReset(null);
     this.#teardownStream();
     this.#rebuildStreamForSubscribers();
     this.#deps.debugLogger.log(
@@ -2401,11 +2401,17 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
-  /** Clear subscriber-visible account data before a wallet rebind. */
-  readonly #emitAccountBindingReset = (): void => {
+  /**
+   * Clear subscriber-visible account data for a changed wallet binding.
+   *
+   * @param account - `null` when the new binding's balance is not known yet
+   * (a switch or deselection), so no consumer reads it as a confirmed zero;
+   * the empty state only when the venue confirmed this wallet has no account.
+   */
+  readonly #emitAccountBindingReset = (account: AccountState | null): void => {
     for (const subscriber of this.#accountSubscribers) {
       try {
-        subscriber.callback(EMPTY_ACCOUNT_STATE);
+        subscriber.callback(account);
       } catch (error) {
         this.#logSubscriberError('account', error);
       }
@@ -18229,7 +18235,7 @@ export class LighterProvider implements PerpsProvider {
           error instanceof LighterAccountNotFoundError &&
           generation === this.#sessionGeneration
         ) {
-          this.#emitAccountBindingReset();
+          this.#emitAccountBindingReset(EMPTY_ACCOUNT_STATE);
         } else if (
           !this.#isDisconnected &&
           this.#boundAddress !== null &&
