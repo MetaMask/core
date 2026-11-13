@@ -216,8 +216,8 @@ const OTHER_ASSET_ID =
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
- * the account tree initialized, then flushing the async startup so the
- * controller is in its running state.
+ * the account tree initialized, then waiting until controller state settles
+ * so the controller is in its running state.
  *
  * @param messenger - The root messenger used to publish lifecycle events.
  */
@@ -233,7 +233,7 @@ async function activateTracking(messenger: RootMessenger): Promise<void> {
     'AccountTreeController:initialized',
     {},
   );
-  await flushPromises();
+  await waitUntilStable(() => messenger.call('AssetsController:getState'));
 }
 
 function createMockInternalAccount(
@@ -511,7 +511,10 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller, messenger, getSelectedAccountsMock });
   } finally {
-    await flushPromises();
+    await waitUntilStable(() => controller.state, {
+      intervalMs: 0,
+      stableForMs: 1,
+    });
     controller.destroy();
   }
 }
