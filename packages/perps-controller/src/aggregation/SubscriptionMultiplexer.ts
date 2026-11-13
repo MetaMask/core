@@ -96,12 +96,13 @@ export type MultiplexedOrdersParams = {
  * Parameters for multiplexed account subscriptions
  */
 export type MultiplexedAccountParams = {
+  /** Optional account identity forwarded to every provider. */
+  accountId?: SubscribeAccountParams['accountId'];
   /** Provider instances to subscribe through */
   providers: [PerpsProviderType, PerpsProvider][];
-  /** Callback to receive account updates (one per provider) */
+  /** Callback to receive account updates (one entry per provider with data) */
   callback: (accounts: AccountState[]) => void;
 };
-
 /**
  * SubscriptionMultiplexer manages real-time data subscriptions across
  * multiple perps providers.
@@ -157,12 +158,6 @@ export class SubscriptionMultiplexer {
    * Map<providerId, Order[]>
    */
   readonly #orderCache: Map<PerpsProviderType, Order[]> = new Map();
-
-  /**
-   * Cache of latest account state per provider
-   * Map<providerId, AccountState>
-   */
-  readonly #accountCache: Map<PerpsProviderType, AccountState> = new Map();
 
   /**
    * Create a new SubscriptionMultiplexer.
@@ -428,30 +423,43 @@ export class SubscriptionMultiplexer {
   /**
    * Subscribe to account updates from multiple providers.
    *
+   * Each subscription owns its cache: a venue's latest state is visible only
+   * to that subscription, so one subscription's cleanup never erases another
+   * subscription's venue data, and a subscription starts empty regardless of
+   * other live account streams.
+   *
    * @param params - Subscription parameters
    * @returns Unsubscribe function
    */
   subscribeToAccount(params: MultiplexedAccountParams): () => void {
     const { providers, callback } = params;
     const unsubscribers: (() => void)[] = [];
+    // Per-subscription cache: latest state per venue for THIS subscription.
+    const accountCache: Map<PerpsProviderType, AccountState> = new Map();
 
     for (const [providerId, provider] of providers) {
       try {
         const subscribeParams: SubscribeAccountParams = {
+          ...(params.accountId !== undefined && {
+            accountId: params.accountId,
+          }),
           callback: (account) => {
             if (account === null) {
-              this.#accountCache.delete(providerId);
+              // The venue's balance is no longer known. Drop its previous
+              // value: it must not stay in the aggregate as current, and it
+              // must not become a zero.
+              accountCache.delete(providerId);
             } else {
               // Tag account with providerId and cache
               const taggedAccount: AccountState = {
                 ...account,
                 providerId,
               };
-              this.#accountCache.set(providerId, taggedAccount);
+              accountCache.set(providerId, taggedAccount);
             }
 
-            // Emit all cached account states
-            const allAccounts = Array.from(this.#accountCache.values());
+            // Emit this subscription's cached account states
+            const allAccounts = Array.from(accountCache.values());
             callback(allAccounts);
           },
         };
@@ -480,9 +488,7 @@ export class SubscriptionMultiplexer {
 
     return () => {
       unsubscribers.forEach((unsub) => unsub());
-      providers.forEach(([providerId]) => {
-        this.#accountCache.delete(providerId);
-      });
+      // The cache is per-subscription: nothing shared to clear.
     };
   }
 
@@ -585,7 +591,6 @@ export class SubscriptionMultiplexer {
     this.#priceCache.clear();
     this.#positionCache.clear();
     this.#orderCache.clear();
-    this.#accountCache.clear();
   }
 
   /**

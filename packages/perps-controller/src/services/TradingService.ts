@@ -1368,12 +1368,24 @@ export class TradingService {
       // over a symbol list: pricing a filtered subset while the batch closes
       // everything would resolve the fee against too small a notional and
       // over-grant the waiver.
-      const selected =
-        params.closeAll !== true && params.symbols && params.symbols.length > 0
-          ? positions.filter((position) =>
-              params.symbols?.includes(position.symbol),
-            )
-          : positions;
+      let selected: typeof positions;
+      if (params.closeAll === true) {
+        selected = positions;
+      } else if (params.targets && params.targets.length > 0) {
+        selected = positions.filter((position) =>
+          params.targets?.some(
+            (target) =>
+              target.symbol === position.symbol &&
+              target.providerId === position.providerId,
+          ),
+        );
+      } else if (params.symbols && params.symbols.length > 0) {
+        selected = positions.filter((position) =>
+          params.symbols?.includes(position.symbol),
+        );
+      } else {
+        selected = positions;
+      }
 
       const total = selected.reduce((sum, position) => {
         const value = Math.abs(Number.parseFloat(position.positionValue));
@@ -2070,12 +2082,17 @@ export class TradingService {
           };
         }
 
-        // Use batch cancel if provider supports it
+        // Use batch cancel if provider supports it. Each target keeps the
+        // venue identity of the order it came from, so a mixed-venue batch is
+        // executed on the venue that actually holds each order.
         if (provider.cancelOrders) {
           return await provider.cancelOrders(
             ordersToCancel.map((order) => ({
               symbol: order.symbol,
               orderId: order.orderId,
+              ...(order.providerId !== undefined && {
+                providerId: order.providerId,
+              }),
             })),
           );
         }
@@ -2085,7 +2102,14 @@ export class TradingService {
           ordersToCancel.map((order) =>
             this.cancelOrder({
               provider,
-              params: { symbol: order.symbol, orderId: order.orderId },
+              params: {
+                symbol: order.symbol,
+                orderId: order.orderId,
+                // Keep each order's venue identity in the fallback path too.
+                ...(order.providerId !== undefined && {
+                  providerId: order.providerId,
+                }),
+              },
               context,
               bulkActionId,
             }),

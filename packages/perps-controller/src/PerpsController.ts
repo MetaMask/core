@@ -450,11 +450,22 @@ export type PerpsControllerState = {
   accountState: AccountState | null;
 
   // Perps balances per provider for portfolio display (historical data)
+  // Aggregated mode writes one entry per available venue, keyed by provider
+  // id. An entry's presence means the venue's balance was live as of
+  // `lastUpdated`; a venue whose data becomes unavailable has its entry
+  // removed rather than left looking live.
   perpsBalances: {
     [provider: string]: {
       totalBalance: string; // Current total account value (cash + positions) in USD
       unrealizedPnl: string; // Current P&L from open positions in USD
-      accountValue1dAgo: string; // Account value 24h ago for daily change calculation in USD
+      /**
+       * Account value 24h ago for daily change calculation in USD.
+       * Optional: `AccountState` carries no historical observation, so a
+       * first live write before any prior entry has no 1d-ago value to
+       * preserve. Carried forward from the previous entry when one exists;
+       * never fabricated from the current balance.
+       */
+      accountValue1dAgo?: string;
       lastUpdated: number; // Timestamp of last update
     };
   };
@@ -487,6 +498,12 @@ export type PerpsControllerState = {
     amount: string;
     asset: string;
     accountAddress: string; // Account that initiated this withdrawal
+    /**
+     * Venue that initiated the withdrawal, captured before preparation.
+     * Records created before multi-venue attribution omit it and are never
+     * relabeled with a later default.
+     */
+    providerId?: PerpsProviderType;
     txHash?: string;
     timestamp: number;
     success: boolean;
@@ -511,6 +528,12 @@ export type PerpsControllerState = {
     amount: string;
     asset: string;
     accountAddress: string; // Account that initiated this deposit
+    /**
+     * Venue whose deposit route was chosen, captured before preparation.
+     * Records created before multi-venue attribution omit it and are never
+     * relabeled with a later default.
+     */
+    providerId?: PerpsProviderType;
     txHash?: string;
     timestamp: number;
     success: boolean;
@@ -4003,16 +4026,11 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
-    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
-    if (unroutedRefusal) {
-      return unroutedRefusal;
-    }
-
+    // Batch cancel resolves each target's venue from the order record that
+    // names it: open orders carry the venue that holds them, so a filtered or
+    // all-order batch is venue-attributed and never guesses a default. Only
+    // an unrouted single-venue write (direct mode) reaches one venue.
     const provider = await this.#getActiveProviderWhenReady();
-    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-    if (resolvedRefusal) {
-      return resolvedRefusal;
-    }
 
     return this.#tradingService.cancelOrders({
       provider,
@@ -4076,15 +4094,20 @@ export class PerpsController extends BaseController<
   async closePositions(
     params: ClosePositionsParams,
   ): Promise<ClosePositionsResult> {
-    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
-    if (unroutedRefusal) {
-      return unroutedRefusal;
-    }
-
+    // closeAll fans out to every enabled venue, and explicit targets name
+    // their own venue. A legacy symbols-only close stays ambiguous in
+    // multi-venue aggregated mode and is refused below rather than guessed.
     const provider = await this.#getActiveProviderWhenReady();
-    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-    if (resolvedRefusal) {
-      return resolvedRefusal;
+    if (
+      !params.closeAll &&
+      !(params.targets && params.targets.length > 0) &&
+      params.symbols &&
+      params.symbols.length > 0
+    ) {
+      const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
+      if (unroutedRefusal) {
+        return unroutedRefusal;
+      }
     }
     this.#ensureTradingServiceDeps();
 
@@ -4302,12 +4325,25 @@ export class PerpsController extends BaseController<
         transaction,
         assetChainId,
         currentDepositId: depositId,
+        // The chosen route names the venue that settles this deposit. Captured
+        // before any asynchronous work so later default changes cannot
+        // re-attribute the record.
+        providerId: depositProviderId,
       } = await this.#depositService.prepareTransaction({ provider });
       currentDepositId = depositId;
 
       // Get current account address via messenger (outside of update() for proper typing)
       const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
       const accountAddress = evmAccount?.address ?? 'unknown';
+
+      // The chosen route names the venue in aggregated mode; in direct mode
+      // the active provider is the venue. Captured before any asynchronous
+      // work, never relabeled later.
+      const directDepositVenue =
+        this.state.activeProvider === 'aggregated'
+          ? undefined
+          : this.state.activeProvider;
+      const depositVenueId = depositProviderId ?? directDepositVenue;
 
       this.update((state) => {
         state.lastDepositResult = null;
@@ -4319,6 +4355,12 @@ export class PerpsController extends BaseController<
           amount: amount ?? '0', // Use provided amount or default to '0'
           asset: USDC_SYMBOL,
           accountAddress, // Track which account initiated deposit
+          // Venue attribution: the chosen route names the venue in
+          // aggregated mode; in direct mode the active provider is the
+          // venue. Never relabeled later.
+          ...(depositVenueId === undefined
+            ? {}
+            : { providerId: depositVenueId }),
           success: false, // Will be updated when transaction completes
           txHash: undefined,
           status: 'pending' as TransactionStatus,
@@ -5318,15 +5360,27 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('getAccountState', {
         accountDataContext: {
-          // Match the live account venue, including a temporary fallback when
-          // the saved default is unavailable. Read the route when the response
-          // arrives to reject balances from a previous venue.
-          isCurrent: (accountState) =>
-            accountState.providerId === undefined ||
-            accountState.providerId ===
-              (this.activeProviderInstance instanceof AggregatedPerpsProvider
-                ? this.activeProviderInstance.getWriteProviderId()
-                : this.state.activeProvider),
+          // Match the live account data context. An aggregated result spans
+          // venues: it stays current while the aggregated wrapper is still
+          // the active provider, regardless of which venue is the routing
+          // default. A single-venue result is matched against the venue it
+          // names (or the active direct provider), to reject balances from a
+          // previous venue when the route changed while the request was in
+          // flight.
+          isCurrent: (accountState) => {
+            if (accountState.providerStates) {
+              return (
+                this.activeProviderInstance instanceof AggregatedPerpsProvider
+              );
+            }
+            return (
+              accountState.providerId === undefined ||
+              accountState.providerId ===
+                (this.activeProviderInstance instanceof AggregatedPerpsProvider
+                  ? this.activeProviderInstance.getWriteProviderId()
+                  : this.state.activeProvider)
+            );
+          },
         },
       }),
     });
@@ -6202,10 +6256,23 @@ export class PerpsController extends BaseController<
           );
         }
 
-        // AccountState — assign to its provider bucket
-        ensureBucket(
-          accountState.providerId ?? fallbackProviderId,
-        ).accountState = accountState;
+        // AccountState — assign per-venue snapshots to their own buckets. An
+        // aggregated result's combined total is venue-neutral and is never
+        // stored in a venue bucket merely because the aggregate itself has no
+        // providerId.
+        if (accountState.providerStates) {
+          for (const [pid, entry] of Object.entries(
+            accountState.providerStates,
+          )) {
+            if (entry?.status === 'available') {
+              ensureBucket(pid).accountState = entry.state;
+            }
+          }
+        } else {
+          ensureBucket(
+            accountState.providerId ?? fallbackProviderId,
+          ).accountState = accountState;
+        }
 
         if (discardStalePreload()) {
           return;
@@ -6950,9 +7017,16 @@ export class PerpsController extends BaseController<
       if (aggregatedProvider) {
         state.effectiveProvider = providerId;
       }
-      // The cached snapshot came from the previous default venue's stream, so
-      // drop it until the new venue delivers matching data.
-      if (defaultChanged && aggregatedProvider) {
+      // A single-venue snapshot (for example a one-venue fallback read) was
+      // tied to the previous default route: drop it until matching data
+      // arrives. An aggregate snapshot spans every venue and stays valid
+      // across a routing-default change, so it is kept.
+      if (
+        defaultChanged &&
+        aggregatedProvider &&
+        state.accountState &&
+        !state.accountState.providerStates
+      ) {
         state.accountState = null;
       }
     });
@@ -7391,6 +7465,64 @@ export class PerpsController extends BaseController<
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
                   state.lastError = null;
+
+                  // One balance entry per venue with data, keyed by the venue
+                  // that actually served it. Aggregated updates carry explicit
+                  // per-venue entries; direct-provider updates are attributed
+                  // to their own venue id, or the active direct provider when
+                  // the venue does not stamp one.
+                  const timestamp = Date.now();
+                  if (account.providerStates) {
+                    for (const [providerId, entry] of Object.entries(
+                      account.providerStates,
+                    )) {
+                      if (!entry) {
+                        continue;
+                      }
+                      if (entry.status === 'available') {
+                        const previous = state.perpsBalances[providerId];
+                        state.perpsBalances[providerId] = {
+                          totalBalance: entry.state.totalBalance,
+                          unrealizedPnl: entry.state.unrealizedPnl,
+                          // Historical observation carried forward, never
+                          // fabricated from the current balance.
+                          ...(previous?.accountValue1dAgo !== undefined && {
+                            accountValue1dAgo: previous.accountValue1dAgo,
+                          }),
+                          lastUpdated: timestamp,
+                        };
+                      } else {
+                        // The venue's data is unavailable: drop its entry
+                        // rather than keep exposing a stale value as live.
+                        delete state.perpsBalances[providerId];
+                      }
+                    }
+                  } else {
+                    const directVenueId =
+                      state.activeProvider === 'aggregated'
+                        ? undefined
+                        : state.activeProvider;
+                    const venueId = account.providerId ?? directVenueId;
+                    if (venueId) {
+                      const previous = state.perpsBalances[venueId];
+                      state.perpsBalances[venueId] = {
+                        totalBalance: account.totalBalance,
+                        unrealizedPnl: account.unrealizedPnl,
+                        ...(previous?.accountValue1dAgo !== undefined && {
+                          accountValue1dAgo: previous.accountValue1dAgo,
+                        }),
+                        lastUpdated: timestamp,
+                      };
+                    }
+                  }
+                });
+              } else {
+                // No current account data: the cached snapshot and live
+                // balance entries are gone rather than stale-but-live.
+                this.update((state) => {
+                  state.accountState = null;
+                  state.perpsBalances = {};
+                  state.lastUpdateTimestamp = Date.now();
                 });
               }
               originalCallback(account);

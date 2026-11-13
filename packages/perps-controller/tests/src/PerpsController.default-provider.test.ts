@@ -113,6 +113,7 @@ const mockMarketDataServiceInstance = {
   }),
   getMarkets: vi.fn().mockResolvedValue([]),
   getWithdrawalRoutes: vi.fn().mockReturnValue([]),
+  getOpenOrders: vi.fn().mockResolvedValue([]),
   validateClosePosition: vi.fn().mockResolvedValue({ isValid: true }),
   validateOrder: vi.fn(),
   calculateMaintenanceMargin: vi.fn().mockResolvedValue(0),
@@ -566,7 +567,7 @@ describe('PerpsController default provider', () => {
       expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
 
-    it('moves a live account subscription to the new venue and clears the cached snapshot', () => {
+    it('keeps both venue subscriptions and the all-venue snapshot when the default changes', () => {
       setupAggregatedMode('hyperliquid');
       const hlCleanup = vi.fn();
       const lighterCleanup = vi.fn();
@@ -585,25 +586,28 @@ describe('PerpsController default provider', () => {
       });
 
       controller.subscribeToAccount({ callback });
-      // HyperLiquid pushes a snapshot; the controller caches it.
+      // Both venues are subscribed through the multiplexer fan-out.
       const hlCallback =
         mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+        .calls[0][0].callback;
       hlCallback(accountState('100'));
-      expect(controller.state.accountState?.totalBalance).toBe('100');
+      lighterCallback(accountState('200'));
+      // The cached snapshot is the combined all-venue total.
+      expect(controller.state.accountState?.totalBalance).toBe('300');
+      expect(controller.state.accountState?.aggregate?.status).toBe('complete');
 
       controller.setDefaultProvider('lighter');
 
-      // The previous venue's snapshot is dropped until the new venue answers.
-      expect(controller.state.accountState).toBeNull();
-      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      // The default change neither drops the other venue's subscription nor
+      // erases the still-valid all-venue total.
+      expect(hlCleanup).not.toHaveBeenCalled();
+      expect(lighterCleanup).not.toHaveBeenCalled();
+      expect(mockProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
       expect((lighterProvider as any).subscribeToAccount).toHaveBeenCalledTimes(
         1,
       );
-
-      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
-        .calls[0][0].callback;
-      lighterCallback(accountState('200'));
-      expect(controller.state.accountState?.totalBalance).toBe('200');
+      expect(controller.state.accountState?.totalBalance).toBe('300');
     });
 
     it('persists the choice before initialization when no provider is registered yet', () => {
@@ -894,7 +898,7 @@ describe('PerpsController default provider', () => {
       },
     );
 
-    it('commits fallback balances without overwriting the saved default and rejects them after recovery', async () => {
+    it('commits combined balances after recovery and stays consistent when a stale venue response settles', async () => {
       createController(
         { activeProvider: 'aggregated', defaultProvider: 'lighter' },
         true,
@@ -922,10 +926,13 @@ describe('PerpsController default provider', () => {
       };
       mockProvider.getAccountState.mockResolvedValue(account);
 
+      // One-venue fallback: the single registered venue's read passes through.
       await controller.getAccountState();
-
-      expect(controller.state.accountState).toStrictEqual(account);
+      expect(controller.state.accountState?.totalBalance).toBe('100');
       expect(controller.state.defaultProvider).toBe('lighter');
+
+      // Recovery: both venues are live again; the snapshot is the combined
+      // total across them.
       const pendingFallback = createDeferred<AccountState>();
       mockProvider.getAccountState.mockReturnValueOnce(pendingFallback.promise);
       const oldRequest = controller.getAccountState();
@@ -937,15 +944,16 @@ describe('PerpsController default provider', () => {
         totalBalance: '200',
       });
       await controller.getAccountState();
-      expect(controller.state.accountState?.totalBalance).toBe('200');
+      expect(controller.state.accountState?.totalBalance).toBe('300');
 
+      // The stale in-flight HyperLiquid response settles late; the combined
+      // total stays consistent because both venues' current data is summed.
       pendingFallback.resolve(account);
       await oldRequest;
-
-      expect(controller.state.accountState?.totalBalance).toBe('200');
+      expect(controller.state.accountState?.totalBalance).toBe('300');
     });
 
-    it('does not let an old venue balance overwrite the new venue snapshot', async () => {
+    it('combines a late venue response instead of letting it overwrite the other venue', async () => {
       setupAggregatedMode('hyperliquid');
       const { MarketDataService: RealMarketDataService } =
         await vi.importActual<
@@ -977,14 +985,73 @@ describe('PerpsController default provider', () => {
       const oldRequest = controller.getAccountState();
       controller.setDefaultProvider('lighter');
 
-      // The new venue answers first and becomes the current snapshot.
-      await controller.getAccountState();
-      expect(controller.state.accountState?.totalBalance).toBe('200');
-
-      // The stale HyperLiquid response must not restore the old balance.
+      // The late HyperLiquid response is attributed to HyperLiquid and
+      // combined with the live Lighter value — it never replaces it.
       pendingHyperLiquid.resolve(accountState('100'));
       await oldRequest;
-      expect(controller.state.accountState?.totalBalance).toBe('200');
+      expect(controller.state.accountState?.totalBalance).toBe('300');
+      expect(controller.state.accountState?.aggregate?.status).toBe('complete');
+      expect(
+        controller.state.accountState?.providerStates?.lighter?.status,
+      ).toBe('available');
+      expect(
+        controller.state.accountState?.providerStates?.hyperliquid?.status,
+      ).toBe('available');
+    });
+
+    it('rejects a stale aggregate response after the active provider stops being aggregated', async () => {
+      setupAggregatedMode('hyperliquid');
+      const { MarketDataService: RealMarketDataService } =
+        await vi.importActual<
+          typeof import('../../src/services/MarketDataService.js')
+        >('../../src/services/MarketDataService.js');
+      const realMarketDataService = new RealMarketDataService(
+        mockInfrastructure as never,
+      );
+      mockMarketDataServiceInstance.getAccountState.mockImplementation(
+        (options: never) => realMarketDataService.getAccountState(options),
+      );
+
+      const accountState = (totalBalance: string): AccountState => ({
+        spendableBalance: totalBalance,
+        withdrawableBalance: totalBalance,
+        totalBalance,
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+      (lighterProvider as any).getAccountState.mockResolvedValue(
+        accountState('200'),
+      );
+      const pendingAggregate = createDeferred<AccountState>();
+      // The next aggregated read hangs until we resolve it below.
+      mockProvider.getAccountState.mockReturnValueOnce(
+        pendingAggregate.promise,
+      );
+      const staleRequest = controller.getAccountState();
+
+      // The controller switches to direct Lighter mode while the request is
+      // in flight: the aggregate is no longer the live account context.
+      controller.testSetActiveProvider(lighterProvider as PerpsProvider);
+      pendingAggregate.resolve({
+        ...accountState('100'),
+        providerStates: {
+          hyperliquid: {
+            status: 'available',
+            providerId: 'hyperliquid',
+            state: { ...accountState('100'), providerId: 'hyperliquid' },
+          },
+        },
+        aggregate: {
+          status: 'complete',
+          availableProviders: ['hyperliquid'],
+          unavailableProviders: [],
+        },
+      });
+      await staleRequest;
+
+      // The stale aggregate must not become the direct venue's snapshot.
+      expect(controller.state.accountState).toBeNull();
     });
   });
 
@@ -1110,27 +1177,7 @@ describe('PerpsController default provider', () => {
       },
     );
 
-    const batchRouteRefusal = {
-      success: false,
-      successCount: 0,
-      failureCount: 0,
-      results: [],
-      error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
-    };
-
     it.each([
-      [
-        'cancelOrders',
-        () => controller.cancelOrders({ cancelAll: true }),
-        () => mockTradingServiceInstance.cancelOrders,
-        batchRouteRefusal,
-      ],
-      [
-        'closePositions',
-        () => controller.closePositions({ closeAll: true }),
-        () => mockTradingServiceInstance.closePositions,
-        batchRouteRefusal,
-      ],
       [
         'withdraw',
         () => controller.withdraw({ amount: '10' }),
@@ -1143,7 +1190,7 @@ describe('PerpsController default provider', () => {
         const service = getService();
 
         await expect(invoke()).resolves.toStrictEqual(expectedRefusal);
-        // A batch cannot name a venue, so it must not reach the default venue.
+        // Must not reach the default venue.
         expect(service).not.toHaveBeenCalled();
 
         aggregatedProvider.removeProvider('lighter');
@@ -1168,6 +1215,118 @@ describe('PerpsController default provider', () => {
         mockAccountServiceInstance.withdraw.mock.calls[0];
       expect(provider).toBe(aggregatedProvider);
       expect(params.providerId).toBe('lighter');
+    });
+
+    it('sends a mixed-venue cancel batch to each venue that holds its orders', async () => {
+      // Real aggregation and real trading service; venue boundaries are fakes.
+      const { TradingService: RealTradingService } = await vi.importActual<
+        typeof import('../../src/services/TradingService.js')
+      >('../../src/services/TradingService.js');
+      const realTradingService = new RealTradingService(
+        mockInfrastructure as never,
+      );
+      mockTradingServiceInstance.cancelOrders.mockImplementation(
+        (options: never) => realTradingService.cancelOrders(options),
+      );
+      const taggedOrders = [
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
+      ];
+      mockMarketDataServiceInstance.getOpenOrders.mockResolvedValue(
+        taggedOrders,
+      );
+      mockProvider.cancelOrders.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [
+          {
+            orderId: 'hl-1',
+            symbol: 'BTC',
+            success: true,
+            providerId: 'hyperliquid',
+          },
+        ],
+      });
+      (lighterProvider as any).cancelOrders = vi.fn().mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [
+          {
+            orderId: 'lt-1',
+            symbol: 'BTC',
+            success: true,
+            providerId: 'lighter',
+          },
+        ],
+      });
+
+      const result = await controller.cancelOrders({ cancelAll: true });
+
+      // Each venue received only its own order, same symbol on both venues.
+      expect(mockProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect((lighterProvider as any).cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
+      ]);
+      expect(result.successCount).toBe(2);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('fans a mixed-venue close out through explicit provider-tagged targets', async () => {
+      const { TradingService: RealTradingService } = await vi.importActual<
+        typeof import('../../src/services/TradingService.js')
+      >('../../src/services/TradingService.js');
+      const realTradingService = new RealTradingService(
+        mockInfrastructure as never,
+      );
+      mockTradingServiceInstance.closePositions.mockImplementation(
+        (options: never) => realTradingService.closePositions(options),
+      );
+      mockProvider.getPositions.mockResolvedValue([]);
+      mockProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true, providerId: 'hyperliquid' }],
+      });
+      (lighterProvider as any).getPositions = vi.fn().mockResolvedValue([]);
+      (lighterProvider as any).closePositions = vi.fn().mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true, providerId: 'lighter' }],
+      });
+
+      const result = await controller.closePositions({
+        targets: [
+          { symbol: 'BTC', providerId: 'hyperliquid' },
+          { symbol: 'BTC', providerId: 'lighter' },
+        ],
+      });
+
+      expect(mockProvider.closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+      expect((lighterProvider as any).closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+      expect(result.successCount).toBe(2);
     });
 
     it('routes a write that names a venue through the aggregator', async () => {

@@ -981,7 +981,58 @@ export type AccountState = {
       totalBalance: string;
     }
   >;
+  /**
+   * Per-venue account states, keyed by provider id. Present only when the
+   * state was produced by the aggregated provider; direct-provider results
+   * omit it. Venue-local detail (`crossMarginSummary`,
+   * `subAccountBreakdown`) stays inside each entry — the top-level totals are
+   * venue-neutral and never carry venue-local collateral detail.
+   */
+  providerStates?: Partial<
+    Record<PerpsProviderType, PerpsProviderAccountStateEntry>
+  >;
+  /**
+   * Completeness of the top-level totals across every enabled venue.
+   * Present only when the state was produced by the aggregated provider.
+   */
+  aggregate?: AccountAggregateMetadata;
   providerId?: PerpsProviderType; // Multi-provider: which provider this account state is from (injected by aggregator)
+};
+
+/**
+ * One venue's account data inside an aggregated {@link AccountState}.
+ *
+ * A venue that failed to report (or has not reported yet) is an explicit
+ * `unavailable` entry — never a zero balance. A confirmed zero or
+ * nonexistent venue account is an `available` entry whose balances are zero.
+ */
+export type PerpsProviderAccountStateEntry =
+  | {
+      status: 'available';
+      /** The venue's own account snapshot, attributed to its provider. */
+      state: AccountState;
+      providerId: PerpsProviderType;
+    }
+  | {
+      status: 'unavailable';
+      /** The venue read failed; its balances contribute nothing to totals. */
+      error?: string;
+      providerId: PerpsProviderType;
+    };
+
+/**
+ * Completeness metadata for an aggregated account read or stream update.
+ *
+ * `status: 'partial'` means the top-level totals are subtotals over
+ * `availableProviders` only: at least one enabled venue contributed no data.
+ * Consumers must not present partial totals as the user's complete portfolio
+ * value. With no metadata at all (absent `aggregate`), the state came from a
+ * single venue or a legacy producer and has no incompleteness claim.
+ */
+export type AccountAggregateMetadata = {
+  status: 'complete' | 'partial';
+  availableProviders: PerpsProviderType[];
+  unavailableProviders: PerpsProviderType[];
 };
 
 export type ClosePositionParams = {
@@ -1027,6 +1078,18 @@ export type ClosePositionParams = {
 export type ClosePositionsParams = {
   symbols?: string[]; // Optional: specific symbols to close (omit or empty array to close all)
   closeAll?: boolean; // Explicitly close all positions
+  /**
+   * Explicit provider-tagged close targets. Each target is closed on its
+   * named venue only, so identical symbols on different venues are
+   * independent. Takes precedence over `symbols`.
+   */
+  targets?: ClosePositionsTarget[];
+};
+
+/** One close target, tagged with the venue that holds the position. */
+export type ClosePositionsTarget = {
+  symbol: string;
+  providerId: PerpsProviderType;
 };
 
 export type ClosePositionsResult = {
@@ -1045,6 +1108,8 @@ export type ClosePositionsResult = {
     symbol: string;
     success: boolean;
     error?: string;
+    /** Venue that (attempted to) execute this close. */
+    providerId?: PerpsProviderType;
   }[];
 };
 
@@ -1255,6 +1320,12 @@ export type AssetRoute = {
   assetId: CaipAssetId; // CAIP asset ID (e.g., "eip155:42161/erc20:0xaf88.../default")
   chainId: CaipChainId; // CAIP-2 chain ID where the bridge contract is located
   contractAddress: Hex; // Bridge contract address for deposits/withdrawals
+  /**
+   * Venue this route moves funds to/from. In aggregated mode, routes from
+   * every active venue are listed; identical asset/chain routes belonging
+   * to different venues are distinct entries.
+   */
+  providerId?: PerpsProviderType;
   constraints?: {
     minAmount?: string; // Minimum deposit/withdrawal amount
     maxAmount?: string; // Maximum deposit/withdrawal amount
@@ -1360,6 +1431,12 @@ export type CancelOrderResult = {
 export type BatchCancelOrdersParams = {
   orderId: string;
   symbol: string;
+  /**
+   * Venue that holds this order. Execution identity: the aggregated provider
+   * groups mixed-venue batches by it and never resolves duplicate order IDs
+   * or symbols across venues by falling back to the default provider.
+   */
+  providerId?: PerpsProviderType;
 }[];
 
 export type CancelOrdersParams = {
@@ -1384,6 +1461,8 @@ export type CancelOrdersResult = {
     symbol: string;
     success: boolean;
     error?: string;
+    /** Venue that (attempted to) execute this cancel. */
+    providerId?: PerpsProviderType;
   }[];
 };
 
@@ -1940,6 +2019,12 @@ export type SubscribeAccountParams = {
 export type SubscribeOICapsParams = {
   callback: (caps: string[]) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue.
+   */
+  providerId?: PerpsProviderType;
 };
 
 export type SubscribeCandlesParams = {
@@ -1948,6 +2033,13 @@ export type SubscribeCandlesParams = {
   duration?: TimeDuration;
   callback: (data: CandleData) => void;
   onError?: (error: Error) => void;
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue — required when two venues
+   * list the same symbol and the data must come from a specific one.
+   */
+  providerId?: PerpsProviderType;
 };
 
 /**
@@ -2048,6 +2140,12 @@ export type OrderBookData = {
 export type SubscribeOrderBookParams = {
   /** Symbol to subscribe to (e.g., 'BTC', 'ETH') */
   symbol: string;
+  /**
+   * Optional explicit venue route. Omit for the default-routed behavior
+   * (subscribes on the current default venue and rebinds when it changes);
+   * supply one to pin the stream to that venue.
+   */
+  providerId?: PerpsProviderType;
   /** Number of levels to return per side (default: 10) */
   levels?: number;
   /** Price aggregation significant figures (2-5, default: 5). Higher = finer granularity */
