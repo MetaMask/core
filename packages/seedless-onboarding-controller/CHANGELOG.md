@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
+- test: turn coverage off by default and add test:coverage ([#11061](https://github.com/MetaMask/core/pull/11061))
+- test: switch Vitest coverage provider to `v8` ([#11261](https://github.com/MetaMask/core/pull/11261))
+- ci: validate all changelogs in a single run ([#11199](https://github.com/MetaMask/core/pull/11199))
+- chore(deps): update dependency nock to v15 ([#11055](https://github.com/MetaMask/core/pull/11055))
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: run web3auth packages on Vitest ([#10957](https://github.com/MetaMask/core/pull/10957))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
+- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
+
 ### Added
 
 - Export `SeedlessAuthData` (the `authenticate` parameters, without `skipLock`; extends `AuthenticatedUserDetails` without `nodeAuthTokens`), `parseSeedlessAuthData`, and `AUTH_CONNECTION_BY_NAMESPACE` so other controllers can reuse the seedless social-login auth payload ([#11224](https://github.com/MetaMask/core/pull/11224))
