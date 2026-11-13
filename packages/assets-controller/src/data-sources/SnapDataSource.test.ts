@@ -9,6 +9,7 @@ import type {
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { waitFor, waitUntilStable } from '../__fixtures__/test-utils.js';
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type {
@@ -1216,7 +1217,8 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
     });
-    await new Promise(process.nextTick);
+    await waitUntilStable(() => [assetsUpdateHandler.mock.calls.length]);
+    assetsUpdateHandler.mockClear();
 
     const subscriptionOnAssetsUpdate = vi.fn();
     await controller.subscribe({
@@ -1226,7 +1228,9 @@ describe('SnapDataSource', () => {
       onAssetsUpdate: subscriptionOnAssetsUpdate,
     });
 
-    expect(assetsUpdateHandler).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(assetsUpdateHandler).toHaveBeenCalled();
+    });
 
     cleanup();
   });
@@ -1241,7 +1245,7 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
     });
-    await new Promise(process.nextTick);
+    await waitUntilStable(() => [assetsUpdateHandler.mock.calls.length]);
     assetsUpdateHandler.mockClear();
 
     const subscriptionOnAssetsUpdate = vi.fn();
@@ -1252,7 +1256,10 @@ describe('SnapDataSource', () => {
       onAssetsUpdate: subscriptionOnAssetsUpdate,
     });
 
-    expect(assetsUpdateHandler).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(assetsUpdateHandler).toHaveBeenCalled();
+    });
+    await waitUntilStable(() => [subscriptionOnAssetsUpdate.mock.calls.length]);
     expect(subscriptionOnAssetsUpdate).not.toHaveBeenCalled();
 
     cleanup();
@@ -1260,7 +1267,6 @@ describe('SnapDataSource', () => {
 
   it('subscribe does nothing for chains without discovered snaps', async () => {
     const { controller, assetsUpdateHandler, cleanup } = setupController();
-    await new Promise(process.nextTick);
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
@@ -1269,6 +1275,7 @@ describe('SnapDataSource', () => {
       onAssetsUpdate: assetsUpdateHandler,
     });
 
+    await waitUntilStable(() => [assetsUpdateHandler.mock.calls.length]);
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
 
     cleanup();
@@ -1284,7 +1291,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
     });
-    await new Promise(process.nextTick);
 
     const subscriptionOnAssetsUpdate = vi.fn();
     await controller.subscribe({
@@ -1294,6 +1300,7 @@ describe('SnapDataSource', () => {
       onAssetsUpdate: subscriptionOnAssetsUpdate,
     });
 
+    await waitUntilStable(() => [assetsUpdateHandler.mock.calls.length]);
     assetsUpdateHandler.mockClear();
 
     await controller.subscribe({
@@ -1305,9 +1312,10 @@ describe('SnapDataSource', () => {
       onAssetsUpdate: subscriptionOnAssetsUpdate,
     });
 
-    await new Promise(process.nextTick);
-
-    expect(assetsUpdateHandler).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(assetsUpdateHandler).toHaveBeenCalled();
+    });
+    await waitUntilStable(() => [subscriptionOnAssetsUpdate.mock.calls.length]);
     expect(subscriptionOnAssetsUpdate).not.toHaveBeenCalled();
 
     cleanup();
