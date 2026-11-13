@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#11349](https://github.com/MetaMask/core/pull/11349), [#11362](https://github.com/MetaMask/core/pull/11362))
@@ -33,4 +35,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct padding calculation so that every ciphertext is a multiple of 2048 bytes ([#11386](https://github.com/MetaMask/core/pull/11386))
 - Reject non-integer and unsafe-integer `chainId` and `nonce` values in `signEIP7702Authorization`, `recoverEIP7702Authorization`, and `hashEIP7702Authorization` ([#11392](https://github.com/MetaMask/core/pull/11392))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-sig-util@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eth-sig-util@10.0.0

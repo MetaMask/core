@@ -54,7 +54,7 @@
   "dependencies": {
     "@metamask/abi-utils": "^3.0.0",
     "@metamask/delegation-core": "^2.2.1",
-    "@metamask/utils": "^12.0.1",
+    "@metamask/utils": "^12.0.2",
     "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {

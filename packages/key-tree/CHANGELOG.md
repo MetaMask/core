@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
 ### Uncategorized
 
 - chore(key-tree): move to `packages` ([#11367](https://github.com/MetaMask/core/pull/11367))
@@ -31,4 +33,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This package was migrated from `MetaMask/key-tree` to the `MetaMask/core` monorepo ([#11354](https://github.com/MetaMask/core/pull/11354))
   - See [`MetaMask/key-tree`](https://github.com/MetaMask/key-tree/blob/742c995fa27144d038941df5bddbc7351ee0e8ff/CHANGELOG.md) for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/key-tree@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/key-tree@11.0.0

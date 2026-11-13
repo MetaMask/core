@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.2.1]
+
 ### Uncategorized
 
 - chore(eth-sig-util)!: Drop `tweetnacl` ([#11388](https://github.com/MetaMask/core/pull/11388))
@@ -1124,7 +1126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.1...HEAD
+[28.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.0...@metamask/keyring-controller@28.2.1
 [28.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...@metamask/keyring-controller@28.2.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.0.0...@metamask/keyring-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.1...@metamask/keyring-controller@28.0.0

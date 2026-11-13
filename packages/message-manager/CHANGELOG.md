@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.1]
+
 ### Uncategorized
 
 - chore(eth-sig-util): Integrate into `packages/` ([#11362](https://github.com/MetaMask/core/pull/11362))
@@ -495,7 +497,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@15.0.1...HEAD
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@15.0.0...@metamask/message-manager@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.2...@metamask/message-manager@15.0.0
 [14.1.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.1...@metamask/message-manager@14.1.2
 [14.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.0...@metamask/message-manager@14.1.1
