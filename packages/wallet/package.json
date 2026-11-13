@@ -79,7 +79,7 @@
     "@metamask/shield-controller": "^7.1.1",
     "@metamask/storage-service": "^2.0.0",
     "@metamask/subscription-controller": "^15.2.1",
-    "@metamask/transaction-controller": "^73.1.2",
+    "@metamask/transaction-controller": "^74.0.0",
     "@metamask/utils": "^12.0.1"
   },
   "devDependencies": {
