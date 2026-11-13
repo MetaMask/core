@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A book read that fails while the retry is due keeps the Chase running instead of ending it as `failed`
   - `suspendChaseOrders` reports a Chase that has nothing resting while the retry is due as `failed`, not `backgrounded`
   - A Chase whose `chaseMaxDurationMs` window closes while the retry is due, with nothing resting, ends `failed`, not `duration_reached`
+  - `cancelOrder` and `cancelOrders` with the order ID of the child the refused replacement was meant to replace still stop that Chase, so no replacement is placed after the cancel
 - End a HyperLiquid Chase as `filled` when a partial fill leaves a remainder worth less than the venue's $10 order minimum, with that remainder as `remainingSize`, instead of submitting it and ending as `failed` ([#11459](https://github.com/MetaMask/core/pull/11459))
 - Fix `updateMargin` dropping its `providerId` route before reaching the provider, so an explicit venue now answers in aggregated mode ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Harden the trade-configuration state writes against prototype pollution: `symbol` and venue keys are validated before they index persisted state, so a `__proto__`/`constructor`/`prototype` key (or an unknown venue id) from a JS caller or tampered persisted state is ignored instead of corrupting the record's prototype chain ([#11421](https://github.com/MetaMask/core/pull/11421))

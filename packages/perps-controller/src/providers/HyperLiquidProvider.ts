@@ -1185,6 +1185,12 @@ type ChaseSession = {
   /** Previous child ID while a replacement is between cancel and rest. */
   replacingOrderId: string | null;
   /**
+   * Last child ID the caller saw while a refused replacement has not rested,
+   * so cancelling that ID still reaches this chase (and releases its handle if
+   * the chase has ended). Cleared once a replacement rests.
+   */
+  retryingOrderId: string | null;
+  /**
    * Size the order resting right now was placed for.
    *
    * Shrinks as the chase re-prices: a child that partially filled before it was
@@ -8309,6 +8315,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       reduceOnly: params.reduceOnly ?? false,
       orderId,
       replacingOrderId: null,
+      retryingOrderId: null,
       pendingReplacement: null,
       restingPrice: quotePrice,
       arrivalPrice: quotePrice,
@@ -9026,6 +9033,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
       session.size = size;
       session.replacementRefusals = 0;
+      session.retryingOrderId = null;
     } catch (error) {
       // Recorded so the next tick, or the failed session, reports what is
       // actually left to chase.
@@ -9039,6 +9047,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw error;
       }
       session.replacementRetryDue = true;
+      session.retryingOrderId ??= session.replacingOrderId;
       this.#deps.debugLogger.log('Chase replacement refused, retrying', {
         sessionId,
         error: ensureError(error, 'HyperLiquidProvider.restChaseReplacement')
@@ -11100,7 +11109,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     const owningChase = [...this.#chaseSessions.entries()].find(
       ([, session]) =>
         session.orderId === params.orderId ||
-        session.replacingOrderId === params.orderId,
+        session.replacingOrderId === params.orderId ||
+        session.retryingOrderId === params.orderId,
     );
     let accountContext: AccountSupportContext | undefined;
     try {
@@ -11239,7 +11249,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       const owner = chaseSessions.find(
         ([, session]) =>
           session.orderId === order.orderId ||
-          session.replacingOrderId === order.orderId,
+          session.replacingOrderId === order.orderId ||
+          session.retryingOrderId === order.orderId,
       );
       return owner ? [{ handle: owner[0], index, order }] : [];
     });

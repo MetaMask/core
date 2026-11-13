@@ -219,6 +219,18 @@ describe('HyperLiquidProvider - Chase re-pricing edge cases', () => {
         status: CHASE_ORDER_STATUS.Active,
       }),
     ]);
+
+    // Once 77 rests, cancelling the old child 55 no longer reaches the chase.
+    await provider.cancelOrder({ orderId: '55', symbol: 'ETH' });
+    expect(exchangeClient.cancel).toHaveBeenLastCalledWith({
+      cancels: [{ a: 1, o: 55 }],
+    });
+    expect(await provider.getChaseOrders()).toStrictEqual([
+      expect.objectContaining({
+        restingOrderId: '77',
+        status: CHASE_ORDER_STATUS.Active,
+      }),
+    ]);
   });
 
   it('ends filled when a partial fill leaves less than the venue minimum', async () => {
@@ -384,6 +396,62 @@ describe('HyperLiquidProvider - Chase re-pricing edge cases', () => {
       }),
     ]);
   });
+
+  it.each([
+    {
+      path: 'cancelOrder',
+      cancelChild: async (
+        target: HyperLiquidProvider,
+      ): Promise<boolean | undefined> =>
+        (await target.cancelOrder({ orderId: '55', symbol: 'ETH' })).success,
+    },
+    {
+      path: 'cancelOrders',
+      cancelChild: async (
+        target: HyperLiquidProvider,
+      ): Promise<boolean | undefined> =>
+        (await target.cancelOrders([{ orderId: '55', symbol: 'ETH' }]))
+          .results[0]?.success,
+    },
+  ])(
+    'stops the chase when $path cancels its last child while a refused replacement waits',
+    async ({ cancelChild }) => {
+      const order = vi
+        .fn()
+        .mockResolvedValueOnce(restedAs(55))
+        .mockRejectedValueOnce(
+          new Error('Post only order would have immediately matched'),
+        )
+        .mockResolvedValue(restedAs(77));
+      const l2Book = vi
+        .fn()
+        .mockResolvedValueOnce(ethBook([{ px: '2999', sz: '10' }]))
+        .mockResolvedValue(ethBook([{ px: '2998', sz: '10' }]));
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order },
+        info: { l2Book },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      });
+      // Child 55 is cancelled for a replacement the venue refuses, so 55 is the
+      // last child the caller saw.
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(order).toHaveBeenCalledTimes(2);
+
+      expect(await cancelChild(provider)).toBe(true);
+      await vi.advanceTimersByTimeAsync(3000);
+
+      // The cancel reached the chase: no second cancel of the dead child, no
+      // replacement, and the handle is released.
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+    },
+  );
 
   it('ends a chase failed rather than backgrounded when nothing rests', async () => {
     const order = vi
