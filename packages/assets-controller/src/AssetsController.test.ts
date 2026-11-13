@@ -5503,8 +5503,6 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
         expect(true).toBe(true);
       });
     });
@@ -5593,13 +5591,13 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
-        expect(
-          controller.state.assetsBalance[solanaAccountId]?.[
-            solanaNativeAssetId
-          ],
-        ).toStrictEqual({ amount: '0' });
+        await waitFor(() => {
+          expect(
+            controller.state.assetsBalance[solanaAccountId]?.[
+              solanaNativeAssetId
+            ],
+          ).toStrictEqual({ amount: '0' });
+        });
       });
     });
 
@@ -5633,18 +5631,18 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
-        expect(
-          controller.state.assetsBalance[stellarAccountId]?.[
-            stellarNativeAssetId
-          ],
-        ).toStrictEqual({
-          amount: '0',
-          metadata: {
-            minimumReserveBalance: '0',
-            spendableBalance: '0',
-          },
+        await waitFor(() => {
+          expect(
+            controller.state.assetsBalance[stellarAccountId]?.[
+              stellarNativeAssetId
+            ],
+          ).toStrictEqual({
+            amount: '0',
+            metadata: {
+              minimumReserveBalance: '0',
+              spendableBalance: '0',
+            },
+          });
         });
       });
     });
@@ -5668,8 +5666,6 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkEnablementController:stateChange',
           {
@@ -5686,8 +5682,6 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
         expect(true).toBe(true);
       });
     });
@@ -5702,8 +5696,6 @@ describe('AssetsController', () => {
           'NetworkController:networkRemoved',
           { chainId: '0x89' },
         );
-
-        await new Promise(process.nextTick);
 
         expect(true).toBe(true);
       });
