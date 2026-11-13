@@ -231,6 +231,11 @@ export const LIGHTER_FILL_REPLAY_LIMIT = 100;
 export const LIGHTER_HTTP_TIMEOUT_MS = 10000;
 
 /**
+ * Most trades `GET /api/v1/recentTrades` returns; a larger `limit` is rejected.
+ */
+export const LIGHTER_RECENT_TRADES_MAX_LIMIT = 100;
+
+/**
  * Interval for polling REST prices (no WS subscription in the POC)
  */
 export const LIGHTER_PRICE_POLLING_INTERVAL_MS = 5000;

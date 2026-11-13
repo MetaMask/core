@@ -37,6 +37,7 @@ import {
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -573,6 +574,173 @@ describe('HyperLiquidProvider', () => {
         interval: options.interval,
         candles: [],
       });
+    });
+  });
+
+  describe('public trades', () => {
+    const sdkTrade = (
+      tid: number,
+      time: number,
+      overrides: Record<string, unknown> = {},
+    ) => ({
+      coin: 'BTC',
+      side: 'B' as const,
+      px: '50000.5',
+      sz: '0.25',
+      time,
+      hash: `0x${'ab'.repeat(32)}` as const,
+      tid,
+      users: [
+        '0x0000000000000000000000000000000000000001',
+        '0x0000000000000000000000000000000000000002',
+      ] as [`0x${string}`, `0x${string}`],
+      ...overrides,
+    });
+
+    it('reads the coin through the HTTP info client and adapts it newest first', async () => {
+      mockClientService.fetchRecentTrades = vi
+        .fn()
+        .mockResolvedValue([
+          sdkTrade(1, 1000),
+          sdkTrade(2, 3000, { side: 'A' }),
+          sdkTrade(3, 2000, { coin: 'ETH' }),
+        ]);
+
+      const trades = await provider.getPublicTrades({ symbol: 'BTC' });
+
+      expect(mockClientService.initialize).toHaveBeenCalled();
+      expect(mockClientService.fetchRecentTrades).toHaveBeenCalledWith('BTC');
+      expect(trades).toStrictEqual([
+        {
+          id: 'BTC:3000:2',
+          symbol: 'BTC',
+          price: '50000.5',
+          size: '0.25',
+          side: 'sell',
+          timestamp: 3000,
+          txHash: `0x${'ab'.repeat(32)}`,
+          providerId: 'hyperliquid',
+        },
+        {
+          id: 'BTC:1000:1',
+          symbol: 'BTC',
+          price: '50000.5',
+          size: '0.25',
+          side: 'buy',
+          timestamp: 1000,
+          txHash: `0x${'ab'.repeat(32)}`,
+          providerId: 'hyperliquid',
+        },
+      ]);
+    });
+
+    it('caps the read at the requested limit', async () => {
+      mockClientService.fetchRecentTrades = vi
+        .fn()
+        .mockResolvedValue([sdkTrade(1, 1000), sdkTrade(2, 2000)]);
+
+      const trades = await provider.getPublicTrades({
+        symbol: 'BTC',
+        limit: 1,
+      });
+
+      expect(trades.map((trade) => trade.id)).toStrictEqual(['BTC:2000:2']);
+    });
+
+    it('gives an execution the same id over REST and the WebSocket', async () => {
+      let push: ((trades: unknown[]) => void) | undefined;
+      mockClientService.fetchRecentTrades = vi
+        .fn()
+        .mockResolvedValue([sdkTrade(5, 5000)]);
+      mockClientService.subscribeToTrades = vi.fn(({ callback }) => {
+        push = callback as (trades: unknown[]) => void;
+        return vi.fn();
+      });
+      const callback = vi.fn();
+
+      const [read] = await provider.getPublicTrades({ symbol: 'BTC' });
+      provider.subscribeToPublicTrades({ symbol: 'BTC', callback });
+      await vi.waitFor(() =>
+        expect(mockClientService.subscribeToTrades).toHaveBeenCalled(),
+      );
+      push?.([sdkTrade(5, 5000)]);
+
+      expect(read.id).toBe('BTC:5000:5');
+      expect(callback.mock.calls[0][0][0].id).toBe(read.id);
+    });
+
+    it('streams adapted batches for the coin and stops after cleanup', async () => {
+      const release = vi.fn();
+      let push: ((trades: unknown[]) => void) | undefined;
+      mockClientService.subscribeToTrades = vi.fn(({ callback }) => {
+        push = callback as (trades: unknown[]) => void;
+        return release;
+      });
+      const callback = vi.fn();
+
+      const unsubscribe = provider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback,
+      });
+      await vi.waitFor(() =>
+        expect(mockClientService.subscribeToTrades).toHaveBeenCalled(),
+      );
+      push?.([sdkTrade(1, 1000), sdkTrade(2, 2000, { coin: 'ETH' })]);
+      push?.([sdkTrade(3, 3000, { coin: 'ETH' })]);
+      unsubscribe();
+
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback.mock.calls[0][0]).toStrictEqual([
+        expect.objectContaining({
+          id: 'BTC:1000:1',
+          symbol: 'BTC',
+          side: 'buy',
+        }),
+      ]);
+      expect(release).toHaveBeenCalledTimes(1);
+    });
+
+    it('never opens the stream when cleaned up before the clients are ready', async () => {
+      const initialized = createDeferred<void>();
+      mockClientService.initialize = vi.fn(() => initialized.promise);
+      mockClientService.subscribeToTrades = vi.fn().mockReturnValue(vi.fn());
+
+      const releasedEarly = provider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      releasedEarly();
+      // A second stream, still open, waits on the same initialization and is
+      // opened after the first one's continuation ran.
+      provider.subscribeToPublicTrades({ symbol: 'ETH', callback: vi.fn() });
+      initialized.resolve();
+      await vi.waitFor(() =>
+        expect(mockClientService.subscribeToTrades).toHaveBeenCalled(),
+      );
+
+      expect(mockClientService.subscribeToTrades).toHaveBeenCalledTimes(1);
+      expect(mockClientService.subscribeToTrades).toHaveBeenCalledWith(
+        expect.objectContaining({ symbol: 'ETH' }),
+      );
+    });
+
+    it('reports a client initialization failure to onError', async () => {
+      mockClientService.initialize = vi
+        .fn()
+        .mockRejectedValue(new Error('init failed'));
+      const onError = vi.fn();
+
+      provider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+
+      await vi.waitFor(() =>
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'init failed' }),
+        ),
+      );
     });
   });
 

@@ -15,6 +15,7 @@ import type { LighterProvider } from '../providers/LighterProvider.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
+  OrderDirection,
   OrderType,
   StrategyOrderType,
   TpslLinkage,
@@ -1288,6 +1289,56 @@ export type SwitchProviderResult = {
   error?: string;
 };
 
+/**
+ * Result of setting the default provider used by aggregated-mode routing.
+ *
+ * `setDefaultProvider` never re-initializes the controller or reconnects
+ * any stream, so there is no asynchronous work to await.
+ */
+export type SetDefaultProviderResult = {
+  success: boolean;
+  defaultProvider: PerpsProviderType;
+  error?: string;
+};
+
+/**
+ * Temporary trade configuration captured while a placement flow is
+ * interrupted. Expires after `PERPS_CONSTANTS.PendingTradeConfigurationTtlMs`.
+ */
+export type PerpsPendingTradeConfiguration = {
+  amount?: string; // Order size in USD
+  leverage?: number; // Leverage
+  takeProfitPrice?: string; // Take profit price
+  stopLossPrice?: string; // Stop loss price
+  limitPrice?: string; // Limit price (for limit orders)
+  orderType?: OrderType; // Market vs limit
+  reduceOnly?: boolean; // Whether the order may only reduce a position
+  direction?: OrderDirection; // Long vs short
+  /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
+  selectedPaymentToken?: PerpsSelectedPaymentToken | null;
+  timestamp: number; // When the config was saved (for expiration check)
+};
+
+/**
+ * Persisted per-market trade configuration: leverage, order-book grouping,
+ * margin mode and the expiring pending config.
+ */
+export type PerpsTradeConfiguration = {
+  leverage?: number; // Last used leverage for this market
+  orderBookGrouping?: number; // Persisted price grouping for order book
+  marginMode?: MarginMode; // Last Isolated/Cross pick for this market
+  pendingConfig?: PerpsPendingTradeConfiguration;
+};
+
+/**
+ * Trade configurations keyed by provider id and then market symbol, so a
+ * value saved for one venue (for example HyperLiquid BTC) never applies to
+ * the same symbol on another venue.
+ */
+export type PerpsProviderTradeConfigurations = {
+  [providerId: string]: { [marketSymbol: string]: PerpsTradeConfiguration };
+};
+
 export type CancelOrderParams = {
   orderId: string; // Order ID to cancel, or the strategy handle when orderType is a strategy type
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
@@ -1336,6 +1387,13 @@ export type CancelOrdersResult = {
   success: boolean; // Overall success (true if at least one order cancelled)
   successCount: number; // Number of orders cancelled successfully
   failureCount: number; // Number of orders that failed to cancel
+  /**
+   * Batch-level operation error.
+   *
+   * Set when the cancel is refused as a whole before any order is submitted,
+   * such as `PROVIDER_ROUTE_REQUIRED`.
+   */
+  error?: string;
   results: {
     orderId: string;
     symbol: string;
@@ -1880,7 +1938,9 @@ export type SubscribeAvailableToTradeParams = {
   callback: (availableToTrade: PerpsAvailableToTrade) => void;
   /**
    * Receives a failure to open the stream, or one that stops it after it
-   * opened (for example a rejected resubscription). The value is unknown again.
+   * opened (for example a rejected resubscription). Also invalidates the old
+   * venue's value when a default-routed subscription changes providers.
+   * The value is unknown again.
    * Not terminal: keep the subscription, since the stream reopens when the
    * WebSocket transport is replaced.
    */
@@ -1902,6 +1962,65 @@ export type SubscribeCandlesParams = {
   interval: CandlePeriod;
   duration?: TimeDuration;
   callback: (data: CandleData) => void;
+  onError?: (error: Error) => void;
+};
+
+/**
+ * One public trade on a market (any user's), the same shape for every
+ * provider. Prices and sizes are decimal strings, as in `OrderFill`.
+ */
+export type PublicTrade = {
+  /**
+   * Venue trade id, compared for equality only. Unique within a provider and
+   * market, not across providers, so dedupe on `(providerId, symbol, id)`
+   * when trades from several providers share a list.
+   * Sources: Hyperliquid `coin:time:tid`, its documented trade identity
+   * (`tid` alone can repeat across block times), Lighter `trade_id`.
+   */
+  id: string;
+  /** Market symbol the trade belongs to, as the caller requested it. */
+  symbol: string;
+  /** Execution price. */
+  price: string;
+  /** Size in the base asset. */
+  size: string;
+  /** Side of the aggressor (taker): `buy` lifted an ask, `sell` hit a bid. */
+  side: 'buy' | 'sell';
+  /** Execution time, Unix milliseconds. */
+  timestamp: number;
+  /** Transaction hash, when the venue reports one. */
+  txHash?: string;
+  /** Provider whose venue reported the trade. */
+  providerId: PerpsProviderType;
+};
+
+export type GetPublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data reads. */
+  symbol: string;
+  /**
+   * Maximum number of trades, newest first (default 50). Must be a positive
+   * integer. Venues cap the count: Hyperliquid returns its last 10 trades
+   * and Lighter at most 100.
+   */
+  limit?: number;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+};
+
+export type SubscribePublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data streams. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /**
+   * Receives each batch of new trades the venue pushes, newest first. Only a
+   * subscription that opens the venue channel may first receive the venue's
+   * recent trades; one that joins a market another subscription already
+   * streams receives only new trades. Seed the list with `getPublicTrades` and
+   * dedupe batches on `id`.
+   */
+  callback: (trades: PublicTrade[]) => void;
+  /** Receives a failure to open the stream. */
   onError?: (error: Error) => void;
 };
 
@@ -2799,6 +2918,12 @@ export type PerpsProvider = {
   ): Promise<OrderFill[]>;
 
   /**
+   * A market's most recent public trades (every user's), newest first.
+   * Optional so providers without a public trade feed can omit it.
+   */
+  getPublicTrades?(params: GetPublicTradesParams): Promise<PublicTrade[]>;
+
+  /**
    * Get fills using WebSocket cache first, falling back to REST API.
    * OPTIMIZATION: Uses cached fills when available (0 API weight), only calls REST on cache miss.
    * Purpose: Prevent 429 errors during rapid market switching by reusing cached fills.
@@ -2900,6 +3025,11 @@ export type PerpsProvider = {
   subscribeToOICaps(params: SubscribeOICapsParams): () => void;
   subscribeToCandles(params: SubscribeCandlesParams): () => void;
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void;
+  /**
+   * Stream a market's public trades (every user's). Optional so providers
+   * without a public trade feed can omit it.
+   */
+  subscribeToPublicTrades?(params: SubscribePublicTradesParams): () => void;
   /**
    * Stream one market's per-side available to trade as the venue reports it.
    * Optional: a provider whose venue has no per-market value omits it, and the

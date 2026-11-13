@@ -11,6 +11,7 @@ import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsP
 import type {
   PerpsProvider,
   PerpsProviderType,
+  AccountState,
   OrderParams,
   Position,
   MarketInfo,
@@ -645,6 +646,29 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.getAccountState();
 
       expect(result).toEqual({ ...mockState, providerId: 'hyperliquid' });
+    });
+
+    it('attributes a balance response to the provider that served it when the default changes mid-request', async () => {
+      const mockState: AccountState = {
+        spendableBalance: '1000',
+        withdrawableBalance: '1000',
+        totalBalance: '1000',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      };
+      const pending = createDeferred<AccountState>();
+      mockHLProvider.getAccountState.mockReturnValueOnce(pending.promise);
+
+      const request = aggregatedProvider.getAccountState();
+      aggregatedProvider.setDefaultProvider('lighter');
+      pending.resolve(mockState);
+
+      await expect(request).resolves.toEqual({
+        ...mockState,
+        providerId: 'hyperliquid',
+      });
+      expect(mockLighterProvider.getAccountState).not.toHaveBeenCalled();
     });
   });
 
@@ -2501,6 +2525,114 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.subscribeToOrderBook).toHaveBeenCalled();
     });
 
+    describe('public trades', () => {
+      const trade = {
+        id: '1',
+        symbol: 'BTC',
+        price: '50000',
+        size: '0.1',
+        side: 'buy' as const,
+        timestamp: 1000,
+        providerId: 'lighter' as const,
+      };
+
+      it('reads from the default provider when no route is given', async () => {
+        mockHLProvider.getPublicTrades = vi.fn().mockResolvedValue([]);
+
+        await aggregatedProvider.getPublicTrades({ symbol: 'BTC', limit: 5 });
+
+        expect(mockHLProvider.getPublicTrades).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          limit: 5,
+          providerId: 'hyperliquid',
+        });
+      });
+
+      it('reads from the explicit provider', async () => {
+        mockLighterProvider.getPublicTrades = vi
+          .fn()
+          .mockResolvedValue([trade]);
+        mockHLProvider.getPublicTrades = vi.fn();
+
+        const trades = await aggregatedProvider.getPublicTrades({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        });
+
+        expect(trades).toStrictEqual([trade]);
+        expect(mockHLProvider.getPublicTrades).not.toHaveBeenCalled();
+      });
+
+      it('rejects a read from a provider without a public trade feed', async () => {
+        await expect(
+          aggregatedProvider.getPublicTrades({
+            symbol: 'BTC',
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow('Public trades not supported by provider lighter');
+      });
+
+      it('rejects a read from an unregistered route', async () => {
+        const providerWithoutLighter = new AggregatedPerpsProvider({
+          providers: new Map([['hyperliquid', mockHLProvider]]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+        });
+
+        await expect(
+          providerWithoutLighter.getPublicTrades({
+            symbol: 'BTC',
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      });
+
+      it('streams from the explicit provider, else the default one', () => {
+        const unsubscribe = vi.fn();
+        mockLighterProvider.subscribeToPublicTrades = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        mockHLProvider.subscribeToPublicTrades = vi
+          .fn()
+          .mockReturnValue(vi.fn());
+        const callback = vi.fn();
+
+        const cleanup = aggregatedProvider.subscribeToPublicTrades({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        aggregatedProvider.subscribeToPublicTrades({ symbol: 'ETH', callback });
+
+        expect(cleanup).toBe(unsubscribe);
+        expect(
+          mockLighterProvider.subscribeToPublicTrades,
+        ).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        expect(mockHLProvider.subscribeToPublicTrades).toHaveBeenCalledWith({
+          symbol: 'ETH',
+          providerId: 'hyperliquid',
+          callback,
+        });
+      });
+
+      it('returns a no-op stream for a route without a public trade feed', () => {
+        const callback = vi.fn();
+
+        const cleanup = aggregatedProvider.subscribeToPublicTrades({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        cleanup();
+
+        expect(callback).not.toHaveBeenCalled();
+      });
+    });
+
     describe('subscribeToAvailableToTrade', () => {
       it('routes to the default provider when no route is given', () => {
         const unsubscribe = vi.fn();
@@ -2517,7 +2649,91 @@ describe('AggregatedPerpsProvider', () => {
         expect(mockHLProvider.subscribeToAvailableToTrade).toHaveBeenCalledWith(
           { symbol: 'BTC', providerId: 'hyperliquid', callback },
         );
-        expect(cleanup).toBe(unsubscribe);
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+      });
+
+      it('opens a supported stream when the default moves from Lighter to HyperLiquid', () => {
+        const unsubscribe = vi.fn();
+        mockHLProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        aggregatedProvider.setDefaultProvider('lighter');
+        const callback = vi.fn();
+        const onError = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          callback,
+          onError,
+        });
+        expect(
+          mockHLProvider.subscribeToAvailableToTrade,
+        ).not.toHaveBeenCalled();
+
+        aggregatedProvider.setDefaultProvider('hyperliquid');
+
+        expect(onError).toHaveBeenCalledWith(expect.any(Error));
+        expect(mockHLProvider.subscribeToAvailableToTrade).toHaveBeenCalledWith(
+          {
+            symbol: 'BTC',
+            providerId: 'hyperliquid',
+            callback,
+            onError,
+          },
+        );
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+        aggregatedProvider.setDefaultProvider('lighter');
+        expect(onError).toHaveBeenCalledTimes(1);
+      });
+
+      it('closes and invalidates the HyperLiquid stream when the default moves to Lighter', () => {
+        const unsubscribe = vi.fn();
+        mockHLProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        const callback = vi.fn();
+        const onError = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          callback,
+          onError,
+        });
+
+        aggregatedProvider.setDefaultProvider('lighter');
+
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(expect.any(Error));
+        expect(unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
+          onError.mock.invocationCallOrder[0],
+        );
+        expect(callback).not.toHaveBeenCalled();
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps explicitly routed streams on their venue when the default changes', () => {
+        const unsubscribe = vi.fn();
+        mockHLProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        const onError = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          providerId: 'hyperliquid',
+          callback: vi.fn(),
+          onError,
+        });
+
+        aggregatedProvider.setDefaultProvider('lighter');
+
+        expect(unsubscribe).not.toHaveBeenCalled();
+        expect(onError).not.toHaveBeenCalled();
+        expect(
+          mockHLProvider.subscribeToAvailableToTrade,
+        ).toHaveBeenCalledTimes(1);
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
       });
 
       it('routes to the explicit provider', () => {
@@ -2582,6 +2798,438 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
+  describe('setDefaultProvider re-routes default-routed streams', () => {
+    it.each(['during unsubscribe', 'after rerouting'])(
+      'retains the source venue for TWAP updates delivered %s',
+      (deliveryTiming) => {
+        const oldOrders = [{ orderId: 'hl-twap' } as TwapOrder];
+        const newOrders = [{ orderId: 'lighter-twap' } as TwapOrder];
+        const subscribeHL =
+          vi.fn<NonNullable<PerpsProvider['subscribeToTwapOrders']>>();
+        const hlCleanup = vi.fn(() => {
+          if (deliveryTiming === 'during unsubscribe') {
+            subscribeHL.mock.calls[0][0].callback(oldOrders, false);
+          }
+        });
+        subscribeHL.mockReturnValue(hlCleanup);
+        const lighterCleanup = vi.fn();
+        const subscribeLighter = vi
+          .fn<NonNullable<PerpsProvider['subscribeToTwapOrders']>>()
+          .mockImplementation(({ callback }) => {
+            callback(newOrders, true);
+            return lighterCleanup;
+          });
+        mockHLProvider.subscribeToTwapOrders = subscribeHL;
+        mockLighterProvider.subscribeToTwapOrders = subscribeLighter;
+        const callback = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToTwapOrders({ callback });
+
+        aggregatedProvider.setDefaultProvider('lighter');
+        if (deliveryTiming === 'after rerouting') {
+          subscribeHL.mock.calls[0][0].callback(oldOrders, false);
+        }
+
+        const oldUpdate = [
+          [{ ...oldOrders[0], providerId: 'hyperliquid' }],
+          false,
+        ];
+        const newUpdate = [[{ ...newOrders[0], providerId: 'lighter' }], true];
+        expect(callback.mock.calls).toStrictEqual(
+          deliveryTiming === 'during unsubscribe'
+            ? [oldUpdate, [[], true], newUpdate]
+            : [[[], true], newUpdate, oldUpdate],
+        );
+        expect(hlCleanup).toHaveBeenCalledTimes(1);
+        expect(lighterCleanup).not.toHaveBeenCalled();
+
+        cleanup();
+        cleanup();
+        expect(hlCleanup).toHaveBeenCalledTimes(1);
+        expect(lighterCleanup).toHaveBeenCalledTimes(1);
+        aggregatedProvider.setDefaultProvider('hyperliquid');
+        expect(subscribeHL).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('clears the previous TWAP snapshot when moving to a venue without a TWAP stream', () => {
+      const unsubscribe = vi.fn();
+      const subscribeToTwapOrders = vi
+        .fn<NonNullable<PerpsProvider['subscribeToTwapOrders']>>()
+        .mockReturnValue(unsubscribe);
+      mockHLProvider.subscribeToTwapOrders = subscribeToTwapOrders;
+      const callback = vi.fn();
+      const cleanup = aggregatedProvider.subscribeToTwapOrders({ callback });
+      const oldCallback = subscribeToTwapOrders.mock.calls[0][0].callback;
+      oldCallback([{ orderId: 'hl-twap' } as TwapOrder], true);
+      expect(callback).toHaveBeenLastCalledWith(
+        [
+          expect.objectContaining({
+            orderId: 'hl-twap',
+            providerId: 'hyperliquid',
+          }),
+        ],
+        true,
+      );
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenLastCalledWith([], true);
+      expect(unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
+        callback.mock.invocationCallOrder[1],
+      );
+      cleanup();
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates TWAP orders before opening a supported stream and retains cleanup across moves', () => {
+      const unsubscribe = vi.fn();
+      mockHLProvider.subscribeToTwapOrders = vi
+        .fn()
+        .mockImplementation(({ callback }) => {
+          callback([{ orderId: 'hl-twap' } as TwapOrder], true);
+          return unsubscribe;
+        });
+      aggregatedProvider.setDefaultProvider('lighter');
+      const callback = vi.fn();
+      const cleanup = aggregatedProvider.subscribeToTwapOrders({ callback });
+      expect(callback).not.toHaveBeenCalled();
+
+      aggregatedProvider.setDefaultProvider('hyperliquid');
+
+      expect(callback).toHaveBeenNthCalledWith(1, [], true);
+      expect(callback).toHaveBeenNthCalledWith(
+        2,
+        [
+          expect.objectContaining({
+            orderId: 'hl-twap',
+            providerId: 'hyperliquid',
+          }),
+        ],
+        true,
+      );
+      aggregatedProvider.setDefaultProvider('hyperliquid');
+      expect(callback).toHaveBeenCalledTimes(2);
+      cleanup();
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+      aggregatedProvider.setDefaultProvider('lighter');
+      expect(callback).toHaveBeenCalledTimes(2);
+    });
+
+    it('moves an account subscription to the new venue without reconnecting transports', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToAccount.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToAccount({ callback });
+      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledWith({
+        callback,
+      });
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledWith({
+        callback,
+      });
+      expect(mockHLProvider.disconnect).not.toHaveBeenCalled();
+      expect(mockLighterProvider.disconnect).not.toHaveBeenCalled();
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves a candles subscription to the new venue when the default changes', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToCandles.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToCandles.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback,
+      });
+      expect(mockHLProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves an order-book subscription to the new venue when the default changes', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToOrderBook.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToOrderBook.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback,
+      });
+      expect(mockHLProvider.subscribeToOrderBook).toHaveBeenCalledTimes(1);
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToOrderBook).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves an unrouted public-trades stream to the new venue and keeps a routed one', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      const routedCleanup = vi.fn();
+      mockHLProvider.subscribeToPublicTrades = vi
+        .fn()
+        .mockReturnValueOnce(hlCleanup)
+        .mockReturnValueOnce(routedCleanup);
+      mockLighterProvider.subscribeToPublicTrades = vi
+        .fn()
+        .mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback,
+      });
+      const routed = aggregatedProvider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        providerId: 'hyperliquid',
+        callback,
+      });
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(routedCleanup).not.toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToPublicTrades).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'lighter',
+        callback,
+      });
+
+      cleanup();
+      routed();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+      expect(routedCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps an unrouted public-trades stream as a no-op when the new default has no public trade feed', () => {
+      const hlCleanup = vi.fn();
+      mockHLProvider.subscribeToPublicTrades = vi
+        .fn()
+        .mockReturnValue(hlCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback,
+      });
+      aggregatedProvider.setDefaultProvider('lighter');
+      cleanup();
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('resolves an unrouted public-trades read to an empty list when the default changes in flight', async () => {
+      const trade = {
+        id: '1',
+        symbol: 'BTC',
+        price: '50000',
+        size: '0.1',
+        side: 'buy' as const,
+        timestamp: 1000,
+        providerId: 'hyperliquid' as const,
+      };
+      const pendingReads: ((trades: (typeof trade)[]) => void)[] = [];
+      mockHLProvider.getPublicTrades = vi.fn(
+        async () =>
+          new Promise<(typeof trade)[]>((resolve) => {
+            pendingReads.push(resolve);
+          }),
+      );
+
+      const unrouted = aggregatedProvider.getPublicTrades({ symbol: 'BTC' });
+      const routedRead = aggregatedProvider.getPublicTrades({
+        symbol: 'BTC',
+        providerId: 'hyperliquid',
+      });
+      aggregatedProvider.setDefaultProvider('lighter');
+      pendingReads.forEach((resolve) => resolve([trade]));
+
+      expect(await unrouted).toStrictEqual([]);
+      expect(await routedRead).toStrictEqual([trade]);
+    });
+
+    it('moves an OI-caps subscription to the new venue when the default changes', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToOICaps.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToOICaps.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToOICaps({ callback });
+      expect(mockHLProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits an unavailable account snapshot before the new venue delivers data', () => {
+      mockHLProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      const callback = vi.fn();
+
+      aggregatedProvider.subscribeToAccount({ callback });
+      expect(callback).not.toHaveBeenCalled();
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      // The consumer's cached balance is invalidated before the new venue's
+      // first snapshot is accepted.
+      expect(callback).toHaveBeenCalledWith(null);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('continues rerouting after one subscription throws and retries it later', () => {
+      mockHLProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      mockHLProvider.subscribeToCandles.mockReturnValue(vi.fn());
+      const candleCleanup = vi.fn();
+      mockLighterProvider.subscribeToCandles
+        .mockImplementationOnce(() => {
+          throw new Error('CLIENT_NOT_INITIALIZED');
+        })
+        .mockReturnValueOnce(candleCleanup);
+
+      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+      });
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      // The account stream still moved even though candles threw, and the
+      // failure was reported rather than aborting the loop.
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledTimes(1);
+
+      // A later call retries only the failed candles stream.
+      aggregatedProvider.setDefaultProvider('lighter');
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(2);
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('continues rerouting after the previous venue fails to unsubscribe', () => {
+      const hlAccountCleanup = vi.fn(() => {
+        throw new Error('unsubscribe failed');
+      });
+      const lighterAccountCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlAccountCleanup);
+      mockLighterProvider.subscribeToAccount.mockReturnValue(
+        lighterAccountCleanup,
+      );
+      mockHLProvider.subscribeToCandles.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToCandles.mockReturnValue(vi.fn());
+
+      const accountCleanup = aggregatedProvider.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+      });
+
+      expect(() =>
+        aggregatedProvider.setDefaultProvider('lighter'),
+      ).not.toThrow();
+
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledTimes(1);
+
+      accountCleanup();
+      expect(lighterAccountCleanup).toHaveBeenCalledTimes(1);
+      expect(hlAccountCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves a connection-state listener to the new venue and detaches the old one', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      const hlSubscribe = vi.fn().mockImplementation((subscriber) => {
+        subscriber(WebSocketConnectionState.Connected, 0);
+        return hlCleanup;
+      });
+      const lighterSubscribe = vi.fn().mockImplementation((subscriber) => {
+        subscriber(WebSocketConnectionState.Connecting, 2);
+        return lighterCleanup;
+      });
+      (
+        mockHLProvider as MockPerpsProvider & {
+          subscribeToConnectionState: Mock;
+        }
+      ).subscribeToConnectionState = hlSubscribe;
+      (
+        mockLighterProvider as MockPerpsProvider & {
+          subscribeToConnectionState: Mock;
+        }
+      ).subscribeToConnectionState = lighterSubscribe;
+      const listener = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToConnectionState(listener);
+      expect(hlSubscribe).toHaveBeenCalledWith(listener);
+      expect(listener).toHaveBeenLastCalledWith(
+        WebSocketConnectionState.Connected,
+        0,
+      );
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      // The old venue is detached, so its later transitions do not reach the
+      // listener, and the new venue's current state is delivered.
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(lighterSubscribe).toHaveBeenCalledWith(listener);
+      expect(listener).toHaveBeenLastCalledWith(
+        WebSocketConnectionState.Connecting,
+        2,
+      );
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('is a no-op when the default does not change', () => {
+      const hlCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+
+      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+      aggregatedProvider.setDefaultProvider('hyperliquid');
+
+      expect(hlCleanup).not.toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToAccount).not.toHaveBeenCalled();
+    });
+  });
+
   describe('WebSocket', () => {
     it('delegates getWebSocketConnectionState to default provider', () => {
       // Arrange
@@ -2630,7 +3278,15 @@ describe('AggregatedPerpsProvider', () => {
       const cleanup = aggregatedProvider.subscribeToConnectionState(listener);
 
       // Assert
-      expect(cleanup).toBe(unsubscribe);
+      expect(
+        (
+          mockHLProvider as MockPerpsProvider & {
+            subscribeToConnectionState: Mock;
+          }
+        ).subscribeToConnectionState,
+      ).toHaveBeenCalledWith(listener);
+      cleanup();
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('calls listener with Disconnected when provider lacks subscribeToConnectionState', () => {

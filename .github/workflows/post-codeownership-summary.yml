@@ -1,0 +1,148 @@
+# Creates a comment on each pull request which lists the files changed so far,
+# broken down by the teams that own them. This fixes a major pain point with
+# GitHub's UI, providing much needed clarity for authors (who want to know the
+# minimal set of teams they should seek approval from) and reviewers (who want
+# to know the minimal set of files they ought to look at). In addition, files
+# within packages that are co-owned by Core Platform (manifests, changelogs,
+# etc.) are separated and hidden by default, so that authors do not ask this
+# team for reviews when they shouldn't.
+#
+# Only one such comment is kept on a pull request: it is updated whenever the
+# branch is updated, and removed if no changed files have codeowners.
+#
+# You can run `yarn create-codeownership-summary --ci` to see the content of
+# the comment locally. (`--ci` truncates the summary if it would be too long
+# to post on GitHub; leave it off to see the full output.)
+
+name: Post codeownership summary
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-codeownership-summary-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  post-codeownership-summary:
+    name: Post codeownership summary
+    # Fork and Dependabot PRs get a read-only token, so they cannot receive
+    # the comment.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The summary compares the pull request with the commit where it
+      # branched off from the base branch (the merge base), which Git finds by
+      # following the history of both the base branch and the pull request
+      # back to it. Rather than fetching the repository's full history, ask
+      # GitHub how many commits each side has since then (`ahead_by` for the
+      # pull request, `behind_by` for the base branch), so that only those
+      # commits, plus the merge base, need to be fetched.
+      - name: Get fetch depths
+        id: fetch-depths
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" \
+            --jq '"head=\(.ahead_by + 1)\nbase=\(.behind_by + 1)"' \
+            >> "$GITHUB_OUTPUT"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Checkout and setup pull request head
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          # Use the pull request's copy of the script, so that it works even if
+          # the base branch doesn't have the script or has an older version.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: ${{ steps.fetch-depths.outputs.head }}
+          is-high-risk-environment: false
+          persist-credentials: false
+
+      - name: Fetch base branch
+        run: git fetch --depth="$FETCH_DEPTH" --no-tags origin "$BASE_SHA"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FETCH_DEPTH: ${{ steps.fetch-depths.outputs.base }}
+
+      # This is the same command an engineer can run to reproduce the comment.
+      # The script reads CODEOWNERS from the base branch, as GitHub applies the
+      # base branch's ownership rules to a pull request.
+      - name: Generate summary
+        # Write the output to a file, not GITHUB_OUTPUT, to ensure that GitHub
+        # doesn't get confused when it attempts to parse the multiline output string.
+        run: |
+          if yarn create-codeownership-summary --ci --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
+            exit 0
+          else
+            exitcode=$?
+            cat "$RUNNER_TEMP/codeownership-summary.md"
+            exit "$exitcode"
+          fi
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+      - name: Create, update, or delete comment
+        uses: actions/github-script@v9
+        env:
+          SUMMARY_PATH: ${{ runner.temp }}/codeownership-summary.md
+        with:
+          script: |
+            const fs = require('fs');
+
+            const marker = '<!-- CODEOWNERSHIP SUMMARY -->';
+            const summary = fs.readFileSync(process.env.SUMMARY_PATH, 'utf8');
+            const body = `${marker}\n${summary}`;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existingComment = comments.findLast(
+              (comment) =>
+                comment.user?.login === 'github-actions[bot]' &&
+                comment.body?.startsWith(marker),
+            );
+
+            if (summary && existingComment && existingComment.body !== body) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body,
+              });
+              return;
+            }
+
+            if (summary && !existingComment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+              return;
+            }
+
+            if (!summary && existingComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+              });
+            }

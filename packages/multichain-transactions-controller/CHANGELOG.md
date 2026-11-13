@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
 - **BREAKING:** The controller's messenger type now requires the `AccountActivityService:transactionUpdated` event from `@metamask/core-backend`, so consumers must allow and delegate this event to the controller's messenger ([#11240](https://github.com/MetaMask/core/pull/11240))
   - Used to drive submit-time pending non-EVM transactions to a terminal status (`confirmed` or `failed`).
 - Add dependency `@metamask/core-backend` (`^14.0.0`) ([#11240](https://github.com/MetaMask/core/pull/11240), [#11300](https://github.com/MetaMask/core/pull/11300))
