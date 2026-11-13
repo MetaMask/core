@@ -1,5 +1,5 @@
-import { verify } from '@metamask/cryptography/ed25519';
 import { bytesToString } from '@metamask/utils';
+import { ed25519 } from '@noble/curves/ed25519';
 
 import { base64UrlToBytes } from '../encoding.js';
 
@@ -7,8 +7,9 @@ import { base64UrlToBytes } from '../encoding.js';
  * Verifies an encryption-schema `jwtChain` against the issuer's published JWKS
  * (idOS enclave for `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
  *
- * The signature check is done with `@metamask/cryptography`;
- * JWT parsing is a plain base64url/JSON decode, so
+ * The signature check is done with `@noble/curves` (rather than WebCrypto
+ * `subtle`) because not every MetaMask runtime exposes a `subtle`
+ * implementation for Ed25519; JWT parsing is a plain base64url/JSON decode, so
  * no `jose` dependency is required.
  */
 
@@ -68,10 +69,7 @@ function decodeJsonSegment<Type>(segment: string, label: string): Type {
  * @param jwtChain - The compact-serialized EdDSA JWT from an encryption schema.
  * @returns The verified JWT payload.
  */
-export async function verifyJwtChain(
-  keys: Jwk[],
-  jwtChain: string,
-): Promise<JwtChainPayload> {
+export function verifyJwtChain(keys: Jwk[], jwtChain: string): JwtChainPayload {
   const [headerSegment, payloadSegment, signatureSegment] = jwtChain.split('.');
   if (!headerSegment || !payloadSegment || !signatureSegment) {
     throw new Error(
@@ -100,10 +98,10 @@ export async function verifyJwtChain(
     );
   }
 
-  const isValid = await verify(
-    base64UrlToBytes(jwk.x),
+  const isValid = ed25519.verify(
     base64UrlToBytes(signatureSegment),
     new TextEncoder().encode(`${headerSegment}.${payloadSegment}`),
+    base64UrlToBytes(jwk.x),
   );
   if (!isValid) {
     throw new Error(
@@ -132,11 +130,11 @@ export type JwtChainEncryptionSchema = {
  * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
  * @param schema - The encryption schema returned by session creation.
  */
-export async function assertAttestedServerPublicKey(
+export function assertAttestedServerPublicKey(
   keys: Jwk[],
   schema: JwtChainEncryptionSchema,
-): Promise<void> {
-  const jwtChainPayload = await verifyJwtChain(keys, schema.jwtChain);
+): void {
+  const jwtChainPayload = verifyJwtChain(keys, schema.jwtChain);
   if (jwtChainPayload.sessionServerPublicKeyX !== schema.serverPublicKey.x) {
     throw new Error(
       'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
