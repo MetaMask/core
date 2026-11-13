@@ -9,10 +9,12 @@ import type {
   BridgeControllerMessenger,
 } from '../types.js';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import type { QuoteResponse } from '../validators/quote-response.js';
 import { isTronTrade } from '../validators/trade.js';
 import type { TxData } from '../validators/trade.js';
 import { isNonEvmChainId, sumHexes } from './bridge.js';
 import { formatChainIdToCaip, formatChainIdToHex } from './caip-formatters.js';
+import { calcNormalizedTokenAmount, sumAmounts } from './number-formatters.js';
 import { computeFeeRequest } from './snaps.js';
 import { extractTradeData } from './trade-utils.js';
 
@@ -120,6 +122,17 @@ const appendNonEvmFees = async <
       // Skip fee computation if no snap account or trade data
       if (!selectedAccount?.metadata?.snap?.id || !trade) {
         return quoteResponse;
+      }
+
+      const networkFee = sumAmounts(
+        (quoteResponse as Partial<QuoteResponse>).quote?.feeData?.network,
+      );
+      const networkFeeInNative = calcNormalizedTokenAmount(
+        networkFee?.amount,
+        networkFee?.asset?.decimals,
+      );
+      if (networkFeeInNative) {
+        return { ...quoteResponse, nonEvmFeesInNative: networkFeeInNative };
       }
 
       try {
