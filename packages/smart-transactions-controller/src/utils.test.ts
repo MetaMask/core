@@ -1,20 +1,18 @@
 import { arrayify, hexlify } from '@ethersproject/bytes';
 import { keccak256 } from '@ethersproject/keccak256';
 import { ChainId, NetworkType } from '@metamask/controller-utils';
+import {
+  SentinelCancellationReason,
+  SentinelMinedTxStatus,
+  SentinelOriginalTransactionStatus,
+} from '@metamask/sentinel-api-service';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { describe, expect, it, vi } from 'vitest';
 
 import packageJson from '../package.json';
 import { SENTINEL_API_BASE_URL_MAP } from './constants.js';
-import {
-  SmartTransactionMinedTx,
-  APIType,
-  SmartTransactionStatuses,
-  SmartTransactionCancellationReason,
-  OriginalTransactionStatus,
-  ClientId,
-} from './types.js';
+import { APIType, SmartTransactionStatuses, ClientId } from './types.js';
 import * as utils from './utils.js';
 
 const createSignedTransaction = () => {
@@ -31,7 +29,7 @@ describe('src/utils.js', () => {
         status: 'pending',
         statusMetadata: {
           error: undefined,
-          minedTx: SmartTransactionMinedTx.NOT_MINED,
+          minedTx: SentinelMinedTxStatus.NotMined,
           cancellationFeeWei: 10000,
           deadlineRatio: 10,
           minedHash: '',
@@ -137,8 +135,8 @@ describe('src/utils.js', () => {
 
     it('returns false if status response is not', () => {
       const statusResponse = {
-        minedTx: SmartTransactionMinedTx.NOT_MINED,
-        cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+        minedTx: SentinelMinedTxStatus.NotMined,
+        cancellationReason: SentinelCancellationReason.NotCancelled,
         minedHash: '',
         cancellationFeeWei: 0.1,
         deadlineRatio: 0.1,
@@ -152,8 +150,8 @@ describe('src/utils.js', () => {
 
   describe('calculateStatus', () => {
     const createStatusResponse = () => ({
-      minedTx: SmartTransactionMinedTx.NOT_MINED,
-      cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+      minedTx: SentinelMinedTxStatus.NotMined,
+      cancellationReason: SentinelCancellationReason.NotCancelled,
       minedHash: '',
       cancellationFeeWei: 0.1,
       deadlineRatio: 0.1,
@@ -170,7 +168,7 @@ describe('src/utils.js', () => {
     it('returns success if minedTx is success', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        minedTx: SmartTransactionMinedTx.SUCCESS,
+        minedTx: SentinelMinedTxStatus.Success,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.SUCCESS,
@@ -180,7 +178,7 @@ describe('src/utils.js', () => {
     it('returns cancelled if minedTx is cancelled', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        minedTx: SmartTransactionMinedTx.CANCELLED,
+        minedTx: SentinelMinedTxStatus.Cancelled,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.CANCELLED,
@@ -190,17 +188,17 @@ describe('src/utils.js', () => {
     it('returns reverted if minedTx is reverted', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        minedTx: SmartTransactionMinedTx.REVERTED,
+        minedTx: SentinelMinedTxStatus.Reverted,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.REVERTED,
       );
     });
 
-    it('returns unknown if minedTx is unknown', () => {
+    it('returns unknown if minedTx is not a known value', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        minedTx: SmartTransactionMinedTx.UNKNOWN,
+        minedTx: 'unknown' as SentinelMinedTxStatus,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.UNKNOWN,
@@ -210,7 +208,7 @@ describe('src/utils.js', () => {
     it('returns status "pending" if a tx was user cancelled, but is not settled yet', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
+        cancellationReason: SentinelCancellationReason.UserCancelled,
         isSettled: false,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
@@ -221,7 +219,7 @@ describe('src/utils.js', () => {
     it('returns status "cancelled_user_cancelled" if the "user_cancelled" cancellationReason is provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
+        cancellationReason: SentinelCancellationReason.UserCancelled,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
@@ -231,7 +229,7 @@ describe('src/utils.js', () => {
     it('returns status "cancelled" if the "would_revert" cancellationReason is provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.WOULD_REVERT,
+        cancellationReason: SentinelCancellationReason.WouldRevert,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.CANCELLED,
@@ -241,7 +239,7 @@ describe('src/utils.js', () => {
     it('returns status "cancelled" if the "too_cheap" cancellationReason is provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.TOO_CHEAP,
+        cancellationReason: SentinelCancellationReason.TooCheap,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.CANCELLED,
@@ -251,7 +249,7 @@ describe('src/utils.js', () => {
     it('returns status "cancelled" if the "deadline_missed" cancellationReason is provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.DEADLINE_MISSED,
+        cancellationReason: SentinelCancellationReason.DeadlineMissed,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.CANCELLED,
@@ -261,7 +259,7 @@ describe('src/utils.js', () => {
     it('returns status "cancelled" if the "invalid_nonce" cancellationReason is provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.INVALID_NONCE,
+        cancellationReason: SentinelCancellationReason.InvalidNonce,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.CANCELLED,
@@ -271,7 +269,7 @@ describe('src/utils.js', () => {
     it('returns status "pending" if the "not_cancelled" cancellationReason is provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+        cancellationReason: SentinelCancellationReason.NotCancelled,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
         SmartTransactionStatuses.PENDING,
@@ -297,9 +295,9 @@ describe('src/utils.js', () => {
     const createStxStatus = (customProps = {}) => {
       return {
         error: undefined,
-        minedTx: SmartTransactionMinedTx.NOT_MINED,
+        minedTx: SentinelMinedTxStatus.NotMined,
         cancellationFeeWei: 10000,
-        cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+        cancellationReason: SentinelCancellationReason.NotCancelled,
         deadlineRatio: 10,
         minedHash: '',
         isSettled: true,
@@ -321,14 +319,14 @@ describe('src/utils.js', () => {
 
     it('returns false if minedTx is NOT_MINED and cancellationReason is USER_CANCELLED', () => {
       const stxStatus = createStxStatus({
-        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
+        cancellationReason: SentinelCancellationReason.UserCancelled,
       });
       expect(utils.isSmartTransactionCancellable(stxStatus)).toBe(false);
     });
 
     it('returns false if minedTx is CANCELLED and cancellationReason is NOT_CANCELLED', () => {
       const stxStatus = createStxStatus({
-        minedTx: SmartTransactionMinedTx.CANCELLED,
+        minedTx: SentinelMinedTxStatus.Cancelled,
       });
       expect(utils.isSmartTransactionCancellable(stxStatus)).toBe(false);
     });
@@ -423,7 +421,7 @@ describe('src/utils.js', () => {
         cancellationFeeWei: 0,
         deadlineRatio: 0,
         minedHash: '',
-        minedTx: SmartTransactionMinedTx.NOT_MINED,
+        minedTx: SentinelMinedTxStatus.NotMined,
         isSettled: false,
       },
     });
@@ -545,7 +543,7 @@ describe('src/utils.js', () => {
         cancellationFeeWei: 0,
         deadlineRatio: 0,
         minedHash: '',
-        minedTx: SmartTransactionMinedTx.NOT_MINED,
+        minedTx: SentinelMinedTxStatus.NotMined,
         isSettled: false,
       },
     });
@@ -592,10 +590,10 @@ describe('src/utils.js', () => {
           cancellationFeeWei: 0,
           deadlineRatio: 0,
           minedHash: '',
-          minedTx: SmartTransactionMinedTx.NOT_MINED,
+          minedTx: SentinelMinedTxStatus.NotMined,
           isSettled: false,
           originalTransactionStatus:
-            OriginalTransactionStatus.FAILED_WOULD_REVERT,
+            SentinelOriginalTransactionStatus.FailedWouldRevert,
         },
       };
 
@@ -705,12 +703,13 @@ describe('src/utils.js', () => {
           cancellationFeeWei: 0,
           deadlineRatio: 0.5,
           minedHash: '0xabc',
-          minedTx: SmartTransactionMinedTx.SUCCESS,
+          minedTx: SentinelMinedTxStatus.Success,
           isSettled: true,
           duplicated: false,
           timedOut: false,
           proxied: false,
-          originalTransactionStatus: OriginalTransactionStatus.VALIDATED,
+          originalTransactionStatus:
+            SentinelOriginalTransactionStatus.Validated,
         },
       };
 
@@ -719,7 +718,8 @@ describe('src/utils.js', () => {
 
       expect(result).toStrictEqual(
         expect.objectContaining({
-          stx_original_transaction_status: OriginalTransactionStatus.VALIDATED,
+          stx_original_transaction_status:
+            SentinelOriginalTransactionStatus.Validated,
           stx_duplicated: false,
           stx_timed_out: false,
           stx_proxied: false,
@@ -736,7 +736,7 @@ describe('src/utils.js', () => {
           cancellationFeeWei: 0,
           deadlineRatio: 0,
           minedHash: '',
-          minedTx: SmartTransactionMinedTx.NOT_MINED,
+          minedTx: SentinelMinedTxStatus.NotMined,
           isSettled: false,
         },
       };

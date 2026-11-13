@@ -1,6 +1,10 @@
 import { arrayify, hexlify } from '@ethersproject/bytes';
 import { keccak256 } from '@ethersproject/keccak256';
 import { parse } from '@ethersproject/transactions';
+import {
+  SentinelCancellationReason,
+  SentinelMinedTxStatus,
+} from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerFailTransactionAction,
   TransactionControllerGetTransactionsAction,
@@ -24,8 +28,6 @@ import type {
 import {
   APIType,
   SmartTransactionStatuses,
-  SmartTransactionCancellationReason,
-  SmartTransactionMinedTx,
   cancellationReasonToStatusMap,
   ClientId,
 } from './types.js';
@@ -77,21 +79,22 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
   }
 }
 
-export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
+export const calculateStatus = (
+  stxStatus: SmartTransactionsStatus,
+): SmartTransactionStatuses => {
   if (isSmartTransactionStatusResolved(stxStatus)) {
     return SmartTransactionStatuses.RESOLVED;
   }
   const cancellations = [
-    SmartTransactionCancellationReason.WOULD_REVERT,
-    SmartTransactionCancellationReason.TOO_CHEAP,
-    SmartTransactionCancellationReason.DEADLINE_MISSED,
-    SmartTransactionCancellationReason.INVALID_NONCE,
-    SmartTransactionCancellationReason.USER_CANCELLED,
+    SentinelCancellationReason.WouldRevert,
+    SentinelCancellationReason.TooCheap,
+    SentinelCancellationReason.DeadlineMissed,
+    SentinelCancellationReason.InvalidNonce,
+    SentinelCancellationReason.UserCancelled,
   ];
-  if (stxStatus?.minedTx === SmartTransactionMinedTx.NOT_MINED) {
+  if (stxStatus?.minedTx === SentinelMinedTxStatus.NotMined) {
     if (
-      stxStatus.cancellationReason ===
-      SmartTransactionCancellationReason.NOT_CANCELLED
+      stxStatus.cancellationReason === SentinelCancellationReason.NotCancelled
     ) {
       return SmartTransactionStatuses.PENDING;
     }
@@ -106,14 +109,12 @@ export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
       }
       return cancellationReasonToStatusMap[stxStatus.cancellationReason];
     }
-  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.SUCCESS) {
+  } else if (stxStatus?.minedTx === SentinelMinedTxStatus.Success) {
     return SmartTransactionStatuses.SUCCESS;
-  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.CANCELLED) {
+  } else if (stxStatus?.minedTx === SentinelMinedTxStatus.Cancelled) {
     return SmartTransactionStatuses.CANCELLED;
-  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.REVERTED) {
+  } else if (stxStatus?.minedTx === SentinelMinedTxStatus.Reverted) {
     return SmartTransactionStatuses.REVERTED;
-  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.UNKNOWN) {
-    return SmartTransactionStatuses.UNKNOWN;
   }
   return SmartTransactionStatuses.UNKNOWN;
 };
@@ -181,10 +182,9 @@ export const isSmartTransactionCancellable = (
   stxStatus: SmartTransactionsStatus,
 ): boolean => {
   return (
-    stxStatus.minedTx === SmartTransactionMinedTx.NOT_MINED &&
+    stxStatus.minedTx === SentinelMinedTxStatus.NotMined &&
     (!stxStatus.cancellationReason ||
-      stxStatus.cancellationReason ===
-        SmartTransactionCancellationReason.NOT_CANCELLED)
+      stxStatus.cancellationReason === SentinelCancellationReason.NotCancelled)
   );
 };
 
