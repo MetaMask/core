@@ -370,8 +370,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   #rerouteSubscription(subscription: DefaultRoutedSubscription): void {
     const providerId = this.#defaultProvider;
-    subscription.unsubscribe();
+    const { unsubscribe } = subscription;
     subscription.unsubscribe = (): void => undefined;
+    try {
+      unsubscribe();
+    } catch (caughtError) {
+      this.#logSubscriptionRerouteError(caughtError, 'unsubscribe', providerId);
+    }
     subscription.providerId = undefined;
 
     if (subscription.onInvalidate) {

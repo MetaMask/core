@@ -2944,6 +2944,40 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
     });
 
+    it('continues rerouting after the previous venue fails to unsubscribe', () => {
+      const hlAccountCleanup = vi.fn(() => {
+        throw new Error('unsubscribe failed');
+      });
+      const lighterAccountCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlAccountCleanup);
+      mockLighterProvider.subscribeToAccount.mockReturnValue(
+        lighterAccountCleanup,
+      );
+      mockHLProvider.subscribeToCandles.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToCandles.mockReturnValue(vi.fn());
+
+      const accountCleanup = aggregatedProvider.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+      });
+
+      expect(() =>
+        aggregatedProvider.setDefaultProvider('lighter'),
+      ).not.toThrow();
+
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledTimes(1);
+
+      accountCleanup();
+      expect(lighterAccountCleanup).toHaveBeenCalledTimes(1);
+      expect(hlAccountCleanup).toHaveBeenCalledTimes(1);
+    });
+
     it('moves a connection-state listener to the new venue and detaches the old one', () => {
       const hlCleanup = vi.fn();
       const lighterCleanup = vi.fn();
