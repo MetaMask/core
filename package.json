@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1419.0.0",
+  "version": "1420.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -26,6 +26,7 @@
     "close-stale-release-prs": "node --import ./scripts/resolver/register.ts scripts/close-stale-release-prs.ts",
     "codeowners:check": "node --import ./scripts/resolver/register.ts scripts/manage-codeowners.ts check",
     "codeowners:generate": "node --import ./scripts/resolver/register.ts scripts/manage-codeowners.ts generate",
+    "create-codeownership-summary": "node scripts/create-codeownership-summary.ts",
     "create-package": "node --import ./scripts/resolver/register.ts scripts/create-package/index.ts",
     "create-release-branch": "create-release-branch --formatter oxfmt",
     "docs:platform-api:build": "yarn workspace @metamask/platform-api-docs cli ../.. --build --project-label Core",
@@ -100,9 +101,11 @@
     "comment-json": "^4.6.2",
     "eslint-plugin-n": "^18.3.0",
     "execa": "^10.0.1",
+    "ignore": "^7.0.14",
     "knip": "^6.39.0",
     "lodash": "^4.18.1",
     "nock": "^15.0.5",
+    "outdent": "^0.8.0",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.85.0",
     "oxlint-tsgolint": "^7.0.2002",
