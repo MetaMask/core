@@ -20,6 +20,7 @@ import {
 import {
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
+  PERPS_ERROR_CODES,
   PerpsController,
   TP_SL_PRECISION_CONFIG,
   calculateAccountSummary,
@@ -55,6 +56,7 @@ import type {
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetAccountSupportParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   MarketInfo,
   PerpsAccountSupport,
   PerpsAccountSigner,
@@ -64,6 +66,7 @@ import type {
   PerpsControllerGetAccountSupportAction,
   PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
+  PerpsControllerReplacePositionTPSLLegAction,
   PerpsControllerSetAgentSignerAction,
   PerpsFeeResolverScope,
   PerpsPlatformDependencies,
@@ -144,6 +147,26 @@ describe('@metamask/perps-controller public API', () => {
       reason: 'multi_sig_account',
     });
     expect(action).toBe('PerpsController:getAccountSupport');
+  });
+
+  it('exports the single-leg TP/SL replace method, action and error code', () => {
+    const params: ReplacePositionTPSLLegParams = {
+      symbol: 'BTC',
+      leg: 'sl',
+      triggerPrice: '45000',
+      limitPrice: '44900',
+    };
+    const action: PerpsControllerReplacePositionTPSLLegAction['type'] =
+      'PerpsController:replacePositionTPSLLeg';
+
+    expect(typeof PerpsController.prototype.replacePositionTPSLLeg).toBe(
+      'function',
+    );
+    expect(params.leg).toBe('sl');
+    expect(action).toBe('PerpsController:replacePositionTPSLLeg');
+    expect(PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED).toBe(
+      'TPSL_LEG_REPLACE_UNSUPPORTED',
+    );
   });
 
   it('exports the trading configuration constants', () => {

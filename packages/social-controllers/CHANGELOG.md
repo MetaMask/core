@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [3.22.0]
+
+### Added
+
+- Add optional `profileId` to `Position` and `PositionStruct` ([#11455](https://github.com/MetaMask/core/pull/11455))
+  - `profileId` is the profile ID of the trader who owns the position, so a client can confirm a position belongs to a trader before attributing it to them.
+  - `fetchPositionById`, `fetchOpenPositions`, `fetchClosedPositions` and `fetchFeed` return it unchanged when social-api sends it. Responses without it still validate.
+  - A `profileId` that is not a string fails validation like any other malformed position field.
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+
+## [3.21.0]
+
+### Added
+
+- Add `following_v1` to `FeedScope`, so `fetchFeed` can request the following feed in the shape of the all feed ([#11424](https://github.com/MetaMask/core/pull/11424))
+  - social-api returns the all-feed items of the profiles the user follows, without the user's own: one item per position trade plus one per author comment, ordered by `occurredAt`, each with `feedItemId`, `eventId`, `revision` and `occurredAt`.
+  - Its cursors are the all-feed cursors, so they cannot be passed to `following`, and vice versa.
+  - `following` is unchanged.
+- Keep the prices social-api adds to realtime feed items ([#11442](https://github.com/MetaMask/core/pull/11442))
+  - `parseRealtimeFeedItem` and `normalizeRealtimeFeedItem` now copy `currentValueUSD`, `positionValueUSD`, `pnlValueUsd` and `pnlPercent` from a hydrated socket payload onto the `FeedItem`, so a realtime item can show a value before the client's live price loads.
+  - A field the payload omits stays absent, and an explicit `null` stays `null`.
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^36.1.0` to `^36.1.1` ([#11419](https://github.com/MetaMask/core/pull/11419))
+
+### Fixed
+
+- Keep the realtime feed subscribed when `SocialRealtimeService.setScopes` is called with the scopes already active ([#11438](https://github.com/MetaMask/core/pull/11438))
+  - `setScopes` no longer resubscribes when the scope set is unchanged.
+  - A scope replacement no longer unsubscribes the previous subscription when the backend returns the same subscription id for it. The backend does this for a repeat subscribe to the same channels, so the unsubscribe ended the replacement and the feed stopped receiving events.
+
+## [3.20.0]
+
+### Added
+
+- Add the optional MetaMask Profile API identity to every profile social-api returns, over HTTP and the realtime feed ([#11400](https://github.com/MetaMask/core/pull/11400))
+  - New `ProfileIdentity` type: `displayName`, `bio`, `createdAt`, `updatedAt`, `connectedToX` and `tradingPrivacy`, all optional and nullable. New `TradingPrivacy` type and `TRADING_PRIVACY_VALUES` constant.
+  - `ProfileSummary` (followers, following, follow, unfollow, blocked profiles, moderation authors, feed actors), `LeaderboardEntry` and `TraderProfile` carry these fields, and their structs validate them.
+  - `normalizeRealtimeFeedItem` copies them from the socket actor's `profile` onto `actor`, as social-api's REST feed does. Fields the payload omits stay absent.
+  - Responses that omit the fields still validate. A response with an unknown `tradingPrivacy` value is rejected.
+
+### Changed
+
+- `TraderProfile.createdAt` is now the MetaMask profile's creation time, and is omitted for external profiles. Older social-api builds sent the social-api row insert time. ([#11400](https://github.com/MetaMask/core/pull/11400))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
 
 ## [3.19.0]
@@ -403,7 +454,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.19.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.22.0...HEAD
+[3.22.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.21.0...@metamask/social-controllers@3.22.0
+[3.21.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.20.0...@metamask/social-controllers@3.21.0
+[3.20.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.19.0...@metamask/social-controllers@3.20.0
 [3.19.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.18.0...@metamask/social-controllers@3.19.0
 [3.18.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.17.0...@metamask/social-controllers@3.18.0
 [3.17.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.16.0...@metamask/social-controllers@3.17.0

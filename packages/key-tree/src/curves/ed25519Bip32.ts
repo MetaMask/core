@@ -4,7 +4,7 @@ import { assert } from '@metamask/type-utils';
 import { mod } from '@noble/curves/abstract/modular';
 import { ed25519 } from '@noble/curves/ed25519';
 
-export const curve = ed25519.CURVE;
+export const curve = ed25519.Point.CURVE();
 
 /**
  * Named after whitepaper: BIP32-Ed25519 Hierarchical Deterministic Keys over a Non-linear Keyspace
@@ -25,7 +25,7 @@ export const secret = stringToBytes('');
  * @returns The byte at the given index.
  * @throws If the private key is too short.
  */
-function getByte(privateKey: Uint8Array, index: number): number {
+function getByte(privateKey: Uint8Array<ArrayBuffer>, index: number): number {
   const byte = privateKey[index];
   assert(byte !== undefined, 'Private key is too short.');
 
@@ -38,7 +38,9 @@ function getByte(privateKey: Uint8Array, index: number): number {
  * @param privateKey - The private key to check.
  * @returns Whether the private key is valid.
  */
-export const isValidPrivateKey = (privateKey: Uint8Array): boolean => {
+export const isValidPrivateKey = (
+  privateKey: Uint8Array<ArrayBuffer>,
+): boolean => {
   /* eslint-disable no-bitwise */
   // Lowest 3 bits of the first byte must be zero
   if ((getByte(privateKey, 0) & 0b00000111) !== 0) {
@@ -69,7 +71,7 @@ export const publicKeyLength = 32;
  * @param bytes - The Uint8Array of bytes to convert.
  * @returns The converted bigint value.
  */
-export const bytesToNumberLE = (bytes: Uint8Array): bigint => {
+export const bytesToNumberLE = (bytes: Uint8Array<ArrayBuffer>): bigint => {
   return hexToBigInt(bytesToHex(Uint8Array.from(bytes).reverse()));
 };
 
@@ -81,11 +83,13 @@ export const bytesToNumberLE = (bytes: Uint8Array): bigint => {
  * @param key - The key to multiply with the base point.
  * @returns The resulting point on the Edwards curve.
  */
-export const multiplyWithBase = (key: Uint8Array): Uint8Array => {
+export const multiplyWithBase = (
+  key: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
   // Little-endian SHA512 with modulo n
   const scalar = mod(bytesToNumberLE(key), curve.n); // The actual scalar
   const point = ed25519.ExtendedPoint.BASE.multiply(scalar); // Point on Edwards curve aka public key
-  return point.toRawBytes(); // Uint8Array representation
+  return point.toBytes() as Uint8Array<ArrayBuffer>;
 };
 
 /**
@@ -95,10 +99,10 @@ export const multiplyWithBase = (key: Uint8Array): Uint8Array => {
  * @param _compressed - Optional parameter to indicate if the public key should be compressed.
  * @returns The public key.
  */
-export const getPublicKey = (
-  privateKey: Uint8Array,
+export const getPublicKey = async (
+  privateKey: Uint8Array<ArrayBuffer>,
   _compressed?: boolean,
-): Uint8Array => {
+): Promise<Uint8Array<ArrayBuffer>> => {
   return multiplyWithBase(privateKey.slice(0, 32));
 };
 
@@ -110,12 +114,12 @@ export const getPublicKey = (
  * @returns The resulting public key.
  */
 export const publicAdd = (
-  publicKey: Uint8Array,
-  tweak: Uint8Array,
-): Uint8Array => {
-  return ed25519.ExtendedPoint.fromHex(remove0x(bytesToHex(publicKey)))
-    .add(ed25519.ExtendedPoint.fromHex(remove0x(bytesToHex(tweak))))
-    .toRawBytes();
+  publicKey: Uint8Array<ArrayBuffer>,
+  tweak: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
+  return ed25519.Point.fromHex(remove0x(bytesToHex(publicKey)))
+    .add(ed25519.Point.fromHex(remove0x(bytesToHex(tweak))))
+    .toBytes() as Uint8Array<ArrayBuffer>;
 };
 
 /**
@@ -124,7 +128,9 @@ export const publicAdd = (
  * @param publicKey - The public key to compress.
  * @returns The compressed public key.
  */
-export const compressPublicKey = (publicKey: Uint8Array): Uint8Array => {
+export const compressPublicKey = (
+  publicKey: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
   // Ed25519 public keys don't have a compressed form.
   return publicKey;
 };
@@ -135,7 +141,9 @@ export const compressPublicKey = (publicKey: Uint8Array): Uint8Array => {
  * @param publicKey - The compressed public key.
  * @returns The decompressed public key.
  */
-export const decompressPublicKey = (publicKey: Uint8Array): Uint8Array => {
+export const decompressPublicKey = (
+  publicKey: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
   // Ed25519 public keys don't have a compressed form.
   return publicKey;
 };

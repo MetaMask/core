@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `TransakServiceInvalidateQueriesAction`, `TransakServiceCacheUpdatedEvent` and `TransakServiceGranularCacheUpdatedEvent` types, and include them in `TransakServiceActions` and `TransakServiceEvents` ([#11216](https://github.com/MetaMask/core/pull/11216))
 - Add `RampsServiceInvalidateQueriesAction`, `RampsServiceCacheUpdatedEvent` and `RampsServiceGranularCacheUpdatedEvent`, also included in `RampsServiceActions` and `RampsServiceEvents` ([#11214](https://github.com/MetaMask/core/pull/11214))
 - Add `NeoBankServiceInvalidateQueriesAction`, `NeoBankServiceCacheUpdatedEvent` and `NeoBankServiceGranularCacheUpdatedEvent`, also included in `NeoBankServiceActions` and `NeoBankServiceEvents` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Added an optional `isNetworkAccessAllowed` constructor option to `RampsController`. Every method that can reach the network checks it before any state write or request, and throws an error carrying the new `RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED` code when it returns `false`. A denied call does not serve a non-expired request-cache entry either, so hosts render already-fetched data from controller state while access is denied. Omitting the option keeps the existing behavior. `addOrder`, `addPrecreatedOrder`, `removeOrder`, and `transakLogout` still apply their local change and skip only the remote call ([#11222](https://github.com/MetaMask/core/pull/11222))
 
 ### Changed
 
@@ -36,7 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `getCustomerAbilities`, `listAutorampTransactions` and `createAutoramp`.
 - Add dependency `@metamask/base-data-service` ([#10882](https://github.com/MetaMask/core/pull/10882))
 - Add dependency `@metamask/superstruct` ([#10882](https://github.com/MetaMask/core/pull/10882))
-- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
 ### Removed
 

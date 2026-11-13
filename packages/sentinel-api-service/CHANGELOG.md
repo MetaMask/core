@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `SentinelMeta.feature` now also accepts `SentinelProductFeature`, a new enum of product names (`Swap`, `Staking`, `Ramp`, `Prediction`, `Perp`, `Earn`, `Card`, `Bridge`, `dAppTransaction`) ([#11272](https://github.com/MetaMask/core/pull/11272))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 
 ### Deprecated
 

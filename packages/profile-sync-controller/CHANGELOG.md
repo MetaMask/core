@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.1.2]
+
+### Changed
+
+- Bump `@metamask/key-tree` from `^10.1.1` to `^11.0.0` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [36.1.1]
+
+### Fixed
+
+- `AuthenticationController.exchangeSocialAccessToken`, and so `refreshSocialLoginCredentials`, `beginSocialLoginVerification` and `completeSocialLoginVerification`, no longer fail with "the wallet has no social login" before the vault is written ([#11414](https://github.com/MetaMask/core/pull/11414))
+  - The social provider is taken from `authConnection` alone, which is known right after the social login and before the password creates the vault, so social login recovery can verify an MFA credential at that point
+  - Sign-in and profile pairing are unchanged and still treat a wallet without a vault as `SRP`
+
 ## [36.1.0]
 
 ### Added
@@ -1132,7 +1148,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.2...HEAD
+[36.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.1...@metamask/profile-sync-controller@36.1.2
+[36.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...@metamask/profile-sync-controller@36.1.1
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.0.0...@metamask/profile-sync-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...@metamask/profile-sync-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...@metamask/profile-sync-controller@35.0.0

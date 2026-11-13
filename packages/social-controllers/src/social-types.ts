@@ -1,6 +1,7 @@
 import type { Infer } from '@metamask/superstruct';
 import {
   array,
+  boolean,
   enums,
   nullable,
   number,
@@ -15,15 +16,48 @@ import type { CaipAssetTypeOrId } from '@metamask/utils';
 // Shared sub-types
 // ---------------------------------------------------------------------------
 
+/** Values for `ProfileIdentity.tradingPrivacy` from social-api. */
+export const TRADING_PRIVACY_VALUES = ['public', 'private'] as const;
+
+export type TradingPrivacy = (typeof TRADING_PRIVACY_VALUES)[number];
+
+/**
+ * The MetaMask Profile API identity social-api serves beside `name` on every
+ * profile, so clients need not call the Profile API themselves.
+ *
+ * Every field is omitted when the profile has no value, and on older
+ * social-api builds. Only MetaMask-linked profiles carry them.
+ */
+export const ProfileIdentityStruct = structType({
+  /**
+   * Display name set on the Profile API. Free text that anyone can copy, so
+   * show it beside `name`, never in its place. Omitted when the profile's text
+   * is flagged NSFW.
+   */
+  displayName: optional(nullable(string())),
+  /** Bio set on the Profile API. Omitted when the profile's text is flagged NSFW. */
+  bio: optional(nullable(string())),
+  /** When the MetaMask profile was created, as an ISO-8601 timestamp. */
+  createdAt: optional(nullable(string())),
+  /** When the owner last edited their MetaMask profile, as an ISO-8601 timestamp. */
+  updatedAt: optional(nullable(string())),
+  /** Whether the owner linked an X account on their MetaMask profile. */
+  connectedToX: optional(nullable(boolean())),
+  /** The owner's trading privacy. A private profile's addresses are withheld. */
+  tradingPrivacy: optional(nullable(enums(TRADING_PRIVACY_VALUES))),
+});
+
+export type ProfileIdentity = Infer<typeof ProfileIdentityStruct>;
+
 /**
  * Minimal profile summary used across follow/follower responses.
  */
-export type ProfileSummary = {
+export type ProfileSummary = ProfileIdentity & {
   /** Clicker profile ID (UUID). */
   profileId: string;
   /** Primary wallet address. */
   address: string;
-  /** Display name or truncated address. */
+  /** Username, or truncated address when the profile has none. */
   name: string;
   /** Profile avatar URL. */
   imageUrl?: string | null;
@@ -138,7 +172,7 @@ export type Trade = Infer<typeof TradeStruct>;
 /**
  * A single entry in the leaderboard response.
  */
-export type LeaderboardEntry = {
+export type LeaderboardEntry = ProfileIdentity & {
   rank: number;
   addresses: string[];
   profileId: string;
@@ -206,16 +240,16 @@ export const TRADER_RANKING_TAGS = ['shrimp', 'dolphin', 'whale'] as const;
 
 export type TraderRankingTag = (typeof TRADER_RANKING_TAGS)[number];
 
-export type TraderProfile = {
+export type TraderProfile = Omit<ProfileIdentity, 'createdAt'> & {
   profileId: string;
   address: string;
   allAddresses: string[];
   name: string;
   imageUrl?: string | null;
   /**
-   * When the social-api profile row was created, as an ISO-8601 timestamp.
-   * Omitted on older social-api builds. This is the row insert time, which can
-   * predate the trader claiming a username and avatar.
+   * When the MetaMask profile was created, as an ISO-8601 timestamp. Omitted
+   * for external profiles and on older social-api builds, which sent the
+   * social-api row insert time instead.
    */
   createdAt?: string | null;
 };
@@ -357,6 +391,12 @@ export type Position = {
    * social-api builds; `null` when the deployment sends an explicit empty mark.
    */
   flags?: string[] | null;
+  /**
+   * Profile ID of the trader who owns the position. Lets a client confirm that
+   * a position belongs to a given trader before attributing it to them. Absent
+   * on social-api builds that predate the field.
+   */
+  profileId?: string;
 };
 
 export type Pagination = {
@@ -438,8 +478,8 @@ export type FeedItem = Position & {
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
   /**
-   * Latest author Call in the current intent phase. On the all and trending
-   * feeds, a comment item carries its own comment instead and a trade item
+   * Latest author Call in the current intent phase. On the all, trending and
+   * following_v1 feeds, a comment item carries its own comment instead and a trade item
    * carries `null`. Absent on older social-api builds; `null` when that phase
    * has no comment.
    */
@@ -470,9 +510,9 @@ export type FeedItem = Position & {
   entryPriceUsd?: number | null;
   /**
    * Id of this feed item, the `feedItemId` its `social.v1.feed.all` revisions
-   * carry. A position can hold several items on the all and trending feeds
-   * (its trade plus one per author comment), so key rows on this rather than
-   * `positionId`. Set on the all and trending feeds only; absent on older
+   * carry. A position can hold several items on the all, trending and
+   * following_v1 feeds (its trade plus one per author comment), so key rows on
+   * this rather than `positionId`. Set on those feeds only; absent on older
    * social-api builds.
    */
   feedItemId?: string;
@@ -826,9 +866,12 @@ export type FetchTokenFeedOptions = {
 export type FetchFeedOptions = {
   /**
    * Which feed to fetch: `following` (personalized to the current user,
-   * identified server-side from the JWT), `leaderboard` (generic, shared by
-   * all users), or `all` (the shared feed-all projection). Defaults to
-   * `following` server-side when omitted.
+   * identified server-side from the JWT; one item per position, ordered by its
+   * latest trade), `following_v1` (the `all` items of the profiles the current
+   * user follows, without the user's own, ordered by `occurredAt`, with
+   * `feedItemId`), `leaderboard` (generic, shared by all users), `all` (the
+   * shared feed-all projection), or `trending`. Defaults to `following`
+   * server-side when omitted.
    */
   scope?: FeedScope;
   /**
@@ -860,7 +903,12 @@ export type FetchFeedOptions = {
   newerThan?: string;
 };
 
-export type FeedScope = 'following' | 'leaderboard' | 'all' | 'trending';
+export type FeedScope =
+  | 'following'
+  | 'following_v1'
+  | 'leaderboard'
+  | 'all'
+  | 'trending';
 
 export type FetchPositionByIdOptions = {
   /** Unique position ID (UUID). */

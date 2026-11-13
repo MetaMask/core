@@ -1,5 +1,8 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
+import type {
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction,
+  RegistryNetworkConfig,
+} from '@metamask/config-registry-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
@@ -42,6 +45,45 @@ const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const [MAINNET_MUSD] = getDefaultTrackedAssetsForChain(MOCK_CHAIN_ID_CAIP);
 type EthereumProvider = { request: Mock };
+
+function createRegistryNetworkConfig(): RegistryNetworkConfig {
+  return {
+    chainId: 'eip155:1',
+    name: 'Ethereum',
+    imageUrl: 'https://example.com/eth.png',
+    coingeckoPlatformId: 'ethereum',
+    assets: {
+      native: {
+        assetId: 'eip155:1/slip44:60',
+        imageUrl: 'https://example.com/eth.png',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+      },
+    },
+    rpcProviders: {
+      default: {
+        url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+        type: 'infura',
+        networkClientId: 'mainnet',
+      },
+      fallbacks: [],
+    },
+    blockExplorerUrls: {
+      default: 'https://etherscan.io',
+      fallbacks: [],
+    },
+    config: {
+      isActive: true,
+      isTestnet: false,
+      isDefault: true,
+      isFeatured: true,
+      isDeprecated: false,
+      isDeletable: true,
+      priority: 0,
+    },
+  };
+}
 
 function createBalanceFetchResult(
   overrides?: Partial<BalanceFetchResult>,
@@ -560,6 +602,97 @@ describe('RpcDataSource', () => {
           decimals: 18,
         });
       });
+    });
+
+    it('enriches native asset metadata from the config registry', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'ConfigRegistryController:getNetworkConfigByCaip2ChainId': () =>
+              createRegistryNetworkConfig(),
+          },
+        },
+        async ({ controller }) => {
+          vi.spyOn(
+            BalanceFetcher.prototype,
+            'fetchBalancesForAssets',
+          ).mockResolvedValue(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  accountId: MOCK_ACCOUNT_ID,
+                  chainId: MOCK_CHAIN_ID_HEX,
+                  balance: '1000000000000000000',
+                  formattedBalance: '1',
+                  decimals: 18,
+                  timestamp: Date.now(),
+                },
+              ],
+              failedAddresses: [],
+            }),
+          );
+          const response = await controller.fetch(createDataRequest());
+          expect(response.assetsInfo?.[nativeAssetId]).toMatchObject({
+            type: 'native',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+            image: 'https://example.com/eth.png',
+          });
+        },
+      );
+    });
+
+    it('upgrades an existing imageless native stub with the registry image', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'ConfigRegistryController:getNetworkConfigByCaip2ChainId': () =>
+              createRegistryNetworkConfig(),
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [nativeAssetId]: {
+                  type: 'native' as const,
+                  symbol: 'ETH',
+                  name: 'ETH',
+                  decimals: 18,
+                },
+              },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          vi.spyOn(
+            BalanceFetcher.prototype,
+            'fetchBalancesForAssets',
+          ).mockResolvedValue(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: nativeAssetId,
+                  accountId: MOCK_ACCOUNT_ID,
+                  chainId: MOCK_CHAIN_ID_HEX,
+                  balance: '1000000000000000000',
+                  formattedBalance: '1',
+                  decimals: 18,
+                  timestamp: Date.now(),
+                },
+              ],
+              failedAddresses: [],
+            }),
+          );
+          const response = await controller.fetch(createDataRequest());
+          expect(response.assetsInfo?.[nativeAssetId]).toMatchObject({
+            type: 'native',
+            decimals: 18,
+            image: 'https://example.com/eth.png',
+          });
+        },
+      );
     });
 
     it('returns empty balances when Multicall aggregate3 fails after retries', async () => {

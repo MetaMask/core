@@ -14,6 +14,7 @@ import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalle
 import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache.js';
 import type {
   PerpsPlatformDependencies,
+  Order,
   OrderParams,
 } from '../../../src/types/index.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
@@ -2465,6 +2466,381 @@ describe('HyperLiquidProvider', () => {
       // No single price describes two triggers; the count is what a client shows.
       expect(position?.takeProfitCount).toBe(2);
       expect(position?.takeProfitPrice).toBeUndefined();
+    });
+  });
+
+  describe('replacePositionTPSLLeg', () => {
+    type Leg = 'tp' | 'sl';
+    const TP_OID = 701;
+    const SL_OID = 702;
+    const oidFor = (leg: Leg): number => (leg === 'tp' ? TP_OID : SL_OID);
+    const siblingOf = (leg: Leg): Leg => (leg === 'tp' ? 'sl' : 'tp');
+    const triggerFor = (leg: Leg): string => (leg === 'tp' ? '60000' : '45000');
+    const limitFor = (leg: Leg): string => (leg === 'tp' ? '59900' : '44900');
+
+    // Position-bound trigger as the exchange lists it (whole position, size 0)
+    const rawPositionTrigger = (leg: Leg) => ({
+      coin: 'BTC',
+      side: 'A',
+      limitPx: triggerFor(leg),
+      sz: '0.0',
+      origSz: '0.0',
+      oid: oidFor(leg),
+      timestamp: 1_700_000_000_000,
+      triggerCondition: `Price ${leg === 'tp' ? 'above' : 'below'} ${triggerFor(leg)}`,
+      isTrigger: true,
+      triggerPx: triggerFor(leg),
+      children: [],
+      isPositionTpsl: true,
+      reduceOnly: true,
+      orderType: leg === 'tp' ? 'Take Profit Market' : 'Stop Market',
+    });
+
+    const setOpenOrders = (orders: unknown[]): void => {
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockResolvedValue(orders);
+    };
+    beforeEach(() => {
+      // Answer every cancel in a batch, so multi-order cancels complete.
+      (mockClientService.getExchangeClient().cancel as Mock).mockImplementation(
+        (request: { cancels: unknown[] }) =>
+          Promise.resolve({
+            status: 'ok',
+            response: {
+              data: { statuses: request.cancels.map(() => 'success') },
+            },
+          }),
+      );
+    });
+
+    const cancelledOrderIds = (): number[] =>
+      vi
+        .mocked(mockClientService.getExchangeClient().cancel)
+        .mock.calls.flatMap(([request]) =>
+          request.cancels.map((cancel) => Number(cancel.o)),
+        );
+
+    const presences = [
+      'both legs',
+      'only this leg',
+      'only the sibling',
+    ] as const;
+    const cases = (['tp', 'sl'] as const).flatMap((leg) =>
+      presences.flatMap((presence) =>
+        (['market', 'limit'] as const).map(
+          (execution) => [leg, presence, execution] as const,
+        ),
+      ),
+    );
+
+    it.each(cases)(
+      'replaces the %s leg with %s present as a position-bound %s trigger',
+      async (leg, presence, execution) => {
+        const sibling = siblingOf(leg);
+        setOpenOrders([
+          ...(presence === 'only the sibling' ? [] : [rawPositionTrigger(leg)]),
+          ...(presence === 'only this leg'
+            ? []
+            : [rawPositionTrigger(sibling)]),
+        ]);
+
+        const result = await provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg,
+          triggerPrice: leg === 'tp' ? '61000' : '44000',
+          ...(execution === 'limit' && { limitPrice: limitFor(leg) }),
+        });
+
+        expect(result.success).toBe(true);
+        // Only this leg's own order is cancelled; the sibling is never touched.
+        expect(cancelledOrderIds()).toStrictEqual(
+          presence === 'only the sibling' ? [] : [oidFor(leg)],
+        );
+        expect(cancelledOrderIds()).not.toContain(oidFor(sibling));
+
+        const placements = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls;
+        expect(placements).toHaveLength(1);
+        const [request] = placements[0];
+        expect(request.grouping).toBe('positionTpsl');
+        expect(request.orders).toHaveLength(1);
+        const [placed] = request.orders;
+        const trigger = leg === 'tp' ? '61000' : '44000';
+        expect(placed).toMatchObject({
+          a: 0,
+          b: false,
+          s: '0',
+          r: true,
+          // A market leg is capped 10% below its trigger: the long closes by selling.
+          p:
+            execution === 'limit'
+              ? limitFor(leg)
+              : { tp: '54900', sl: '39600' }[leg],
+          t: {
+            trigger: {
+              isMarket: execution === 'market',
+              triggerPx: trigger,
+              tpsl: leg,
+            },
+          },
+        });
+      },
+    );
+
+    it.each([
+      ['long', '0.1', 'sl', '44000', undefined, '39600'],
+      ['long', '0.1', 'tp', '61000', 300, '59170'],
+      ['short', '-0.1', 'sl', '61000', 300, '62830'],
+      ['short', '-0.1', 'tp', '44000', undefined, '48400'],
+    ] as const)(
+      'caps a %s %s-size market %s leg at its trigger %s with slippage %s',
+      async (_side, szi, leg, triggerPrice, maxSlippageBps, cappedPrice) => {
+        const info = mockClientService.getInfoClient();
+        const { assetPositions } =
+          await createMockInfoClient().clearinghouseState();
+        (info.clearinghouseState as Mock).mockResolvedValue({
+          ...(await createMockInfoClient().clearinghouseState()),
+          assetPositions: assetPositions.map(
+            (entry: { position: { coin: string } }) =>
+              entry.position.coin === 'BTC'
+                ? { ...entry, position: { ...entry.position, szi } }
+                : entry,
+          ),
+        });
+        setOpenOrders([rawPositionTrigger(leg)]);
+
+        const result = await provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg,
+          triggerPrice,
+          ...(maxSlippageBps !== undefined && { maxSlippageBps }),
+        });
+
+        expect(result.success).toBe(true);
+        const [request] = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0];
+        expect(request.orders[0]).toMatchObject({
+          b: szi.startsWith('-'),
+          p: cappedPrice,
+          t: {
+            trigger: { isMarket: true, triggerPx: triggerPrice, tpsl: leg },
+          },
+        });
+      },
+    );
+
+    it('replaces only this side from the warm order cache', async () => {
+      const cachedTrigger = (leg: Leg): Order => ({
+        orderId: String(oidFor(leg)),
+        symbol: 'BTC',
+        side: 'sell',
+        orderType: 'market',
+        size: '0',
+        originalSize: '0',
+        price: triggerFor(leg),
+        filledSize: '0',
+        remainingSize: '0',
+        status: 'open',
+        timestamp: 1_700_000_000_000,
+        detailedOrderType: leg === 'tp' ? 'Take Profit Market' : 'Stop Market',
+        isTrigger: true,
+        reduceOnly: true,
+        isPositionTpsl: true,
+        triggerPrice: triggerFor(leg),
+        triggerOrderType: leg === 'tp' ? 'take_profit_market' : 'stop_market',
+      });
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([
+        cachedTrigger('tp'),
+        cachedTrigger('sl'),
+      ]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getInfoClient().frontendOpenOrders,
+      ).not.toHaveBeenCalled();
+      expect(cancelledOrderIds()).toStrictEqual([SL_OID]);
+    });
+
+    it('also cancels a standalone trigger on the same side, but no other order child', async () => {
+      const standaloneTakeProfit = {
+        ...rawPositionTrigger('tp'),
+        oid: 801,
+        sz: '0.04',
+        origSz: '0.04',
+        isPositionTpsl: false,
+      };
+      const pendingOrderChild = {
+        ...rawPositionTrigger('tp'),
+        oid: 902,
+        sz: '0.05',
+        origSz: '0.05',
+        isPositionTpsl: false,
+      };
+      setOpenOrders([
+        rawPositionTrigger('tp'),
+        rawPositionTrigger('sl'),
+        standaloneTakeProfit,
+        {
+          coin: 'BTC',
+          side: 'B',
+          limitPx: '40000',
+          sz: '0.05',
+          origSz: '0.05',
+          oid: 903,
+          timestamp: 1_700_000_000_000,
+          triggerCondition: 'N/A',
+          isTrigger: false,
+          triggerPx: '',
+          children: [pendingOrderChild],
+          isPositionTpsl: false,
+          reduceOnly: false,
+          orderType: 'Limit',
+        },
+        pendingOrderChild,
+      ]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID, 801]);
+    });
+
+    it('restores only its own leg when the new leg is rejected', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      const order = mockClientService.getExchangeClient().order as Mock;
+      order
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            type: 'order',
+            data: { statuses: [{ error: 'Rejected take profit' }] },
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: {
+            type: 'order',
+            data: { statuses: [{ resting: { oid: 703 } }] },
+          },
+        });
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID]);
+      expect(order).toHaveBeenCalledTimes(2);
+      const [restoreRequest] = order.mock.calls[1];
+      expect(restoreRequest).toMatchObject({
+        grouping: 'positionTpsl',
+        orders: [{ t: { trigger: { triggerPx: '60000', tpsl: 'tp' } } }],
+      });
+      expect(restoreRequest.orders).toHaveLength(1);
+    });
+
+    it.each([
+      ['an empty trigger price', { triggerPrice: '' }],
+      ['a zero trigger price', { triggerPrice: '0' }],
+    ])(
+      'refuses %s instead of clearing the leg',
+      async (_label, { triggerPrice }) => {
+        setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+        const result = await provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg: 'tp',
+          triggerPrice,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+        });
+        expect(
+          mockClientService.getExchangeClient().cancel,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('refuses a non-positive limit price before touching the venue', async () => {
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+        limitPrice: '-1',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      });
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('refuses a limit price below the price tick before the cancel', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+        limitPrice: '0.0000001',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown leg', async () => {
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        // @ts-expect-error: runtime callers can send a leg outside the type
+        leg: 'both',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(
+        mockClientService.getExchangeClient().cancel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('keeps updatePositionTPSL sweeping both legs', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID, SL_OID]);
+      const [request] = (mockClientService.getExchangeClient().order as Mock)
+        .mock.calls[0];
+      expect(request.orders).toHaveLength(1);
+      expect(request.orders[0].t.trigger.isMarket).toBe(false);
     });
   });
 

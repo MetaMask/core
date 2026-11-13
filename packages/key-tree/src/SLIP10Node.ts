@@ -9,7 +9,6 @@ import type {
   RootedSLIP10PathTuple,
   SLIP10PathTuple,
 } from './constants.js';
-import type { CryptographicFunctions } from './cryptography.js';
 import type { SupportedCurve } from './curves/index.js';
 import { getCurveByName } from './curves/index.js';
 import { deriveKeyFromPath } from './derivation.js';
@@ -82,18 +81,18 @@ export type JsonSLIP10Node = {
 };
 
 export type SLIP10NodeInterface = JsonSLIP10Node & {
-  chainCodeBytes: Uint8Array;
+  chainCodeBytes: Uint8Array<ArrayBuffer>;
 
   /**
    * The private key for this node, as a {@link Uint8Array}.
    * May be undefined if this node is a public key only node.
    */
-  privateKeyBytes?: Uint8Array | undefined;
+  privateKeyBytes?: Uint8Array<ArrayBuffer> | undefined;
 
   /**
    * The public key for this node, as a {@link Uint8Array}.
    */
-  publicKeyBytes: Uint8Array;
+  publicKeyBytes: Uint8Array<ArrayBuffer>;
 
   /**
    * @returns A JSON-compatible representation of this node's data fields.
@@ -107,20 +106,20 @@ type BaseSLIP10NodeConstructorOptions = {
   readonly parentFingerprint: number;
   readonly index: number;
   readonly network?: Network | undefined;
-  readonly chainCode: Uint8Array;
+  readonly chainCode: Uint8Array<ArrayBuffer>;
   readonly curve: SupportedCurve;
 };
 
 type SLIP10NodePrivateKeyConstructorOptions =
   BaseSLIP10NodeConstructorOptions & {
-    readonly privateKey: Uint8Array;
-    readonly publicKey?: Uint8Array | undefined;
+    readonly privateKey: Uint8Array<ArrayBuffer>;
+    readonly publicKey: Uint8Array<ArrayBuffer>;
   };
 
 type SLIP10NodePublicKeyConstructorOptions =
   BaseSLIP10NodeConstructorOptions & {
-    readonly privateKey?: Uint8Array | undefined;
-    readonly publicKey: Uint8Array;
+    readonly privateKey?: Uint8Array<ArrayBuffer> | undefined;
+    readonly publicKey: Uint8Array<ArrayBuffer>;
   };
 
 export type SLIP10NodeConstructorOptions =
@@ -157,15 +156,10 @@ export class SLIP10Node implements SLIP10NodeInterface {
    * for documentation.
    *
    * @param json - The JSON representation of a SLIP-10 node.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A SLIP10 node.
    */
-  static async fromJSON(
-    json: JsonSLIP10Node,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<SLIP10Node> {
-    return SLIP10Node.fromExtendedKey(json, cryptographicFunctions);
+  static async fromJSON(json: JsonSLIP10Node): Promise<SLIP10Node> {
+    return SLIP10Node.fromExtendedKey(json);
   }
 
   /**
@@ -177,14 +171,9 @@ export class SLIP10Node implements SLIP10NodeInterface {
    * validation fails.
    *
    * @param extendedKey - The BIP-32 extended key string.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A SLIP10 node.
    */
-  static async fromExtendedKey(
-    extendedKey: string,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<SLIP10Node>;
+  static async fromExtendedKey(extendedKey: string): Promise<SLIP10Node>;
 
   /**
    * Create a new SLIP-10 node from a key and chain code. You must specify
@@ -207,8 +196,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
    * specified, this parameter is ignored.
    * @param options.chainCode - The chain code for the node.
    * @param options.curve - The curve used by the node.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A SLIP10 node.
    */
   static async fromExtendedKey(
@@ -216,7 +203,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
     // document them separately.
     // eslint-disable-next-line @typescript-eslint/unified-signatures
     options: SLIP10ExtendedKeyOptions,
-    cryptographicFunctions?: CryptographicFunctions,
   ): Promise<SLIP10Node>;
 
   /**
@@ -242,13 +228,10 @@ export class SLIP10Node implements SLIP10NodeInterface {
    * specified, this parameter is ignored.
    * @param options.chainCode - The chain code for the node.
    * @param options.curve - The curve used by the node.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A SLIP10 node.
    */
   static async fromExtendedKey(
     options: SLIP10ExtendedKeyOptions | string,
-    cryptographicFunctions?: CryptographicFunctions,
   ): Promise<SLIP10Node> {
     if (typeof options === 'string') {
       const extendedKey = decodeExtendedKey(options);
@@ -258,34 +241,28 @@ export class SLIP10Node implements SLIP10NodeInterface {
       if (extendedKey.type === 'private') {
         const { privateKey } = extendedKey;
 
-        return SLIP10Node.fromExtendedKey(
-          {
-            depth,
-            parentFingerprint,
-            index,
-            privateKey,
-            chainCode,
-            // BIP-32 key serialisation assumes `secp256k1`.
-            curve: 'secp256k1',
-          },
-          cryptographicFunctions,
-        );
+        return SLIP10Node.fromExtendedKey({
+          depth,
+          parentFingerprint,
+          index,
+          privateKey,
+          chainCode,
+          // BIP-32 key serialisation assumes `secp256k1`.
+          curve: 'secp256k1',
+        });
       }
 
       const { publicKey } = extendedKey;
 
-      return SLIP10Node.fromExtendedKey(
-        {
-          depth,
-          parentFingerprint,
-          index,
-          publicKey,
-          chainCode,
-          // BIP-32 key serialisation assumes `secp256k1`.
-          curve: 'secp256k1',
-        },
-        cryptographicFunctions,
-      );
+      return SLIP10Node.fromExtendedKey({
+        depth,
+        parentFingerprint,
+        index,
+        publicKey,
+        chainCode,
+        // BIP-32 key serialisation assumes `secp256k1`.
+        curve: 'secp256k1',
+      });
     }
 
     const {
@@ -329,12 +306,12 @@ export class SLIP10Node implements SLIP10NodeInterface {
       );
 
       const trustedPublicKey =
-        guard === PUBLIC_KEY_GUARD && publicKey
+        guard === PUBLIC_KEY_GUARD
           ? // `publicKey` is typed as `string | Uint8Array`, but we know it's
             // a `Uint8Array` because of the guard. We use `getBytes` to ensure
             // the type is correct.
             getBytes(publicKey, curveObject.publicKeyLength)
-          : undefined;
+          : await curveObject.getPublicKey(privateKeyBytes);
 
       return new SLIP10Node(
         {
@@ -348,7 +325,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
           publicKey: trustedPublicKey,
           curve,
         },
-        cryptographicFunctions,
         this.#constructorGuard,
       );
     }
@@ -367,7 +343,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
           publicKey: publicKeyBytes,
           curve,
         },
-        cryptographicFunctions,
         this.#constructorGuard,
       );
     }
@@ -400,14 +375,13 @@ export class SLIP10Node implements SLIP10NodeInterface {
    * @param options.curve - The curve used by the node.
    * @param options.network - The network for the node. This is only used for
    * extended keys, and defaults to `mainnet`.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A new SLIP-10 node.
    */
-  static async fromDerivationPath(
-    { derivationPath, network, curve }: SLIP10DerivationPathOptions,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<SLIP10Node> {
+  static async fromDerivationPath({
+    derivationPath,
+    network,
+    curve,
+  }: SLIP10DerivationPathOptions): Promise<SLIP10Node> {
     validateCurve(curve);
 
     if (!derivationPath) {
@@ -422,23 +396,17 @@ export class SLIP10Node implements SLIP10NodeInterface {
 
     // `deriveKeyFromPath` expects a seed derivation path, so we need to
     // convert the rooted path to a seed path.
-    const seedDerivationPath = await getDerivationPathWithSeed(
-      {
-        path: derivationPath,
-        curve,
-      },
-      cryptographicFunctions,
-    );
+    const seedDerivationPath = await getDerivationPathWithSeed({
+      path: derivationPath,
+      curve,
+    });
 
-    return await deriveKeyFromPath(
-      {
-        path: seedDerivationPath,
-        depth: derivationPath.length - 1,
-        network,
-        curve,
-      },
-      cryptographicFunctions,
-    );
+    return await deriveKeyFromPath({
+      path: seedDerivationPath,
+      depth: derivationPath.length - 1,
+      network,
+      curve,
+    });
   }
 
   /**
@@ -455,14 +423,13 @@ export class SLIP10Node implements SLIP10NodeInterface {
    * @param options.curve - The curve used by the node.
    * @param options.network - The network for the node. This is only used for
    * extended keys, and defaults to `mainnet`.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A new SLIP-10 node.
    */
-  static async fromSeed(
-    { derivationPath, network, curve }: SLIP10DerivationPathOptions,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<SLIP10Node> {
+  static async fromSeed({
+    derivationPath,
+    network,
+    curve,
+  }: SLIP10DerivationPathOptions): Promise<SLIP10Node> {
     validateCurve(curve);
 
     if (curve === 'ed25519Bip32') {
@@ -481,15 +448,12 @@ export class SLIP10Node implements SLIP10NodeInterface {
       );
     }
 
-    return await deriveKeyFromPath(
-      {
-        path: derivationPath,
-        depth: derivationPath.length - 1,
-        network,
-        curve,
-      },
-      cryptographicFunctions,
-    );
+    return await deriveKeyFromPath({
+      path: derivationPath,
+      depth: derivationPath.length - 1,
+      network,
+      curve,
+    });
   }
 
   static readonly #constructorGuard = Symbol('SLIP10Node.constructor');
@@ -506,13 +470,11 @@ export class SLIP10Node implements SLIP10NodeInterface {
 
   public readonly network: Network;
 
-  public readonly chainCodeBytes: Uint8Array;
+  public readonly chainCodeBytes: Uint8Array<ArrayBuffer>;
 
-  public readonly privateKeyBytes?: Uint8Array | undefined;
+  public readonly privateKeyBytes?: Uint8Array<ArrayBuffer> | undefined;
 
-  #publicKeyBytes: Uint8Array | undefined;
-
-  readonly #cryptographicFunctions: CryptographicFunctions;
+  readonly #publicKeyBytes: Uint8Array<ArrayBuffer>;
 
   // eslint-disable-next-line no-restricted-syntax
   private constructor(
@@ -527,7 +489,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
       publicKey,
       curve,
     }: SLIP10NodeConstructorOptions,
-    cryptographicFunctions: CryptographicFunctions = {},
     constructorGuard?: symbol,
   ) {
     assert(
@@ -549,7 +510,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
     this.privateKeyBytes = privateKey;
     this.curve = curve;
     this.#publicKeyBytes = publicKey;
-    this.#cryptographicFunctions = cryptographicFunctions;
 
     Object.freeze(this);
   }
@@ -570,32 +530,11 @@ export class SLIP10Node implements SLIP10NodeInterface {
     return bytesToHex(this.publicKeyBytes);
   }
 
-  /**
-   * Get the public key bytes. This will lazily derive the public key from the
-   * private key if it is not already set.
-   *
-   * @returns The public key bytes.
-   */
-  public get publicKeyBytes(): Uint8Array {
-    if (this.#publicKeyBytes !== undefined) {
-      return this.#publicKeyBytes;
-    }
-
-    // This assertion is mainly for type safety, as `SLIP10Node` requires either
-    // a private key or a public key to always be set.
-    assert(
-      this.privateKeyBytes,
-      'Either a private key or public key is required.',
-    );
-
-    this.#publicKeyBytes = getCurveByName(this.curve).getPublicKey(
-      this.privateKeyBytes,
-    );
-
+  public get publicKeyBytes(): Uint8Array<ArrayBuffer> {
     return this.#publicKeyBytes;
   }
 
-  public get compressedPublicKeyBytes(): Uint8Array {
+  public get compressedPublicKeyBytes(): Uint8Array<ArrayBuffer> {
     return getCurveByName(this.curve).compressPublicKey(this.publicKeyBytes);
   }
 
@@ -675,7 +614,6 @@ export class SLIP10Node implements SLIP10NodeInterface {
         curve: this.curve,
         network: this.network,
       },
-      this.#cryptographicFunctions,
       SLIP10Node.#constructorGuard,
     );
   }
@@ -691,13 +629,10 @@ export class SLIP10Node implements SLIP10NodeInterface {
    * @returns The {@link SLIP10Node} corresponding to the derived child key.
    */
   public async derive(path: SLIP10PathTuple): Promise<SLIP10Node> {
-    return await deriveChildNode(
-      {
-        path,
-        node: this,
-      },
-      this.#cryptographicFunctions,
-    );
+    return await deriveChildNode({
+      path,
+      node: this,
+    });
   }
 
   // This is documented in the interface of this class.
@@ -827,14 +762,12 @@ type DeriveChildNodeArgs = {
  * @param options - The options to use when deriving the child key.
  * @param options.node - The node to derive from.
  * @param options.path - The path to the child node / key.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived key and depth.
  */
-export async function deriveChildNode(
-  { path, node }: DeriveChildNodeArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<SLIP10Node> {
+export async function deriveChildNode({
+  path,
+  node,
+}: DeriveChildNodeArgs): Promise<SLIP10Node> {
   if (path.length === 0) {
     throw new Error(
       'Invalid HD tree derivation path: Deriving a path of length 0 is not defined.',
@@ -846,12 +779,9 @@ export async function deriveChildNode(
   const newDepth = node.depth + path.length;
   validateBIP32Depth(newDepth);
 
-  return await deriveKeyFromPath(
-    {
-      path,
-      node,
-      depth: newDepth,
-    },
-    cryptographicFunctions,
-  );
+  return await deriveKeyFromPath({
+    path,
+    node,
+    depth: newDepth,
+  });
 }

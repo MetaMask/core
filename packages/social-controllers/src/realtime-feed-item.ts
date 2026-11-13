@@ -14,10 +14,12 @@ import {
   unknown as unknownStruct,
 } from '@metamask/superstruct';
 
+import { ProfileIdentityStruct } from './social-types.js';
 import type {
   AuthorComment,
   FeedItem,
   FeedActorSummary,
+  ProfileIdentity,
   Trade,
 } from './social-types.js';
 import {
@@ -70,6 +72,7 @@ const RawHydratedPositionStruct = structType({
     profile: structType({
       id: string(),
       metadata: record(string(), unknownStruct()),
+      ...ProfileIdentityStruct.schema,
     }),
     followerCount: optional(nullable(number())),
   }),
@@ -106,7 +109,29 @@ const RawHydratedPositionStruct = structType({
   entryPriceUsd: optional(nullable(number())),
   authorComment: optional(nullable(AuthorCommentStruct)),
   flags: optional(nullable(array(string()))),
+  currentValueUSD: optional(nullable(number())),
+  positionValueUSD: optional(nullable(number())),
+  pnlValueUsd: optional(nullable(number())),
+  pnlPercent: optional(nullable(number())),
 });
+
+const PRICED_KEYS = [
+  'currentValueUSD',
+  'positionValueUSD',
+  'pnlValueUsd',
+  'pnlPercent',
+] as const;
+
+type PricedFields = Pick<FeedItem, (typeof PRICED_KEYS)[number]>;
+
+// The server prices the card when it publishes it. A field it did not send
+// stays absent, so the client keeps using its own live price for it.
+const toPricedFields = (value: PricedFields): PricedFields =>
+  Object.fromEntries(
+    PRICED_KEYS.flatMap((key) =>
+      value[key] === undefined ? [] : [[key, value[key]]],
+    ),
+  );
 
 export type RealtimeFeedEventData = FeedItem;
 
@@ -121,17 +146,31 @@ const addNullableNumbers = (
   right: number | null,
 ): number | null => (left === null || right === null ? null : left + right);
 
+const PROFILE_IDENTITY_KEYS = Object.keys(
+  ProfileIdentityStruct.schema,
+) as (keyof ProfileIdentity)[];
+
+// Copies only the identity fields the socket payload sent, as the REST
+// payload omits the ones a profile has no value for.
+const toIdentity = (profile: ProfileIdentity): ProfileIdentity =>
+  Object.fromEntries(
+    PROFILE_IDENTITY_KEYS.flatMap((key) =>
+      profile[key] === undefined ? [] : [[key, profile[key]]],
+    ),
+  );
+
 const toActor = (actor: {
   address: string;
   name: string;
   images: { raw: string | null; sm: string | null };
-  profile: { id: string; metadata: Record<string, unknown> };
+  profile: ProfileIdentity & { id: string; metadata: Record<string, unknown> };
   followerCount?: number | null;
 }): FeedActorSummary => ({
   profileId: actor.profile.id,
   address: actor.address,
   name: actor.name,
   imageUrl: actor.images.sm ?? actor.images.raw,
+  ...toIdentity(actor.profile),
   winRate30d: readNullableNumber(actor.profile.metadata.winRate30d),
   pnl30d: readNullableNumber(actor.profile.metadata.pnl30d),
   volumeUsd30d: readNullableNumber(actor.profile.metadata.volumeUsd30d),
@@ -245,6 +284,7 @@ export const normalizeRealtimeFeedItem = (
     // `flags` lives on the hydrated card, beside `metadata`. The server does
     // not set `metadata.flags`.
     ...(value.flags === undefined ? {} : { flags: value.flags }),
+    ...toPricedFields(value),
   };
 };
 

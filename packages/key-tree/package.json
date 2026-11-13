@@ -1,6 +1,6 @@
 {
   "name": "@metamask/key-tree",
-  "version": "10.1.1",
+  "version": "11.0.0",
   "description": "An interface over BIP-32 and BIP-39 key derivation paths",
   "keywords": [
     "Ethereum",
@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "@metamask/byte-utils": "^0.1.0",
+    "@metamask/cryptography": "^1.1.2",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/type-utils": "^0.1.0",
     "@noble/curves": "^1.9.7",

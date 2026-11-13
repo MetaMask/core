@@ -3,7 +3,6 @@ import { concatBytes } from '@metamask/byte-utils';
 import { assert } from '@metamask/type-utils';
 
 import { BIP_32_HARDENED_OFFSET } from '../constants.js';
-import type { CryptographicFunctions } from '../cryptography.js';
 import type { Curve } from '../curves/index.js';
 import { mod } from '../curves/index.js';
 import { SLIP10Node } from '../SLIP10Node.js';
@@ -37,8 +36,9 @@ import { generateEntropy, getValidatedPath, validateNode } from './shared.js';
  * @param bytes - The input Uint8Array.
  * @returns A new Uint8Array with the bytes in reversed order.
  */
-export const toReversed = (bytes: Uint8Array): Uint8Array =>
-  bytes.slice().reverse();
+export const toReversed = (
+  bytes: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => bytes.slice().reverse();
 
 /**
  * Converts an array of bytes to a BigInt.
@@ -46,7 +46,7 @@ export const toReversed = (bytes: Uint8Array): Uint8Array =>
  * @param bytes - The array of bytes to convert.
  * @returns The BigInt representation of the bytes.
  */
-export const bytesToBigInt = (bytes: Uint8Array): bigint => {
+export const bytesToBigInt = (bytes: Uint8Array<ArrayBuffer>): bigint => {
   const reversed = toReversed(bytes);
   const bytesInHex = bytesToHex(reversed);
   return BigInt(bytesInHex);
@@ -58,7 +58,7 @@ export const bytesToBigInt = (bytes: Uint8Array): bigint => {
  * @param bigInt - The BigInt to convert.
  * @returns The byte array representation of the BigInt.
  */
-export const bigIntToBytes = (bigInt: bigint): Uint8Array => {
+export const bigIntToBytes = (bigInt: bigint): Uint8Array<ArrayBuffer> => {
   const hexadecimal = bigInt.toString(16);
   return toReversed(hexToBytes(hexadecimal));
 };
@@ -69,7 +69,9 @@ export const bigIntToBytes = (bigInt: bigint): Uint8Array => {
  * @param bytes - The bytes array to pad.
  * @returns The padded bytes array.
  */
-export const padEnd32Bytes = (bytes: Uint8Array): Uint8Array => {
+export const padEnd32Bytes = (
+  bytes: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
   return concatBytes([
     bytes,
     new Uint8Array(Math.max(32 - bytes.length, 0)).fill(0),
@@ -82,7 +84,9 @@ export const padEnd32Bytes = (bytes: Uint8Array): Uint8Array => {
  * @param bytes - Little-Endian big number in bytes.
  * @returns PadEnd32Bytes(left[0, 28] * 8)).
  */
-export const trunc28Mul8 = (bytes: Uint8Array): Uint8Array => {
+export const trunc28Mul8 = (
+  bytes: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
   const truncLeftMul8 = bytesToBigInt(bytes.slice(0, 28)) * BigInt(8);
   return padEnd32Bytes(bigIntToBytes(truncLeftMul8));
 };
@@ -93,7 +97,9 @@ export const trunc28Mul8 = (bytes: Uint8Array): Uint8Array => {
  * @param bytes - Little-Endian big number in bytes.
  * @returns PadEnd32Bytes(mod(bytes, 2^256))).
  */
-export const mod2Pow256 = (bytes: Uint8Array): Uint8Array => {
+export const mod2Pow256 = (
+  bytes: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
   return padEnd32Bytes(
     bigIntToBytes(mod(bytesToBigInt(bytes), BigInt(2) ** BigInt(256))),
   );
@@ -106,7 +112,10 @@ export const mod2Pow256 = (bytes: Uint8Array): Uint8Array => {
  * @param right - Right hand side Little-Endian big number.
  * @returns PadEnd32Bytes(left + right).
  */
-export const add = (left: Uint8Array, right: Uint8Array): Uint8Array => {
+export const add = (
+  left: Uint8Array<ArrayBuffer>,
+  right: Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> => {
   const added = bytesToBigInt(left) + bytesToBigInt(right);
   return padEnd32Bytes(bigIntToBytes(added)).slice(0, 32);
 };
@@ -121,9 +130,9 @@ export const add = (left: Uint8Array, right: Uint8Array): Uint8Array => {
  */
 export const getKeyExtension = (
   tag: number,
-  key: Uint8Array,
+  key: Uint8Array<ArrayBuffer>,
   childIndex: number,
-): Uint8Array => {
+): Uint8Array<ArrayBuffer> => {
   return concatBytes([
     new Uint8Array([tag]),
     key,
@@ -137,9 +146,9 @@ type DeriveKeyBaseArgs = { childIndex: number };
 
 type DeriveWithPrivateArgs = DeriveKeyBaseArgs & {
   parentNode: {
-    privateKeyBytes: Uint8Array;
-    chainCodeBytes: Uint8Array;
-    publicKeyBytes: Uint8Array;
+    privateKeyBytes: Uint8Array<ArrayBuffer>;
+    chainCodeBytes: Uint8Array<ArrayBuffer>;
+    publicKeyBytes: Uint8Array<ArrayBuffer>;
   };
   isHardened: boolean;
 };
@@ -160,14 +169,13 @@ const Z_TAGS = {
  * code, and public key.
  * @param options.childIndex - The index of the child key.
  * @param options.isHardened - Indicates if the child key is hardened.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived child key.
  */
-export const derivePrivateKey = async (
-  { parentNode, childIndex, isHardened }: DeriveWithPrivateArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<Uint8Array> => {
+export const derivePrivateKey = async ({
+  parentNode,
+  childIndex,
+  isHardened,
+}: DeriveWithPrivateArgs): Promise<Uint8Array<ArrayBuffer>> => {
   // extension = i >= 2^31 ? (0x00||kp||i) : (0x02||Ap||i)
   const extension = isHardened
     ? getKeyExtension(
@@ -178,13 +186,10 @@ export const derivePrivateKey = async (
     : getKeyExtension(Z_TAGS.normal, parentNode.publicKeyBytes, childIndex);
 
   // entropy = Fcp(extension)
-  const entropy = await generateEntropy(
-    {
-      chainCode: parentNode.chainCodeBytes,
-      extension,
-    },
-    cryptographicFunctions,
-  );
+  const entropy = await generateEntropy({
+    chainCode: parentNode.chainCodeBytes,
+    extension,
+  });
 
   const zl = entropy.subarray(0, 32);
   const zr = entropy.subarray(32);
@@ -201,8 +206,8 @@ export const derivePrivateKey = async (
 
 type DeriveWithoutPrivateArgs = DeriveKeyBaseArgs & {
   parentNode: {
-    chainCodeBytes: Uint8Array;
-    publicKeyBytes: Uint8Array;
+    chainCodeBytes: Uint8Array<ArrayBuffer>;
+    publicKeyBytes: Uint8Array<ArrayBuffer>;
   };
   isHardened: false;
 };
@@ -223,18 +228,15 @@ const CHAIN_CODE_TAGS = {
  * key, chain code, and public key.
  * @param options.childIndex - The index of the child key.
  * @param options.isHardened - Indicates if the child key is hardened.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived child chainCode.
  */
-export const deriveChainCode = async (
-  {
-    parentNode,
-    childIndex,
-    isHardened,
-  }: DeriveWithPrivateArgs | DeriveWithoutPrivateArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<Uint8Array> => {
+export const deriveChainCode = async ({
+  parentNode,
+  childIndex,
+  isHardened,
+}: DeriveWithPrivateArgs | DeriveWithoutPrivateArgs): Promise<
+  Uint8Array<ArrayBuffer>
+> => {
   // extension = i >= 2^31 ? (0x01||kp||i) : (0x03||Ap||i)
   const extension = isHardened
     ? getKeyExtension(
@@ -249,13 +251,10 @@ export const deriveChainCode = async (
       );
 
   // entropy = Fcp(extension)
-  const entropy = await generateEntropy(
-    {
-      chainCode: parentNode.chainCodeBytes,
-      extension,
-    },
-    cryptographicFunctions,
-  );
+  const entropy = await generateEntropy({
+    chainCode: parentNode.chainCodeBytes,
+    extension,
+  });
 
   return entropy.subarray(32);
 };
@@ -282,10 +281,11 @@ type DerivePublicKeyArgs = DeriveWithoutPrivateArgs & {
  * provided, these will be used instead of the built-in implementations.
  * @returns The derived child public key.
  */
-export const derivePublicKey = async (
-  { parentNode, childIndex, curve }: DerivePublicKeyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<Uint8Array> => {
+export const derivePublicKey = async ({
+  parentNode,
+  childIndex,
+  curve,
+}: DerivePublicKeyArgs): Promise<Uint8Array<ArrayBuffer>> => {
   // extension = (0x02||Ap||i)
   const extension = getKeyExtension(
     PUBLIC_KEY_TAGS.normal,
@@ -294,18 +294,15 @@ export const derivePublicKey = async (
   );
 
   // entropy = Fcp(extension)
-  const entropy = await generateEntropy(
-    {
-      chainCode: parentNode.chainCodeBytes,
-      extension,
-    },
-    cryptographicFunctions,
-  );
+  const entropy = await generateEntropy({
+    chainCode: parentNode.chainCodeBytes,
+    extension,
+  });
 
   const zl = entropy.slice(0, 32);
 
   // right = [8ZL] * B
-  const right = curve.getPublicKey(
+  const right = await curve.getPublicKey(
     // [8ZL]
     trunc28Mul8(zl),
   );
@@ -322,13 +319,10 @@ type Cip3DeriveChildKeyArgs = DeriveChildKeyArgs & {
  * Derive a SLIP-10 child key with a given path from a parent key.
  *
  * @param options - The options for deriving a child key.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns SLIP10Node.
  */
 export async function deriveChildKey(
   options: Cip3DeriveChildKeyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
   const { curve, node, path } = options;
   validateNode(node);
@@ -359,36 +353,28 @@ export async function deriveChildKey(
       publicKeyBytes,
     };
 
-    const privateKey = await derivePrivateKey(
-      {
+    const [privateKey, chainCode] = await Promise.all([
+      derivePrivateKey({
         parentNode,
         childIndex,
         isHardened,
-      },
-      cryptographicFunctions,
-    );
-
-    const chainCode = await deriveChainCode(
-      {
+      }),
+      deriveChainCode({
         parentNode,
         childIndex,
         isHardened,
-      },
-      cryptographicFunctions,
-    );
+      }),
+    ]);
 
-    return SLIP10Node.fromExtendedKey(
-      {
-        privateKey: bytesToHex(privateKey),
-        chainCode: bytesToHex(chainCode),
-        masterFingerprint,
-        depth: depth + 1,
-        parentFingerprint,
-        index: actualChildIndex,
-        curve: curve.name,
-      },
-      cryptographicFunctions,
-    );
+    return SLIP10Node.fromExtendedKey({
+      privateKey: bytesToHex(privateKey),
+      chainCode: bytesToHex(chainCode),
+      masterFingerprint,
+      depth: depth + 1,
+      parentFingerprint,
+      index: actualChildIndex,
+      curve: curve.name,
+    });
   }
 
   assert(
@@ -401,35 +387,27 @@ export async function deriveChildKey(
     publicKeyBytes,
   };
 
-  const publicKey = await derivePublicKey(
-    {
+  const [publicKey, chainCode] = await Promise.all([
+    derivePublicKey({
       parentNode,
       childIndex,
       isHardened: false,
       curve,
-    },
-    cryptographicFunctions,
-  );
-
-  const chainCode = await deriveChainCode(
-    {
+    }),
+    deriveChainCode({
       parentNode,
       childIndex,
       isHardened: false,
-    },
-    cryptographicFunctions,
-  );
+    }),
+  ]);
 
-  return SLIP10Node.fromExtendedKey(
-    {
-      publicKey: bytesToHex(publicKey),
-      chainCode: bytesToHex(chainCode),
-      masterFingerprint,
-      depth: depth + 1,
-      parentFingerprint,
-      index: actualChildIndex,
-      curve: curve.name,
-    },
-    cryptographicFunctions,
-  );
+  return SLIP10Node.fromExtendedKey({
+    publicKey: bytesToHex(publicKey),
+    chainCode: bytesToHex(chainCode),
+    masterFingerprint,
+    depth: depth + 1,
+    parentFingerprint,
+    index: actualChildIndex,
+    curve: curve.name,
+  });
 }

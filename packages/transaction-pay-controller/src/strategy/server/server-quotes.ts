@@ -18,13 +18,19 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
-import { getSlippage, isEIP7702Chain } from '../../utils/feature-flags.js';
+import {
+  getSlippage,
+  isEIP7702Chain,
+  isServerGaslessEnabled,
+} from '../../utils/feature-flags.js';
 import {
   GasPaymentMode,
   resolveGasPayment,
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
+import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
+import type { MaxQuoteDetails } from '../../utils/max-quote.js';
 import {
   getPolymarketDepositWalletOverrides,
   getPredictWithdrawFeeTokenAccount,
@@ -130,6 +136,22 @@ async function getQuotesForRequest(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   try {
+    if (quoteRequest.isMaxAmount) {
+      return await getMaxQuotes({
+        fullRequest,
+        getQuoteDetails: getServerMaxQuoteDetails,
+        getQuotes: (request, transaction) =>
+          fetchQuotes(request, { ...fullRequest, transaction }),
+        request: quoteRequest,
+        requote: (quote, request, transaction) =>
+          requoteProvider(
+            request,
+            { ...fullRequest, transaction },
+            quote.original,
+          ),
+      });
+    }
+
     const quotes = await fetchQuotes(quoteRequest, fullRequest);
 
     if (!quoteRequest.isPostQuote) {
@@ -280,6 +302,7 @@ async function buildServerQuoteRequest(
   // Deposit wallet withdraws are broadcast by the Polymarket relayer rather
   // than as a gasless EIP-7702 batch, so the provider must not quote gasless.
   const supportsGasless =
+    isServerGaslessEnabled(messenger) &&
     !isHypercoreSource &&
     !isPolymarketDepositWallet &&
     accountSupports7702 &&
@@ -310,7 +333,14 @@ async function buildServerQuoteRequest(
     // they must not be embedded in the quote.
     atomic === false ||
     (isPostQuote ?? false) ||
-    (isMaxAmount ?? false) ||
+    // Max requests only embed calls when quoted atomically, as the calls must
+    // be re-encoded for the amount the max quote delivers.
+    (isMaxAmount === true &&
+      !isAtomicMaxSupported({
+        messenger,
+        request: normalizedRequest,
+        transaction,
+      })) ||
     // The deposit wallet funds the quote with a plain token transfer, so there
     // are no calls to embed.
     (isPolymarketDepositWallet ?? false);
@@ -346,7 +376,10 @@ async function buildServerQuoteRequest(
     // Prefer atomic execution, but let providers that cannot run the calls
     // still quote for the funds. The response determines whether execution is
     // deferred. Post-quote flows submit their own calls and must not opt in.
+    // Atomic max quotes are only valid when the calls are executed by the
+    // provider, so they must not opt in either.
     if (
+      !isMaxAmount &&
       canDeferCalls({
         accountSupports7702,
         messenger,
@@ -808,6 +841,30 @@ async function calculateSourceNetworkCost({
     isSourceGasFeeToken: true,
     max: gasStationCost.amount,
     ...fees,
+  };
+}
+
+function getServerMaxQuoteDetails({
+  original,
+}: TransactionPayQuote<ServerQuote>): MaxQuoteDetails {
+  const transactionSteps = original.steps.filter(isTransactionStep);
+  const [firstStep] = transactionSteps;
+
+  return {
+    gasLimits: original.client.gasLimits,
+    gasStationTransactions: firstStep
+      ? {
+          firstStepData: {
+            data: firstStep.data,
+            to: firstStep.to,
+            value: firstStep.value,
+          },
+          totalItemCount: transactionSteps.length,
+        }
+      : undefined,
+    isGasless: original.gasless || !firstStep,
+    isSubsidized: original.fees.subsidized,
+    targetAmountRaw: original.output.raw,
   };
 }
 

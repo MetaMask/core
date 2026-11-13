@@ -578,6 +578,69 @@ describe('LighterClientService', () => {
     });
   });
 
+  describe('getRecentTrades', () => {
+    const PUBLIC_TRADE_WIRE = {
+      trade_id: 2154393,
+      trade_id_str: '2154393',
+      tx_hash: 'a713',
+      type: 'trade',
+      market_id: 1,
+      size: '0.00020',
+      price: '73504.0',
+      is_maker_ask: false,
+      timestamp: 1700000000000,
+      // Account-specific fields the public feed does not read, in a shape
+      // the account trade decoder would reject.
+      taker_fee: 'not-a-number',
+    };
+
+    it('reads the market without auth and keeps only the fields it reads', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({ code: 200, trades: [PUBLIC_TRADE_WIRE] }),
+      );
+
+      const response = await buildService(false).getRecentTrades(1, 20);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://mainnet.zklighter.elliot.ai/api/v1/recentTrades?market_id=1&limit=20',
+        expect.objectContaining({ method: 'GET', headers: undefined }),
+      );
+      expect(response.trades[0]).toMatchObject({
+        tradeId: 2154393,
+        tradeIdStr: '2154393',
+        txHash: 'a713',
+        marketId: 1,
+        size: '0.00020',
+        price: '73504.0',
+        isMakerAsk: false,
+        timestamp: 1700000000000,
+      });
+    });
+
+    it('rejects a malformed public trade', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          trades: [{ ...PUBLIC_TRADE_WIRE, price: '-1' }],
+        }),
+      );
+
+      await expect(buildService().getRecentTrades(1, 20)).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
+    it.each([0, 101, 1.5])(
+      'rejects limit %s outside the venue range without a request',
+      async (limit) => {
+        await expect(buildService().getRecentTrades(1, limit)).rejects.toThrow(
+          'Invalid Lighter recent trades limit',
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   describe('getTrades', () => {
     it.each([
       { taker_position_sign_changed: undefined },
