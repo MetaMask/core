@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `PerpsController.getProviderHealth(providerId)` and `PerpsController.subscribeToProviderHealth({ providerId, callback })` (messenger actions `PerpsController:getProviderHealth` and `PerpsController:subscribeToProviderHealth`) to report each provider's health separately, including in aggregated mode ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - New types `PerpsProviderHealth`, `PerpsProviderHealthReason` and `SubscribeProviderHealthParams`, and messenger action types `PerpsControllerGetProviderHealthAction` and `PerpsControllerSubscribeToProviderHealthAction`
-  - Status is `healthy`, `degraded` (with `reasons`: `socket_down`, `server_errors`, `rate_limited`) or `unavailable` when the provider is not registered or has disconnected
+  - Status is `healthy`, `degraded` (with `reasons`: `socket_down`, `server_errors`, `rate_limited`) or `unavailable` when the provider is not registered, or is disconnected with no reconnect pending
   - Lighter reports `degraded` while its socket stays down for more than 10 seconds with live streams, after 3 consecutive 5xx responses, or during a 429/405 cooldown, and returns to `healthy` when the socket reopens, a response other than 5xx, 429 or 405 arrives, or the cooldown ends
-  - HyperLiquid's health is derived from its connection state and reconnect attempt: `degraded` while it is disconnected (including after a failed first connect) or reconnecting after a drop
+  - HyperLiquid's health is derived from its connection state and reconnect attempt: `degraded` while it reconnects after a drop or stays disconnected after reconnect attempts, and `unavailable` while it is disconnected with no reconnect attempt (not started, disconnected on purpose, or after a failed first connect)
   - `PerpsProvider` has optional `getProviderHealth` and `subscribeToProviderHealth` methods
 - Add `providerCredentials.lighter.socketIdleCloseMs` to set how long the Lighter socket stays open after its last listener leaves (default 30 seconds) ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - Expose the new Lighter limits and the provider health helpers through subpath exports ([#TBD](https://github.com/MetaMask/core/pull/TBD))

@@ -48,8 +48,8 @@ export type PerpsProviderHealthReason =
   | 'rate_limited';
 
 /**
- * One provider's health. `unavailable` means the provider is not registered
- * or was disconnected.
+ * One provider's health. `unavailable` means the provider is not registered,
+ * or is disconnected with no reconnect pending (not started or disconnected).
  */
 export type PerpsProviderHealth = {
   providerId: PerpsProviderType;

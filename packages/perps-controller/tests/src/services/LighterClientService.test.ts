@@ -1427,7 +1427,10 @@ describe('LighterClientService', () => {
 
       service.cancelHeldRequests();
 
-      await expect(heldRead).rejects.toThrow('Lighter request cancelled');
+      await expect(heldRead).rejects.toMatchObject({
+        name: 'LighterApiError',
+        message: 'Lighter request cancelled while held',
+      });
       expect(sentPaths()).toStrictEqual(['/api/v1/orderBookDetails']);
       // Reads made after the cancel wait for the cooldown as usual.
       const laterRead = service.getOrderBookDetails();

@@ -1731,7 +1731,11 @@ describe('LighterProvider', () => {
     });
 
     it.each<
-      [string, (provider: BuiltProvider['provider']) => Promise<OrderResult>]
+      [
+        string,
+        (provider: BuiltProvider['provider']) => Promise<unknown>,
+        Record<string, unknown>,
+      ]
     >([
       [
         'a market order',
@@ -1743,6 +1747,7 @@ describe('LighterProvider', () => {
             orderType: 'market',
             currentPrice: 100000,
           }),
+        { success: true },
       ],
       [
         'a market order with TP/SL',
@@ -1756,6 +1761,7 @@ describe('LighterProvider', () => {
             takeProfitPrice: '110000',
             stopLossPrice: '90000',
           }),
+        { success: true },
       ],
       [
         'a stop-market trigger order',
@@ -1768,26 +1774,101 @@ describe('LighterProvider', () => {
             triggerPrice: '95000',
             maxSlippageBps: 100,
           }),
+        { success: true },
       ],
       [
         'a position close',
         async (provider): Promise<OrderResult> =>
           await provider.closePosition({ symbol: 'BTC' }),
+        { success: true },
+      ],
+      [
+        'an order cancel',
+        async (provider): Promise<unknown> =>
+          await provider.cancelOrder({ orderId: '555', symbol: 'BTC' }),
+        { success: true },
+      ],
+      [
+        'an order edit through its exact-order check',
+        async (provider): Promise<unknown> =>
+          await provider.editOrder({
+            orderId: '288230376151711745',
+            newOrder: {
+              symbol: 'BTC',
+              orderType: 'limit',
+              isBuy: true,
+              size: '0.001',
+              price: '91000',
+            },
+          }),
+        {
+          success: false,
+          error: expect.stringContaining('Lighter native edit refused'),
+        },
+      ],
+      [
+        'a TP/SL update through its submission',
+        async (provider): Promise<unknown> =>
+          await provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          }),
+        {
+          success: false,
+          error: expect.stringContaining(
+            'was submitted but its settlement is not yet visible',
+          ),
+        },
+      ],
+      [
+        'a recovery-protection resolve through its account check',
+        async (provider): Promise<unknown> =>
+          await provider.resolveRecoveryProtection({
+            recoveryId: `lighter-protection:${JSON.stringify([
+              'testnet',
+              ACCOUNT.l1Address.toLowerCase(),
+              28,
+              7,
+              'BTC',
+              'operation-1',
+            ])}`,
+            symbol: 'BTC',
+            stopLossPrice: '85000',
+          }),
+        {
+          status: 'unresolved',
+          error: 'Lighter recovery source operation changed',
+        },
+      ],
+      [
+        'a margin update through its position check',
+        async (provider): Promise<unknown> =>
+          await provider.updateMargin({ symbol: 'BTC', amount: '5' }),
+        {
+          success: false,
+          error: 'Lighter margin adjustment requires an open isolated position',
+        },
+      ],
+      [
+        'a withdrawal',
+        async (provider): Promise<unknown> =>
+          await provider.withdraw({ amount: '5' }),
+        { success: true },
       ],
     ])(
-      'places %s without waiting behind a read cooldown or a full budget',
-      async (_flow, place) => {
+      'runs %s without waiting behind a read cooldown or a full budget',
+      async (_flow, run, expected) => {
         const { provider, clientInstance } = buildProvider();
         const held = holdCallsOutsideTradingSection(clientInstance);
         const startedAt = Date.now();
 
-        const result = await place(provider);
+        const result = await run(provider);
 
         expect(held).toStrictEqual([]);
         expect(Date.now() - startedAt).toBeLessThan(
           LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS,
         );
-        expect(result).toMatchObject({ success: true });
+        expect(result).toMatchObject(expected);
       },
     );
 

@@ -33,15 +33,29 @@ describe('getHealthFromConnectionState', () => {
     });
   });
 
-  it('reports degraded while disconnected, even before any reconnect attempt', () => {
-    // A failed first connect leaves attempt 0.
+  it('reports degraded while disconnected after reconnect attempts', () => {
+    expect(
+      getHealthFromConnectionState(
+        'hyperliquid',
+        WebSocketConnectionState.Disconnected,
+        3,
+      ),
+    ).toMatchObject({ status: 'degraded', reasons: ['socket_down'] });
+  });
+
+  it('reports unavailable while disconnected with no reconnect pending', () => {
+    // Not started yet, or disconnected on purpose.
     expect(
       getHealthFromConnectionState(
         'hyperliquid',
         WebSocketConnectionState.Disconnected,
         0,
       ),
-    ).toMatchObject({ status: 'degraded', reasons: ['socket_down'] });
+    ).toMatchObject({
+      status: 'unavailable',
+      reasons: [],
+      connectionState: WebSocketConnectionState.Disconnected,
+    });
   });
 
   it('reports healthy when connected or making its first connect', () => {
@@ -117,7 +131,7 @@ describe('getProviderHealthOf', () => {
       connectionState: WebSocketConnectionState.Connected,
     });
     expect(getProviderHealthOf('hyperliquid', {})).toMatchObject({
-      status: 'degraded',
+      status: 'unavailable',
       connectionState: WebSocketConnectionState.Disconnected,
     });
   });

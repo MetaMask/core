@@ -1460,6 +1460,59 @@ describe('PerpsController', () => {
       });
     });
 
+    it('getProviderHealth reports unavailable after the controller disconnects the provider', async () => {
+      let state: WebSocketConnectionState = WebSocketConnectionState.Connected;
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockProvider.subscribeToConnectionState.mockImplementation((listener) => {
+        listener(state, 0);
+        return () => undefined;
+      });
+      mockProvider.disconnect.mockImplementation(async () => {
+        state = WebSocketConnectionState.Disconnected;
+        return { success: true };
+      });
+      const before = controller.getProviderHealth('hyperliquid');
+
+      await controller.disconnect();
+
+      expect(before).toMatchObject({ status: 'healthy' });
+      expect(mockProvider.disconnect).toHaveBeenCalledOnce();
+      expect(controller.getProviderHealth('hyperliquid')).toMatchObject({
+        providerId: 'hyperliquid',
+        status: 'unavailable',
+        reasons: [],
+        connectionState: WebSocketConnectionState.Disconnected,
+      });
+    });
+
+    it('getProviderHealth reports a registered HyperLiquid that never connected as unavailable in a direct Lighter session', () => {
+      const lighterProvider = createMockHyperLiquidProvider();
+      lighterProvider.getWebSocketConnectionState.mockReturnValue(
+        WebSocketConnectionState.Connected,
+      );
+      mockProvider.subscribeToConnectionState.mockImplementation((listener) => {
+        listener(WebSocketConnectionState.Disconnected, 0);
+        return () => undefined;
+      });
+      controller.testSetProviders(
+        new Map([
+          ['lighter', lighterProvider],
+          ['hyperliquid', mockProvider],
+        ]),
+      );
+      markControllerAsInitialized();
+
+      expect(controller.getProviderHealth('lighter')).toMatchObject({
+        status: 'healthy',
+      });
+      expect(controller.getProviderHealth('hyperliquid')).toMatchObject({
+        providerId: 'hyperliquid',
+        status: 'unavailable',
+        reasons: [],
+      });
+    });
+
     it('subscribeToProviderHealth maps the provider connection state to health', () => {
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
       const mockUnsubscribe = vi.fn();

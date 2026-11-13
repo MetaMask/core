@@ -1295,7 +1295,7 @@ export class LighterClientService {
       await waited;
       this.#heldRequestReleases.delete(release);
       if (this.#heldRequestGeneration !== generation) {
-        throw new Error('Lighter request cancelled while held');
+        throw new LighterApiError('Lighter request cancelled while held');
       }
     }
   };
