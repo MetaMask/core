@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
 import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
-import { waitFor } from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import {
   AssetsController,
   getDefaultAssetsControllerState,
@@ -943,6 +943,10 @@ describe('AssetsController', () => {
       const secondAssetId =
         'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
       const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
@@ -951,10 +955,7 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -969,7 +970,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
           fetchV6MultiAccountBalances.mockClear();
@@ -1016,11 +1019,11 @@ describe('AssetsController', () => {
           MOCK_ACCOUNT_ID,
           MOCK_ASSET_ID_LOWERCASE,
         );
-        await flushPromises();
-
-        // Single high-level import call, with the checksummed id.
-        expect(importTokens).toHaveBeenCalledTimes(1);
-        expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        await waitFor(() => {
+          // Single high-level import call, with the checksummed id.
+          expect(importTokens).toHaveBeenCalledTimes(1);
+          expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        });
       });
     });
 
@@ -1033,7 +1036,9 @@ describe('AssetsController', () => {
         expect(
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
         ).toBeUndefined();
-        await flushPromises();
+        await waitUntilStable(
+          () => controller.state.customAssets[MOCK_ACCOUNT_ID],
+        );
 
         // Fire-and-forget: the local state change stands despite the AUS failure.
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
@@ -1098,16 +1103,16 @@ describe('AssetsController', () => {
             });
 
           controller.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-          await flushPromises();
-
-          // Strip-only read-modify-write: the imported list loses the id and
-          // every other entry (including the hidden list) is untouched.
-          expect(getUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledWith({
-            version: 1,
-            importedAssets: [OTHER_ASSET_ID],
-            hiddenAssets: [OTHER_ASSET_ID],
+          await waitFor(() => {
+            // Strip-only read-modify-write: the imported list loses the id and
+            // every other entry (including the hidden list) is untouched.
+            expect(getUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledWith({
+              version: 1,
+              importedAssets: [OTHER_ASSET_ID],
+              hiddenAssets: [OTHER_ASSET_ID],
+            });
           });
         },
       );
@@ -1130,11 +1135,11 @@ describe('AssetsController', () => {
         const { hideTokens } = registerAusUserAssetsActionMocks(messenger);
 
         controller.hideAsset(MOCK_ASSET_ID_LOWERCASE);
-        await flushPromises();
-
-        // Single high-level hide call, with the checksummed id.
-        expect(hideTokens).toHaveBeenCalledTimes(1);
-        expect(hideTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        await waitFor(() => {
+          // Single high-level hide call, with the checksummed id.
+          expect(hideTokens).toHaveBeenCalledTimes(1);
+          expect(hideTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        });
       });
     });
   });
@@ -1255,7 +1260,12 @@ describe('AssetsController', () => {
           expect(
             controller.state.customAssets[MOCK_ACCOUNT_ID],
           ).toBeUndefined();
-          await flushPromises();
+          await waitUntilStable(() => [
+            ausMocks.importTokens.mock.calls.length,
+            ausMocks.hideTokens.mock.calls.length,
+            ausMocks.getUserAssets.mock.calls.length,
+            ausMocks.setUserAssets.mock.calls.length,
+          ]);
 
           // Graduation is automatic detection, not user intent: it must not
           // strip the still-visible token from the AUS user-assets blob.
@@ -1306,6 +1316,10 @@ describe('AssetsController', () => {
 
   describe('unhideAsset', () => {
     it('force-fetches the unhidden token as an includeAssetId on v6', async () => {
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
       const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
@@ -1314,10 +1328,7 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -1340,7 +1351,9 @@ describe('AssetsController', () => {
           },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
           fetchV6MultiAccountBalances.mockClear();
 
           await controller.unhideAsset(MOCK_ASSET_ID);
@@ -1392,16 +1405,16 @@ describe('AssetsController', () => {
             });
 
           await controller.unhideAsset(MOCK_ASSET_ID);
-          await flushPromises();
-
-          // Strip-only: the hidden list loses the id; the imported list is
-          // untouched (unhiding does not re-import the asset).
-          expect(getUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledWith({
-            version: 1,
-            importedAssets: [OTHER_ASSET_ID],
-            hiddenAssets: [OTHER_ASSET_ID],
+          await waitFor(() => {
+            // Strip-only: the hidden list loses the id; the imported list is
+            // untouched (unhiding does not re-import the asset).
+            expect(getUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledWith({
+              version: 1,
+              importedAssets: [OTHER_ASSET_ID],
+              hiddenAssets: [OTHER_ASSET_ID],
+            });
           });
         },
       );
