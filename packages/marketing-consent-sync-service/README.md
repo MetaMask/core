@@ -1,36 +1,36 @@
-# `@metamask/marketing-consent-controller`
+# `@metamask/marketing-consent-sync-service`
 
 Keeps marketing consent in sync with Authenticated User Storage
 
 ## Installation
 
-`yarn add @metamask/marketing-consent-controller`
+`yarn add @metamask/marketing-consent-sync-service`
 
 or
 
-`npm install @metamask/marketing-consent-controller`
+`npm install @metamask/marketing-consent-sync-service`
 
 ## Usage
 
-`MarketingConsentController` keeps the user's marketing consent, held locally by `AnalyticsController`, in sync with their Authenticated User Storage (AUS) profile. AUS is the source of truth.
+`MarketingConsentSyncService` keeps the user's marketing consent, held locally by `AnalyticsController`, in sync with their Authenticated User Storage (AUS) profile. AUS is the source of truth.
 
-The controller holds no state. `AnalyticsController` records which local change is waiting to be saved to AUS (`marketingConsentSyncPending`), in the same state update as the consent itself.
+The service holds no state. `AnalyticsController` records which local change is waiting to be saved to AUS (`marketingConsentSyncPending`), in the same state update as the consent itself.
 
 ### Setup
 
 Construct it, then call `initialize()` once `AnalyticsController`, `AuthenticationController` and `KeyringController` are registered. The constructor doesn't call other controllers; `initialize()` reads their state, subscribes to their changes and starts syncing.
 
 ```ts
-const controller = new MarketingConsentController({
+const service = new MarketingConsentSyncService({
   messenger,
   clientType: 'extension', // or 'mobile'
 });
 
 // After every controller is registered:
-controller.initialize();
+service.initialize();
 ```
 
-Before `initialize()`, the controller doesn't sync: `setMarketingConsent` applies the choice locally and saves it once `initialize()` has run and the user is signed in.
+Before `initialize()`, the service doesn't sync: `setMarketingConsent` applies the choice locally and saves it once `initialize()` has run and the user is signed in.
 
 The messenger must allow these actions and events:
 
@@ -45,7 +45,7 @@ The messenger must allow these actions and events:
 
 ### Changing consent
 
-Call `MarketingConsentController:setMarketingConsent(enabled)` for every user choice.
+Call `MarketingConsentSyncService:setMarketingConsent(enabled)` for every user choice.
 
 - It resolves once AUS has saved the change.
 - Turning consent off also turns off the AUS marketing notification channels.
@@ -55,7 +55,7 @@ Call `MarketingConsentController:setMarketingConsent(enabled)` for every user ch
 
 ### Re-reading AUS
 
-Call `MarketingConsentController:refresh()` when the wallet UI opens or the app returns to the foreground. It also retries a change whose save failed. The controller re-reads AUS by itself on sign-in and unlock.
+Call `MarketingConsentSyncService:refresh()` when the wallet UI opens or the app returns to the foreground. It also retries a change whose save failed. The service re-reads AUS by itself on sign-in and unlock.
 
 ### Notification preferences
 
@@ -63,7 +63,7 @@ To turn a marketing notification channel on, save consent first, then turn the c
 
 ## Architecture
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the controller syncs consent with AUS.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the service syncs consent with AUS.
 
 ## Contributing
 
