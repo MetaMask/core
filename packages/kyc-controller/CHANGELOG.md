@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `launchProviderFlow` no longer reports `submitted` when the applicant closes SumSub without submitting
+- `launchProviderFlow` no longer reports `submitted` when the applicant closes SumSub without submitting ([#11463](https://github.com/MetaMask/core/pull/11463))
   - A review decision the SDK opens on (`TemporarilyDeclined`, `FinallyRejected` or `Approved`) now counts as a submission only when the SDK reported `Pending`, `Completed` or `ActionCompleted` earlier in the same launch
   - A `Pending` that SumSub reports partway through a level is cleared by a later `Ready`, `Initial` or `Incomplete`
   - After a close that looks like a submit, the session status is fetched up to three times, one second apart. If idOS still has the applicant on the `kyc` step with no decision, the launch reports `abandoned` and stores that status
