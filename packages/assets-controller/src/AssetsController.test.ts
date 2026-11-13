@@ -5051,7 +5051,7 @@ describe('AssetsController', () => {
         const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         messenger.publish('KeyringController:unlock');
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
         getAssetsSpy.mockRestore();
@@ -5063,7 +5063,6 @@ describe('AssetsController', () => {
         await activateTracking(messenger);
 
         messenger.publish('KeyringController:lock');
-        await flushPromises();
 
         expect(true).toBe(true);
       });
@@ -5107,63 +5106,62 @@ describe('AssetsController', () => {
             {},
           );
 
-          // Allow #start() -> getAssets() to resolve so the callback runs
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          const firstInitFetchCalls = traceMock.mock.calls.filter(
-            (call) =>
-              (call[0] as TraceRequest).name ===
-              'AssetsControllerFirstInitFetch',
-          );
-          expect(firstInitFetchCalls).toHaveLength(1);
-          const [request] = firstInitFetchCalls[0];
-          expect(request).toMatchObject({
-            name: 'AssetsControllerFirstInitFetch',
-            data: expect.objectContaining({
-              duration_ms: expect.any(Number),
-              chain_ids: expect.any(String),
-            }),
-            tags: expect.objectContaining({
-              controller: 'AssetsController',
-              duration_ms: expect.any(Number),
-            }),
-            startTime: expect.any(Number),
-            parentContext: parentSpan,
-          });
-          const {
-            duration_ms: durationMs,
-            chain_ids: chainIds,
-            ...durationByDataSource
-          } = request.data ?? {};
-          expect(durationMs).toBeGreaterThanOrEqual(0);
-          expect(typeof chainIds).toBe('string');
-          expect(typeof durationByDataSource).toBe('object');
-
-          const fullFetchCalls = traceMock.mock.calls.filter(
-            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
-          );
-          expect(fullFetchCalls.length).toBeGreaterThan(0);
-          expect(fullFetchCalls[0][0]).toMatchObject({
-            data: expect.objectContaining({
-              duration_ms: expect.any(Number),
-            }),
-            tags: expect.objectContaining({
-              duration_ms: expect.any(Number),
-            }),
-            startTime: expect.any(Number),
-            parentContext: parentSpan,
-          });
-
-          const timingCalls = traceMock.mock.calls.filter(
-            (call) =>
-              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
-          );
-          expect(timingCalls.length).toBeGreaterThan(0);
-          for (const [timingRequest] of timingCalls) {
-            expect(timingRequest).toMatchObject({
+          await waitFor(() => {
+            const firstInitFetchCalls = traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name ===
+                'AssetsControllerFirstInitFetch',
+            );
+            expect(firstInitFetchCalls).toHaveLength(1);
+            const [request] = firstInitFetchCalls[0];
+            expect(request).toMatchObject({
+              name: 'AssetsControllerFirstInitFetch',
+              data: expect.objectContaining({
+                duration_ms: expect.any(Number),
+                chain_ids: expect.any(String),
+              }),
+              tags: expect.objectContaining({
+                controller: 'AssetsController',
+                duration_ms: expect.any(Number),
+              }),
+              startTime: expect.any(Number),
               parentContext: parentSpan,
             });
-          }
+            const {
+              duration_ms: durationMs,
+              chain_ids: chainIds,
+              ...durationByDataSource
+            } = request.data ?? {};
+            expect(durationMs).toBeGreaterThanOrEqual(0);
+            expect(typeof chainIds).toBe('string');
+            expect(typeof durationByDataSource).toBe('object');
+
+            const fullFetchCalls = traceMock.mock.calls.filter(
+              (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+            );
+            expect(fullFetchCalls.length).toBeGreaterThan(0);
+            expect(fullFetchCalls[0][0]).toMatchObject({
+              data: expect.objectContaining({
+                duration_ms: expect.any(Number),
+              }),
+              tags: expect.objectContaining({
+                duration_ms: expect.any(Number),
+              }),
+              startTime: expect.any(Number),
+              parentContext: parentSpan,
+            });
+
+            const timingCalls = traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+            );
+            expect(timingCalls.length).toBeGreaterThan(0);
+            for (const [timingRequest] of timingCalls) {
+              expect(timingRequest).toMatchObject({
+                parentContext: parentSpan,
+              });
+            }
+          });
         },
       );
     });
@@ -5224,16 +5222,16 @@ describe('AssetsController', () => {
             {},
           );
 
-          await flushPromises();
-
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-          ).toBeUndefined();
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-              MOCK_NATIVE_ASSET_ID
-            ],
-          ).toStrictEqual({ amount: '2' });
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+            ).toBeUndefined();
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                MOCK_NATIVE_ASSET_ID
+              ],
+            ).toStrictEqual({ amount: '2' });
+          });
         },
       );
     });
@@ -5286,16 +5284,16 @@ describe('AssetsController', () => {
             {},
           );
 
-          await flushPromises();
-
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-          ).toBeUndefined();
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-              MOCK_NATIVE_ASSET_ID
-            ],
-          ).toStrictEqual({ amount: '2' });
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+            ).toBeUndefined();
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                MOCK_NATIVE_ASSET_ID
+              ],
+            ).toStrictEqual({ amount: '2' });
+          });
         },
       );
     });
@@ -5326,10 +5324,30 @@ describe('AssetsController', () => {
             'AccountTreeController:initialized',
             {},
           );
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await waitFor(() => {
+            const firstInitFetchCalls = traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name ===
+                'AssetsControllerFirstInitFetch',
+            );
+            expect(firstInitFetchCalls).toHaveLength(1);
+          });
 
           messenger.publish('KeyringController:unlock');
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await waitUntilStable(() => [
+            traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name ===
+                'AssetsControllerFirstInitFetch',
+            ).length,
+            traceMock.mock.calls.filter(
+              (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+            ).length,
+            traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+            ).length,
+          ]);
 
           const firstInitFetchCalls = traceMock.mock.calls.filter(
             (call) =>
@@ -5386,9 +5404,9 @@ describe('AssetsController', () => {
             'AccountTreeController:initialized',
             {},
           );
-          await flushPromises();
-
-          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+          await waitFor(() => {
+            expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+          });
 
           // Second, independent trigger fires while the first getAssets()
           // call is still in flight — #activeSubscriptions is still empty at
@@ -5399,12 +5417,12 @@ describe('AssetsController', () => {
               publish: (topic: string, payload?: unknown) => void;
             }
           ).publish('ClientController:stateChanged', { isUiOpen: true });
-          await flushPromises();
+          await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
           expect(getAssetsSpy).toHaveBeenCalledTimes(1);
 
           resolveGetAssets?.();
-          await flushPromises();
+          await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
           // The startup refresh remains a single getAssets call. Prices are
           // fetched inside that pipeline pass.
