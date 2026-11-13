@@ -2,6 +2,7 @@ import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { syncAusUserAssets } from './syncAusUserAssets.js';
 import type { AccountId, Caip19AssetId } from './types.js';
 import { normalizeAssetId } from './utils/index.js';
@@ -141,15 +142,16 @@ describe('syncAusUserAssets', () => {
         installAusMock(fixture.messenger);
 
         await invoke(fixture, MOCK_ASSET_ID_LOWERCASE);
-        await flushPromises();
 
         // Exactly one high-level call, with the checksummed id — and, for the
         // account-first signatures, the account id is never mistaken for the
         // asset id.
-        expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-        expect(fixture.messenger.call).toHaveBeenCalledWith(actionType, [
-          MOCK_ASSET_ID,
-        ]);
+        await waitFor(() => {
+          expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
+          expect(fixture.messenger.call).toHaveBeenCalledWith(actionType, [
+            MOCK_ASSET_ID,
+          ]);
+        });
       },
     );
   });
@@ -199,20 +201,21 @@ describe('syncAusUserAssets', () => {
         installAusMock(fixture.messenger, { blob });
 
         await invoke(fixture, MOCK_ASSET_ID_LOWERCASE);
-        await flushPromises();
 
         // Read-modify-write: GET the blob, then PUT it with the id filtered
         // from the target list, leaving every other entry untouched.
-        expect(fixture.messenger.call).toHaveBeenCalledTimes(2);
-        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-          1,
-          GET_USER_ASSETS,
-        );
-        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-          2,
-          SET_USER_ASSETS,
-          expectedBlob,
-        );
+        await waitFor(() => {
+          expect(fixture.messenger.call).toHaveBeenCalledTimes(2);
+          expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+            1,
+            GET_USER_ASSETS,
+          );
+          expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+            2,
+            SET_USER_ASSETS,
+            expectedBlob,
+          );
+        });
       },
     );
 
@@ -221,7 +224,7 @@ describe('syncAusUserAssets', () => {
       installAusMock(fixture.messenger, { blob: null });
 
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await flushPromises();
+      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
 
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.call).toHaveBeenCalledWith(GET_USER_ASSETS);
@@ -238,7 +241,7 @@ describe('syncAusUserAssets', () => {
       });
 
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await flushPromises();
+      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
 
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.call).toHaveBeenCalledWith(GET_USER_ASSETS);
@@ -298,31 +301,34 @@ describe('syncAusUserAssets', () => {
       // lands.
       const pendingAdd = fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await flushPromises();
 
       // The import fired at add time and the strip applied after it; the
       // final blob reflects the removal.
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
-      expect(fixture.messenger.call).toHaveBeenNthCalledWith(1, IMPORT_TOKENS, [
-        MOCK_ASSET_ID,
-      ]);
-      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-        2,
-        GET_USER_ASSETS,
-      );
-      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-        3,
-        SET_USER_ASSETS,
-        {
-          version: 1,
-          importedAssets: [OTHER_ASSET_ID],
-          hiddenAssets: [],
-        },
-      );
+      await waitFor(() => {
+        expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
+        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+          1,
+          IMPORT_TOKENS,
+          [MOCK_ASSET_ID],
+        );
+        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+          2,
+          GET_USER_ASSETS,
+        );
+        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+          3,
+          SET_USER_ASSETS,
+          {
+            version: 1,
+            importedAssets: [OTHER_ASSET_ID],
+            hiddenAssets: [],
+          },
+        );
+      });
 
       resolvePending();
       await pendingAdd;
-      await flushPromises();
+      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
 
       // The add settling late fires no further AUS write.
       expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
@@ -362,20 +368,20 @@ describe('syncAusUserAssets', () => {
 
       await fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await flushPromises();
+      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
 
       // The strip waits for the in-flight import instead of reading the
       // stale blob and skipping its write.
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
 
       releaseImport();
-      await flushPromises();
-
-      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-        2,
-        GET_USER_ASSETS,
-      );
-      expect(blob.importedAssets).toStrictEqual([OTHER_ASSET_ID]);
+      await waitFor(() => {
+        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+          2,
+          GET_USER_ASSETS,
+        );
+        expect(blob.importedAssets).toStrictEqual([OTHER_ASSET_ID]);
+      });
     });
 
     it('keeps serializing syncs after one of them fails', async () => {
@@ -392,13 +398,13 @@ describe('syncAusUserAssets', () => {
 
       fixture.hideAsset(MOCK_ASSET_ID);
       fixture.unhideAsset(MOCK_ASSET_ID);
-      await flushPromises();
-
-      expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-        2,
-        GET_USER_ASSETS,
-      );
+      await waitFor(() => {
+        expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
+        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+          2,
+          GET_USER_ASSETS,
+        );
+      });
     });
   });
 
