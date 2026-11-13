@@ -928,7 +928,7 @@ describe('PerpsController', () => {
       });
     });
 
-    it('keeps a not-yet-reported venue\'s persisted balance entry until that venue reports', () => {
+    it("keeps a not-yet-reported venue's persisted balance entry until that venue reports", () => {
       setupAggregatedMode();
       controller.subscribeToAccount({ callback: vi.fn() });
       const hlCallback =

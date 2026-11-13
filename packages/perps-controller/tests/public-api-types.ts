@@ -982,6 +982,34 @@ export type AggregatedAccountConsumerContracts = [
   >,
   AssertTrue<
     IsExact<
+      PerpsProviderAccountStateEntry,
+      | {
+          status: 'available';
+          state: AccountState;
+          providerId: PerpsProviderType;
+        }
+      | {
+          status: 'unavailable';
+          error?: string;
+          providerId: PerpsProviderType;
+        }
+      | {
+          status: 'pending';
+          providerId: PerpsProviderType;
+        }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsProviderAccountStateEntry, { status: 'pending' }>,
+      {
+        status: 'pending';
+        providerId: PerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
       Extract<PerpsProviderAccountStateEntry, { status: 'unavailable' }>,
       {
         status: 'unavailable';
@@ -997,6 +1025,7 @@ export type AggregatedAccountConsumerContracts = [
         status: 'complete' | 'partial';
         availableProviders: PerpsProviderType[];
         unavailableProviders: PerpsProviderType[];
+        pendingProviders?: PerpsProviderType[];
       }
     >
   >,
