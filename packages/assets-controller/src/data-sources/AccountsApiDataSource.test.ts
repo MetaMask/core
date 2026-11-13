@@ -5,6 +5,7 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { waitUntilStable } from '../__fixtures__/test-utils.js';
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
   ChainId,
@@ -277,8 +278,10 @@ async function setupController(
     ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
   });
 
-  // Wait for async initialization
-  await new Promise(process.nextTick);
+  await waitUntilStable(() => controller.getActiveChainsSync(), {
+    intervalMs: 0,
+    stableForMs: 1,
+  });
 
   return {
     controller,
@@ -389,8 +392,6 @@ describe('AccountsApiDataSource', () => {
         [],
       );
 
-      await new Promise(process.nextTick);
-
       expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
         1,
       );
@@ -409,7 +410,6 @@ describe('AccountsApiDataSource', () => {
         { remoteFeatureFlags: {}, cacheTimestamp: 0 },
         [],
       );
-      await new Promise(process.nextTick);
       apiClient.accounts.fetchV2SupportedNetworks.mockClear();
 
       // An unrelated flag change keeps the migration-stage signature identical,
@@ -419,7 +419,9 @@ describe('AccountsApiDataSource', () => {
         { remoteFeatureFlags: { someUnrelatedFlag: true }, cacheTimestamp: 0 },
         [],
       );
-      await new Promise(process.nextTick);
+      await waitUntilStable(() => [
+        apiClient.accounts.fetchV2SupportedNetworks.mock.calls.length,
+      ]);
 
       expect(
         apiClient.accounts.fetchV2SupportedNetworks,
@@ -2068,8 +2070,10 @@ describe('AccountsApiDataSource', () => {
 
       const controller = new AccountsApiDataSource(controllerOptions);
 
-      // Wait for async initialization
-      await new Promise(process.nextTick);
+      await waitUntilStable(() => controller.getActiveChainsSync(), {
+        intervalMs: 0,
+        stableForMs: 1,
+      });
 
       return {
         controller,
