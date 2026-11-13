@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   AuthenticationResponseJSONStruct,
   BeginEnrollmentRequestStruct,
@@ -36,7 +38,11 @@ const assertion = {
 
 describe('MFA schemas', () => {
   it('exposes the supported credential types', () => {
-    expect(MFA_CREDENTIAL_TYPES).toStrictEqual(['passkey', 'email_otp']);
+    expect(MFA_CREDENTIAL_TYPES).toStrictEqual([
+      'passkey',
+      'email_otp',
+      'totp',
+    ]);
   });
 
   it('accepts service responses and ignores additional response fields', () => {
@@ -48,6 +54,7 @@ describe('MFA schemas', () => {
     const credentials = {
       credentials: [
         {
+          credential_id: 'passkey',
           credential_type: 'passkey',
           status: 'active',
           passkey: {
@@ -57,6 +64,7 @@ describe('MFA schemas', () => {
           future_field: true,
         },
         {
+          credential_id: 'email_otp',
           credential_type: 'email_otp',
           status: 'pending',
           email: { address: 'user@example.com', verified: false },
@@ -85,6 +93,7 @@ describe('MFA schemas', () => {
         {
           credentials: [
             {
+              credential_id: 'email_otp',
               credential_type: 'email_otp',
               status: 'pending',
               email: {},
@@ -162,17 +171,85 @@ describe('MFA schemas', () => {
     ).toThrow(/MFA\[invalid_request\].*\[reason.operation\]/u);
   });
 
-  it('rejects an email on passkey enrollment', () => {
+  it.each(['passkey', 'totp'] as const)(
+    'rejects an email on %s enrollment',
+    (type) => {
+      expect(() =>
+        assertValidMfaRequest(
+          {
+            type,
+            email: 'user@example.com',
+            reason: { operation: 'settings.addFactor' },
+          },
+          BeginEnrollmentRequestStruct,
+        ),
+      ).toThrow(`email is not accepted for ${type} enrollment`);
+    },
+  );
+
+  it('accepts an authenticator app code as proof', () => {
     expect(() =>
       assertValidMfaRequest(
         {
-          type: 'passkey',
-          email: 'user@example.com',
-          reason: { operation: 'settings.addPasskey' },
+          flowId: 'flow-id',
+          proof: { type: 'totp', code: '123456' },
+          reason: { operation: 'settings.addAuthenticatorApp' },
         },
-        BeginEnrollmentRequestStruct,
+        CompleteEnrollmentRequestStruct,
       ),
-    ).toThrow(/email is not accepted/u);
+    ).not.toThrow();
+  });
+
+  describe('authenticator app enrollment', () => {
+    const totpEnrollment = {
+      flow_id: 'flow-id',
+      expires_at: '2026-10-20T12:35:50Z',
+      totp_secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
+      totp_qr: 'data:image/png;base64,iVBORw0KGgo=',
+    };
+
+    it('accepts the secret and the QR code data URL', () => {
+      expect(() =>
+        assertValidMfaResponse(totpEnrollment, MfaEnrollResponseStruct),
+      ).not.toThrow();
+    });
+
+    it('accepts a QR code data URL in any case', () => {
+      expect(() =>
+        assertValidMfaResponse(
+          { ...totpEnrollment, totp_qr: 'DATA:IMAGE/PNG;BASE64,iVBORw0KGgo=' },
+          MfaEnrollResponseStruct,
+        ),
+      ).not.toThrow();
+    });
+
+    it.each([
+      ['a secret that is not base32', { totp_secret: 'not-base32!' }],
+      ['a QR code that is not a PNG data URL', { totp_qr: 'iVBORw0KGgo=' }],
+    ])('rejects %s', (_case, override) => {
+      expect(() =>
+        assertValidMfaResponse(
+          { ...totpEnrollment, ...override },
+          MfaEnrollResponseStruct,
+        ),
+      ).toThrow(/MFA\[invalid_response\]/u);
+    });
+
+    it('keeps a malformed secret out of validation errors', () => {
+      const malformedSecret = 'jbswy3dpehpk3pxp';
+      let message = '';
+      try {
+        assertValidMfaResponse(
+          { ...totpEnrollment, totp_secret: malformedSecret },
+          MfaEnrollResponseStruct,
+        );
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+
+      expect(message).toMatch(/MFA\[invalid_response\]/u);
+      expect(message).not.toContain(malformedSecret);
+    });
   });
 
   it('rejects unknown request fields and malformed proofs', () => {
@@ -213,7 +290,13 @@ describe('MFA schemas', () => {
     expect(() =>
       assertValidMfaResponse(
         {
-          credentials: [{ credential_type: 'passkey', status: 'revoked' }],
+          credentials: [
+            {
+              credential_id: 'passkey',
+              credential_type: 'passkey',
+              status: 'revoked',
+            },
+          ],
         },
         MfaCredentialsResponseStruct,
       ),

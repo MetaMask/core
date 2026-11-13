@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { IntentManager } from './bridge-status-controller.intent';
 import type { BridgeHistoryItem } from './types.js';
@@ -33,19 +34,15 @@ type IntentManagerConstructorOptions = ConstructorParameters<
 
 const createManagerOptions = (overrides?: {
   messenger?: any;
-  updateTransactionFn?: ReturnType<typeof jest.fn>;
-  fetchFn?: ReturnType<typeof jest.fn>;
+  updateTransactionFn?: ReturnType<typeof vi.fn>;
+  fetchFn?: ReturnType<typeof vi.fn>;
 }): IntentManagerConstructorOptions => ({
-  messenger: overrides?.messenger ?? { call: jest.fn() },
+  messenger: overrides?.messenger ?? { call: vi.fn() },
   customBridgeApiBaseUrl: 'https://example.com',
-  fetchFn: overrides?.fetchFn ?? jest.fn(),
+  fetchFn: overrides?.fetchFn ?? vi.fn(),
 });
 
 describe('IntentManager', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it('returns early when no original tx id is present', () => {
     const options = createManagerOptions();
     const manager = new IntentManager(options);
@@ -62,16 +59,16 @@ describe('IntentManager', () => {
   });
 
   it('logs when TransactionController access throws', async () => {
-    const updateTransactionFn = jest.fn();
+    const updateTransactionFn = vi.fn();
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => {
+          call: vi.fn(() => {
             throw new Error('boom');
           }),
         },
         updateTransactionFn,
-        fetchFn: jest.fn().mockResolvedValue({
+        fetchFn: vi.fn().mockResolvedValue({
           id: 'order-2',
           status: IntentOrderStatus.SUBMITTED,
           metadata: {},
@@ -79,7 +76,7 @@ describe('IntentManager', () => {
       }),
     );
 
-    const consoleSpy = jest
+    const consoleSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
@@ -119,7 +116,7 @@ describe('IntentManager', () => {
       txHash: '0xhash',
       metadata: {},
     };
-    const mockCall = jest.fn((...args: unknown[]) => {
+    const mockCall = vi.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
         return { transactions: [existingTxMeta] };
@@ -131,7 +128,7 @@ describe('IntentManager', () => {
         messenger: {
           call: (...args: unknown[]) => mockCall(...args),
         },
-        fetchFn: jest.fn().mockResolvedValue(completedOrder),
+        fetchFn: vi.fn().mockResolvedValue(completedOrder),
       }),
     );
 
@@ -178,9 +175,9 @@ describe('IntentManager', () => {
 
   it('getIntentTransactionStatus returns undefined when getOrderStatus rejects with non-Error', async () => {
     const manager = new IntentManager(createManagerOptions());
-    jest
-      .spyOn(manager.intentApi, 'getOrderStatus')
-      .mockRejectedValue('non-Error rejection');
+    vi.spyOn(manager.intentApi, 'getOrderStatus').mockRejectedValue(
+      'non-Error rejection',
+    );
 
     const {
       quote: { srcChainId, intent },
@@ -201,7 +198,7 @@ describe('IntentManager', () => {
     const apiError = new Error('Network failure');
     const manager = new IntentManager(
       createManagerOptions({
-        fetchFn: jest.fn().mockRejectedValue(apiError),
+        fetchFn: vi.fn().mockRejectedValue(apiError),
       }),
     );
 
@@ -237,7 +234,7 @@ describe('IntentManager', () => {
     };
     const manager = new IntentManager(
       createManagerOptions({
-        fetchFn: jest.fn().mockResolvedValue(order),
+        fetchFn: vi.fn().mockResolvedValue(order),
       }),
     );
     const historyItem = makeHistoryItem({
@@ -268,7 +265,7 @@ describe('IntentManager', () => {
     };
     const manager = new IntentManager(
       createManagerOptions({
-        fetchFn: jest.fn().mockResolvedValue(order),
+        fetchFn: vi.fn().mockResolvedValue(order),
       }),
     );
     const historyItemWithoutSrcChain = makeHistoryItem({
@@ -303,7 +300,7 @@ describe('IntentManager', () => {
         '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
-    const mockCall = jest.fn((...args: unknown[]) => {
+    const mockCall = vi.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
         return;
@@ -315,7 +312,7 @@ describe('IntentManager', () => {
         messenger: {
           call: (...args: unknown[]) => mockCall(...args),
         },
-        fetchFn: jest.fn().mockResolvedValue(completedOrder),
+        fetchFn: vi.fn().mockResolvedValue(completedOrder),
       }),
     );
 
@@ -381,7 +378,7 @@ describe('IntentManager', () => {
         '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
-    const mockCall = jest.fn((...args: unknown[]) => {
+    const mockCall = vi.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
         return;
@@ -393,7 +390,7 @@ describe('IntentManager', () => {
         messenger: {
           call: (...args: unknown[]) => mockCall(...args),
         },
-        fetchFn: jest.fn().mockResolvedValue(failedOrder),
+        fetchFn: vi.fn().mockResolvedValue(failedOrder),
       }),
     );
 
@@ -443,15 +440,15 @@ describe('IntentManager', () => {
   });
 
   it('syncTransactionFromIntentStatus logs warn when transaction is not found', async () => {
-    const warnSpy = jest
+    const warnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => undefined);
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn(() => ({ transactions: [] })),
+          call: vi.fn(() => ({ transactions: [] })),
         },
-        fetchFn: jest.fn().mockResolvedValue({
+        fetchFn: vi.fn().mockResolvedValue({
           id: 'order-1',
           status: IntentOrderStatus.SUBMITTED,
           metadata: {},
@@ -491,7 +488,7 @@ describe('IntentManager', () => {
         '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
-    const mockCall = jest.fn((...args: unknown[]) => {
+    const mockCall = vi.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
         return { transactions: [existingTxMeta] };
@@ -506,7 +503,7 @@ describe('IntentManager', () => {
         messenger: {
           call: (...args: unknown[]) => mockCall(...args),
         },
-        fetchFn: jest.fn().mockResolvedValue(submittedOrder),
+        fetchFn: vi.fn().mockResolvedValue(submittedOrder),
       }),
     );
 
@@ -551,7 +548,7 @@ describe('IntentManager', () => {
       status: IntentOrderStatus.SUBMITTED,
       metadata: {},
     };
-    const mockCall = jest.fn((...args: unknown[]) => {
+    const mockCall = vi.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
         return { transactions: [existingTxMeta] };
@@ -563,7 +560,7 @@ describe('IntentManager', () => {
         messenger: {
           call: (...args: unknown[]) => mockCall(...args),
         },
-        fetchFn: jest.fn().mockResolvedValue(orderWithoutTxHash),
+        fetchFn: vi.fn().mockResolvedValue(orderWithoutTxHash),
       }),
     );
     const historyItem = makeHistoryItem({
@@ -609,20 +606,20 @@ describe('IntentManager', () => {
       status: TransactionStatus.submitted,
       txReceipt: {},
     };
-    const errorSpy = jest
+    const errorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const manager = new IntentManager(
       createManagerOptions({
         messenger: {
-          call: jest.fn((method) => {
+          call: vi.fn((method) => {
             if (method === 'TransactionController:updateTransaction') {
               throw new Error('update failed');
             }
             return { transactions: [existingTxMeta] };
           }),
         },
-        fetchFn: jest.fn().mockResolvedValue({
+        fetchFn: vi.fn().mockResolvedValue({
           id: 'order-3',
           status: IntentOrderStatus.COMPLETED,
           txHash: '0xhash',
@@ -665,7 +662,7 @@ describe('IntentManager', () => {
       metadata: {},
     };
     const { customBridgeApiBaseUrl, fetchFn } = createManagerOptions({
-      fetchFn: jest.fn().mockResolvedValue(expectedOrder),
+      fetchFn: vi.fn().mockResolvedValue(expectedOrder),
     });
 
     const params = {

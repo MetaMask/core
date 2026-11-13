@@ -1,16 +1,17 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { toHex } from '../../../controller-utils/src/index.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { parseRequiredTokens } from './required-tokens.js';
 import { getTokenBalance, getTokenFiatRate, getTokenInfo } from './token.js';
 
-jest.mock('./token', () => ({
-  ...jest.requireActual('./token'),
-  getTokenBalance: jest.fn(),
-  getTokenFiatRate: jest.fn(),
-  getTokenInfo: jest.fn(),
+vi.mock(import('./token.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getTokenBalance: vi.fn(),
+  getTokenFiatRate: vi.fn(),
+  getTokenInfo: vi.fn(),
 }));
 
 const TRANSACTION_META_MOCK = {
@@ -26,13 +27,9 @@ const TRANSACTION_META_MOCK = {
 const MESSENGER_MOCK = {} as TransactionPayControllerMessenger;
 
 describe('Required Tokens Utils', () => {
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const getTokenInfoMock = jest.mocked(getTokenInfo);
-  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
+  const getTokenInfoMock = vi.mocked(getTokenInfo);
+  const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
 
   describe('parseRequiredTokens', () => {
     describe('with requiredAssets', () => {

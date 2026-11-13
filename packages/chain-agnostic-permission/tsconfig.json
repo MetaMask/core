@@ -2,8 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "resolveJsonModule": true,
-    "rootDir": "../..",
-    "types": ["jest"]
+    "rootDir": "../.."
   },
   "references": [
     {

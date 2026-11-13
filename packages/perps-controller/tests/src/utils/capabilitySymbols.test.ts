@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { isValidCapabilitySymbol } from '../../../src/utils/capabilitySymbols.js';
 
 describe('isValidCapabilitySymbol', () => {

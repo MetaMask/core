@@ -18,6 +18,7 @@ import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { createTpslLegReplaceUnsupportedError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { isProviderOnTestnet } from '../services/providerNetwork.js';
@@ -46,6 +47,7 @@ import type {
   FeeCalculationResult,
   Funding,
   GetAccountStateParams,
+  GetAccountSupportParams,
   GetAvailableDexsParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -54,6 +56,7 @@ import type {
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
+  GetPublicTradesParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
   GetPositionsParams,
@@ -71,9 +74,11 @@ import type {
   MarketInfo,
   Order,
   OrderFill,
+  PublicTrade,
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsAccountSupport,
   PerpsOrderCapabilities,
   PerpsMarginModeLock,
   PerpsScalePriceLadder,
@@ -90,16 +95,19 @@ import type {
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  SubscribeAvailableToTradeParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  SubscribePublicTradesParams,
   ToggleTestnetResult,
   TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
@@ -128,6 +136,25 @@ export class ChaseOrderSuspensionError extends Error {
     this.failures = options.failures;
   }
 }
+
+/**
+ * A stream whose venue is chosen by the aggregated default.
+ *
+ * `setDefaultProvider` re-opens these on the new venue, so a stream started
+ * before a default change does not keep feeding the previous venue's data.
+ */
+type DefaultRoutedSubscription = {
+  /** Opens the stream on the given provider, returning its cleanup. */
+  open: (provider: PerpsProvider) => () => void;
+  /** Cleanup for the stream currently open. */
+  unsubscribe: () => void;
+  /** Invalidate a consumer's cached value before the stream moves. */
+  onInvalidate?: () => void;
+  /** Venue the stream is currently open on; undefined when not open. */
+  providerId: PerpsProviderType | undefined;
+  /** True when the last open attempt threw. */
+  failed: boolean;
+};
 
 /**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating
@@ -164,7 +191,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   readonly #providers: Map<PerpsProviderType, PerpsProvider>;
 
-  readonly #defaultProvider: PerpsProviderType;
+  /** Default provider used when an operation does not name a venue. */
+  #defaultProvider: PerpsProviderType;
 
   readonly #aggregationMode: AggregationMode;
 
@@ -175,6 +203,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   readonly #router: ProviderRouter;
 
   readonly #subscriptionMux: SubscriptionMultiplexer;
+
+  /** Streams that follow the routing default and must move with it. */
+  readonly #defaultRoutedSubscriptions = new Set<DefaultRoutedSubscription>();
 
   constructor(config: AggregatedProviderConfig) {
     this.#providers = config.providers;
@@ -246,6 +277,161 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * Change the default provider used when an operation does not name a venue.
+   *
+   * Only the routing default changes: no provider is re-initialized and no
+   * stream is reconnected, so the call is synchronous.
+   *
+   * @param providerId - New default provider. Must be registered.
+   * @throws If the provider is not registered.
+   */
+  setDefaultProvider(providerId: PerpsProviderType): void {
+    if (!this.#providers.has(providerId)) {
+      throw new Error(
+        `[AggregatedPerpsProvider] Default provider '${providerId}' not available`,
+      );
+    }
+    const changed = providerId !== this.#defaultProvider;
+    if (changed) {
+      this.#defaultProvider = providerId;
+      this.#router.setDefaultProvider(providerId);
+    }
+
+    // Runs even when the default is unchanged so a stream that failed to
+    // re-open earlier is retried instead of staying detached.
+    this.#rerouteDefaultSubscriptions();
+
+    if (changed) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Default provider changed',
+        { defaultProvider: providerId },
+      );
+    }
+  }
+
+  /**
+   * Register a stream that follows the routing default.
+   *
+   * The returned cleanup detaches the stream from whichever venue it is
+   * currently open on, so it stays valid across a default change.
+   *
+   * @param options - Stream options.
+   * @param options.open - Opens the stream on a given provider.
+   * @param options.onInvalidate - Invalidates a consumer's cached value before
+   * the stream moves (for example, emits an unavailable account snapshot).
+   * @returns A cleanup function that closes the stream.
+   */
+  #trackDefaultRoutedSubscription(options: {
+    open: (provider: PerpsProvider) => () => void;
+    onInvalidate?: () => void;
+  }): () => void {
+    const subscription: DefaultRoutedSubscription = {
+      open: options.open,
+      onInvalidate: options.onInvalidate,
+      unsubscribe: () => undefined,
+      providerId: this.#defaultProvider,
+      failed: false,
+    };
+    // Initial open failures propagate to the caller, matching the previous
+    // contract for these subscribe methods.
+    subscription.unsubscribe = options.open(this.#getDefaultProvider());
+    this.#defaultRoutedSubscriptions.add(subscription);
+
+    return () => {
+      if (!this.#defaultRoutedSubscriptions.delete(subscription)) {
+        return;
+      }
+      subscription.unsubscribe();
+    };
+  }
+
+  /**
+   * Move every default-routed stream to the current default venue.
+   *
+   * Only the stream's subscription is torn down and re-opened; the venue
+   * transports stay connected. The caller's cleanup function keeps working.
+   */
+  #rerouteDefaultSubscriptions(): void {
+    if (this.#defaultRoutedSubscriptions.size === 0) {
+      return;
+    }
+    const target = this.#defaultProvider;
+    for (const subscription of this.#defaultRoutedSubscriptions) {
+      if (!subscription.failed && subscription.providerId === target) {
+        continue;
+      }
+      this.#rerouteSubscription(subscription);
+    }
+  }
+
+  /**
+   * Re-open one stream on the current default, isolating its failure from the
+   * other subscriptions. A stream that throws is marked failed and retried on
+   * the next `setDefaultProvider` call.
+   *
+   * @param subscription - The stream to move.
+   */
+  #rerouteSubscription(subscription: DefaultRoutedSubscription): void {
+    const providerId = this.#defaultProvider;
+    const { unsubscribe } = subscription;
+    subscription.unsubscribe = (): void => undefined;
+    try {
+      unsubscribe();
+    } catch (caughtError) {
+      this.#logSubscriptionRerouteError(caughtError, 'unsubscribe', providerId);
+    }
+    subscription.providerId = undefined;
+
+    if (subscription.onInvalidate) {
+      try {
+        subscription.onInvalidate();
+      } catch (caughtError) {
+        this.#logSubscriptionRerouteError(
+          caughtError,
+          'onInvalidate',
+          providerId,
+        );
+      }
+    }
+
+    try {
+      subscription.unsubscribe = subscription.open(this.#getDefaultProvider());
+      subscription.providerId = providerId;
+      subscription.failed = false;
+    } catch (caughtError) {
+      subscription.failed = true;
+      this.#logSubscriptionRerouteError(caughtError, 'open', providerId);
+    }
+  }
+
+  /**
+   * Report a default-routed subscription that could not be moved.
+   *
+   * @param caughtError - The thrown error.
+   * @param method - Which step failed.
+   * @param providerId - The venue the stream was moving to.
+   */
+  #logSubscriptionRerouteError(
+    caughtError: unknown,
+    method: string,
+    providerId: PerpsProviderType,
+  ): void {
+    this.#deps.logger.error(
+      ensureError(caughtError, 'AggregatedPerpsProvider.rerouteSubscription'),
+      {
+        tags: {
+          feature: PERPS_CONSTANTS.FeatureName,
+          provider: providerId,
+        },
+        context: {
+          name: 'AggregatedPerpsProvider',
+          data: { method: `subscription.${method}`, providerId },
+        },
+      },
+    );
+  }
+
+  /**
    * Get the explicit provider, or the default when no route was supplied.
    *
    * @param providerId - The provider id value.
@@ -302,6 +488,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
     return this.#getDefaultProvider().getWithdrawalRoutes(params);
+  }
+
+  /**
+   * Route account support through the same explicit-provider/default-provider
+   * selection used by writes.
+   *
+   * @param params - Optional provider route.
+   * @returns The selected provider's account support result.
+   */
+  async getAccountSupport(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport> {
+    const [, provider] = this.#getProviderOrDefault(params?.providerId);
+    return provider.getAccountSupport
+      ? provider.getAccountSupport(params)
+      : { isSupported: true };
   }
 
   /**
@@ -459,10 +661,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
-    // Return account state from default provider with providerId injected
+    // Capture the route before awaiting: `setDefaultProvider` can run while
+    // the venue request is in flight, and the response must stay attributed to
+    // the provider that served it (the user-data preloader buckets by this id).
+    const providerId = this.#defaultProvider;
     const provider = this.#getDefaultProvider();
     const state = await provider.getAccountState(params);
-    return { ...state, providerId: this.#defaultProvider };
+    return { ...state, providerId };
   }
 
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
@@ -881,6 +1086,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return { ...result, providerId };
   }
 
+  async replacePositionTPSLLeg(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
+    if (!provider.replacePositionTPSLLeg) {
+      throw createTpslLegReplaceUnsupportedError();
+    }
+    const result = await provider.replacePositionTPSLLeg(params);
+    return { ...result, providerId };
+  }
+
   async updateMargin(params: UpdateMarginParams): Promise<MarginResult> {
     const [, provider] = this.#getProviderOrDefault(params.providerId);
     return provider.updateMargin(params);
@@ -1215,50 +1433,157 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * native TWAP push channel.
    */
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
-    const defaultProviderId = this.#defaultProvider;
-    // Read the map directly: #getDefaultProvider throws when the default is
-    // unavailable, and this method's contract is a no-op cleanup, not a throw.
-    const provider = this.#providers.get(defaultProviderId);
-    if (!provider?.subscribeToTwapOrders) {
-      return () => {
-        // No-op: default provider exposes no native TWAP push channel
-      };
-    }
-    return provider.subscribeToTwapOrders({
-      ...params,
-      // Stamp the same way getTwapOrders does, so swapping a poll for this
-      // subscription does not silently drop providerId from every schedule.
-      callback: (twapOrders, isSnapshot) =>
-        params.callback(
-          twapOrders.map((order) => ({
-            ...order,
-            providerId: defaultProviderId,
-          })),
-          isSnapshot,
-        ),
+    return this.#trackDefaultRoutedSubscription({
+      // A full empty snapshot replaces the previous venue's cached schedules,
+      // including when the new venue exposes no native TWAP stream.
+      onInvalidate: () => params.callback([], true),
+      open: (provider) => {
+        if (!provider.subscribeToTwapOrders) {
+          return () => {
+            // No-op: default provider exposes no native TWAP push channel
+          };
+        }
+        // Capture each stream's route so late batches from the old venue keep
+        // their source identity during teardown or after a default change.
+        const providerId = this.#defaultProvider;
+        return provider.subscribeToTwapOrders({
+          ...params,
+          // Stamp the same way getTwapOrders does, so swapping a poll for this
+          // subscription does not silently drop providerId from every schedule.
+          callback: (twapOrders, isSnapshot) =>
+            params.callback(
+              twapOrders.map((order) => ({
+                ...order,
+                providerId,
+              })),
+              isSnapshot,
+            ),
+        });
+      },
     });
   }
 
   subscribeToAccount(params: SubscribeAccountParams): () => void {
-    // For account subscriptions, we emit as array for multi-provider
-    // but the callback expects single AccountState
-    // Delegate to default provider for now
-    return this.#getDefaultProvider().subscribeToAccount(params);
+    // Account, candles, order book and OI caps have no per-venue route of
+    // their own, so they follow the routing default and move with it.
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToAccount(params),
+      // Emit an unavailable snapshot so a consumer that caches the balance
+      // (for example Mobile's account stream channel) does not keep showing
+      // the previous venue's value while the new venue's first update pends.
+      onInvalidate: () => params.callback(null),
+    });
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToOICaps(params);
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToOICaps(params),
+    });
   }
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToCandles(params);
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToCandles(params),
+    });
   }
 
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToOrderBook(params);
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToOrderBook(params),
+    });
+  }
+
+  /**
+   * Read public trades from the explicit route, else the default provider.
+   * An unrouted read resolves to an empty list if the default changes before
+   * the venue answers.
+   *
+   * @param params - Market, optional limit and route.
+   * @returns The route's trades, newest first.
+   * @throws If the route is not registered or has no public trade feed.
+   */
+  async getPublicTrades(params: GetPublicTradesParams): Promise<PublicTrade[]> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
+    if (!provider.getPublicTrades) {
+      throw new Error(`Public trades not supported by provider ${providerId}`);
+    }
+    const trades = await provider.getPublicTrades({ ...params, providerId });
+    if (
+      params.providerId === undefined &&
+      providerId !== this.#defaultProvider
+    ) {
+      return [];
+    }
+    return trades;
+  }
+
+  /**
+   * Stream public trades from the explicit route, else the default provider.
+   * An unrouted stream follows the default and moves with it. A missing
+   * route or one without a public trade feed returns a no-op cleanup and
+   * never calls back.
+   *
+   * @param params - Market, optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToPublicTrades(params: SubscribePublicTradesParams): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (defaultProvider) =>
+          defaultProvider.subscribeToPublicTrades?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? (() => undefined),
+      });
+    }
+    const provider = this.#providers.get(params.providerId);
+    if (!provider?.subscribeToPublicTrades) {
+      return () => {
+        // No-op: route missing or without a public trade feed
+      };
+    }
+    return provider.subscribeToPublicTrades(params);
+  }
+
+  /**
+   * Stream available to trade from the explicit route, else the default
+   * provider, as order placement routes. A route without support returns a
+   * no-op cleanup and never calls back, so the value stays unknown.
+   *
+   * @param params - Market, optional route/account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToAvailableToTrade(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToAvailableToTrade?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? (() => undefined),
+        // As with a stopped stream, the old venue's value is now unknown.
+        // Notify before opening the new stream, which may emit immediately.
+        onInvalidate: () =>
+          params.onError?.(
+            new Error('Available-to-trade provider changed; value is unknown'),
+          ),
+      });
+    }
+
+    const { providerId } = params;
+    // Read the map directly: #getProviderOrDefault throws when the route is
+    // unavailable, and this method's contract is a no-op cleanup.
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToAvailableToTrade) {
+      return () => {
+        // No-op: route missing or without a venue value
+      };
+    }
+    return provider.subscribeToAvailableToTrade({ ...params, providerId });
   }
 
   // ============================================================================
@@ -1411,14 +1736,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       reconnectionAttempt: number,
     ) => void,
   ): () => void {
-    const provider = this.#getDefaultProvider();
-    if (provider.subscribeToConnectionState) {
-      return provider.subscribeToConnectionState(listener);
-    }
-    listener(WebSocketConnectionState.Disconnected, 0);
-    return () => {
-      /* noop */
-    };
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => {
+        if (provider.subscribeToConnectionState) {
+          // Providers deliver their current state immediately on subscribe, so
+          // a re-route notifies the listener of the new venue's state.
+          return provider.subscribeToConnectionState(listener);
+        }
+        listener(WebSocketConnectionState.Disconnected, 0);
+        return () => {
+          /* noop */
+        };
+      },
+    });
   }
 
   async reconnect(): Promise<void> {

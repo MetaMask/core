@@ -72,6 +72,14 @@ export type ServerQuoteRequest = {
   authorizationList?: ServerAuthorization[];
   supportsDeferredCalls?: boolean;
   supportsGasless?: boolean;
+
+  /**
+   * Whether the quote is funded with a plain token transfer to a provider
+   * deposit address, rather than by calling the provider contracts. The
+   * transfer must not include any additional calldata, such as an appended
+   * request ID.
+   */
+  useDepositAddress?: boolean;
 };
 
 /** Error detail from a rejected quote result. */

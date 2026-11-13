@@ -5,6 +5,7 @@ import {
   SubscriptionController,
   SUBSCRIPTION_URL,
 } from '@metamask/subscription-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -108,7 +109,7 @@ describe('subscriptionController', () => {
 
   it('delegates SubscriptionService actions, performSignOut, getGeolocationData, and getIsUserAuthenticated', () => {
     const parent = getRootMessenger();
-    const delegateSpy = jest.spyOn(parent, 'delegate');
+    const delegateSpy = vi.spyOn(parent, 'delegate');
     const messenger = subscriptionController.getMessenger(parent);
 
     expect(delegateSpy).toHaveBeenCalledWith({
@@ -158,10 +159,10 @@ describe('subscriptionController', () => {
       rootMessenger,
       'AuthenticationController',
       'AuthenticationController:performSignOut',
-      jest.fn(),
+      vi.fn(),
     );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(
+    const fetchFunction = vi.fn(
       async () =>
         new globalThis.Response(
           JSON.stringify({
@@ -231,7 +232,7 @@ describe('subscriptionController', () => {
       rootMessenger,
       'AuthenticationController',
       'AuthenticationController:performSignOut',
-      jest.fn(),
+      vi.fn(),
     );
     registerActionHandler(
       rootMessenger,
@@ -250,7 +251,7 @@ describe('subscriptionController', () => {
       async () => false,
     );
     const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(async (url: string, _init?: RequestInit) => {
+    const fetchFunction = vi.fn(async (url: string, _init?: RequestInit) => {
       if (url === SUBSCRIPTION_URL(Env.PRD, 'subscriptions/card')) {
         return new globalThis.Response(
           JSON.stringify({

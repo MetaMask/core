@@ -26,6 +26,8 @@ import {
   BeginVerificationRequestStruct,
   CompleteVerificationRequestStruct,
   GetVerificationTokenRequestStruct,
+  RequestMfaApprovalRequestStruct,
+  RemoveCredentialRequestStruct,
   parseVerificationTokenClaims,
 } from '../../sdk/authentication-jwt-bearer/mfa/schemas.js';
 import type {
@@ -47,9 +49,13 @@ import type {
   CompleteVerificationRequest,
   VerificationToken,
   GetVerificationTokenRequest,
+  MfaApproval,
   MfaCredentialType,
   MfaVerificationAssertion,
+  RequestMfaApprovalRequest,
+  RemoveCredentialRequest,
   VerificationChallenge,
+  AccessToken,
 } from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
@@ -57,6 +63,7 @@ import {
   Env,
   JwtBearerAuth,
   PairConflictError,
+  StepUpRequiredError,
   getMfaErrorCode,
   VerificationTokenInvalidError,
 } from '../../sdk/index.js';
@@ -212,6 +219,7 @@ type ControllerConfig = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'performSignIn',
+  'exchangeSocialAccessToken',
   'performSignOut',
   'getBearerToken',
   'getSessionProfile',
@@ -223,11 +231,16 @@ const MESSENGER_EXPOSED_METHODS = [
   'requestProfilePairing',
   'clearState',
   'refreshEnrolledCredentials',
+  'refreshSocialLoginCredentials',
   'beginCredentialEnrollment',
   'completeCredentialEnrollment',
   'beginCredentialVerification',
   'completeCredentialVerification',
+  'beginSocialLoginVerification',
+  'completeSocialLoginVerification',
   'getVerificationToken',
+  'requestMfaApproval',
+  'removeCredential',
   'clearVerificationSession',
 ] as const;
 
@@ -311,6 +324,14 @@ export class AuthenticationController extends BaseController<
    * exist.
    */
   readonly #verificationSessions = new Map<string, VerificationSession>();
+
+  /**
+   * Verification tokens that authorized an enrollment's begin, by flow ID.
+   * The server asks for the same AAL2 proof when it is completed, which can
+   * be minutes later (for example, while the user finds an email code), past
+   * the default session age.
+   */
+  readonly #enrollmentAccessTokens = new Map<string, string>();
 
   /**
    * Sequence number of the most recently started credentials refresh. Only
@@ -459,6 +480,14 @@ export class AuthenticationController extends BaseController<
     }
   }
 
+  #assertIsLocked(methodName: string): void {
+    if (this.#isUnlocked) {
+      throw new Error(
+        `${methodName} - unable to proceed, the wallet is unlocked`,
+      );
+    }
+  }
+
   #assertAuthSessionEpoch(epoch: number, methodName: string): void {
     if (!this.#isUnlocked || this.#authSessionEpoch !== epoch) {
       throw new Error(
@@ -577,10 +606,25 @@ export class AuthenticationController extends BaseController<
       return 'SRP';
     }
 
+    return this.#identifierTypeFromAuthConnection(state.authConnection);
+  }
+
+  /**
+   * Maps the social provider SeedlessOnboarding recorded at login to a login
+   * identifier type. It is known as soon as the user has logged in, before the
+   * vault is written.
+   *
+   * @param authConnection - Social provider id (`google` / `apple` /
+   * `telegram`).
+   * @returns The social provider identifier type, or `SRP`.
+   */
+  #identifierTypeFromAuthConnection(
+    authConnection?: string,
+  ): LoginIdentifierType {
     // Match provider strings from SeedlessOnboarding state rather than
     // importing AuthConnection — a value import would load that package
     // (and its heavy deps) whenever this controller is imported.
-    switch (state.authConnection) {
+    switch (authConnection) {
       case 'google':
         return 'GOOGLE';
       case 'apple':
@@ -741,6 +785,48 @@ export class AuthenticationController extends BaseController<
       }
       throw error;
     }
+  }
+
+  /**
+   * Exchanges the social access token SeedlessOnboarding holds for the
+   * wallet's Google/Apple/Telegram login (`POST /api/v2/social/login`) for an
+   * access token and the canonical profile it is paired to. Shows no UI and
+   * stores nothing: SRP sessions remain the source of truth for
+   * `getBearerToken`.
+   *
+   * Throws when the wallet has no social login (no known `authConnection`,
+   * whether or not the vault is written yet) or no social token, and
+   * `SocialIdentifierNotPairedError` when the identifier was never paired to
+   * a profile.
+   *
+   * @returns The access token and canonical profile.
+   */
+  public async exchangeSocialAccessToken(): Promise<LoginResponse> {
+    // The provider is known from `authConnection` right after the social
+    // login, before the password creates the vault, so the vault is not
+    // required here (unlike for sign-in and pairing).
+    const { authConnection } = this.messenger.call(
+      'SeedlessOnboardingController:getState',
+    );
+    const identifierType =
+      this.#identifierTypeFromAuthConnection(authConnection);
+    if (identifierType === 'SRP') {
+      throw new Error(
+        'exchangeSocialAccessToken - the wallet has no social login',
+      );
+    }
+
+    const socialJwt = await this.messenger.call(
+      'SeedlessOnboardingController:getAccessToken',
+    );
+    if (!socialJwt) {
+      throw new Error('exchangeSocialAccessToken - no social access token');
+    }
+
+    return await this.#auth.exchangeSocialAccessToken({
+      identifierType,
+      socialJwt,
+    });
   }
 
   #clearNeedsSocialPairing(): void {
@@ -978,8 +1064,60 @@ export class AuthenticationController extends BaseController<
       return this.#getEnrolledCredentials();
     }
 
-    // Skip the write when nothing changed so subscribers are not woken up by
-    // a fresh-but-identical array.
+    this.#setEnrolledCredentials(credentials);
+    return credentials;
+  }
+
+  /**
+   * Removes a credential from the profile and caches the credentials left.
+   *
+   * The server requires a verification proven with another type of credential
+   * (`cross_type_step_up_required` otherwise) and refuses to remove the last
+   * one (`last_credential`). This sends the verification session: without
+   * one, it throws a `StepUpRequiredError` (`aal2_required`) without calling
+   * the server. The caller verifies with another method through the client
+   * MFA kit first, which decides how recent that verification must be.
+   *
+   * @param request - The credential's `id`, and the trace reason.
+   * @returns The credentials left.
+   */
+  public async removeCredential(
+    request: RemoveCredentialRequest,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertIsUnlocked('removeCredential');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, RemoveCredentialRequestStruct);
+    const accessToken = this.getVerificationToken()?.accessToken;
+    if (!accessToken) {
+      throw new StepUpRequiredError(
+        'removeCredential requires a verification session',
+      );
+    }
+    const type =
+      this.#getEnrolledCredentials().find(
+        ({ id }) => id === request.credentialId,
+      )?.type ?? 'unknown';
+    const credentials = await this.#runMfaRequest(
+      'MFA Credential Remove',
+      request.reason.operation,
+      type,
+      async () =>
+        await this.#auth.deleteMfaCredential(request.credentialId, accessToken),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'removeCredential');
+    // A refresh still in flight may have read the list before the removal.
+    this.#credentialsRefreshSeq += 1;
+    this.#setEnrolledCredentials(credentials);
+    return credentials;
+  }
+
+  /**
+   * Caches the credential list. Skips the write when nothing changed so
+   * subscribers are not woken up by a fresh-but-identical array.
+   *
+   * @param credentials - The credentials from the server.
+   */
+  #setEnrolledCredentials(credentials: EnrolledCredential[]): void {
     if (
       JSON.stringify(credentials) !==
       JSON.stringify(this.#getEnrolledCredentials())
@@ -988,11 +1126,11 @@ export class AuthenticationController extends BaseController<
         state.enrolledCredentials = credentials;
       });
     }
-    return credentials;
   }
 
   /**
-   * Begins enrollment of a passkey or email OTP credential.
+   * Begins enrollment of a passkey, email OTP or authenticator app (TOTP)
+   * credential.
    *
    * @param request - Credential, optional email address, and trace reason.
    * @returns A challenge for the client-owned ceremony.
@@ -1023,11 +1161,17 @@ export class AuthenticationController extends BaseController<
         }),
     );
     this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
+    if (accessToken) {
+      this.#enrollmentAccessTokens.set(challenge.flowId, accessToken);
+    }
     return challenge;
   }
 
   /**
    * Completes credential enrollment and refreshes the credential cache.
+   *
+   * It is sent with the verification token that began the enrollment, if
+   * any: once a factor is enrolled, the server requires AAL2 for both steps.
    *
    * The server returns an assertion for the new credential, which opens a
    * verification session like `completeCredentialVerification`, replacing
@@ -1063,8 +1207,12 @@ export class AuthenticationController extends BaseController<
           request.flowId,
           request.proof,
           primaryEntropySourceId,
+          this.#enrollmentAccessTokens.get(request.flowId),
         ),
     );
+    // Only after success: a failed attempt can be retried on this flow, and
+    // needs the same token.
+    this.#enrollmentAccessTokens.delete(request.flowId);
 
     try {
       await this.#openVerificationSessionFromAssertion(assertion, {
@@ -1173,6 +1321,101 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
+   * Refreshes the credentials enrolled on the profile a social login is
+   * paired to, while the wallet is locked, for the recovery of a social login
+   * wallet.
+   *
+   * Takes its access token from the social login (see
+   * `exchangeSocialAccessToken`), so no keyring or signing is involved. Throws
+   * when the wallet is unlocked: unlocked features use
+   * `refreshEnrolledCredentials`. Nothing is cached.
+   *
+   * @returns The current supported credentials.
+   */
+  public async refreshSocialLoginCredentials(): Promise<EnrolledCredential[]> {
+    this.#assertIsLocked('refreshSocialLoginCredentials');
+    const { token } = await this.exchangeSocialAccessToken();
+    return await this.#runMfaRequest(
+      'MFA Social Login Credentials Refresh',
+      'credentials.refresh',
+      'all',
+      async () =>
+        await this.#auth.getMfaCredentials(undefined, token.accessToken),
+    );
+  }
+
+  /**
+   * Begins verification with an enrolled credential, while the wallet is
+   * locked, for the recovery of a social login wallet.
+   *
+   * Takes its access token from the social login, like
+   * `refreshSocialLoginCredentials`. Throws when the wallet is unlocked:
+   * unlocked features use `beginCredentialVerification`.
+   *
+   * @param request - Credential type and trace reason.
+   * @returns A challenge for the client-owned ceremony.
+   */
+  public async beginSocialLoginVerification(
+    request: BeginVerificationRequest,
+  ): Promise<VerificationChallenge> {
+    this.#assertIsLocked('beginSocialLoginVerification');
+    assertValidMfaRequest(request, BeginVerificationRequestStruct);
+    const { token } = await this.exchangeSocialAccessToken();
+    return await this.#runMfaRequest(
+      'MFA Social Login Verification Begin',
+      request.reason.operation,
+      request.type,
+      async () =>
+        await this.#auth.beginMfaVerification(
+          request.type,
+          undefined,
+          token.accessToken,
+        ),
+    );
+  }
+
+  /**
+   * Completes verification while the wallet is locked and returns the
+   * verification token, for the recovery of a social login wallet.
+   *
+   * Unlike `completeCredentialVerification`, no verification session is
+   * opened: the token goes to the caller alone, so nothing proven here is
+   * readable once the wallet unlocks. Takes its access token from the social
+   * login. Throws when the wallet is unlocked.
+   *
+   * @param request - Flow identifier, platform or email proof, and trace reason.
+   * @returns The verification token.
+   */
+  public async completeSocialLoginVerification(
+    request: CompleteVerificationRequest,
+  ): Promise<VerificationToken> {
+    this.#assertIsLocked('completeSocialLoginVerification');
+    assertValidMfaRequest(request, CompleteVerificationRequestStruct);
+    const { type } = request.proof;
+    const { operation } = request.reason;
+    const { token } = await this.exchangeSocialAccessToken();
+    const assertion = await this.#runMfaRequest(
+      'MFA Social Login Verification Complete',
+      operation,
+      type,
+      async () =>
+        await this.#auth.completeMfaVerification(
+          request.flowId,
+          request.proof,
+          undefined,
+          token.accessToken,
+        ),
+    );
+    const accessToken = await this.#runMfaRequest(
+      'MFA Token Exchange',
+      operation,
+      type,
+      async () => await this.#auth.exchangeMfaAssertion(assertion.token),
+    );
+    return this.#toVerificationToken(accessToken);
+  }
+
+  /**
    * Exchanges an MFA assertion at Hydra and opens the verification session
    * with the resulting token.
    *
@@ -1206,6 +1449,19 @@ export class AuthenticationController extends BaseController<
     );
     this.#assertAuthSessionEpoch(sessionEpoch, methodName);
 
+    const token = this.#toVerificationToken(accessToken);
+    this.#openVerificationSession(token);
+    return token;
+  }
+
+  /**
+   * Checks the token a verification assertion was exchanged for and reads its
+   * claims.
+   *
+   * @param accessToken - Token returned by the assertion exchange.
+   * @returns The verification token.
+   */
+  #toVerificationToken(accessToken: AccessToken): VerificationToken {
     let decodedClaims: unknown;
     try {
       decodedClaims = decodeJwtPayload(accessToken.accessToken);
@@ -1219,9 +1475,7 @@ export class AuthenticationController extends BaseController<
       );
     }
 
-    const token: VerificationToken = { ...accessToken, claims };
-    this.#openVerificationSession(token);
-    return token;
+    return { ...accessToken, claims };
   }
 
   /**
@@ -1264,6 +1518,69 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
+   * Requests an approval bound to one request (`POST /api/v2/mfa/approvals`),
+   * for the services in `audiences`, such as recovery or signing.
+   *
+   * Shows no UI. When `requireVerification` is set, the approval proves the
+   * verification session: without one, this throws a `StepUpRequiredError`
+   * (`aal2_required`) without calling the server. The server answers the same
+   * way when the verification is too old for it, and that session is then
+   * dropped. Either way, the caller verifies through the client MFA kit
+   * (`verifyOrEnroll`), which runs a new ceremony, and calls again.
+   *
+   * @param request - Request digest, audiences, whether a recent verification
+   * is required, whether to return identifiers, and the trace reason.
+   * @returns The approval, its lifetime and the recovery identifiers.
+   */
+  public async requestMfaApproval(
+    request: RequestMfaApprovalRequest,
+  ): Promise<MfaApproval> {
+    this.#assertIsUnlocked('requestMfaApproval');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, RequestMfaApprovalRequestStruct);
+    const verification = request.requireVerification
+      ? this.getVerificationToken()
+      : null;
+    if (request.requireVerification && !verification) {
+      throw new StepUpRequiredError(
+        'requestMfaApproval requires a verification session',
+      );
+    }
+    const approval = await this.#runMfaRequest(
+      'MFA Approval',
+      request.reason.operation,
+      verification ? verification.claims.amr.join(',') : 'none',
+      async () =>
+        await this.#auth.requestMfaApproval(
+          {
+            request_hash: request.requestHash,
+            audiences: request.audiences,
+            ...(request.includeIdentifiers === undefined
+              ? {}
+              : { include_identifiers: request.includeIdentifiers }),
+          },
+          {
+            entropySourceId: this.#getPrimaryEntropySourceId(),
+            accessToken: verification?.accessToken,
+          },
+        ),
+    ).catch((error: unknown) => {
+      // The server found the verification too old: drop it, so the caller's
+      // next verification runs a new ceremony instead of reusing it. A
+      // session opened meanwhile is kept.
+      if (
+        getMfaErrorCode(error) === 'aal2_required' &&
+        this.#verificationSessions.get(DEFAULT_AUDIENCE)?.token === verification
+      ) {
+        this.#dropVerificationSession(DEFAULT_AUDIENCE);
+      }
+      throw error;
+    });
+    this.#assertAuthSessionEpoch(sessionEpoch, 'requestMfaApproval');
+    return approval;
+  }
+
+  /**
    * Opens the verification session for the lifetime the server gave the token.
    * It is measured from `expires_in` on the local clock rather than read from
    * `exp`, so a skewed device clock cannot shorten or extend it.
@@ -1297,13 +1614,15 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Clears every in-memory verification session and its expiration timer.
+   * Clears every in-memory verification session and its expiration timer,
+   * and the tokens kept for enrollments in progress.
    */
   public clearVerificationSession(): void {
     for (const { timer } of this.#verificationSessions.values()) {
       clearTimeout(timer);
     }
     this.#verificationSessions.clear();
+    this.#enrollmentAccessTokens.clear();
   }
 
   /**

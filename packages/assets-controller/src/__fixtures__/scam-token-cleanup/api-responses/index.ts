@@ -32,7 +32,7 @@ const V3_ASSETS_BY_LOWER_ID = v3Assets as unknown as Record<
 export function mockSuggestedOccurrenceFloors(): nock.Scope {
   return nock(API_URLS.TOKEN)
     .get('/v1/suggestedOccurrenceFloors')
-    .reply(200, suggestedOccurrenceFloors as Record<string, number>);
+    .reply(200, suggestedOccurrenceFloors);
 }
 
 /**
@@ -53,12 +53,21 @@ export function mockV3Assets({
 } = {}): { scope: nock.Scope; requestedBatches: string[][] } {
   const requestedBatches: string[][] = [];
 
+  // The sweep also asks `/v2/assets` which below-floor tokens are launchpad
+  // tokens; none of the captured wallet's tokens are.
+  nock(API_URLS.TOKEN)
+    .persist()
+    .get('/v2/assets')
+    .query(true)
+    .optionally()
+    .reply(200, []);
+
   const scope = nock(API_URLS.TOKENS)
     .get('/v3/assets')
     .query(true)
     .times(times)
-    .reply(200, (uri: string) => {
-      const assetIds = readAssetIds(uri);
+    .reply(200, (request: Request) => {
+      const assetIds = readAssetIds(request);
       requestedBatches.push(assetIds);
       return assetIds
         .map((assetId) => lookupAsset(assetId))
@@ -91,11 +100,13 @@ export function mockSweepApis({
 /**
  * Read the requested asset IDs back off a `/v3/assets` request URI.
  *
- * @param uri - The intercepted request URI, path and query.
+ * @param request - The intercepted request.
  * @returns The asset IDs the caller asked about.
  */
-function readAssetIds(uri: string): string[] {
-  const assetIds = new URL(uri, API_URLS.TOKENS).searchParams.get('assetIds');
+function readAssetIds(request: Request): string[] {
+  const assetIds = new URL(request.url, API_URLS.TOKENS).searchParams.get(
+    'assetIds',
+  );
   return assetIds ? assetIds.split(',') : [];
 }
 

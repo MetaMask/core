@@ -1,4 +1,5 @@
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildNativeAssetsFromConstant,
@@ -8,12 +9,12 @@ import {
 } from './native-assets.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  fetchWithErrorHandling: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchWithErrorHandling: vi.fn(),
 }));
 
-const fetchWithErrorHandlingMock = jest.mocked(fetchWithErrorHandling);
+const fetchWithErrorHandlingMock = vi.mocked(fetchWithErrorHandling);
 
 describe('buildNativeAssetsFromConstant', () => {
   it('includes a normalized entry for every NATIVE_ASSETS chain', () => {

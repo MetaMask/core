@@ -1,21 +1,31 @@
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../constants.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
+  GetBalanceCallback,
   TransactionPaySourceAmount,
   TransactionData,
+  TransactionPayControllerGetStateAction,
+  TransactionPayControllerMessenger,
   TransactionPayQuote,
   TransactionPayTotals,
+  PayStrategyGetQuotesRequest,
   TransactionPaymentToken,
   TransactionPayRequiredToken,
+  UpdateTransactionDataCallback,
 } from '../types.js';
 import type { UpdateQuotesRequest } from './quotes.js';
 import { refreshQuotes, updateQuotes } from './quotes.js';
+import { updateSourceAmounts } from './source-amounts.js';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -27,17 +37,15 @@ import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
 import { QuoteError } from './validation.js';
 
-jest.mock('./strategy');
-jest.mock('./transaction');
-jest.mock('./totals');
-jest.mock('./token', () => ({
-  ...jest.createMockFromModule<typeof import('./token.js')>('./token'),
-  computeTokenAmounts:
-    jest.requireActual<typeof import('./token.js')>('./token')
-      .computeTokenAmounts,
-}));
+vi.mock(import('./source-amounts.js'));
+vi.mock(import('./strategy.js'));
+vi.mock(import('./transaction.js'));
+vi.mock(import('./totals.js'));
+vi.mock(import('./token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['computeTokenAmounts']),
+);
 
-jest.useFakeTimers();
+vi.useFakeTimers();
 
 const TRANSACTION_ID_MOCK = '123-456';
 
@@ -106,19 +114,20 @@ const BATCH_TRANSACTION_MOCK = {
 describe('Quotes Utils', () => {
   const { messenger, getControllerStateMock, getKeyringControllerStateMock } =
     getMessengerMock();
-  const updateTransactionDataMock = jest.fn();
-  const getStrategyByNameMock = jest.mocked(getStrategyByName);
-  const getStrategiesByNameMock = jest.mocked(getStrategiesByName);
-  const checkStrategyQuoteSupportMock = jest.mocked(checkStrategyQuoteSupport);
-  const checkStrategySupportMock = jest.mocked(checkStrategySupport);
-  const getTransactionMock = jest.mocked(getTransaction);
-  const updateTransactionMock = jest.mocked(updateTransaction);
-  const calculateTotalsMock = jest.mocked(calculateTotals);
-  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
-  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-  const getStrategiesMock = jest.fn();
-  const getQuotesMock = jest.fn();
-  const getBatchTransactionsMock = jest.fn();
+  const updateTransactionDataMock = vi.fn();
+  const getStrategyByNameMock = vi.mocked(getStrategyByName);
+  const updateSourceAmountsMock = vi.mocked(updateSourceAmounts);
+  const getStrategiesByNameMock = vi.mocked(getStrategiesByName);
+  const checkStrategyQuoteSupportMock = vi.mocked(checkStrategyQuoteSupport);
+  const checkStrategySupportMock = vi.mocked(checkStrategySupport);
+  const getTransactionMock = vi.mocked(getTransaction);
+  const updateTransactionMock = vi.mocked(updateTransaction);
+  const calculateTotalsMock = vi.mocked(calculateTotals);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
+  const getStrategiesMock = vi.fn();
+  const getQuotesMock = vi.fn();
+  const getBatchTransactionsMock = vi.fn();
 
   /**
    * Run the updateQuotes function.
@@ -138,8 +147,8 @@ describe('Quotes Utils', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest.clearAllTimers();
+    vi.resetAllMocks();
+    vi.clearAllTimers();
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -155,7 +164,7 @@ describe('Quotes Utils', () => {
     getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
 
     getStrategyByNameMock.mockReturnValue({
-      execute: jest.fn(),
+      execute: vi.fn(),
       getQuotes: getQuotesMock,
       getBatchTransactions: getBatchTransactionsMock,
     });
@@ -451,16 +460,16 @@ describe('Quotes Utils', () => {
 
     it('falls back to next strategy when quotes fail', async () => {
       const firstStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockRejectedValue(new Error('Strategy error')),
-        execute: jest.fn(),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockRejectedValue(new Error('Strategy error')),
+        execute: vi.fn(),
       };
 
       const secondStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -492,16 +501,16 @@ describe('Quotes Utils', () => {
       });
 
       const firstStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockRejectedValue(terminalError),
-        execute: jest.fn(),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockRejectedValue(terminalError),
+        execute: vi.fn(),
       };
 
       const secondStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -538,21 +547,21 @@ describe('Quotes Utils', () => {
 
     it('preserves fallback for ordinary no-quotes error before successful next strategy', async () => {
       const firstStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockRejectedValue(
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockRejectedValue(
           new QuoteError({
             message: 'No quotes returned',
             reason: 'no-quotes',
           }),
         ),
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       const secondStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -588,32 +597,32 @@ describe('Quotes Utils', () => {
 
     it('continues strategy fallback after ordinary and prefixed no-quotes errors', async () => {
       const firstStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockRejectedValue(
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockRejectedValue(
           new QuoteError({
             message: 'No quotes returned',
             reason: 'no-quotes',
           }),
         ),
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       const secondStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockRejectedValue(
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockRejectedValue(
           new QuoteError({
             message: 'Atomic promotion failed: test probe',
             reason: 'no-quotes',
           }),
         ),
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       const thirdStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -655,19 +664,19 @@ describe('Quotes Utils', () => {
 
     it('falls back to next strategy when batch transactions fail', async () => {
       const firstStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
-        getBatchTransactions: jest
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: vi
           .fn()
           .mockRejectedValue(new Error('Batch error')),
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       const secondStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -695,16 +704,16 @@ describe('Quotes Utils', () => {
 
     it('skips strategies that do not support the request', async () => {
       const unsupportedStrategy = {
-        supports: jest.fn().mockReturnValue(false),
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
+        supports: vi.fn().mockReturnValue(false),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
       };
 
       const supportedStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -731,16 +740,16 @@ describe('Quotes Utils', () => {
 
     it('skips strategies that fail support checks', async () => {
       const unsupportedStrategy = {
-        supports: jest.fn().mockResolvedValue(false),
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
+        supports: vi.fn().mockResolvedValue(false),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
       };
 
       const supportedStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -768,18 +777,18 @@ describe('Quotes Utils', () => {
 
     it('falls back to next strategy when post-quote support checks fail', async () => {
       const unsupportedStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        checkQuoteSupport: jest.fn().mockResolvedValue(false),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
-        getBatchTransactions: jest.fn(),
-        execute: jest.fn(),
+        supports: vi.fn().mockReturnValue(true),
+        checkQuoteSupport: vi.fn().mockResolvedValue(false),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: vi.fn(),
+        execute: vi.fn(),
       };
 
       const supportedStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -813,18 +822,18 @@ describe('Quotes Utils', () => {
 
     it('continues to next strategy if supports throws', async () => {
       const brokenStrategy = {
-        supports: jest.fn().mockImplementation(() => {
+        supports: vi.fn().mockImplementation(() => {
           throw new Error('Supports error');
         }),
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
       };
 
       const fallbackStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -851,16 +860,16 @@ describe('Quotes Utils', () => {
 
     it('tries next strategy when quotes are empty', async () => {
       const emptyStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([]),
-        execute: jest.fn(),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([]),
+        execute: vi.fn(),
       };
 
       const fallbackStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -887,10 +896,10 @@ describe('Quotes Utils', () => {
 
     it('skips unknown strategies and tries the next valid strategy', async () => {
       const fallbackStrategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: getBatchTransactionsMock,
-        execute: jest.fn(),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([
@@ -913,9 +922,9 @@ describe('Quotes Utils', () => {
 
     it('defaults to no batch transactions when strategy does not provide them', async () => {
       const strategy = {
-        supports: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
-        execute: jest.fn(),
+        supports: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn().mockResolvedValue([QUOTE_MOCK]),
+        execute: vi.fn(),
       };
 
       getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
@@ -1243,9 +1252,10 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock: Record<string, unknown> = {};
 
-      updateTransactionDataMock.mock.calls.forEach(
-        (call: [string, (data: Record<string, unknown>) => void]) =>
-          call[1](transactionDataMock),
+      updateTransactionDataMock.mock.calls.forEach((call: unknown[]) =>
+        (call[1] as (data: Record<string, unknown>) => void)(
+          transactionDataMock,
+        ),
       );
 
       expect(
@@ -1286,9 +1296,10 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock: Record<string, unknown> = {};
 
-      updateTransactionDataMock.mock.calls.forEach(
-        (call: [string, (data: Record<string, unknown>) => void]) =>
-          call[1](transactionDataMock),
+      updateTransactionDataMock.mock.calls.forEach((call: unknown[]) =>
+        (call[1] as (data: Record<string, unknown>) => void)(
+          transactionDataMock,
+        ),
       );
 
       const updatedToken =
@@ -1308,9 +1319,10 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock: Record<string, unknown> = {};
 
-      updateTransactionDataMock.mock.calls.forEach(
-        (call: [string, (data: Record<string, unknown>) => void]) =>
-          call[1](transactionDataMock),
+      updateTransactionDataMock.mock.calls.forEach((call: unknown[]) =>
+        (call[1] as (data: Record<string, unknown>) => void)(
+          transactionDataMock,
+        ),
       );
 
       // Quotes should still be updated
@@ -1340,9 +1352,10 @@ describe('Quotes Utils', () => {
 
       const transactionDataMock: Record<string, unknown> = {};
 
-      updateTransactionDataMock.mock.calls.forEach(
-        (call: [string, (data: Record<string, unknown>) => void]) =>
-          call[1](transactionDataMock),
+      updateTransactionDataMock.mock.calls.forEach((call: unknown[]) =>
+        (call[1] as (data: Record<string, unknown>) => void)(
+          transactionDataMock,
+        ),
       );
 
       // Quotes should still be updated
@@ -1593,22 +1606,22 @@ describe('Quotes Utils', () => {
         } as TransactionPayQuote<Json>;
 
         const promotionStrategy = {
-          supports: jest.fn().mockReturnValue(true),
-          getQuotes: jest.fn().mockRejectedValue(
+          supports: vi.fn().mockReturnValue(true),
+          getQuotes: vi.fn().mockRejectedValue(
             new QuoteError({
               message: 'Atomic promotion failed: test probe',
               reason: 'no-quotes',
             }),
           ),
-          getBatchTransactions: jest.fn(),
-          execute: jest.fn(),
+          getBatchTransactions: vi.fn(),
+          execute: vi.fn(),
         };
 
         const fallbackStrategy = {
-          supports: jest.fn().mockReturnValue(true),
-          getQuotes: jest.fn().mockRejectedValue(new Error('Fallback failed')),
+          supports: vi.fn().mockReturnValue(true),
+          getQuotes: vi.fn().mockRejectedValue(new Error('Fallback failed')),
           getBatchTransactions: getBatchTransactionsMock,
-          execute: jest.fn(),
+          execute: vi.fn(),
         };
 
         getStrategiesMock.mockReturnValue([
@@ -1758,7 +1771,7 @@ describe('Quotes Utils', () => {
         getStrategiesMock,
       );
 
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(5);
 
       const transactionDataMock = {};
       updateTransactionDataMock.mock.calls.map((call) =>
@@ -1791,7 +1804,7 @@ describe('Quotes Utils', () => {
         getStrategiesMock,
       );
 
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(5);
 
       const transactionDataMock = {};
       updateTransactionDataMock.mock.calls.map((call) =>
@@ -1868,6 +1881,266 @@ describe('Quotes Utils', () => {
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    describe('source amount refresh', () => {
+      const typedMessenger = messenger as TransactionPayControllerMessenger;
+      const typedGetControllerStateMock =
+        getControllerStateMock as MockedFunction<
+          TransactionPayControllerGetStateAction['handler']
+        >;
+      const typedUpdateTransactionDataMock =
+        updateTransactionDataMock as MockedFunction<UpdateTransactionDataCallback>;
+      const typedGetStrategiesMock = getStrategiesMock as MockedFunction<
+        (transaction: TransactionMeta) => TransactionPayStrategy[]
+      >;
+
+      it('passes transaction ID to strategy refresh interval', async () => {
+        const getRefreshIntervalMock =
+          vi.fn<(request: unknown) => Promise<number | undefined>>();
+        getRefreshIntervalMock.mockResolvedValue(undefined);
+
+        getStrategyByNameMock.mockReturnValue({
+          execute: vi.fn(),
+          getQuotes: vi.fn(),
+          getRefreshInterval: getRefreshIntervalMock,
+        });
+
+        const quote = {
+          ...QUOTE_MOCK,
+          request: {
+            from: TRANSACTION_META_MOCK.txParams.from as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1',
+            sourceTokenAddress: '0xabc',
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '100',
+            targetChainId: '0x2',
+            targetTokenAddress: '0xdef',
+          },
+        } as unknown as TransactionPayQuote<Json>;
+
+        typedGetControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              ...cloneDeep(TRANSACTION_DATA_MOCK),
+              quotes: [quote],
+              quotesLastUpdated: Date.now(),
+            },
+          },
+        });
+
+        await refreshQuotes(
+          typedMessenger,
+          typedUpdateTransactionDataMock,
+          typedGetStrategiesMock,
+        );
+
+        expect(getRefreshIntervalMock).toHaveBeenCalledWith({
+          chainId: '0x1',
+          messenger: typedMessenger,
+          transactionId: TRANSACTION_ID_MOCK,
+        });
+      });
+
+      it.each([
+        ['max amount', true],
+        ['non-max amount', false],
+      ])(
+        'refreshes source amounts before requoting for %s',
+        async (_title, isMaxAmount) => {
+          const getBalanceMock = vi.fn<GetBalanceCallback>();
+          const transactionData: TransactionData = {
+            ...cloneDeep(TRANSACTION_DATA_MOCK),
+            isMaxAmount,
+            quotes: [QUOTE_MOCK],
+            quotesLastUpdated: 1,
+          };
+
+          typedGetControllerStateMock.mockReturnValue({
+            transactionData: { [TRANSACTION_ID_MOCK]: transactionData },
+          });
+
+          await refreshQuotes(
+            typedMessenger,
+            typedUpdateTransactionDataMock,
+            typedGetStrategiesMock,
+            getBalanceMock,
+          );
+
+          const draft = cloneDeep(transactionData);
+          typedUpdateTransactionDataMock.mock.calls[0][1](draft);
+
+          expect(updateSourceAmountsMock).toHaveBeenCalledWith(
+            TRANSACTION_ID_MOCK,
+            draft,
+            typedMessenger,
+            getBalanceMock,
+          );
+          expect(
+            typedUpdateTransactionDataMock.mock.invocationCallOrder[0],
+          ).toBeLessThan(getQuotesMock.mock.invocationCallOrder[0]);
+        },
+      );
+
+      it('does not refresh source amounts if quotes are not expired', async () => {
+        typedGetControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              ...cloneDeep(TRANSACTION_DATA_MOCK),
+              quotes: [QUOTE_MOCK],
+              quotesLastUpdated: Date.now(),
+            },
+          },
+        });
+
+        await refreshQuotes(
+          typedMessenger,
+          typedUpdateTransactionDataMock,
+          typedGetStrategiesMock,
+          vi.fn<GetBalanceCallback>(),
+        );
+
+        expect(updateSourceAmountsMock).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('atomic execution', () => {
+    // The destructure above widens the mocks to `any`. Re-type the keyring
+    // mock so these assertions do not add `no-unsafe-call` violations.
+    const keyringStateMock = getKeyringControllerStateMock as MockedFunction<
+      KeyringControllerGetStateAction['handler']
+    >;
+
+    /**
+     * Make `KeyringController:getState` report the transaction's `from` as
+     * held by a keyring of the given type.
+     *
+     * @param type - Keyring type holding the account.
+     */
+    function mockSigningKeyringType(type: string): void {
+      keyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type,
+            accounts: [TRANSACTION_META_MOCK.txParams.from],
+            metadata: { id: 'keyring-id', name: type },
+          },
+        ],
+      });
+    }
+
+    it.each([
+      ['an explicit hint', true],
+      ['no hint', undefined],
+    ])(
+      'clears atomic when the signing keyring requires MFA given %s',
+      async (_title, atomic) => {
+        mockSigningKeyringType('MPC Money Keyring');
+
+        await run({
+          transactionData: { ...cloneDeep(TRANSACTION_DATA_MOCK), atomic },
+        });
+
+        expect(getQuotesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requests: [expect.objectContaining({ atomic: false })],
+          }),
+        );
+      },
+    );
+
+    it('clears atomic for post-quote requests when the signing keyring requires MFA', async () => {
+      mockSigningKeyringType('MPC Money Keyring');
+
+      await run({
+        transactionData: {
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          atomic: true,
+          isPostQuote: true,
+          paymentToken: {
+            ...(TRANSACTION_DATA_MOCK.paymentToken as TransactionPaymentToken),
+            address: '0xdef',
+          },
+          sourceAmounts: [
+            {
+              sourceAmountHuman: '1',
+              sourceAmountRaw: '1000',
+              sourceBalanceRaw: '2000',
+              sourceChainId: '0x1',
+              sourceTokenAddress: '0x456',
+              targetTokenAddress: '0xdef',
+            },
+          ],
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({ atomic: false, isPostQuote: true }),
+          ],
+        }),
+      );
+    });
+
+    it('keeps the atomic hint when the signing keyring does not require MFA', async () => {
+      // The SRP-derived Money Keyring signs locally, so atomic stays allowed.
+      mockSigningKeyringType('Money Keyring');
+
+      await run({
+        transactionData: {
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          atomic: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [expect.objectContaining({ atomic: true })],
+        }),
+      );
+    });
+
+    it('reads the keyring of the transaction account, not the account override', async () => {
+      // An atomic quote's delegation is signed by `txParams.from`, so an
+      // `accountOverride` on a local keyring must not re-enable atomic.
+      const accountOverride =
+        '0xde1e9a70r0000000000000000000000000000001' as Hex;
+
+      keyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'MPC Money Keyring',
+            accounts: [TRANSACTION_META_MOCK.txParams.from],
+            metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+          },
+          {
+            type: 'HD Key Tree',
+            accounts: [accountOverride],
+            metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+          },
+        ],
+      });
+
+      await run({
+        transactionData: {
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          accountOverride,
+          atomic: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({ atomic: false, from: accountOverride }),
+          ],
+        }),
+      );
     });
   });
 
@@ -1978,28 +2251,37 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('uses accountOverride as from for post-quote flow', async () => {
-      const accountOverride =
-        '0xrecipient0000000000000000000000000000001' as Hex;
+    it.each([
+      ['no account override', undefined],
+      ['an account override', '0xrecipient0000000000000000000000000000001'],
+    ])(
+      'uses the transaction account as from for post-quote flow with %s',
+      async (_title, accountOverride) => {
+        const refundTo = '0xsafe000000000000000000000000000000000001' as Hex;
 
-      await run({
-        transactionData: {
-          ...POST_QUOTE_TRANSACTION_DATA,
-          accountOverride,
-        },
-      });
+        await run({
+          transactionData: {
+            ...POST_QUOTE_TRANSACTION_DATA,
+            accountOverride: accountOverride as Hex | undefined,
+            refundTo,
+          },
+        });
 
-      expect(getQuotesMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          requests: [
-            expect.objectContaining({
-              isPostQuote: true,
-              from: accountOverride,
-            }),
-          ],
-        }),
-      );
-    });
+        const [{ from, requests }] = getQuotesMock.mock.calls[0] as [
+          PayStrategyGetQuotesRequest,
+        ];
+
+        expect(from).toBe(TRANSACTION_META_MOCK.txParams.from);
+        expect(requests).toStrictEqual([
+          expect.objectContaining({
+            from: TRANSACTION_META_MOCK.txParams.from,
+            isPostQuote: true,
+            refundTo,
+          }),
+        ]);
+        expect(requests[0].accountOverride).toBe(accountOverride);
+      },
+    );
 
     it('uses accountOverride as from for non-post-quote flow', async () => {
       const accountOverride =

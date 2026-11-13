@@ -6,6 +6,8 @@ import type {
 } from '@metamask/messenger';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../index.js';
 import type { TransactionControllerFeatureFlags } from './feature-flags.js';
@@ -27,7 +29,7 @@ import {
 } from './feature-flags.js';
 import { isValidSignature } from './signature.js';
 
-jest.mock('./signature');
+vi.mock('./signature');
 
 const CHAIN_ID_MOCK = '0x123' as Hex;
 const CHAIN_ID_2_MOCK = '0xabc' as Hex;
@@ -61,11 +63,11 @@ describe('Feature Flags Utils', () => {
     typeof rootMessenger
   >;
 
-  let getFeatureFlagsMock: jest.MockedFn<
+  let getFeatureFlagsMock: MockedFunction<
     RemoteFeatureFlagControllerGetStateAction['handler']
   >;
 
-  const isValidSignatureMock = jest.mocked(isValidSignature);
+  const isValidSignatureMock = vi.mocked(isValidSignature);
 
   /**
    * Mocks the feature flags returned by the remote feature flag controller.
@@ -84,9 +86,9 @@ describe('Feature Flags Utils', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    getFeatureFlagsMock = jest.fn();
+    getFeatureFlagsMock = vi.fn();
 
     rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 

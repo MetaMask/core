@@ -1,4 +1,5 @@
 import { assert } from '@metamask/superstruct';
+import { describe, expect, it } from 'vitest';
 
 import {
   ACCOUNT_TREE_PAYLOAD_CURRENT_VERSION,

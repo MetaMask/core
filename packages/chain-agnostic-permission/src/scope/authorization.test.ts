@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   bucketScopes,
   isNamespaceInScopesObject,
@@ -8,20 +10,20 @@ import * as Transform from './transform.js';
 import type { ExternalScopeObject } from './types.js';
 import * as Validation from './validation.js';
 
-jest.mock('./filter', () => ({
-  bucketScopesBySupport: jest.fn(),
+vi.mock('./filter', () => ({
+  bucketScopesBySupport: vi.fn(),
 }));
-const MockFilter = jest.mocked(Filter);
+const MockFilter = vi.mocked(Filter);
 
-jest.mock('./validation', () => ({
-  getValidScopes: jest.fn(),
+vi.mock('./validation', () => ({
+  getValidScopes: vi.fn(),
 }));
-const MockValidation = jest.mocked(Validation);
+const MockValidation = vi.mocked(Validation);
 
-jest.mock('./transform', () => ({
-  normalizeAndMergeScopes: jest.fn(),
+vi.mock('./transform', () => ({
+  normalizeAndMergeScopes: vi.fn(),
 }));
-const MockTransform = jest.mocked(Transform);
+const MockTransform = vi.mocked(Transform);
 
 const validScopeObject: ExternalScopeObject = {
   methods: [],
@@ -100,10 +102,10 @@ describe('Scope Authorization', () => {
   });
 
   describe('bucketScopes', () => {
-    const isEvmChainIdSupported = jest.fn();
-    const isEvmChainIdSupportable = jest.fn();
-    const isNonEvmScopeSupported = jest.fn();
-    const getNonEvmSupportedMethods = jest.fn();
+    const isEvmChainIdSupported = vi.fn();
+    const isEvmChainIdSupportable = vi.fn();
+    const isNonEvmScopeSupported = vi.fn();
+    const getNonEvmSupportedMethods = vi.fn();
 
     beforeEach(() => {
       let callCount = 0;

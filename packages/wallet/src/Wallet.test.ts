@@ -19,6 +19,7 @@ import {
 } from '@metamask/shield-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
 import * as initializationModule from './initialization/initialization.js';
@@ -39,8 +40,19 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
+const TEST_ANALYTICS_ID = '11111111-1111-4111-8111-111111111111';
+
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
+    analyticsController: {
+      platformAdapter: {
+        track: vi.fn(),
+        identify: vi.fn(),
+        view: vi.fn(),
+        onSetupCompleted: vi.fn(),
+      },
+      analyticsId: TEST_ANALYTICS_ID,
+    },
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
@@ -166,7 +178,7 @@ describe('Wallet', () => {
     const fakeMetadata = {
       foo: { persist: true, includeInDebugSnapshot: false },
     };
-    jest.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
+    vi.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
       // @ts-expect-error Mock data.
       WithMeta: { state: {}, metadata: fakeMetadata },
       NoMeta: { state: {} },
@@ -187,7 +199,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(6);
+    expect(results).toHaveLength(10);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -219,7 +231,7 @@ describe('Wallet', () => {
 
     const keyringController = wallet.getInstance('KeyringController');
 
-    const spy = jest.spyOn(keyringController, 'destroy');
+    const spy = vi.spyOn(keyringController, 'destroy');
 
     await wallet.destroy();
     await wallet.destroy();
@@ -228,7 +240,7 @@ describe('Wallet', () => {
   });
 
   it('logs controller state validation errors and continues', async () => {
-    const captureException = jest.fn();
+    const captureException = vi.fn();
     const messenger = new Messenger({ namespace: 'Root', captureException });
     const wallet = new Wallet({
       messenger,

@@ -1,11 +1,13 @@
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { EncryptionPublicKeyManager } from './EncryptionPublicKeyManager.js';
 import type { EncryptionPublicKeyManagerMessenger } from './EncryptionPublicKeyManager.js';
 
 const mockMessenger = {
-  registerActionHandler: jest.fn(),
-  registerInitialEventPayload: jest.fn(),
-  publish: jest.fn(),
-  clearEventSubscriptions: jest.fn(),
+  registerActionHandler: vi.fn(),
+  registerInitialEventPayload: vi.fn(),
+  publish: vi.fn(),
+  clearEventSubscriptions: vi.fn(),
 } as unknown as EncryptionPublicKeyManagerMessenger;
 
 const mockInitialOptions = {
@@ -60,14 +62,13 @@ describe('EncryptionPublicKeyManager', () => {
     beforeEach(() => {
       controller = new EncryptionPublicKeyManager(mockInitialOptions);
 
-      jest
-        .spyOn(controller, 'addUnapprovedMessage')
-        .mockImplementation()
-        .mockResolvedValue(messageIdMock);
+      vi.spyOn(controller, 'addUnapprovedMessage').mockResolvedValue(
+        messageIdMock,
+      );
     });
 
     afterAll(() => {
-      jest.spyOn(controller, 'addUnapprovedMessage').mockClear();
+      vi.spyOn(controller, 'addUnapprovedMessage').mockClear();
     });
     it('sets message to "received"', async () => {
       const promise = controller.addUnapprovedMessageAsync({

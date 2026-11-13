@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "types": ["jest"]
-  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -33,6 +30,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../eth-sig-util"
     }
   ],
   "include": ["../../types", "./src"]

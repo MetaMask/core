@@ -51,6 +51,22 @@ export type NeoBankServiceGetPixDepositInstructionsAction = {
 };
 
 /**
+ * Loads deposit details for an autoramp, whichever rail it has.
+ *
+ * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
+ * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`). Returns null until MoonPay
+ * has attached a supported rail. MoonPay only verifies the rail at
+ * `Approved`, so callers should not show these details before then.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns Deposit details discriminated by `type`, or null.
+ */
+export type NeoBankServiceGetDepositInstructionsAction = {
+  type: `NeoBankService:getDepositInstructions`;
+  handler: NeoBankService['getDepositInstructions'];
+};
+
+/**
  * Lists the newest page of transactions for one autoramp via
  * `GET /neobank/autoramp-transactions?autoramp_id=&sort_order=desc`.
  *
@@ -58,6 +74,9 @@ export type NeoBankServiceGetPixDepositInstructionsAction = {
  * (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
  *
  * @param autorampId - MoonPay autoramp id.
+ * @param options - Optional page size. Omitted requests use the API default.
+ * @param options.pageSize - `page_size` query value. Callers that diff
+ * status pass 50.
  * @returns Transaction summaries from the newest page.
  */
 export type NeoBankServiceListAutorampTransactionsAction = {
@@ -153,6 +172,43 @@ export type NeoBankServiceGetMoonpayCustomerIdAction = {
 };
 
 /**
+ * Lists the customer's bank-link microdeposits via neobank-proxy
+ * `GET /neobank/customers/{customer_id}/microdeposits` (MoonPay
+ * `GET /api/customers/{id}/microdeposits`).
+ *
+ * The customer id is resolved through {@link getMoonpayCustomerId} at most
+ * once per service instance; concurrent callers share the in-flight lookup
+ * and a failed lookup is retried by the next call. A 404 (from the customer
+ * lookup or the list) means there is no customer or no deposits yet and
+ * resolves `[]`. Any other non-2xx response throws an {@link HttpError}. The
+ * customer lookup is a single attempt: it does not go through the retry
+ * policy.
+ *
+ * @returns MoonPay microdeposits, unmodified.
+ */
+export type NeoBankServiceGetMicrodepositsAction = {
+  type: `NeoBankService:getMicrodeposits`;
+  handler: NeoBankService['getMicrodeposits'];
+};
+
+/**
+ * Reads the customer's rail abilities via neobank-proxy
+ * `GET /neobank/customers/{customer_id}/abilities` (MoonPay
+ * `GET /api/customers/{id}/abilities`).
+ *
+ * MoonPay rejects an autoramp create with a 422 when the rail it needs is not
+ * `Active`, even for an `Active` customer. The customer id is resolved the
+ * same way as in {@link getMicrodeposits}. Any non-2xx response, including a
+ * 404 when there is no customer yet, throws an {@link HttpError}.
+ *
+ * @returns MoonPay customer abilities, unmodified.
+ */
+export type NeoBankServiceGetCustomerAbilitiesAction = {
+  type: `NeoBankService:getCustomerAbilities`;
+  handler: NeoBankService['getCustomerAbilities'];
+};
+
+/**
  * Checks whether a Monad Money Account address is already registered for the
  * given Iron customer.
  *
@@ -185,6 +241,7 @@ export type NeoBankServiceMethodActions =
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceGetAutorampsAction
   | NeoBankServiceGetPixDepositInstructionsAction
+  | NeoBankServiceGetDepositInstructionsAction
   | NeoBankServiceListAutorampTransactionsAction
   | NeoBankServiceRegisterPixAddressAction
   | NeoBankServiceGetAutorampQuoteAction
@@ -193,5 +250,7 @@ export type NeoBankServiceMethodActions =
   | NeoBankServiceAttachAutorampQuoteAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetMoonpayCustomerIdAction
+  | NeoBankServiceGetMicrodepositsAction
+  | NeoBankServiceGetCustomerAbilitiesAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction;

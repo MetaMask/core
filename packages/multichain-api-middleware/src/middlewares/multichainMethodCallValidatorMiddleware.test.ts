@@ -3,12 +3,13 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { MultichainApiNotifications } from '../handlers/types.js';
 import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidatorMiddleware.js';
 
 describe('multichainMethodCallValidatorMiddleware', () => {
-  const mockNext = jest.fn();
+  const mockNext = vi.fn();
 
   describe('"wallet_invokeMethod" request', () => {
     it('should pass validation and call next when passed a valid "wallet_invokeMethod" request', async () => {

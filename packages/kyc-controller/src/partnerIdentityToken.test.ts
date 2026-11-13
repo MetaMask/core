@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { toBase64Url } from './encoding.js';
 import {
   getEmailFromPartnerIdentityToken,

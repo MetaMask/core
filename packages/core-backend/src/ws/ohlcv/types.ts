@@ -3,7 +3,7 @@
  */
 
 /**
- * A single OHLCV candlestick bar received from the market-data WebSocket stream.
+ * A single OHLCV candlestick bar received from the OHLCV WebSocket stream.
  */
 export type OHLCVBar = {
   /** Unix timestamp (seconds) of the candle open */

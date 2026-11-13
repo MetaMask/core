@@ -1,7 +1,9 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { NameType } from '../types.js';
 import { ENSNameProvider } from './ens.js';
 
-jest.mock('../util');
+vi.mock(import('../util.js'));
 
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
@@ -49,7 +51,7 @@ describe('ENSNameProvider', () => {
     });
 
     it('invokes reverse lookup with value and chain ID', async () => {
-      const reverseLookupMock = jest.fn();
+      const reverseLookupMock = vi.fn();
 
       const provider = new ENSNameProvider({
         reverseLookup: reverseLookupMock,
@@ -83,7 +85,7 @@ describe('ENSNameProvider', () => {
     });
 
     it('throws if callback fails', async () => {
-      const reverseLookupMock = jest.fn().mockImplementation(() => {
+      const reverseLookupMock = vi.fn().mockImplementation(() => {
         throw new Error('TestError');
       });
 

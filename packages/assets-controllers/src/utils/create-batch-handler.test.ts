@@ -1,23 +1,26 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import { createBatchedHandler } from './create-batch-handler.js';
 
 const TEST_BATCH_MS = 50;
 
 describe('createBatchedHandler', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   const advanceAndFlush = async (): Promise<void> => {
-    await jest.advanceTimersByTimeAsync(TEST_BATCH_MS);
+    await vi.advanceTimersByTimeAsync(TEST_BATCH_MS);
   };
 
   const createNumberHandler = (
-    onFlush = jest.fn().mockResolvedValue(undefined),
-  ): { capture: (n: number) => Promise<void>; onFlush: jest.Mock } => {
+    onFlush = vi.fn().mockResolvedValue(undefined),
+  ): { capture: (n: number) => Promise<void>; onFlush: Mock } => {
     const capture = createBatchedHandler<number>(
       (buffer) => buffer.reduce((sum, item) => sum + item, 0),
       TEST_BATCH_MS,
@@ -27,10 +30,10 @@ describe('createBatchedHandler', () => {
   };
 
   function createObjectHandler(
-    onFlush = jest.fn().mockResolvedValue(undefined),
+    onFlush = vi.fn().mockResolvedValue(undefined),
   ): {
     capture: (item: { ids: number[] }) => Promise<void>;
-    onFlush: jest.Mock;
+    onFlush: Mock;
   } {
     const capture = createBatchedHandler<{ ids: number[] }>(
       (buffer) => ({ ids: buffer.flatMap((item) => item.ids) }),
@@ -98,7 +101,7 @@ describe('createBatchedHandler', () => {
 
   describe('lifecycle and edge cases', () => {
     it('does not call onFlush when capture was never invoked', async () => {
-      const onFlush = jest.fn().mockResolvedValue(undefined);
+      const onFlush = vi.fn().mockResolvedValue(undefined);
       createBatchedHandler<number>(
         (b) => b.reduce((a, item) => a + item, 0),
         TEST_BATCH_MS,
@@ -155,7 +158,7 @@ describe('createBatchedHandler', () => {
 
     it('rejects all callers in the same batch when onFlush throws', async () => {
       const error = new Error('flush failed');
-      const onFlush = jest.fn().mockRejectedValue(error);
+      const onFlush = vi.fn().mockRejectedValue(error);
       const capture = createBatchedHandler<number>(
         (buffer) => buffer.reduce((sum, item) => sum + item, 0),
         TEST_BATCH_MS,
@@ -168,10 +171,10 @@ describe('createBatchedHandler', () => {
 
     it('rejects all callers in the same batch when aggregatorFn throws', async () => {
       const error = new Error('aggregation failed');
-      const aggregatorFn = jest.fn(() => {
+      const aggregatorFn = vi.fn(() => {
         throw error;
       });
-      const onFlush = jest.fn().mockResolvedValue(undefined);
+      const onFlush = vi.fn().mockResolvedValue(undefined);
       const capture = createBatchedHandler<number>(
         aggregatorFn,
         TEST_BATCH_MS,

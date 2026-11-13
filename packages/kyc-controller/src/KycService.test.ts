@@ -4,7 +4,8 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
 import { KycService } from './KycService.js';
@@ -16,9 +17,15 @@ const SESSION_CLIENT_PUBLIC_KEY = 'session-client-public-key';
 const RESIDENCE_COUNTRY = 'USA';
 const AAL2_TOKEN = 'aal2-token';
 
+const services: KycService[] = [];
+
 describe('KycService', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
+    for (const service of services) {
+      service.destroy();
+    }
+    services.length = 0;
   });
 
   describe('constructor', () => {
@@ -38,31 +45,25 @@ describe('KycService', () => {
     });
 
     it('throws when fetch is not globally available and not provided', () => {
-      const savedFetch = globalThis.fetch;
-      try {
-        // @ts-expect-error - deliberately removing fetch for test
-        delete globalThis.fetch;
+      vi.stubGlobal('fetch', undefined);
 
-        const rootMessenger: RootMessenger = new Messenger({
-          namespace: MOCK_ANY_NAMESPACE,
-        });
-        const messenger: KycServiceMessenger = new Messenger({
-          namespace: 'KycService',
-          parent: rootMessenger,
-        });
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const messenger: KycServiceMessenger = new Messenger({
+        namespace: 'KycService',
+        parent: rootMessenger,
+      });
 
-        expect(
-          () =>
-            new KycService({
-              messenger,
-              baseUrl: MOCK_API_URL,
-            }),
-        ).toThrow(
-          'fetch is not available globally and was not provided in options',
-        );
-      } finally {
-        globalThis.fetch = savedFetch;
-      }
+      expect(
+        () =>
+          new KycService({
+            messenger,
+            baseUrl: MOCK_API_URL,
+          }),
+      ).toThrow(
+        'fetch is not available globally and was not provided in options',
+      );
     });
   });
 
@@ -212,6 +213,76 @@ describe('KycService', () => {
         /Malformed response received from idOS enclave JWKS API/u,
       );
     });
+
+    it('reuses a successful response for 24 hours', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+      };
+      const now = vi.spyOn(Date, 'now');
+      try {
+        now.mockReturnValue(1_000);
+        nock(MOCK_IDOS_ENCLAVE_URL)
+          .get('/.well-known/jwks.json')
+          .reply(200, response);
+        const { service } = getService();
+
+        expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
+
+        now.mockReturnValue(1_000 + 24 * 60 * 60 * 1000 - 1);
+        expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
+
+        now.mockReturnValue(1_000 + 24 * 60 * 60 * 1000);
+        const refreshed = {
+          keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub-2', kid: 'k2' }],
+        };
+        nock(MOCK_IDOS_ENCLAVE_URL)
+          .get('/.well-known/jwks.json')
+          .reply(200, refreshed);
+        expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(refreshed);
+      } finally {
+        now.mockRestore();
+      }
+    });
+
+    it('does not cache a failed or malformed response', async () => {
+      nock(MOCK_IDOS_ENCLAVE_URL).get('/.well-known/jwks.json').reply(500);
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, { keys: [{ kty: 'OKP' }] });
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+      };
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /failed with status '500'/u,
+      );
+      await expect(service.fetchIdosEnclaveJwks()).rejects.toThrow(
+        /Malformed response received from idOS enclave JWKS API/u,
+      );
+      expect(await service.fetchIdosEnclaveJwks()).toStrictEqual(response);
+    });
+
+    it('shares one in-flight request across concurrent callers', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
+      };
+      nock(MOCK_IDOS_ENCLAVE_URL)
+        .get('/.well-known/jwks.json')
+        .reply(200, response);
+      const { service } = getService();
+
+      const [first, second] = await Promise.all([
+        service.fetchIdosEnclaveJwks(),
+        service.fetchIdosEnclaveJwks(),
+      ]);
+
+      expect(first).toStrictEqual(response);
+      expect(second).toStrictEqual(response);
+    });
   });
 
   describe('fetchIdosRelayJwks', () => {
@@ -244,6 +315,25 @@ describe('KycService', () => {
       await expect(service.fetchIdosRelayJwks()).rejects.toThrow(
         /Malformed response received from idOS relay JWKS API/u,
       );
+    });
+
+    it('reuses a successful response for 24 hours', async () => {
+      const response = {
+        keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'r1' }],
+      };
+      const now = vi.spyOn(Date, 'now');
+      try {
+        now.mockReturnValue(5_000);
+        nock(MOCK_IDOS_RELAY_URL)
+          .get('/.well-known/jwks.json')
+          .reply(200, response);
+        const { service } = getService();
+
+        expect(await service.fetchIdosRelayJwks()).toStrictEqual(response);
+        expect(await service.fetchIdosRelayJwks()).toStrictEqual(response);
+      } finally {
+        now.mockRestore();
+      }
     });
   });
 
@@ -281,6 +371,44 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('sends the partner identity token when provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) =>
+            body.partnerIdentityToken === 'partner-identity-token',
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          aal2Token: AAL2_TOKEN,
+          partnerIdentityToken: 'partner-identity-token',
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('omits the partner identity token when not provided', async () => {
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) => !('partnerIdentityToken' in body),
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
           aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
@@ -404,6 +532,7 @@ describe('KycService', () => {
       kycStatus: 'approved',
       vendor: 'sumsub',
       vendorStatus: 'GREEN',
+      currentStep: 'approved',
     };
 
     it('posts the wrapped secrets and returns the session status', async () => {
@@ -459,6 +588,111 @@ describe('KycService', () => {
     });
   });
 
+  describe('createDeletion', () => {
+    const encryptionSchema: EncryptionSchema = {
+      serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+      jwtChain: 'capability.jwt.chain',
+    };
+    const response = {
+      deletionId: 'deletion-1',
+      ukycCapabilityToken: encryptionSchema,
+    };
+
+    it('posts the client public key and returns the deletion wrapping key', async () => {
+      nock(MOCK_API_URL, {
+        reqheaders: { authorization: `Bearer ${AAL2_TOKEN}` },
+      })
+        .post(
+          '/deletions',
+          (body: Record<string, unknown>) =>
+            body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY,
+        )
+        .reply(201, response);
+      const { service } = getService();
+
+      expect(
+        await service.createDeletion({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('throws when aal2Token is missing', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.createDeletion({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          aal2Token: '',
+        }),
+      ).rejects.toThrow(/aal2Token is required/u);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).post('/deletions').reply(201, { unexpected: true });
+      const { service } = getService();
+
+      await expect(
+        service.createDeletion({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).rejects.toThrow(/Malformed response received from deletions API/u);
+    });
+  });
+
+  describe('completeDeletion', () => {
+    const wrappedUkycCapabilityToken = { nonce: 'nonce-1', data: 'data-1' };
+
+    it('deletes with the wrapped token and accepts an empty response', async () => {
+      nock(MOCK_API_URL, {
+        reqheaders: { authorization: `Bearer ${AAL2_TOKEN}` },
+      })
+        .delete(
+          '/deletions/deletion-1',
+          (body: Record<string, unknown>) =>
+            JSON.stringify(body.wrappedUkycCapabilityToken) ===
+            JSON.stringify(wrappedUkycCapabilityToken),
+        )
+        .reply(204);
+      const { service } = getService();
+
+      expect(
+        await service.completeDeletion({
+          deletionId: 'deletion-1',
+          wrappedUkycCapabilityToken,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toBeUndefined();
+    });
+
+    it('throws when aal2Token is missing', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.completeDeletion({
+          deletionId: 'deletion-1',
+          wrappedUkycCapabilityToken,
+          aal2Token: '',
+        }),
+      ).rejects.toThrow(/aal2Token is required/u);
+    });
+
+    it('url-encodes the deletion id', async () => {
+      nock(MOCK_API_URL).delete('/deletions/a%2Fb').reply(204);
+      const { service } = getService();
+
+      expect(
+        await service.completeDeletion({
+          deletionId: 'a/b',
+          wrappedUkycCapabilityToken,
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toBeUndefined();
+    });
+  });
+
   describe('createJourney', () => {
     it('fetches the applicant access token for a session', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
@@ -470,9 +704,8 @@ describe('KycService', () => {
 
     it('does not send a Content-Type header since it has no body', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
-      nock(MOCK_API_URL)
+      nock(MOCK_API_URL, { badheaders: ['content-type'] })
         .post('/sessions/sid/journey')
-        .matchHeader('content-type', (value) => value === undefined)
         .reply(200, response);
       const { service } = getService();
 
@@ -504,6 +737,7 @@ describe('KycService', () => {
         consentStatus: 'given',
         idOSStatus: 'active',
         capabilityAuthorizationStatus: 'stored',
+        currentStep: 'approved',
       };
       nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
       const { service } = getService();
@@ -521,12 +755,87 @@ describe('KycService', () => {
         kycStatus: 'pending',
         vendor: 'sumsub',
         vendorStatus: 'YELLOW',
+        currentStep: 'processing',
       };
       nock(MOCK_API_URL).get('/sessions/a%2Fb/status').reply(200, response);
       const { service } = getService();
 
       expect(
         await service.getSessionStatus({ sessionId: 'a/b' }),
+      ).toStrictEqual(response);
+    });
+
+    it('reports finalStatus as new when the session is pending at the kyc step', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'sumsub',
+        vendorStatus: 'YELLOW',
+        currentStep: 'kyc',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
+      ).toStrictEqual({
+        ...response,
+        finalStatus: 'new',
+      });
+    });
+
+    it('keeps a pending finalStatus when currentStep is not kyc', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'iron',
+        vendorStatus: 'pending',
+        currentStep: 'phoneOtpCollection',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
+      ).toStrictEqual(response);
+    });
+
+    it('keeps finalStatus and an unrecognized currentStep', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'iron',
+        vendorStatus: 'pending',
+        currentStep: 'addressCollection',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
+      ).toStrictEqual(response);
+    });
+
+    it('returns the session when currentStep is omitted', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'iron',
+        vendorStatus: 'pending',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
       ).toStrictEqual(response);
     });
 
@@ -613,6 +922,7 @@ describe('KycService', () => {
       kycStatus: 'approved',
       vendor: 'iron',
       vendorStatus: 'GREEN',
+      currentStep: 'approved',
     };
 
     it('returns the latest session status for the vendor', async () => {
@@ -658,6 +968,105 @@ describe('KycService', () => {
       await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
         /failed with status '500'/u,
       );
+    });
+  });
+
+  describe('getDataShares', () => {
+    const shares = [
+      {
+        kycSessionId: '11111111-2222-3333-4444-555555555555',
+        vendor: 'moonpay',
+        sharedAt: '2026-02-02T00:00:00.000Z',
+      },
+      {
+        kycSessionId: '66666666-7777-8888-9999-000000000000',
+        vendor: 'iron',
+        sharedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+
+    it('unwraps the shares envelope from the idOS relay', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .matchHeader('authorization', 'Bearer test-bearer')
+        .reply(200, { shares });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext-1' }),
+      ).toStrictEqual(shares);
+    });
+
+    it('returns an empty array when no data has been shared', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(200, { shares: [] });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext-1' }),
+      ).toStrictEqual([]);
+    });
+
+    it('keeps shares for vendors this package does not model', async () => {
+      const relayShares = [
+        {
+          kycSessionId: '11111111-2222-3333-4444-555555555555',
+          vendor: 'kraken',
+          sharedAt: '2026-02-02T00:00:00.000Z',
+        },
+      ];
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(200, { shares: relayShares });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext-1' }),
+      ).toStrictEqual(relayShares);
+    });
+
+    it('encodes the external user id in the path', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext%2F1/shares')
+        .reply(200, { shares: [] });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext/1' }),
+      ).toStrictEqual([]);
+    });
+
+    it('throws when no idOS relay base URL is configured', async () => {
+      const { service } = getService({ idosRelayBaseUrl: null });
+
+      await expect(
+        service.getDataShares({ externalUserId: 'ext-1' }),
+      ).rejects.toThrow(
+        /idosRelayBaseUrl is not configured; cannot fetch data shares/u,
+      );
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(200, { shares: [{ kycSessionId: 'sid' }] });
+      const { service } = getService();
+
+      await expect(
+        service.getDataShares({ externalUserId: 'ext-1' }),
+      ).rejects.toThrow(/Malformed response received from data shares API/u);
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.getDataShares({ externalUserId: 'ext-1' }),
+      ).rejects.toThrow(/failed with status '500'/u);
     });
   });
 
@@ -1278,6 +1687,7 @@ function getService({
     ...(idosRelayBaseUrl === null ? {} : { idosRelayBaseUrl }),
     ...(defaultPolicy ? {} : { policyOptions: { maxRetries: 0 } }),
   });
+  services.push(service);
 
   return { service, rootMessenger, messenger };
 }

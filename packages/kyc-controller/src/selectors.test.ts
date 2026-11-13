@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { getDefaultKycControllerState } from './KycController.js';
 import { selectKycSessionStatus, selectKycVendor } from './selectors.js';
 

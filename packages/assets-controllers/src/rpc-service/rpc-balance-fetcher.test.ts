@@ -1,9 +1,16 @@
 import type { Web3Provider } from '@ethersproject/providers';
+import {
+  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClient } from '@metamask/network-controller';
 import BN from 'bn.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import type { UnprocessedTokens } from '../multi-chain-accounts-service/api-balance-fetcher.js';
+import { getTokenBalancesForMultipleAddresses } from '../multicall.js';
 import type { TokensControllerState } from '../TokensController.js';
 import { RpcBalanceFetcher } from './rpc-balance-fetcher.js';
 import type { ChainIdHex, ChecksumAddress } from './rpc-balance-fetcher.js';
@@ -121,52 +128,51 @@ const MOCK_STAKED_BALANCES = {
 };
 
 // Mock the imports
-jest.mock('@metamask/controller-utils', () => ({
-  toChecksumHexAddress: jest.fn(),
-  safelyExecuteWithTimeout: jest.fn(),
+vi.mock('@metamask/controller-utils', () => ({
+  toChecksumHexAddress: vi.fn(),
+  safelyExecuteWithTimeout: vi.fn(),
 }));
 
-jest.mock('../multicall', () => ({
-  getTokenBalancesForMultipleAddresses: jest.fn(),
+vi.mock('../multicall', () => ({
+  getTokenBalancesForMultipleAddresses: vi.fn(),
 }));
 
-const mockToChecksumHexAddress = jest.requireMock(
-  '@metamask/controller-utils',
-).toChecksumHexAddress;
-const mockSafelyExecuteWithTimeout = jest.requireMock(
-  '@metamask/controller-utils',
-).safelyExecuteWithTimeout;
+const mockToChecksumHexAddress = toChecksumHexAddress as Mock;
+const mockSafelyExecuteWithTimeout = safelyExecuteWithTimeout as Mock;
 const mockGetTokenBalancesForMultipleAddresses =
-  jest.requireMock('../multicall').getTokenBalancesForMultipleAddresses;
+  getTokenBalancesForMultipleAddresses as Mock;
+const actualControllerUtils = await vi.importActual<
+  typeof import('@metamask/controller-utils')
+>('@metamask/controller-utils');
 
 describe('RpcBalanceFetcher', () => {
   let rpcBalanceFetcher: RpcBalanceFetcher;
-  let mockProvider: jest.Mocked<Web3Provider>;
-  let mockGetProvider: jest.Mock;
-  let mockGetNetworkClient: jest.Mock;
-  let mockGetTokensState: jest.Mock;
-  let mockNetworkClient: jest.Mocked<NetworkClient>;
+  let mockProvider: Mocked<Web3Provider>;
+  let mockGetProvider: Mock;
+  let mockGetNetworkClient: Mock;
+  let mockGetTokensState: Mock;
+  let mockNetworkClient: Mocked<NetworkClient>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetAllMocks();
+    vi.clearAllMocks();
+    vi.resetAllMocks();
 
     // Setup mock provider
     mockProvider = {
-      send: jest.fn(),
-    } as unknown as jest.Mocked<Web3Provider>;
+      send: vi.fn(),
+    } as unknown as Mocked<Web3Provider>;
 
     // Setup mock network client
     mockNetworkClient = {
       blockTracker: {
-        checkForLatestBlock: jest.fn().mockResolvedValue(undefined),
+        checkForLatestBlock: vi.fn().mockResolvedValue(undefined),
       },
-    } as unknown as jest.Mocked<NetworkClient>;
+    } as unknown as Mocked<NetworkClient>;
 
     // Setup mock functions
-    mockGetProvider = jest.fn().mockReturnValue(mockProvider);
-    mockGetNetworkClient = jest.fn().mockReturnValue(mockNetworkClient);
-    mockGetTokensState = jest.fn().mockReturnValue(MOCK_TOKENS_STATE);
+    mockGetProvider = vi.fn().mockReturnValue(mockProvider);
+    mockGetNetworkClient = vi.fn().mockReturnValue(mockNetworkClient);
+    mockGetTokensState = vi.fn().mockReturnValue(MOCK_TOKENS_STATE);
 
     // Setup mock implementations
     mockToChecksumHexAddress.mockImplementation((address: string) => {
@@ -177,10 +183,7 @@ describe('RpcBalanceFetcher', () => {
         return '0x4FEF9D741011476750A243aC70b9789a63dd47Df';
       }
       // For other addresses, use the actual implementation
-      const { toChecksumHexAddress } = jest.requireActual(
-        '@metamask/controller-utils',
-      );
-      return toChecksumHexAddress(address);
+      return actualControllerUtils.toChecksumHexAddress(address);
     });
 
     // Mock safelyExecuteWithTimeout to just execute the function
@@ -393,7 +396,7 @@ describe('RpcBalanceFetcher', () => {
 
     it('should handle blockTracker errors gracefully', async () => {
       (
-        mockNetworkClient.blockTracker.checkForLatestBlock as jest.Mock
+        mockNetworkClient.blockTracker.checkForLatestBlock as Mock
       ).mockRejectedValue(new Error('BlockTracker error'));
 
       const result = await rpcBalanceFetcher.fetch({

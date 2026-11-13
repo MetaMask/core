@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { divideIntoBatches, reduceInBatchesSerially } from './batch.js';
 
 describe('batch utilities', () => {

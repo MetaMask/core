@@ -4,6 +4,8 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
 
 import { controllerName } from '../../src/constants.js';
 import type { PasskeyControllerMessenger } from '../../src/types.js';
@@ -29,20 +31,20 @@ const PASSKEY_CONTROLLER_ALLOWED_KEYRING_ACTIONS = [
 ] as const;
 
 export type PasskeyControllerKeyringActionMocks = {
-  verifyPassword?: jest.Mock;
-  isUnlocked?: jest.Mock;
-  exportEncryptionKey?: jest.Mock;
-  submitEncryptionKey?: jest.Mock;
-  changePassword?: jest.Mock;
-  exportSeedPhrase?: jest.Mock;
-  exportAccount?: jest.Mock;
+  verifyPassword?: Mock;
+  isUnlocked?: Mock;
+  exportEncryptionKey?: Mock;
+  submitEncryptionKey?: Mock;
+  changePassword?: Mock;
+  exportSeedPhrase?: Mock;
+  exportAccount?: Mock;
 };
 
 /**
  * Creates a restricted {@link PasskeyControllerMessenger} with mock KeyringController
  * action handlers registered on a parent messenger.
  *
- * @param mocks - Optional jest mocks for KeyringController actions.
+ * @param mocks - Optional mocks for KeyringController actions.
  * @returns Root and restricted messengers for {@link PasskeyController} tests.
  */
 export function createMockPasskeyControllerMessenger(
@@ -53,15 +55,15 @@ export function createMockPasskeyControllerMessenger(
   mocks: Required<PasskeyControllerKeyringActionMocks>;
 } {
   const resolvedMocks: Required<PasskeyControllerKeyringActionMocks> = {
-    verifyPassword: mocks.verifyPassword ?? jest.fn(),
-    isUnlocked: mocks.isUnlocked ?? jest.fn().mockReturnValue(true),
+    verifyPassword: mocks.verifyPassword ?? vi.fn(),
+    isUnlocked: mocks.isUnlocked ?? vi.fn().mockReturnValue(true),
     exportEncryptionKey:
-      mocks.exportEncryptionKey ?? jest.fn().mockResolvedValue('vault-key'),
-    submitEncryptionKey: mocks.submitEncryptionKey ?? jest.fn(),
-    changePassword: mocks.changePassword ?? jest.fn(),
+      mocks.exportEncryptionKey ?? vi.fn().mockResolvedValue('vault-key'),
+    submitEncryptionKey: mocks.submitEncryptionKey ?? vi.fn(),
+    changePassword: mocks.changePassword ?? vi.fn(),
     exportSeedPhrase:
-      mocks.exportSeedPhrase ?? jest.fn().mockResolvedValue(new Uint8Array()),
-    exportAccount: mocks.exportAccount ?? jest.fn().mockResolvedValue('0xabc'),
+      mocks.exportSeedPhrase ?? vi.fn().mockResolvedValue(new Uint8Array()),
+    exportAccount: mocks.exportAccount ?? vi.fn().mockResolvedValue('0xabc'),
   };
 
   const rootMessenger = new Messenger<

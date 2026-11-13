@@ -2,19 +2,21 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   BatchSellTradesResponse,
   BridgeClientId,
+  SwapTraceFunction,
   QuoteMetadata,
   QuoteResponseV1,
   Trade,
   TxData,
 } from '@metamask/bridge-controller';
-import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   TransactionController,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import type { TraceName } from '../constants.js';
 import type {
+  BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   FetchFunction,
   QuoteAndTxMetadata,
@@ -74,7 +76,10 @@ export type SubmitStepResult =
         /** Usually the txMeta.id of the `trade` transaction */
         newHistoryKey: string;
         /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully */
-        tradeMeta: TransactionMeta;
+        tradeMeta?: TransactionMeta;
+        historyItemOverrides?: Partial<
+          Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
+        >;
       };
     }
   | {
@@ -137,7 +142,7 @@ export type SubmitStrategyParams<
    */
   requireApproval: boolean;
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
-  traceFn: TraceCallback;
+  traceFn: SwapTraceFunction<TraceName>;
   // Used for intent transactions
   fetchFn: FetchFunction;
   clientId: BridgeClientId;

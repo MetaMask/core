@@ -1,7 +1,7 @@
-import { jest } from '@jest/globals';
-import { createSandbox } from '@metamask/utils/node';
+import { createSandbox } from '@metamask/node-utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   findSourcesWithExposedMethods,
@@ -446,7 +446,7 @@ class BadTsconfigController {
         'utf8',
       );
 
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
       const result = await parseSourceFile(controllerFile);
@@ -481,7 +481,7 @@ class NoTsconfigController {
         'utf8',
       );
 
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
       const result = await parseSourceFile(controllerFile);
@@ -497,7 +497,7 @@ class NoTsconfigController {
   it('returns null and logs error for invalid file', async () => {
     expect.assertions(2);
 
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
@@ -619,7 +619,7 @@ class HiddenController {
   });
 
   it('re-throws non-ENOENT errors from isDirectory', async () => {
-    const statSpy = jest
+    const statSpy = vi
       .spyOn(fs.promises, 'stat')
       .mockRejectedValue(
         Object.assign(new Error('EACCES'), { code: 'EACCES' }),

@@ -39,6 +39,16 @@ export type PairSocialIdentifierParams = {
   email?: string;
 };
 /**
+ * Parameters for logging in with a Google/Apple/Telegram identifier already
+ * paired to a profile (`POST /api/v2/social/login`).
+ */
+export type SocialLoginParams = {
+  identifierType: SocialIdentifierType;
+  /** The Web3Auth social access token, as used for social pairing. */
+  socialJwt: string;
+};
+
+/**
  * Claim names accepted by `POST /api/v2/oidc/token`. Only `email` is
  * supported; `email_verified` is set by the server when email is present.
  */

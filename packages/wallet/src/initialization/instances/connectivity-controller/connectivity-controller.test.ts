@@ -1,5 +1,6 @@
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import type {
   DefaultActions,

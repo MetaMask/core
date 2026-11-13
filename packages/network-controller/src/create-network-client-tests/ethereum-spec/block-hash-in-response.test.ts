@@ -1,3 +1,5 @@
+import { describe } from 'vitest';
+
 import { testsForRpcMethodsThatCheckForBlockHashInResponse } from '../../../tests/network-client/block-hash-in-response.js';
 import { NetworkClientType } from '../../types.js';
 

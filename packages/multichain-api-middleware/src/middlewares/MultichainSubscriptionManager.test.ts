@@ -1,13 +1,15 @@
 import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
 import type SafeEventEmitter from '@metamask/safe-event-emitter';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import { MultichainApiNotifications } from '../handlers/types.js';
 import { MultichainSubscriptionManager } from './MultichainSubscriptionManager.js';
 
-jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
-  jest.fn(),
-);
-const MockCreateSubscriptionManager = jest.mocked(createSubscriptionManager);
+vi.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () => ({
+  default: vi.fn(),
+}));
+const MockCreateSubscriptionManager = vi.mocked(createSubscriptionManager);
 
 const newHeadsNotificationMock = {
   method: 'eth_subscription',
@@ -40,8 +42,8 @@ const origin = 'example.com';
 const tabId = 123;
 
 const createMultichainSubscriptionManager = () => {
-  const mockFindNetworkClientIdByChainId = jest.fn();
-  const mockGetNetworkClientById = jest.fn().mockImplementation(() => ({
+  const mockFindNetworkClientIdByChainId = vi.fn();
+  const mockGetNetworkClientById = vi.fn().mockImplementation(() => ({
     blockTracker: {},
     provider: {},
   }));
@@ -55,11 +57,11 @@ const createMultichainSubscriptionManager = () => {
 
 const createMockSubscriptionManager = () => ({
   events: {
-    on: jest.fn(),
-  } as unknown as jest.Mocked<SafeEventEmitter>,
-  destroy: jest.fn(),
+    on: vi.fn(),
+  } as unknown as Mocked<SafeEventEmitter>,
+  destroy: vi.fn(),
   middleware: {
-    destroy: jest.fn(),
+    destroy: vi.fn(),
   },
 });
 
@@ -95,7 +97,7 @@ describe('MultichainSubscriptionManager', () => {
     const { multichainSubscriptionManager } =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
-    const notifySpy = jest.fn();
+    const notifySpy = vi.fn();
     multichainSubscriptionManager.on('notification', notifySpy);
 
     mockSubscriptionManager.events.on.mock.calls[0][1](

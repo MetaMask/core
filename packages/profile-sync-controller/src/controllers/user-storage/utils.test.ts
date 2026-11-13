@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { setDifference, setIntersection } from './utils.js';
 
 describe('utils - setDifference()', () => {

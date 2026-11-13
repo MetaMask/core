@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
@@ -758,6 +760,21 @@ describe('validateOrderPrecision', () => {
       });
     },
   );
+
+  it('refuses a limit price that formats to zero at the asset tick', () => {
+    expect(
+      validateOrderPrecision({ price: '0.0000001', szDecimals: 3 }),
+    ).toStrictEqual({
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+    });
+  });
+
+  it('accepts a limit price on the asset tick', () => {
+    expect(
+      validateOrderPrecision({ price: '44900', szDecimals: 3 }),
+    ).toStrictEqual({ isValid: true });
+  });
 
   it('accepts a size of exactly one increment, the smallest submittable size', () => {
     expect(

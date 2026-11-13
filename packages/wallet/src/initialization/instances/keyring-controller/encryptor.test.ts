@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { encryptorFactory } from './encryptor.js';
 
 describe('encryptorFactory', () => {

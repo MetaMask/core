@@ -1,4 +1,5 @@
 import { KeyringType } from '@metamask/keyring-api/v2';
+import { describe, expect, it, vi } from 'vitest';
 
 import { getHdKeyringSeed } from './hd-keyring-seed.js';
 
@@ -6,7 +7,7 @@ describe('getHdKeyringSeed', () => {
   it('returns the HD keyring seed for a matching entropy source id', async () => {
     const seed = new Uint8Array(64).fill(7);
     const messenger = {
-      call: jest.fn(async (_action, _selector, operation) =>
+      call: vi.fn(async (_action, _selector, operation) =>
         operation({
           keyring: { type: KeyringType.Hd, seed },
           metadata: { id: 'entropy-1', name: '' },
@@ -24,7 +25,7 @@ describe('getHdKeyringSeed', () => {
 
   it('throws when the keyring is not an HD keyring with a seed', async () => {
     const messenger = {
-      call: jest.fn(async (_action, _selector, operation) =>
+      call: vi.fn(async (_action, _selector, operation) =>
         operation({
           keyring: { type: KeyringType.Snap },
           metadata: { id: 'missing', name: '' },

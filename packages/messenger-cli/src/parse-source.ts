@@ -1,4 +1,4 @@
-import { assert, hasProperty, isObject } from '@metamask/utils';
+import { assert, hasProperty, isObject } from '@metamask/type-utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type {

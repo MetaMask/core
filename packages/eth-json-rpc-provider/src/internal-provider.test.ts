@@ -11,13 +11,14 @@ import { providerErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   InternalProvider,
   convertEip1193RequestToJsonRpcRequest,
 } from './internal-provider.js';
 
-jest.mock('uuid');
+vi.mock('uuid');
 
 type ResultParam =
   | Json
@@ -333,9 +334,7 @@ describe.each([
         'push' in rpcHandler
           ? JsonRpcEngineV2.create({ middleware: [asV2Middleware(rpcHandler)] })
           : rpcHandler;
-      jest
-        .spyOn(rpcHandler, 'handle')
-        .mockRejectedValue(new Error('Test error'));
+      vi.spyOn(rpcHandler, 'handle').mockRejectedValue(new Error('Test error'));
       const provider = new InternalProvider({ engine: rpcHandler });
       const promisifiedSendAsync = promisify(provider.sendAsync);
       const request = {

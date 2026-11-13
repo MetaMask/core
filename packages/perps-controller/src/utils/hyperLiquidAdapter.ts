@@ -13,16 +13,19 @@ import type {
   AssetPosition,
   FrontendOrder,
   ClearinghouseStateResponse,
+  HyperLiquidPublicTrade,
   MetaResponse,
   SDKOrderParams,
 } from '../types/hyperliquid-types.js';
 import type {
   AccountState,
+  CrossMarginSummary,
   MarketInfo,
   Order,
   OrderParams as PerpsOrderParams,
   Position,
   PositionTriggerOrder,
+  PublicTrade,
   RawLedgerUpdate,
   UserHistoryItem,
 } from '../types/index.js';
@@ -37,9 +40,14 @@ import {
   toSDKTimeInForce,
 } from './orderTypes.js';
 import {
+  buildPublicTrade,
+  sortPublicTradesNewestFirst,
+} from './publicTrades.js';
+import {
   countSignificantFigures,
   roundToSignificantFigures,
 } from './significantFigures.js';
+import { parseFiniteDecimal } from './stringParseUtils.js';
 
 type FrontendOrderWithParentTpsl = FrontendOrder & {
   takeProfitPrice?: unknown;
@@ -489,6 +497,36 @@ export function adaptMarketFromSDK(
   };
 }
 
+/**
+ * Read one clearinghouse's cross-margin summary. A payload without the cross
+ * fields reports none; present values must be finite decimals.
+ *
+ * @param perpsState - Clearinghouse state for one DEX.
+ * @returns The summary, or undefined when the payload carries none.
+ */
+function adaptCrossMarginSummaryFromSDK(
+  perpsState: ClearinghouseStateResponse,
+): CrossMarginSummary | undefined {
+  const { crossMarginSummary, crossMaintenanceMarginUsed } = perpsState;
+  if (!crossMarginSummary || crossMaintenanceMarginUsed === undefined) {
+    return undefined;
+  }
+  const summary: CrossMarginSummary = {
+    accountValue: crossMarginSummary.accountValue,
+    maintenanceMargin: crossMaintenanceMarginUsed,
+    marginUsed: crossMarginSummary.totalMarginUsed,
+    notional: crossMarginSummary.totalNtlPos,
+  };
+  for (const [field, value] of Object.entries(summary)) {
+    if (parseFiniteDecimal(value) === null) {
+      throw new Error(
+        `Invalid HyperLiquid cross margin ${field} '${String(value)}'`,
+      );
+    }
+  }
+  return summary;
+}
+
 // Perps-only account adapter. Spot balances are layered on afterwards by
 // addSpotBalanceToAccountState, which enforces the USDC-only policy via
 // SPOT_COLLATERAL_COINS. Keeping spot logic out of here preserves a single
@@ -526,6 +564,7 @@ export function adaptAccountStateFromSDK(
   const perpsBalance = parseFloat(perpsState.marginSummary.accountValue);
 
   const withdrawable = perpsState.withdrawable || '0';
+  const crossMarginSummary = adaptCrossMarginSummaryFromSDK(perpsState);
   const accountState: AccountState = {
     spendableBalance: withdrawable,
     withdrawableBalance: withdrawable,
@@ -533,6 +572,7 @@ export function adaptAccountStateFromSDK(
     marginUsed: perpsState.marginSummary.totalMarginUsed || '0',
     unrealizedPnl: totalUnrealizedPnl.toString() || '0',
     returnOnEquity: totalReturnOnEquityPercentage || '0',
+    ...(crossMarginSummary ? { crossMarginSummary } : {}),
   };
 
   return accountState;
@@ -721,4 +761,51 @@ export function adaptHyperLiquidLedgerUpdateToUserHistoryItem(
         },
       };
     });
+}
+
+const HYPERLIQUID_ZERO_HASH = /^0x0+$/u;
+const HYPERLIQUID_TRADE_SIDE = { B: 'buy', A: 'sell' } as const;
+
+/**
+ * Adapt Hyperliquid public trades (REST `recentTrades` or WS `trades`) to
+ * {@link PublicTrade}, newest first. Trades for another coin and malformed
+ * trades are dropped. `side` is the aggressor's: `B` bought, `A` sold. The id
+ * comes from {@link buildHyperLiquidFillId}, so both transports give one
+ * execution the same id.
+ *
+ * @param trades - SDK trades.
+ * @param symbol - Requested coin; other coins are dropped.
+ * @returns The trades for `symbol`, newest first.
+ */
+export function adaptPublicTradesFromHyperLiquid(
+  trades: readonly HyperLiquidPublicTrade[],
+  symbol: string,
+): PublicTrade[] {
+  const adapted: PublicTrade[] = [];
+  for (const trade of trades) {
+    if (trade.coin !== symbol) {
+      continue;
+    }
+    const publicTrade = buildPublicTrade({
+      id:
+        typeof trade.tid === 'number'
+          ? buildHyperLiquidFillId(trade)
+          : undefined,
+      symbol,
+      price: trade.px,
+      size: trade.sz,
+      side: HYPERLIQUID_TRADE_SIDE[trade.side] ?? null,
+      timestamp: trade.time,
+      txHash:
+        typeof trade.hash === 'string' &&
+        !HYPERLIQUID_ZERO_HASH.test(trade.hash)
+          ? trade.hash
+          : undefined,
+      providerId: 'hyperliquid',
+    });
+    if (publicTrade) {
+      adapted.push(publicTrade);
+    }
+  }
+  return sortPublicTradesNewestFirst(adapted);
 }

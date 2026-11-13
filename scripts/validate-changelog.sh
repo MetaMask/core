@@ -24,15 +24,18 @@ resolve_branch_name() {
 #
 # Exits non-zero when the base branch history isn't available, so a misconfigured
 # checkout fails loudly rather than silently skipping validation. CI must check
-# out with enough history for the merge base to resolve (see `fetch-depth` on the
-# "Validate changelog" workflow job).
+# out with enough history for the merge base to resolve, or set
+# `CHANGELOG_MERGE_BASE` to an already-known merge base commit, in which case
+# only that commit needs to be available.
 resolve_base_version() {
-  local base_ref="${CHANGELOG_BASE_REF:-origin/main}"
+  local base_commit="${CHANGELOG_MERGE_BASE:-}"
 
-  local base_commit
-  if ! base_commit="$(git merge-base "${base_ref}" HEAD 2>/dev/null)"; then
-    echo "Could not find a common ancestor between HEAD and \"${base_ref}\". Make sure \"${base_ref}\" is available with enough history." >&2
-    return 1
+  if [[ -z "${base_commit}" ]]; then
+    local base_ref="${CHANGELOG_BASE_REF:-origin/main}"
+    if ! base_commit="$(git merge-base "${base_ref}" HEAD 2>/dev/null)"; then
+      echo "Could not find a common ancestor between HEAD and \"${base_ref}\". Make sure \"${base_ref}\" is available with enough history." >&2
+      return 1
+    fi
   fi
 
   # A newly added package won't exist at the base commit; that just means there
@@ -57,42 +60,91 @@ resolve_base_version() {
 # `--rc` (which requires a matching version heading) never applies. An empty
 # base version means the package is newly added (it did not exist at the base),
 # so there is nothing to compare against and `--rc` is skipped.
+#
+# Operates on the package in the current working directory.
 should_validate_as_release_candidate() {
   local branch_name="$1"
-  local current_version="$2"
-  local base_version="$3"
 
   [[ "${branch_name}" =~ ^release/ ]] || return 1
+
+  local current_version
+  current_version="$(jq --raw-output '.version' package.json)"
+
+  local base_version
+  base_version="$(resolve_base_version)" || return 1
+
   [[ -n "${base_version}" ]] || return 1
   [[ "${current_version}" != "0.0.0" ]] || return 1
   [[ "${current_version}" != "${base_version}" ]] || return 1
   return 0
 }
 
-main() {
-  if [[ $# -eq 0 ]]; then
-    echo "Missing package name."
-    exit 1
+resolve_rc_flag() {
+  if should_validate_as_release_candidate "$1"; then
+    echo "--rc"
   fi
+}
 
-  local package_name="$1"
-  shift # remove package name from arguments
+validate_package() {
+  local package_name
+  package_name="$(jq --raw-output '.name' package.json)"
 
   local branch_name
   branch_name="$(resolve_branch_name)"
 
-  local current_version
-  current_version="$(jq --raw-output '.version' package.json)"
+  local rc_flag
+  rc_flag="$(resolve_rc_flag "${branch_name}")"
 
-  local base_version=""
-  if [[ "${branch_name}" =~ ^release/ ]]; then
-    base_version="$(resolve_base_version)"
+  # `rc_flag` is intentionally unquoted so that it expands to nothing when empty.
+  # shellcheck disable=SC2086
+  yarn auto-changelog validate --formatter oxfmt --tag-prefix "${package_name}@" ${rc_flag} "$@"
+}
+
+validate_all() {
+  local branch_name
+  branch_name="$(resolve_branch_name)"
+
+  local root_directory
+  root_directory="$(pwd)"
+
+  # Packages without a changelog are skipped, like `--all` does.
+  local locations=()
+  local location
+  while IFS= read -r location; do
+    if [[ -f "${root_directory}/${location}/CHANGELOG.md" ]]; then
+      locations+=("${location}")
+    fi
+  done < <(yarn workspaces list --no-private --json | jq --raw-output '.location')
+
+  # `--all` applies `--rc` to every package or none, so it can only be used when
+  # no package is a release candidate.
+  local has_release_candidate=false
+  for location in "${locations[@]}"; do
+    if (cd "${root_directory}/${location}" && should_validate_as_release_candidate "${branch_name}"); then
+      has_release_candidate=true
+      break
+    fi
+  done
+
+  if [[ "${has_release_candidate}" == false ]]; then
+    yarn auto-changelog validate --all --formatter oxfmt "$@"
+    return 0
   fi
 
-  if should_validate_as_release_candidate "${branch_name}" "${current_version}" "${base_version}"; then
-    yarn auto-changelog validate --formatter oxfmt --tag-prefix "${package_name}@" --rc "$@"
+  # Otherwise, validate each package once, deciding `--rc` per package.
+  for location in "${locations[@]}"; do
+    (
+      cd "${root_directory}/${location}"
+      validate_package "$@"
+    )
+  done
+}
+
+main() {
+  if jq --exit-status 'has("workspaces")' package.json >/dev/null; then
+    validate_all "$@"
   else
-    yarn auto-changelog validate --formatter oxfmt --tag-prefix "${package_name}@" "$@"
+    validate_package "$@"
   fi
 }
 

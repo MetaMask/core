@@ -161,7 +161,6 @@ export type RelayHyperliquidDepositStep = {
 
 type RelayQuoteMetamaskBase = {
   isExecute?: boolean;
-  isMaxGasStation?: boolean;
   isSubsidized?: boolean;
   signature?: string;
 };

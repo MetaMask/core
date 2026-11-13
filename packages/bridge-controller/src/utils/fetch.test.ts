@@ -1,5 +1,7 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import {
   getMockBridgeQuotesErc20Erc20V2,
@@ -21,7 +23,7 @@ import {
   formatBatchSellTradesRequest,
 } from './fetch.js';
 
-const mockFetchFn = jest.fn();
+const mockFetchFn = vi.fn();
 
 describe('fetch', () => {
   describe('fetchBridgeTokens', () => {
@@ -166,9 +168,9 @@ describe('fetch', () => {
 
   describe('fetchBridgeQuotes', () => {
     it('should fetch bridge quotes successfully, no approvals', async () => {
-      const mockConsoleWarn = jest
+      const mockConsoleWarn = vi
         .spyOn(console, 'warn')
-        .mockImplementation(jest.fn());
+        .mockImplementation(vi.fn());
       mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20V1);
       const { signal } = new AbortController();
 
@@ -218,9 +220,9 @@ describe('fetch', () => {
     });
 
     it('should fetch bridge quotes successfully, with approvals', async () => {
-      const mockConsoleWarn = jest
+      const mockConsoleWarn = vi
         .spyOn(console, 'warn')
-        .mockImplementation(jest.fn());
+        .mockImplementation(vi.fn());
       mockFetchFn.mockResolvedValue([
         ...mockBridgeQuotesErc20Erc20V1,
         {
@@ -295,9 +297,9 @@ describe('fetch', () => {
     });
 
     it('should filter out malformed bridge quotes', async () => {
-      const mockConsoleWarn = jest
+      const mockConsoleWarn = vi
         .spyOn(console, 'warn')
-        .mockImplementation(jest.fn());
+        .mockImplementation(vi.fn());
       mockFetchFn.mockResolvedValue([
         ...mockBridgeQuotesErc20Erc20V1,
         ...mockBridgeQuotesErc20Erc20V1.map(
@@ -391,7 +393,7 @@ describe('fetch', () => {
           "socket|quote.steps",
         ]
       `);
-      // eslint-disable-next-line jest/no-restricted-matchers
+      // eslint-disable-next-line vitest/no-restricted-matchers
       expect(mockConsoleWarn.mock.calls).toMatchSnapshot();
       mockConsoleWarn.mockRestore();
     });
@@ -448,10 +450,6 @@ describe('fetch', () => {
   });
 
   describe('fetchAssetPrices', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('should fetch and combine prices for multiple currencies successfully', async () => {
       mockFetchFn
         .mockResolvedValueOnce({
@@ -715,7 +713,7 @@ describe('fetch', () => {
   });
 
   describe('fetchBatchSellTrades', () => {
-    let mockConsoleWarn: jest.SpyInstance;
+    let mockConsoleWarn: MockInstance;
 
     const mockBatchSellTrades = {
       transactions: mockBridgeQuotesErc20Erc20V1.flatMap(
@@ -768,10 +766,8 @@ describe('fetch', () => {
     });
 
     beforeEach(() => {
-      jest.clearAllMocks();
-      mockConsoleWarn = jest
-        .spyOn(console, 'warn')
-        .mockImplementation(jest.fn());
+      vi.clearAllMocks();
+      mockConsoleWarn = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
     });
 
     afterEach(() => {
@@ -782,7 +778,7 @@ describe('fetch', () => {
       it('sends stxEnabled: false in the request body and returns the response', async () => {
         mockFetchFn.mockResolvedValue({
           ok: true,
-          json: jest.fn().mockResolvedValue(mockBatchSellTrades),
+          json: vi.fn().mockResolvedValue(mockBatchSellTrades),
         });
         const { signal } = new AbortController();
 
@@ -835,7 +831,7 @@ describe('fetch', () => {
       it('throws on a malformed response', async () => {
         mockFetchFn.mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue({
+          json: vi.fn().mockResolvedValue({
             ...mockBatchSellTrades,
             transactions: mockBatchSellTrades.transactions.map(
               ({ maxFeePerGas, maxPriorityFeePerGas, ...rest }) => rest,
@@ -844,7 +840,7 @@ describe('fetch', () => {
         });
         mockFetchFn.mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue({
+          json: vi.fn().mockResolvedValue({
             ...mockBatchSellTrades,
             transactions: mockBatchSellTrades.transactions.map((trade) => ({
               ...trade,
@@ -855,7 +851,7 @@ describe('fetch', () => {
         });
         mockFetchFn.mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue({
+          json: vi.fn().mockResolvedValue({
             ...mockBatchSellTrades,
             transactions: mockBatchSellTrades.transactions.map((trade) => ({
               ...trade,
@@ -866,7 +862,7 @@ describe('fetch', () => {
         });
         mockFetchFn.mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue({
+          json: vi.fn().mockResolvedValue({
             ...mockBatchSellTrades,
             transactions: mockBatchSellTrades.transactions.map((trade) => ({
               ...trade,
@@ -960,7 +956,7 @@ describe('fetch', () => {
       it('sends stxEnabled: true in the request body', async () => {
         mockFetchFn.mockResolvedValue({
           ok: true,
-          json: jest.fn().mockResolvedValue(mockBatchSellTrades),
+          json: vi.fn().mockResolvedValue(mockBatchSellTrades),
         });
         const { signal } = new AbortController();
 

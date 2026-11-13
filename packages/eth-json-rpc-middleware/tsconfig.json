@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "types": ["jest"]
-  },
   "references": [
     {
       "path": "../eth-block-tracker"
@@ -18,6 +15,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../eth-sig-util"
     }
   ],
   "include": ["../../types", "./src", "./test"]

@@ -1,5 +1,6 @@
-/* eslint-disable jest/expect-expect */
+/* eslint-disable vitest/expect-expect */
 import assert from 'node:assert/strict';
+import { describe, it } from 'vitest';
 
 import { runCommand } from './command.js';
 

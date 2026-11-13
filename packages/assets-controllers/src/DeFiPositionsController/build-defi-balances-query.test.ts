@@ -9,6 +9,7 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { describe, expect, it } from 'vitest';
 
 import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks.js';
 import {

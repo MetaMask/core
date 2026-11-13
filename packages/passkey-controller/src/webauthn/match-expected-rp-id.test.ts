@@ -1,4 +1,5 @@
 import { sha256 } from '@noble/hashes/sha2';
+import { describe, expect, it } from 'vitest';
 
 import { matchExpectedRPID } from './match-expected-rp-id.js';
 

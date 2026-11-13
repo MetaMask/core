@@ -76,6 +76,9 @@ export type {
   BridgeControllerGetStateAction,
   BridgeControllerStateChangeEvent,
   DeepPartial,
+  SwapTraceRequest,
+  SwapTraceFunction,
+  SwapRelatedTraceName,
 } from './types.js';
 
 export {
@@ -270,6 +273,11 @@ export {
   selectMinimumBalanceForRentExemptionInSOL,
   selectTokenWarnings,
 } from './selectors.js';
+
+export {
+  BRIDGE_FEATURE_ID_TO_FEATURE_TAG,
+  TraceFeatureTag as SwapFeatureTag,
+} from './constants/traces.js';
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge.js';
 

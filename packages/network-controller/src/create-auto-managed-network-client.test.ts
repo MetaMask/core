@@ -1,5 +1,6 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import { describe, expect, it, vi } from 'vitest';
 
 import { buildNetworkControllerMessenger } from '../tests/helpers.js';
 import { mockNetwork } from '../tests/mock-network.js';
@@ -141,7 +142,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -206,7 +207,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -281,7 +282,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -422,8 +423,6 @@ describe('createAutoManagedNetworkClient', () => {
           const blockNumberViaSync = await new Promise((resolve) => {
             blockTracker.once('sync', resolve);
           });
-          // False positive.
-          // eslint-disable-next-line n/no-sync
           expect(blockNumberViaSync).toStrictEqual({
             oldBlock: '0x1',
             newBlock: '0x2',
@@ -463,7 +462,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -524,7 +523,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -593,7 +592,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -664,7 +663,7 @@ describe('createAutoManagedNetworkClient', () => {
           },
         ],
       });
-      const createNetworkClientMock = jest.spyOn(
+      const createNetworkClientMock = vi.spyOn(
         createNetworkClientModule,
         'createNetworkClient',
       );
@@ -739,7 +738,7 @@ describe('createAutoManagedNetworkClient', () => {
           },
         ],
       });
-      const createNetworkClientMock = jest.spyOn(
+      const createNetworkClientMock = vi.spyOn(
         createNetworkClientModule,
         'createNetworkClient',
       );

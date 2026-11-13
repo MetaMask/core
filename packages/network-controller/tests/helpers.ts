@@ -21,6 +21,8 @@ import type {
 import { getKnownPropertyNames } from '@metamask/utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
 
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
@@ -136,11 +138,12 @@ export const TESTNET = {
  * @param options - Optional configuration.
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
- * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
+ * @param options.rpcFailoverMode - The RPC failover mode that
+ * `RemoteFeatureFlagController` returns.
  * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
  * returns by default. Defaults to a fixed valid UUIDv4.
  * @param options.trackEvent - The handler registered for
- * `AnalyticsController:trackEvent`. Defaults to a Jest mock so tests can assert
+ * `AnalyticsController:trackEvent`. Defaults to a Vitest mock so tests can assert
  * on it.
  * @param options.configRegistryNetworkConfigs - The network config that
  * `ConfigRegistryController:getNetworkConfigByCaip2ChainId` returns by default. Defaults to
@@ -149,22 +152,22 @@ export const TESTNET = {
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
-  rpcFailoverMode = 'disabled',
+  rpcFailoverMode,
   analyticsId = '11111111-1111-4111-8111-111111111111',
-  trackEvent = jest.fn(),
+  trackEvent = vi.fn(),
   configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
-  trackEvent?: jest.Mock;
+  trackEvent?: Mock;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: vi.fn() });
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',
@@ -175,12 +178,18 @@ export function buildRootMessenger({
 
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    () => ({
-      remoteFeatureFlags: {
-        corePlatformRpcFailoverMode: rpcFailoverMode,
-      },
-      cacheTimestamp: 0,
-    }),
+    () => {
+      const remoteFeatureFlags: {
+        corePlatformRpcFailoverMode?: RpcFailoverMode;
+      } = rpcFailoverMode
+        ? { corePlatformRpcFailoverMode: rpcFailoverMode }
+        : {};
+
+      return {
+        remoteFeatureFlags,
+        cacheTimestamp: 0,
+      };
+    },
   );
 
   rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
@@ -590,16 +599,12 @@ export function buildInfuraNetworkConfiguration(
  *
  * @param infuraNetworkType - The Infura network type from which to create the
  * InfuraRpcEndpoint.
- * @param options - Options.
- * @param options.failoverUrls - The failover URLs to use.
  * @returns The created InfuraRpcEndpoint object.
  */
 export function buildInfuraRpcEndpoint(
   infuraNetworkType: InfuraNetworkType,
-  { failoverUrls = [] }: { failoverUrls?: string[] } = {},
 ): InfuraRpcEndpoint {
   return {
-    failoverUrls,
     networkClientId: infuraNetworkType,
     type: RpcEndpointType.Infura as const,
     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
@@ -618,7 +623,6 @@ export function buildCustomRpcEndpoint(
 ): CustomRpcEndpoint {
   return buildTestObject(
     {
-      failoverUrls: () => [],
       networkClientId: () => uuidV4(),
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
@@ -680,7 +684,6 @@ export function buildAddNetworkCustomRpcEndpointFields(
 ): AddNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
-      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },
@@ -701,7 +704,6 @@ export function buildUpdateNetworkCustomRpcEndpointFields(
 ): UpdateNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
-      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },

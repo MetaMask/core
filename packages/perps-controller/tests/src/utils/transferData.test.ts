@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { generateERC20TransferData } from '../../../src/utils/transferData.js';
 
 describe('generateERC20TransferData', () => {

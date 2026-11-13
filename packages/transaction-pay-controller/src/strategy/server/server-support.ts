@@ -27,12 +27,6 @@ export enum ServerUnsupportedReason {
 
   /** Reserving the HyperLiquid activation fee is not implemented. */
   HyperliquidActivationFee = 'hyperliquidActivationFee',
-
-  /** Two-phase max-amount gas station probing is not implemented. */
-  MaxAmount = 'maxAmount',
-
-  /** Polymarket deposit-wallet routing is not implemented. */
-  PolymarketDepositWallet = 'polymarketDepositWallet',
 }
 
 /**
@@ -97,14 +91,6 @@ function getRequestUnsupportedReason(
 
   if (request.isDirectMusdMoneyAccount === true) {
     return ServerUnsupportedReason.DirectMusdMoneyAccount;
-  }
-
-  if (request.isMaxAmount === true) {
-    return ServerUnsupportedReason.MaxAmount;
-  }
-
-  if (request.isPolymarketDepositWallet === true) {
-    return ServerUnsupportedReason.PolymarketDepositWallet;
   }
 
   return undefined;

@@ -1,4 +1,5 @@
 import type { Json } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,

@@ -14,7 +14,6 @@ import type { Hex } from '@metamask/utils';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
   CANCELLATION_REASONS,
@@ -252,7 +251,6 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: '0',
-      builderCode: '<builder-code>',
       capMicroUsd: 1_500_000_000,
       consumedMicroUsd: 500_000_000,
       remainingMicroUsd: 1_000_000_000,
@@ -279,7 +277,6 @@ const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: null,
-      builderCode: null,
       remainingMicroUsd: null,
       exhausted: false,
     },
@@ -819,7 +816,7 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should clear benefits state before throwing UserNotSubscribed for an ineligible response', async () => {
+    it('should clear benefits state and return an ineligible response', async () => {
       await withController(
         {
           state: {
@@ -832,12 +829,11 @@ describe('SubscriptionController', () => {
             MOCK_INELIGIBLE_BENEFITS_RESPONSE,
           );
 
-          await expect(
-            rootMessenger.call('SubscriptionController:getBenefits'),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          const result = await rootMessenger.call(
+            'SubscriptionController:getBenefits',
           );
 
+          expect(result).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
           expect(controller.state.benefits).toBeUndefined();
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
         },
@@ -4169,7 +4165,7 @@ describe('SubscriptionController', () => {
       await withController(async ({ controller }) => {
         const getSubscriptionsSpy = vi.spyOn(controller, 'getSubscriptions');
         controller.startPolling({});
-        await advanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -4184,7 +4180,7 @@ describe('SubscriptionController', () => {
           'triggerAccessTokenRefresh',
         );
         controller.startPolling({});
-        await advanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -4205,7 +4201,7 @@ describe('SubscriptionController', () => {
           mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
           controller.startPolling({});
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);

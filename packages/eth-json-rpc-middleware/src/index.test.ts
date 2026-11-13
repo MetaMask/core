@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as indexModule from './index.js';
 
 describe('index module', () => {

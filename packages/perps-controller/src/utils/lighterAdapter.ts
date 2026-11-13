@@ -14,12 +14,14 @@
 
 import {
   LIGHTER_DATA_INTEGRITY_PREFIX,
+  LIGHTER_MARGIN_MODE_ISOLATED,
   LIGHTER_MAX_LEVERAGE,
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   parseLighterStrictDecimal,
 } from '../constants/lighterConfig.js';
 import type {
   AccountState,
+  CrossMarginSummary,
   MarketDataFormatters,
   MarketInfo,
   Order,
@@ -27,6 +29,7 @@ import type {
   PerpsMarketData,
   Position,
   PriceUpdate,
+  PublicTrade,
   TriggerOrderType,
 } from '../types/index.js';
 import type {
@@ -40,6 +43,10 @@ import type {
   LighterWsMarketStat,
   LighterWsUserStats,
 } from '../types/lighter-types.js';
+import {
+  buildPublicTrade,
+  sortPublicTradesNewestFirst,
+} from './publicTrades.js';
 
 /**
  * Parse an account-state number at the untrusted venue boundary. Account
@@ -352,6 +359,58 @@ function parseLighterTradeFee(
   return parsed;
 }
 
+/**
+ * Adapt Lighter public trades (REST `recentTrades` or the `trade/{market_id}`
+ * channel, camelized) to {@link PublicTrade}, newest first. Trades for
+ * another market and malformed trades are dropped. A maker ask means the
+ * taker (aggressor) bought.
+ *
+ * @param trades - Camelized venue trades.
+ * @param marketId - Requested market; other markets are dropped.
+ * @param symbol - Symbol to stamp on each trade.
+ * @returns The trades for the market, newest first.
+ */
+export function adaptPublicTradesFromLighter(
+  trades: readonly unknown[],
+  marketId: number,
+  symbol: string,
+): PublicTrade[] {
+  const adapted: PublicTrade[] = [];
+  for (const raw of trades) {
+    if (raw === null || typeof raw !== 'object') {
+      continue;
+    }
+    const trade = raw as Partial<Record<string, unknown>>;
+    if (trade.marketId !== marketId || typeof trade.isMakerAsk !== 'boolean') {
+      continue;
+    }
+    let id: string | undefined;
+    if (typeof trade.tradeIdStr === 'string') {
+      id = trade.tradeIdStr;
+    } else if (
+      typeof trade.tradeId === 'number' &&
+      Number.isSafeInteger(trade.tradeId) &&
+      trade.tradeId >= 0
+    ) {
+      id = String(trade.tradeId);
+    }
+    const publicTrade = buildPublicTrade({
+      id,
+      symbol,
+      price: trade.price,
+      size: trade.size,
+      side: trade.isMakerAsk ? 'buy' : 'sell',
+      timestamp: trade.timestamp,
+      txHash: typeof trade.txHash === 'string' ? trade.txHash : undefined,
+      providerId: 'lighter',
+    });
+    if (publicTrade) {
+      adapted.push(publicTrade);
+    }
+  }
+  return sortPublicTradesNewestFirst(adapted);
+}
+
 export function adaptFillFromLighterTrade(
   trade: LighterRestTrade | LighterWsTrade,
   symbol: string,
@@ -499,6 +558,23 @@ export function adaptFillFromLighterTrade(
 // ============================================================================
 
 /**
+ * Margin a Lighter position uses: its value times the initial margin
+ * fraction, a percentage (e.g. "20" => 5x leverage).
+ *
+ * @param positionValue - Position value in USDC.
+ * @param initialMarginFraction - Initial margin fraction, in percent.
+ * @returns Margin used in USDC; the full value when no fraction is set.
+ */
+function deriveLighterPositionMarginUsed(
+  positionValue: number,
+  initialMarginFraction: number,
+): number {
+  return initialMarginFraction > 0
+    ? (positionValue * initialMarginFraction) / 100
+    : positionValue;
+}
+
+/**
  * Transform a Lighter account position into canonical Position.
  *
  * @param position - Position entry from an account payload.
@@ -536,8 +612,10 @@ export function adaptPositionFromLighter(
   // initialMarginFraction is a percentage (e.g. "20" => 5x leverage).
   const leverageValue =
     marginFraction > 0 ? Math.round(100 / marginFraction) : 1;
-  const marginUsed =
-    marginFraction > 0 ? (positionValue * marginFraction) / 100 : positionValue;
+  const marginUsed = deriveLighterPositionMarginUsed(
+    positionValue,
+    marginFraction,
+  );
   const unrealizedPnl = parseFloat(position.unrealizedPnl);
   const liquidationPrice = parseFloat(position.liquidationPrice);
 
@@ -559,8 +637,8 @@ export function adaptPositionFromLighter(
         ? null
         : position.liquidationPrice,
     maxLeverage,
-    returnOnEquity:
-      marginUsed > 0 ? String((unrealizedPnl / marginUsed) * 100) : '0',
+    // A fraction (0.1 = 10%), the unit Hyperliquid positions use.
+    returnOnEquity: marginUsed > 0 ? String(unrealizedPnl / marginUsed) : '0',
     cumulativeFunding: {
       allTime: '0',
       sinceOpen: '0',
@@ -615,6 +693,80 @@ export function adaptAccountStateFromLighter(
     returnOnEquity:
       marginUsed > 0 ? String((unrealizedPnl / marginUsed) * 100) : '0',
     providerId: 'lighter',
+  };
+}
+
+/**
+ * Build the cross-margin summary from a Lighter sub-account's positions.
+ *
+ * Open cross positions contribute their value to notional, their margin to
+ * margin used and value times the market's maintenance fraction to
+ * maintenance margin. Account value is the total balance less isolated
+ * positions' unrealized PnL.
+ *
+ * @param account - Sub-account payload from `account`.
+ * @param totalBalance - The account's adapted total balance.
+ * @param getMaintenanceFraction - Maintenance margin fraction (0.024 = 2.4%)
+ * for a market symbol, or undefined when the market has none.
+ * @returns The cross-margin summary, or undefined when the payload omits
+ * positions or an open cross position's market has no maintenance fraction.
+ */
+export function adaptCrossMarginSummaryFromLighter(
+  account: LighterSubAccount,
+  totalBalance: string,
+  getMaintenanceFraction: (symbol: string) => number | undefined,
+): CrossMarginSummary | undefined {
+  // Omitted positions are not evidence of zero exposure.
+  if (!account.positions) {
+    return undefined;
+  }
+  let isolatedUnrealizedPnl = 0;
+  let notional = 0;
+  let marginUsed = 0;
+  let maintenanceMargin = 0;
+  for (const position of account.positions) {
+    const unrealizedPnl = parseStrictAccountDecimal(
+      position.unrealizedPnl,
+      `REST unrealized PnL for ${position.symbol}`,
+    );
+    if (position.marginMode === LIGHTER_MARGIN_MODE_ISOLATED) {
+      isolatedUnrealizedPnl += unrealizedPnl;
+      continue;
+    }
+    const size = parseStrictAccountDecimal(
+      position.position,
+      `REST position size for ${position.symbol}`,
+    );
+    if (size === 0) {
+      continue;
+    }
+    const positionValue = parseStrictAccountDecimal(
+      position.positionValue,
+      `REST position value for ${position.symbol}`,
+    );
+    const initialMarginFraction = parseStrictAccountDecimal(
+      position.initialMarginFraction,
+      `REST initial margin fraction for ${position.symbol}`,
+    );
+    const maintenanceFraction = getMaintenanceFraction(position.symbol);
+    if (maintenanceFraction === undefined) {
+      return undefined;
+    }
+    notional += positionValue;
+    marginUsed += deriveLighterPositionMarginUsed(
+      positionValue,
+      initialMarginFraction,
+    );
+    maintenanceMargin += positionValue * maintenanceFraction;
+  }
+  return {
+    accountValue: String(
+      parseStrictAccountDecimal(totalBalance, 'total balance') -
+        isolatedUnrealizedPnl,
+    ),
+    maintenanceMargin: String(maintenanceMargin),
+    marginUsed: String(marginUsed),
+    notional: String(notional),
   };
 }
 

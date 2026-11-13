@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { getErrorFromResponse, createSentryError } from './utils.js';
 
 describe('getErrorFromResponse', () => {
@@ -5,9 +7,9 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 400,
       headers: {
-        get: jest.fn().mockReturnValue('application/json'),
+        get: vi.fn().mockReturnValue('application/json'),
       },
-      json: jest.fn().mockResolvedValue({ error: 'Bad request' }),
+      json: vi.fn().mockResolvedValue({ error: 'Bad request' }),
     } as unknown as Response;
 
     const error = await getErrorFromResponse(response);
@@ -19,9 +21,9 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 400,
       headers: {
-        get: jest.fn().mockReturnValue('application/json'),
+        get: vi.fn().mockReturnValue('application/json'),
       },
-      json: jest.fn().mockResolvedValue({ message: 'Bad request' }),
+      json: vi.fn().mockResolvedValue({ message: 'Bad request' }),
     } as unknown as Response;
 
     const error = await getErrorFromResponse(response);
@@ -32,9 +34,9 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 400,
       headers: {
-        get: jest.fn().mockReturnValue('application/json'),
+        get: vi.fn().mockReturnValue('application/json'),
       },
-      json: jest.fn().mockResolvedValue({}),
+      json: vi.fn().mockResolvedValue({}),
     } as unknown as Response;
 
     const error = await getErrorFromResponse(response);
@@ -45,9 +47,9 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 400,
       headers: {
-        get: jest.fn().mockReturnValue('text/plain'),
+        get: vi.fn().mockReturnValue('text/plain'),
       },
-      text: jest.fn().mockResolvedValue('Plain text error'),
+      text: vi.fn().mockResolvedValue('Plain text error'),
     } as unknown as Response;
 
     const error = await getErrorFromResponse(response);
@@ -58,7 +60,7 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 400,
       headers: {
-        get: jest.fn().mockReturnValue('application/octet-stream'),
+        get: vi.fn().mockReturnValue('application/octet-stream'),
       },
       data: 'Some data error',
     } as unknown as Response;
@@ -71,7 +73,7 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 400,
       headers: {
-        get: jest.fn().mockReturnValue('application/octet-stream'),
+        get: vi.fn().mockReturnValue('application/octet-stream'),
       },
     } as unknown as Response;
 
@@ -83,9 +85,9 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 500,
       headers: {
-        get: jest.fn().mockReturnValue('application/json'),
+        get: vi.fn().mockReturnValue('application/json'),
       },
-      json: jest.fn().mockRejectedValue(new Error('Invalid JSON')),
+      json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
     } as unknown as Response;
 
     const error = await getErrorFromResponse(response);
@@ -97,9 +99,9 @@ describe('getErrorFromResponse', () => {
     const response = {
       status: 500,
       headers: {
-        get: jest.fn().mockReturnValue('text/plain'),
+        get: vi.fn().mockReturnValue('text/plain'),
       },
-      text: jest.fn().mockRejectedValue(new Error('Read error')),
+      text: vi.fn().mockRejectedValue(new Error('Read error')),
     } as unknown as Response;
 
     const error = await getErrorFromResponse(response);

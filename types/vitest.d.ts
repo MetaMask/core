@@ -1,6 +1,5 @@
 /**
- * Types for the custom matchers in `tests/matchers.ts`; `types/jest.d.ts` is the
- * Jest side.
+ * Types for the custom matchers in `tests/matchers.ts`.
  */
 
 // `export {}` makes this a module, and so the block below an augmentation

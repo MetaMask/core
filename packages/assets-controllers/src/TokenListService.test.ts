@@ -1,15 +1,16 @@
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as assetsUtil from './assetsUtil.js';
 import { fetchTokenListByChainId } from './token-service.js';
 import type { TokenListToken } from './TokenListController.js';
 import { buildTokenListMap, TokenListService } from './TokenListService.js';
 
-jest.mock('./token-service', () => ({
-  fetchTokenListByChainId: jest.fn(),
+vi.mock('./token-service', () => ({
+  fetchTokenListByChainId: vi.fn(),
 }));
 
-const mockedFetchTokenListByChainId = jest.mocked(fetchTokenListByChainId);
+const mockedFetchTokenListByChainId = vi.mocked(fetchTokenListByChainId);
 
 describe('buildTokenListMap', () => {
   it('maps tokens by address and applies aggregator and icon formatting', () => {
@@ -104,11 +105,8 @@ describe('TokenListService', () => {
     ];
     mockedFetchTokenListByChainId.mockResolvedValue(apiTokens);
 
-    const formatAggregatorsSpy = jest.spyOn(
-      assetsUtil,
-      'formatAggregatorNames',
-    );
-    const formatIconSpy = jest.spyOn(assetsUtil, 'formatIconUrlWithProxy');
+    const formatAggregatorsSpy = vi.spyOn(assetsUtil, 'formatAggregatorNames');
+    const formatIconSpy = vi.spyOn(assetsUtil, 'formatIconUrlWithProxy');
 
     const service = new TokenListService();
     await service.fetchTokensByChainId(chainId);

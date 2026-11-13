@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import { VaultData } from '../types.js';
 import {

@@ -10,6 +10,7 @@
  * - Top gainers/popular tokens
  * - Top assets
  * - Occurrence floors
+ * - Assets (v2)
  */
 
 import type {
@@ -31,6 +32,8 @@ import type {
   TrendingSortOption,
   TopGainersSortOption,
   V1SuggestedOccurrenceFloorsResponse,
+  V2AssetResponse,
+  V2AssetsQueryOptions,
 } from './types.js';
 
 /**
@@ -743,6 +746,58 @@ export class TokenApiClient extends BaseApiClient {
   ): Promise<V1SuggestedOccurrenceFloorsResponse> {
     return this.queryClient.fetchQuery(
       this.getV1SuggestedOccurrenceFloorsQueryOptions(options),
+    );
+  }
+
+  // ==========================================================================
+  // ASSETS (V2)
+  // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for v2 assets.
+   *
+   * @param assetIds - Array of CAIP-19 asset IDs.
+   * @param queryOptions - Query options to include additional data in response.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV2AssetsQueryOptions(
+    assetIds: string[],
+    queryOptions?: V2AssetsQueryOptions,
+    options?: FetchOptions,
+  ): FetchQueryOptions<V2AssetResponse[]> {
+    return {
+      queryKey: ['token', 'v2Assets', { assetIds, options: queryOptions }],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V2AssetResponse[]>(this.apiUrls.TOKEN, '/v2/assets', {
+          signal,
+          params: { assetIds, ...queryOptions },
+        }),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TOKEN_METADATA,
+      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
+    };
+  }
+
+  /**
+   * Fetch assets by IDs (v2) with caching. Unlike the Tokens API v3 endpoint,
+   * this supports `includeLaunchpadData` and `includeTokenSecurityData`.
+   *
+   * @param assetIds - Array of CAIP-19 asset IDs.
+   * @param queryOptions - Query options to include additional data in response.
+   * @param options - Fetch options including cache settings.
+   * @returns Array of asset responses.
+   */
+  async fetchV2Assets(
+    assetIds: string[],
+    queryOptions?: V2AssetsQueryOptions,
+    options?: FetchOptions,
+  ): Promise<V2AssetResponse[]> {
+    if (assetIds.length === 0) {
+      return [];
+    }
+    return this.queryClient.fetchQuery(
+      this.getV2AssetsQueryOptions(assetIds, queryOptions, options),
     );
   }
 }

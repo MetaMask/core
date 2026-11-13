@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { ExternalScopeObject } from './types.js';
 import { isValidScope, getValidScopes } from './validation.js';
 

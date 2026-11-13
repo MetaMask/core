@@ -6,6 +6,7 @@ import {
   assertIsJsonRpcFailure,
   assertIsJsonRpcSuccess,
 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createRequest } from '../test/util/helpers.js';
 import {
@@ -17,8 +18,8 @@ const createMockProvider = (resultOrError: Json | Error): InternalProvider =>
   ({
     request:
       resultOrError instanceof Error
-        ? jest.fn().mockRejectedValue(resultOrError)
-        : jest.fn().mockResolvedValue(resultOrError),
+        ? vi.fn().mockRejectedValue(resultOrError)
+        : vi.fn().mockResolvedValue(resultOrError),
   }) as unknown as InternalProvider;
 
 describe('providerAsMiddleware', () => {

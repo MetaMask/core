@@ -58,6 +58,9 @@ export const SocialServiceErrorMessage = {
   CREATE_SWAP_COMMENT_FAILED: 'SocialService: Swap comment request failed',
   CREATE_SWAP_COMMENT_INVALID_RESPONSE:
     'SocialService: Swap comment returned invalid response',
+  TRANSLATE_COMMENT_FAILED: 'SocialService: Comment translation request failed',
+  TRANSLATE_COMMENT_INVALID_RESPONSE:
+    'SocialService: Comment translation returned invalid response',
   CREATE_COPY_TRADE_INTENT_FAILED:
     'SocialService: Copy-trade intent request failed',
   CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE:
@@ -65,6 +68,7 @@ export const SocialServiceErrorMessage = {
   NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
     'SocialService: Notification preferences cache refresh request failed',
   BLOCK_FAILED: 'SocialService: Block request failed',
+  UNBLOCK_PROFILE_FAILED: 'SocialService: Unblock profile request failed',
   FETCH_BLOCKED_PROFILES_FAILED:
     'SocialService: Blocked profiles request failed',
   FETCH_BLOCKED_PROFILES_INVALID_RESPONSE:
@@ -72,4 +76,17 @@ export const SocialServiceErrorMessage = {
   FETCH_BLOCKED_CONTENT_FAILED: 'SocialService: Blocked content request failed',
   FETCH_BLOCKED_CONTENT_INVALID_RESPONSE:
     'SocialService: Blocked content returned invalid response',
+  FETCH_MODERATION_STATUS_FAILED:
+    'SocialService: Moderation status request failed',
+  FETCH_MODERATION_STATUS_INVALID_RESPONSE:
+    'SocialService: Moderation status returned invalid response',
+  FETCH_QUOTE_TOKENS_FAILED: 'SocialService: Quote tokens request failed',
+  FETCH_QUOTE_TOKENS_INVALID_RESPONSE:
+    'SocialService: Quote tokens returned invalid response',
+  FETCH_TRENDING_GIFS_FAILED: 'SocialService: Trending GIFs request failed',
+  FETCH_TRENDING_GIFS_INVALID_RESPONSE:
+    'SocialService: Trending GIFs returned invalid response',
+  FETCH_SEARCH_GIFS_FAILED: 'SocialService: GIF search request failed',
+  FETCH_SEARCH_GIFS_INVALID_RESPONSE:
+    'SocialService: GIF search returned invalid response',
 } as const;

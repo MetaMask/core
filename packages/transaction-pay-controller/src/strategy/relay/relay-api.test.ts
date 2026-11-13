@@ -1,26 +1,31 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
+
+import { TransactionPayClientId } from '../../constants.js';
 import type { FeatureFlags } from '../../utils/feature-flags.js';
 import { getFeatureFlags } from '../../utils/feature-flags.js';
+import { TradeType } from '../../utils/trade-type.js';
 import { RELAY_STATUS_URL } from './constants.js';
 import {
   fetchRelayQuote,
   getRelayStatus,
   submitRelayExecute,
 } from './relay-api.js';
-import type { RelayQuoteRequest } from './types.js';
+import type { RelayExecuteRequest, RelayQuoteRequest } from './types.js';
 
-jest.mock('../../utils/feature-flags');
+vi.mock(import('../../utils/feature-flags.js'));
 
-const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
+const getFeatureFlagsMock = vi.mocked(getFeatureFlags);
 
-let fetchMock: jest.SpyInstance;
+let fetchMock: MockInstance;
 
-const mockOkResponse = (body: unknown): jest.SpyInstance =>
+const mockOkResponse = (body: unknown): MockInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => body,
   });
 
-const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
+const mockErrorResponse = (status: number, body: unknown): MockInstance =>
   fetchMock.mockResolvedValueOnce({
     ok: false,
     status,
@@ -30,11 +35,18 @@ const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
 const QUOTE_URL_MOCK = 'https://proxy.test/relay/quote';
 const EXECUTE_URL_MOCK = 'https://proxy.test/relay/execute';
 
-const MESSENGER_MOCK = {} as Parameters<typeof fetchRelayQuote>[0];
+let callMock: MockInstance;
+let MESSENGER_MOCK: Parameters<typeof fetchRelayQuote>[0];
 
 describe('relay-api', () => {
   beforeEach(() => {
-    fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock = vi.spyOn(global, 'fetch');
+
+    callMock = vi.fn().mockReturnValue(undefined);
+
+    MESSENGER_MOCK = {
+      call: callMock,
+    } as unknown as Parameters<typeof fetchRelayQuote>[0];
 
     getFeatureFlagsMock.mockReturnValue({
       relayQuoteUrl: QUOTE_URL_MOCK,
@@ -73,6 +85,27 @@ describe('relay-api', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(QUOTE_REQUEST_MOCK),
       });
+    });
+
+    it('includes the client ID header when the controller provides one', async () => {
+      callMock.mockReturnValue(TransactionPayClientId.Extension);
+      mockOkResponse(QUOTE_RESPONSE_MOCK);
+
+      await fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
+
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionPayController:getClientId',
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        QUOTE_URL_MOCK,
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Client-Id': 'extension',
+          },
+        }),
+      );
     });
 
     it('attaches the request body to the returned quote', async () => {
@@ -139,16 +172,30 @@ describe('relay-api', () => {
   });
 
   describe('submitRelayExecute', () => {
-    const EXECUTE_REQUEST_MOCK = {
-      executionKind: 'rawCalls' as const,
+    const EXECUTE_REQUEST_MOCK: RelayExecuteRequest = {
+      executionKind: 'rawCalls',
       data: {
         chainId: 1,
-        to: '0xaaa' as `0x${string}`,
-        data: '0xbbb' as `0x${string}`,
+        to: '0xaaa',
+        data: '0xbbb',
         value: '0',
       },
       executionOptions: { subsidizeFees: false },
       requestId: '0xreq',
+      metamask: {
+        isSubsidized: false,
+        quoteRequest: {
+          amount: '1000000',
+          destinationChainId: 1,
+          destinationCurrency: '0xaaa',
+          originChainId: 137,
+          originCurrency: '0xbbb',
+          recipient: '0xccc',
+          tradeType: TradeType.ExactOutput,
+          user: '0xccc',
+        },
+        signature: '0xsignature',
+      },
     };
 
     const EXECUTE_RESPONSE_MOCK = {
@@ -178,6 +225,50 @@ describe('relay-api', () => {
 
       expect(result).toStrictEqual(EXECUTE_RESPONSE_MOCK);
     });
+
+    it('includes the client ID header when the controller provides one', async () => {
+      callMock.mockReturnValue(TransactionPayClientId.Extension);
+      mockOkResponse(EXECUTE_RESPONSE_MOCK);
+
+      await submitRelayExecute(MESSENGER_MOCK, EXECUTE_REQUEST_MOCK);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        EXECUTE_URL_MOCK,
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Client-Id': 'extension',
+          },
+        }),
+      );
+    });
+
+    it('omits the client ID header when none is configured', async () => {
+      mockOkResponse(EXECUTE_RESPONSE_MOCK);
+
+      await submitRelayExecute(MESSENGER_MOCK, EXECUTE_REQUEST_MOCK);
+
+      expect(fetchMock).toHaveBeenCalledWith(EXECUTE_URL_MOCK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(EXECUTE_REQUEST_MOCK),
+      });
+    });
+
+    it('still sends the request when the client ID lookup throws', async () => {
+      callMock.mockImplementation(() => {
+        throw new Error('no handler registered');
+      });
+      mockOkResponse(EXECUTE_RESPONSE_MOCK);
+
+      await submitRelayExecute(MESSENGER_MOCK, EXECUTE_REQUEST_MOCK);
+
+      expect(fetchMock).toHaveBeenCalledWith(EXECUTE_URL_MOCK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(EXECUTE_REQUEST_MOCK),
+      });
+    });
   });
 
   describe('getRelayStatus', () => {
@@ -191,7 +282,7 @@ describe('relay-api', () => {
     it('fetches the status URL with the request ID', async () => {
       mockOkResponse(STATUS_RESPONSE_MOCK);
 
-      await getRelayStatus(REQUEST_ID_MOCK);
+      await getRelayStatus(MESSENGER_MOCK, REQUEST_ID_MOCK);
 
       expect(fetchMock).toHaveBeenCalledWith(
         `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
@@ -202,9 +293,23 @@ describe('relay-api', () => {
     it('returns the parsed status', async () => {
       mockOkResponse(STATUS_RESPONSE_MOCK);
 
-      const result = await getRelayStatus(REQUEST_ID_MOCK);
+      const result = await getRelayStatus(MESSENGER_MOCK, REQUEST_ID_MOCK);
 
       expect(result).toStrictEqual(STATUS_RESPONSE_MOCK);
+    });
+
+    it('includes the client ID header when the controller provides one', async () => {
+      callMock.mockReturnValue(TransactionPayClientId.Mobile);
+      mockOkResponse(STATUS_RESPONSE_MOCK);
+
+      await getRelayStatus(MESSENGER_MOCK, REQUEST_ID_MOCK);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+        expect.objectContaining({
+          headers: { 'X-Client-Id': 'mobile' },
+        }),
+      );
     });
   });
 });

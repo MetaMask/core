@@ -19,8 +19,11 @@ export type {
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,
+  KycControllerDeleteEncryptedStorageAction,
+  KycControllerEnsureLocalUserSecretAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
+  KycControllerGetDataSharesAction,
   KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
@@ -36,16 +39,29 @@ export type {
   KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
 
+export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
+export type {
+  KycAnalyticsStatus,
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsTrackers,
+  KycAnalyticsVerificationOutcome,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+
 export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
   CapabilityAuthorization,
   CreateVendorCustomerParams,
   CreateMoonpaySessionParams,
+  CompleteDeletionParams,
+  CreateDeletionParams,
+  CreateDeletionResponse,
   CreateUkycSessionParams,
   EncryptionSchema,
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
+  GetDataSharesParams,
   GetSessionStatusParams,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
@@ -64,6 +80,8 @@ export type {
 } from './KycService.js';
 export type {
   KycServiceCreateVendorCustomerAction,
+  KycServiceCompleteDeletionAction,
+  KycServiceCreateDeletionAction,
   KycServiceCreateJourneyAction,
   KycServiceCreateMoonpaySessionAction,
   KycServiceCreateUkycSessionAction,
@@ -72,6 +90,7 @@ export type {
   KycServiceFetchSessionDisclaimersByCountryAction,
   KycServiceFetchSessionDisclaimersBySessionIdAction,
   KycServiceFetchVendorDisclaimersAction,
+  KycServiceGetDataSharesAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
@@ -92,11 +111,17 @@ export type {
   X25519KeyPair,
 } from './crypto.js';
 
-export { KYC_STATUSES, TERMINAL_SESSION_STATUSES } from './types.js';
+export {
+  KYC_CURRENT_STEPS,
+  KYC_STATUSES,
+  TERMINAL_SESSION_STATUSES,
+} from './types.js';
 export type {
   KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
+  KycCurrentStep,
+  KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
   KycPhase,

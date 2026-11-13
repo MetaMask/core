@@ -1,14 +1,9 @@
 import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permission';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WalletInvokeMethodRequest } from './wallet-invokeMethod.js';
 import { walletInvokeMethodHandler } from './wallet-invokeMethod.js';
-
-// Allow individual modules to be mocked
-jest.mock('@metamask/chain-agnostic-permission', () => ({
-  ...jest.requireActual('@metamask/chain-agnostic-permission'),
-  __esModule: true,
-}));
 
 const { Caip25CaveatType, Caip25EndowmentPermissionName } =
   chainAgnosticPermissionModule;
@@ -30,9 +25,9 @@ const createMockedRequest = () => ({
 });
 
 const createMockedHandler = () => {
-  const next = jest.fn();
-  const end = jest.fn();
-  const getCaveatForOrigin = jest.fn().mockReturnValue({
+  const next = vi.fn();
+  const end = vi.fn();
+  const getCaveatForOrigin = vi.fn().mockReturnValue({
     value: {
       requiredScopes: {
         'eip155:1': {
@@ -53,13 +48,13 @@ const createMockedHandler = () => {
       isMultichainOrigin: true,
     },
   });
-  const findNetworkClientIdByChainId = jest.fn().mockReturnValue('mainnet');
-  const getSelectedNetworkClientId = jest
+  const findNetworkClientIdByChainId = vi.fn().mockReturnValue('mainnet');
+  const getSelectedNetworkClientId = vi
     .fn()
     .mockReturnValue('selectedNetworkClientId');
-  const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
-  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
-  const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null);
+  const getNonEvmSupportedMethods = vi.fn().mockReturnValue([]);
+  const sortAccountIdsByLastSelected = vi.fn((accounts) => accounts);
+  const handleNonEvmRequestForOrigin = vi.fn().mockResolvedValue(null);
   const response = { jsonrpc: '2.0' as const, id: 1 };
   const handler = (request: WalletInvokeMethodRequest) =>
     walletInvokeMethodHandler.implementation(request, response, next, end, {
@@ -87,9 +82,8 @@ const createMockedHandler = () => {
 
 describe('wallet_invokeMethod', () => {
   beforeEach(() => {
-    jest
-      .spyOn(chainAgnosticPermissionModule, 'getSessionScopes')
-      .mockReturnValue({
+    vi.spyOn(chainAgnosticPermissionModule, 'getSessionScopes').mockReturnValue(
+      {
         'eip155:1': {
           methods: ['eth_call', 'net_version'],
           notifications: [],
@@ -115,7 +109,8 @@ describe('wallet_invokeMethod', () => {
           notifications: [],
           accounts: ['nonevm:scope:0x1'],
         },
-      });
+      },
+    );
   });
 
   it('returns invalid params when params is not a plain object', async () => {

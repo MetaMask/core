@@ -1,11 +1,17 @@
 /* eslint-disable */
+import { describe, expect, it } from 'vitest';
+
 import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
 import type { AccountState } from '../../../src/types/index.js';
+import type { CalculateAccountSummaryParams } from '../../../src/utils/accountUtils.js';
 import {
   addSpotBalanceToAccountState,
   aggregateAccountStates,
+  calculateAccountSummary,
   calculateWeightedReturnOnEquity,
+  getCrossCollateral,
   getSpotBalance,
+  sumCrossMarginSummaries,
 } from '../../../src/utils/accountUtils.js';
 
 describe('aggregateAccountStates', () => {
@@ -22,16 +28,21 @@ describe('aggregateAccountStates', () => {
     expect(aggregateAccountStates([])).toEqual(fallback);
   });
 
-  it('returns the single state unchanged when given one element', () => {
+  it('canonicalizes balances when given one state', () => {
     const single: AccountState = {
-      spendableBalance: '100',
-      withdrawableBalance: '100',
-      totalBalance: '200',
+      spendableBalance: '100.000000',
+      withdrawableBalance: '100.000000',
+      totalBalance: '200.000000',
       marginUsed: '50',
       unrealizedPnl: '10',
       returnOnEquity: '20',
     };
-    expect(aggregateAccountStates([single])).toEqual(single);
+    expect(aggregateAccountStates([single])).toEqual({
+      ...single,
+      spendableBalance: '100',
+      withdrawableBalance: '100',
+      totalBalance: '200',
+    });
   });
 
   it('sums numeric fields from two states and recalculates ROE', () => {
@@ -183,11 +194,124 @@ describe('aggregateAccountStates', () => {
     expect(parseFloat(result.marginUsed)).toBeCloseTo(81, 0);
     expect(parseFloat(result.unrealizedPnl)).toBeCloseTo(17, 0);
   });
+
+  it('preserves the exact subtotal when aggregating DEX states', () => {
+    const stateA: AccountState = {
+      spendableBalance: '0.0000009',
+      withdrawableBalance: '0.0000009',
+      totalBalance: '0.0000009',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+    const stateB: AccountState = {
+      spendableBalance: '0.0000009',
+      withdrawableBalance: '0.0000009',
+      totalBalance: '0.0000009',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+
+    const result = aggregateAccountStates([stateA, stateB]);
+
+    expect(result.spendableBalance).toBe('0.0000018');
+    expect(result.withdrawableBalance).toBe('0.0000018');
+    expect(result.totalBalance).toBe('0.0000018');
+  });
 });
 
 describe('spot balance helpers', () => {
   it('returns zero spot balance when no spot state is provided', () => {
     expect(getSpotBalance()).toBe(0);
+  });
+
+  it('emits the same exact balance for equivalent decimal inputs', () => {
+    const accountState: AccountState = {
+      spendableBalance: '0',
+      withdrawableBalance: '0',
+      totalBalance: '0',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+
+    const results = [
+      ['8.000006', '6.524823'],
+      ['4.000004', '2.524821'],
+    ].map(([total, hold]) =>
+      addSpotBalanceToAccountState(
+        accountState,
+        { balances: [{ coin: 'USDC', total, hold }] } as never,
+        { foldIntoCollateral: true },
+      ),
+    );
+
+    expect(
+      results.map(
+        ({ spendableBalance, withdrawableBalance, totalBalance }) => ({
+          spendableBalance,
+          withdrawableBalance,
+          totalBalance,
+        }),
+      ),
+    ).toEqual([
+      {
+        spendableBalance: '1.475183',
+        withdrawableBalance: '1.475183',
+        totalBalance: '1.475183',
+      },
+      {
+        spendableBalance: '1.475183',
+        withdrawableBalance: '1.475183',
+        totalBalance: '1.475183',
+      },
+    ]);
+  });
+
+  it('preserves a genuine one-micro-USDC balance change', () => {
+    const accountState: AccountState = {
+      spendableBalance: '0',
+      withdrawableBalance: '0',
+      totalBalance: '0',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+    const getWithdrawableBalance = (total: string) =>
+      addSpotBalanceToAccountState(
+        accountState,
+        {
+          balances: [{ coin: 'USDC', total, hold: '6.524823' }],
+        } as never,
+        { foldIntoCollateral: true },
+      ).withdrawableBalance;
+
+    expect(getWithdrawableBalance('8.000006')).toBe('1.475183');
+    expect(getWithdrawableBalance('8.000007')).toBe('1.475184');
+  });
+
+  it('rounds once after combining fractional perps and spot balances', () => {
+    const perpsState: AccountState = {
+      spendableBalance: '10.0000009',
+      withdrawableBalance: '10.0000009',
+      totalBalance: '10.0000009',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+
+    const result = addSpotBalanceToAccountState(
+      aggregateAccountStates([perpsState]),
+      {
+        balances: [{ coin: 'USDC', total: '0.0000009', hold: '0' }],
+      } as never,
+      { foldIntoCollateral: true },
+    );
+
+    expect(result.spendableBalance).toBe('10.000001');
+    expect(result.withdrawableBalance).toBe('10.000001');
+    expect(result.totalBalance).toBe('10.000001');
   });
 
   it('bumps totalBalance, spendableBalance, and withdrawableBalance by spot USDC without mutating the input', () => {
@@ -435,5 +559,247 @@ describe('calculateWeightedReturnOnEquity', () => {
       { unrealizedPnl: '10', returnOnEquity: '20' },
     ]);
     expect(parseFloat(result)).toBeCloseTo(20, 5);
+  });
+});
+
+describe('cross margin summary aggregation', () => {
+  const base: AccountState = {
+    spendableBalance: '100',
+    withdrawableBalance: '100',
+    totalBalance: '200',
+    marginUsed: '50',
+    unrealizedPnl: '10',
+    returnOnEquity: '20',
+  };
+  const withSummary = (accountValue: string): AccountState => ({
+    ...base,
+    crossMarginSummary: {
+      accountValue,
+      maintenanceMargin: '5',
+      marginUsed: '25',
+      notional: '250',
+    },
+  });
+
+  it('sums every DEX summary', () => {
+    expect(
+      sumCrossMarginSummaries([withSummary('100'), withSummary('50.5')]),
+    ).toStrictEqual({
+      accountValue: '150.5',
+      maintenanceMargin: '10',
+      marginUsed: '50',
+      notional: '500',
+    });
+  });
+
+  it('sums decimal DEX summaries without floating-point artifacts', () => {
+    expect(
+      sumCrossMarginSummaries([withSummary('0.1'), withSummary('0.2')]),
+    ).toMatchObject({
+      accountValue: '0.3',
+    });
+  });
+
+  it('returns undefined when any DEX lacks a summary', () => {
+    expect(sumCrossMarginSummaries([withSummary('100'), base])).toBeUndefined();
+    expect(sumCrossMarginSummaries([])).toBeUndefined();
+  });
+
+  it('carries the summed summary through aggregateAccountStates', () => {
+    expect(
+      aggregateAccountStates([withSummary('100'), withSummary('20')])
+        .crossMarginSummary,
+    ).toStrictEqual({
+      accountValue: '120',
+      maintenanceMargin: '10',
+      marginUsed: '50',
+      notional: '500',
+    });
+  });
+
+  it('drops a single DEX summary rather than reporting a partial sum', () => {
+    expect(
+      aggregateAccountStates([withSummary('100'), base]),
+    ).not.toHaveProperty('crossMarginSummary');
+  });
+});
+
+describe('calculateAccountSummary', () => {
+  // 40 USD of cross account value, 5 USD maintenance margin, 250 USD notional
+  // and 25 USD of margin held, in a 1,000 USD account.
+  const crossMarginSummary = {
+    accountValue: '40',
+    maintenanceMargin: '5',
+    notional: '250',
+    marginUsed: '25',
+  };
+
+  // Shared fixtures (TAT-4464): clients assert the same rows against
+  // `calculateAccountSummary`. Leverage is cross notional over total equity,
+  // isolated margin included; ratio and usage are over cross collateral
+  // (cross account value plus spot collateral). Expected figures are rounded
+  // to 4 decimals.
+  const ACCOUNT_SUMMARY_ROWS: {
+    account: string;
+    params: CalculateAccountSummaryParams;
+    maintenanceMargin: number;
+    leverage: number;
+    ratio: number;
+    usage: number;
+  }[] = [
+    {
+      // 15.57 USD of equity, of which 10.4 USD backs the cross positions.
+      account: 'cross and isolated positions',
+      params: {
+        totalEquity: '15.57',
+        crossMarginSummary: {
+          accountValue: '10.4',
+          maintenanceMargin: '0.2444',
+          notional: '12.31',
+          marginUsed: '1.231',
+        },
+        spotCollateral: 0,
+      },
+      maintenanceMargin: 0.2444,
+      leverage: 0.7906,
+      ratio: 0.0235,
+      usage: 0.1184,
+    },
+    {
+      account: 'cross positions with spot collateral',
+      params: { totalEquity: '1000', crossMarginSummary, spotCollateral: '60' },
+      maintenanceMargin: 5,
+      leverage: 0.25,
+      ratio: 0.05,
+      usage: 0.25,
+    },
+  ];
+
+  it.each(ACCOUNT_SUMMARY_ROWS)(
+    'gives $leverage leverage, $ratio ratio and $usage usage for $account',
+    ({ params, maintenanceMargin, leverage, ratio, usage }) => {
+      const summary = calculateAccountSummary(params);
+
+      expect(summary.maintenanceMargin).toBe(maintenanceMargin);
+      expect(summary.accountLeverage).toBeCloseTo(leverage, 4);
+      expect(summary.accountRatio).toBeCloseTo(ratio, 4);
+      expect(summary.crossMarginUsage).toBeCloseTo(usage, 4);
+    },
+  );
+
+  it('accepts numeric figures', () => {
+    expect(
+      calculateAccountSummary({
+        totalEquity: 1000,
+        crossMarginSummary: {
+          accountValue: 40,
+          maintenanceMargin: 5,
+          notional: 250,
+          marginUsed: 25,
+        },
+        spotCollateral: 60,
+      }),
+    ).toStrictEqual({
+      maintenanceMargin: 5,
+      accountRatio: 0.05,
+      accountLeverage: 0.25,
+      crossMarginUsage: 0.25,
+    });
+  });
+
+  it('keeps leverage known while the spot collateral is unknown', () => {
+    expect(
+      calculateAccountSummary({
+        totalEquity: '1000',
+        crossMarginSummary,
+        spotCollateral: undefined,
+      }),
+    ).toStrictEqual({
+      maintenanceMargin: 5,
+      accountRatio: undefined,
+      accountLeverage: 0.25,
+      crossMarginUsage: undefined,
+    });
+  });
+
+  it.each(['0', '-10', '--'])(
+    'leaves leverage unknown with %s total equity',
+    (totalEquity) => {
+      const summary = calculateAccountSummary({
+        totalEquity,
+        crossMarginSummary,
+        spotCollateral: '60',
+      });
+
+      expect(summary.accountLeverage).toBeUndefined();
+      expect(summary.accountRatio).toBe(0.05);
+      expect(summary.crossMarginUsage).toBe(0.25);
+    },
+  );
+
+  it('reports zero leverage for an account with only isolated positions', () => {
+    expect(
+      calculateAccountSummary({
+        totalEquity: '1000',
+        crossMarginSummary: {
+          accountValue: '0',
+          maintenanceMargin: '0',
+          notional: '0',
+          marginUsed: '0',
+        },
+        spotCollateral: '0',
+      }),
+    ).toStrictEqual({
+      maintenanceMargin: 0,
+      accountRatio: undefined,
+      accountLeverage: 0,
+      crossMarginUsage: undefined,
+    });
+  });
+
+  it('leaves every figure unknown until the cross margin is read', () => {
+    expect(
+      calculateAccountSummary({
+        totalEquity: '1000',
+        crossMarginSummary: undefined,
+        spotCollateral: '60',
+      }),
+    ).toStrictEqual({
+      maintenanceMargin: undefined,
+      accountRatio: undefined,
+      accountLeverage: undefined,
+      crossMarginUsage: undefined,
+    });
+  });
+});
+
+describe('getCrossCollateral', () => {
+  it('adds the spot collateral to the cross account value', () => {
+    expect(
+      getCrossCollateral(
+        {
+          accountValue: '40',
+          maintenanceMargin: '5',
+          notional: '250',
+          marginUsed: '25',
+        },
+        60,
+      ),
+    ).toBe(100);
+  });
+
+  it('is unknown until both are read', () => {
+    expect(getCrossCollateral(undefined, 60)).toBeUndefined();
+    expect(
+      getCrossCollateral(
+        {
+          accountValue: '40',
+          maintenanceMargin: '5',
+          notional: '250',
+          marginUsed: '25',
+        },
+        undefined,
+      ),
+    ).toBeUndefined();
   });
 });

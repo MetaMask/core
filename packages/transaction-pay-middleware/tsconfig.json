@@ -1,8 +1,33 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "types": ["jest"]
-  },
-  "references": [],
+  "references": [
+    {
+      "path": "../account-tree-controller"
+    },
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../perps-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

@@ -1,7 +1,8 @@
 import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { SortTrendingBy } from './token-service.js';
 import {
@@ -323,7 +324,7 @@ describe('Token service', () => {
     });
 
     afterEach(() => {
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
     });
 
@@ -360,7 +361,7 @@ describe('Token service', () => {
 
     it('should use occurrenceFloor from suggestedOccurrenceFloors for the chain', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       nockSuggestedOccurrenceFloors({ '1': 5 });
       nock(TOKEN_END_POINT_API)
@@ -376,7 +377,7 @@ describe('Token service', () => {
 
     it('should fall back to occurrenceFloor 3 when the chain is missing from suggestedOccurrenceFloors', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       nockSuggestedOccurrenceFloors({ '59144': 1 });
       nock(TOKEN_END_POINT_API)
@@ -392,7 +393,7 @@ describe('Token service', () => {
 
     it('should fall back to occurrenceFloor 3 when suggestedOccurrenceFloors fails', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       nock(TOKEN_END_POINT_API).get('/v1/suggestedOccurrenceFloors').reply(500);
       nock(TOKEN_END_POINT_API)
@@ -408,7 +409,7 @@ describe('Token service', () => {
 
     it('should cache suggestedOccurrenceFloors across token list fetches', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       const floorsScope = nock(TOKEN_END_POINT_API)
         .get('/v1/suggestedOccurrenceFloors')
@@ -526,9 +527,8 @@ describe('Token service', () => {
         .get(
           `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
+        // never responds, so the request always times out
+        .reply(200, async () => new Promise(() => undefined))
         .persist();
 
       const result = await fetchTokenListByChainId(sampleChainId, signal, {
@@ -613,9 +613,8 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${sampleDecimalChainId}`)
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
+        // never responds, so the request always times out
+        .reply(200, async () => new Promise(() => undefined))
         .persist();
 
       const tokenMetadata = await fetchTokenMetadata(
@@ -641,6 +640,38 @@ describe('Token service', () => {
   });
 
   describe('searchTokens', () => {
+    it('sends a custom serviceProfile string as-is in the x-mm-service-profile header', async () => {
+      const searchQuery = 'USD';
+      nock(TOKEN_END_POINT_API, {
+        reqheaders: { 'x-mm-service-profile': 'my-team--custom-profile' },
+      })
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, { count: 0, data: [] });
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        serviceProfile: 'my-team--custom-profile',
+      });
+
+      expect(results).toStrictEqual({ count: 0, data: [] });
+    });
+
+    it('sends the default x-mm-service-profile header when serviceProfile is unset', async () => {
+      const searchQuery = 'USD';
+      nock(TOKEN_END_POINT_API, {
+        reqheaders: { 'x-mm-service-profile': 'assets--trending-search' },
+      })
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, { count: 0, data: [] });
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({ count: 0, data: [] });
+    });
+
     it('should call the search api and return the list of matching tokens for single chain', async () => {
       const searchQuery = 'USD';
       const mockResponse = {
@@ -761,7 +792,7 @@ describe('Token service', () => {
       expect(result).toStrictEqual({
         count: 0,
         data: [],
-        error: expect.stringContaining('Example network error'),
+        error: expect.stringMatching(/fetch failed/u),
       });
     });
 

@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   _resetStateForTests,
   bumpOhlcvGeneration,
@@ -13,17 +16,17 @@ import {
 } from '../rnBacked.js';
 
 type MockBridge = {
-  postMessage: jest.Mock<void, [string]>;
+  postMessage: Mock<(...args: [string]) => void>;
 };
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: jest.fn() };
+  const bridge: MockBridge = { postMessage: vi.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
 
-const makeOnResult = (): GetBarsCallback & jest.Mock =>
-  jest.fn() as GetBarsCallback & jest.Mock;
+const makeOnResult = (): GetBarsCallback & Mock =>
+  vi.fn() as GetBarsCallback & Mock;
 
 describe('pagination/rnBacked', () => {
   beforeEach(() => {
@@ -304,7 +307,7 @@ describe('pagination/rnBacked', () => {
 
     it('reports errors from onResult callbacks to RN', () => {
       const bridge = installRNBridge();
-      const badResult = jest.fn(() => {
+      const badResult = vi.fn(() => {
         throw new Error('callback fail');
       }) as unknown as GetBarsCallback;
 

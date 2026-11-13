@@ -1,5 +1,6 @@
-import { TransactionType } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -7,17 +8,16 @@ import {
 } from '../constants.js';
 import { TransactionPayStrategy } from '../index.js';
 import type { TransactionPaymentToken } from '../index.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
 import type { TransactionData, TransactionPayRequiredToken } from '../types.js';
 import { updateSourceAmounts } from './source-amounts.js';
 import { getTokenFiatRate } from './token.js';
 import { getTransaction } from './transaction.js';
 
-jest.mock('./token', () => ({
-  ...jest.requireActual('./token'),
-  getTokenFiatRate: jest.fn(),
+vi.mock(import('./token.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getTokenFiatRate: vi.fn(),
 }));
-jest.mock('./transaction');
+vi.mock(import('./transaction.js'));
 
 const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
   address: '0x123',
@@ -49,13 +49,17 @@ const TRANSACTION_TOKEN_MOCK: TransactionPayRequiredToken = {
 
 const TRANSACTION_ID_MOCK = '123-456';
 
+// transfer(HL bridge, 1000000)
+const PERPS_DEPOSIT_DATA_MOCK =
+  '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240';
+
 describe('Source Amounts Utils', () => {
-  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-  const getTransactionMock = jest.mocked(getTransaction);
+  const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
+  const getTransactionMock = vi.mocked(getTransaction);
   const { messenger, getStrategyMock } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
     getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
@@ -125,11 +129,14 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
-    it('does not return empty array if payment token matches but supported perps deposit and across strategy', () => {
+    it('does not return empty array if payment token matches but perps deposit and across strategy', () => {
       getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
       getTransactionMock.mockReturnValue({
         id: TRANSACTION_ID_MOCK,
-        type: TransactionType.perpsDeposit,
+        txParams: {
+          to: ARBITRUM_USDC_ADDRESS,
+          data: PERPS_DEPOSIT_DATA_MOCK,
+        },
       } as never);
 
       const transactionData: TransactionData = {
@@ -153,11 +160,14 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
-    it('does not return empty array if payment token matches but perps deposit and order and across strategy', () => {
+    it('does not return empty array if payment token matches but nested perps deposit and across strategy', () => {
       getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
       getTransactionMock.mockReturnValue({
         id: TRANSACTION_ID_MOCK,
-        type: TransactionType.perpsDepositAndOrder,
+        txParams: {},
+        nestedTransactions: [
+          { to: ARBITRUM_USDC_ADDRESS, data: PERPS_DEPOSIT_DATA_MOCK },
+        ],
       } as never);
 
       const transactionData: TransactionData = {
@@ -269,7 +279,7 @@ describe('Source Amounts Utils', () => {
     });
 
     it('uses getBalance override for isMaxAmount standard flow', () => {
-      const getBalance = jest.fn().mockReturnValue({
+      const getBalance = vi.fn().mockReturnValue({
         balanceRaw: '9900000',
       });
 
@@ -297,7 +307,7 @@ describe('Source Amounts Utils', () => {
     });
 
     it('falls back to payment token balance when getBalance returns undefined', () => {
-      const getBalance = jest.fn().mockReturnValue(undefined);
+      const getBalance = vi.fn().mockReturnValue(undefined);
 
       const transactionData: TransactionData = {
         isLoading: false,
@@ -323,7 +333,7 @@ describe('Source Amounts Utils', () => {
     });
 
     it('ignores getBalance when isMaxAmount is false', () => {
-      const getBalance = jest.fn().mockReturnValue({
+      const getBalance = vi.fn().mockReturnValue({
         balanceRaw: '9900000',
       });
 
@@ -355,7 +365,7 @@ describe('Source Amounts Utils', () => {
       // calls (getStrategyContext) return the normal mock so no crash.
       getTransactionMock.mockReturnValueOnce(undefined);
 
-      const getBalance = jest.fn().mockReturnValue({
+      const getBalance = vi.fn().mockReturnValue({
         balanceRaw: '9900000',
       });
 
@@ -384,7 +394,7 @@ describe('Source Amounts Utils', () => {
     });
 
     it('uses getBalance override for MoneyAccount max when getBalance is provided', () => {
-      const getBalance = jest.fn().mockReturnValue({
+      const getBalance = vi.fn().mockReturnValue({
         balanceRaw: '9900000',
       });
 
@@ -470,7 +480,7 @@ describe('Source Amounts Utils', () => {
         symbol: 'BNB',
       };
 
-      const getBalance = jest.fn().mockReturnValue({
+      const getBalance = vi.fn().mockReturnValue({
         balanceRaw: '5500000',
       });
 
@@ -511,7 +521,7 @@ describe('Source Amounts Utils', () => {
       // A getBalance callback that returns undefined is a deliberate signal to
       // use the pay token's on-chain balance — not the legacy fiat-derived
       // amount. The callback owns all balance complexity.
-      const getBalance = jest.fn().mockReturnValue(undefined);
+      const getBalance = vi.fn().mockReturnValue(undefined);
 
       const transactionData: TransactionData = {
         isLoading: false,
@@ -571,7 +581,7 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toBeUndefined();
     });
 
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('does nothing if no transaction data', () => {
       updateSourceAmounts(TRANSACTION_ID_MOCK, undefined, messenger);
     });
@@ -771,7 +781,7 @@ describe('Source Amounts Utils', () => {
       });
 
       it('caps the max source amount to the amount the transaction funds', () => {
-        const getBalance = jest.fn().mockReturnValue({
+        const getBalance = vi.fn().mockReturnValue({
           balanceRaw: '21046127',
         });
 
@@ -810,7 +820,7 @@ describe('Source Amounts Utils', () => {
       });
 
       it('uses the balance on max when the transaction funds at least the balance', () => {
-        const getBalance = jest.fn().mockReturnValue({
+        const getBalance = vi.fn().mockReturnValue({
           balanceRaw: '21040001',
         });
 
@@ -849,7 +859,7 @@ describe('Source Amounts Utils', () => {
       });
 
       it('uses the balance on max when the transaction has no encoded amount', () => {
-        const getBalance = jest.fn().mockReturnValue({
+        const getBalance = vi.fn().mockReturnValue({
           balanceRaw: '21046127',
         });
 
@@ -887,7 +897,7 @@ describe('Source Amounts Utils', () => {
       });
 
       it('does not cap the max source amount for a HyperLiquid source', () => {
-        const getBalance = jest.fn().mockReturnValue({
+        const getBalance = vi.fn().mockReturnValue({
           balanceRaw: '21046127',
         });
 
@@ -926,7 +936,7 @@ describe('Source Amounts Utils', () => {
       });
 
       it('does not cap the max source amount for a Polymarket deposit wallet source', () => {
-        const getBalance = jest.fn().mockReturnValue({
+        const getBalance = vi.fn().mockReturnValue({
           balanceRaw: '21046127',
         });
 

@@ -1,4 +1,5 @@
 import { bigIntToHex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   stringifyBalanceWithDecimals,

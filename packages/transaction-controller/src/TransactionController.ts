@@ -63,6 +63,7 @@ import {
   providerErrors,
   JsonRpcError,
 } from '@metamask/rpc-errors';
+import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
 import type { Hex, Json } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -357,7 +358,9 @@ export type TransactionControllerOptions = {
   ) => SavedGasFees | undefined;
 
   /**
-   * Gets the transaction simulation configuration.
+   * Gets the transaction simulation configuration, allowing the simulation
+   * request URL to be rewritten (for example to route through the MetaMask
+   * Shield proxy).
    */
   getSimulationConfig?: GetSimulationConfig;
 
@@ -456,7 +459,8 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkClientRegistryAction
   | NetworkControllerGetStateAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | SentinelApiServiceSimulateTransactionsAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -707,6 +711,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'speedUpTransaction',
   'stopTransaction',
   'updateAtomicBatchData',
+  'updateBatchTransactions',
   'updateCustodialTransaction',
   'updateEditableParams',
   'updatePreviousGasParams',
@@ -4127,6 +4132,7 @@ export class TransactionController extends BaseController<
       tokenBalanceChanges: [],
     };
     let gasUsed: Hex | undefined;
+    let gasFeeSponsor: string | undefined;
     let gasFeeTokens: GasFeeToken[] = [];
     let isGasFeeSponsored = false;
     let simulationRevert: Revert | undefined;
@@ -4178,6 +4184,7 @@ export class TransactionController extends BaseController<
         const gasFeeTokensResponse =
           await this.#getGasFeeTokens(transactionMeta);
 
+        gasFeeSponsor = gasFeeTokensResponse?.gasFeeSponsor;
         gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
         isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
       }
@@ -4212,6 +4219,9 @@ export class TransactionController extends BaseController<
           txMeta.gasFeeTokens = gasFeeTokens;
           txMeta.isGasFeeSponsored =
             txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
+          txMeta.gasFeeSponsor = txMeta.isGasFeeSponsored
+            ? gasFeeSponsor
+            : undefined;
 
           if (txMeta.isGasFeeSponsored) {
             txMeta.isExternalSign = true;
@@ -4509,6 +4519,7 @@ export class TransactionController extends BaseController<
   }
 
   async #getGasFeeTokens(transaction: TransactionMeta): Promise<{
+    gasFeeSponsor?: string;
     gasFeeTokens: GasFeeToken[];
     isGasFeeSponsored: boolean;
   }> {

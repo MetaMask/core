@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { TransactionPayStrategy } from '../constants.js';
 import type { TransactionPaymentToken } from '../types.js';

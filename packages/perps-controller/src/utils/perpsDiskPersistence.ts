@@ -309,6 +309,18 @@ export function hydrateFromDiskSync(
                   price: PERPS_CONSTANTS.FallbackPriceDisplay,
                   change24h: PERPS_CONSTANTS.FallbackDataDisplay,
                   change24hPercent: PERPS_CONSTANTS.FallbackPercentageDisplay,
+                  ...(structuralMarket.change5m !== undefined && {
+                    change5m: PERPS_CONSTANTS.FallbackDataDisplay,
+                  }),
+                  ...(structuralMarket.changePercent5m !== undefined && {
+                    changePercent5m: PERPS_CONSTANTS.FallbackPercentageDisplay,
+                  }),
+                  ...(structuralMarket.change1h !== undefined && {
+                    change1h: PERPS_CONSTANTS.FallbackDataDisplay,
+                  }),
+                  ...(structuralMarket.changePercent1h !== undefined && {
+                    changePercent1h: PERPS_CONSTANTS.FallbackPercentageDisplay,
+                  }),
                 };
               });
               marketUpdates[entry.providerNetworkKey] = {

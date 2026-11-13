@@ -16,11 +16,7 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   HYPERCORE_USDC_ADDRESS,
-  HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
-  PERPS_DEPOSIT_TYPES,
-  USDC_DECIMALS,
-  PaymentOverride,
 } from '../../constants.js';
 import { TransactionPayStrategy } from '../../index.js';
 import { projectLogger } from '../../logger.js';
@@ -37,7 +33,6 @@ import {
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
-  isAtomicMaxEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -48,14 +43,25 @@ import {
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
 import {
+  getMaxQuotes,
+  isAtomicMaxQuote,
+  isAtomicMaxSupported,
+} from '../../utils/max-quote.js';
+import type { MaxQuoteDetails } from '../../utils/max-quote.js';
+import {
+  normalizePerpsDepositRequest,
+  normalizePerpsWithdrawRequest,
+} from '../../utils/perps.js';
+import {
   getPolymarketDepositWalletOverrides,
   getPredictWithdrawFeeTokenAccount,
   getPredictWithdrawSafeAddress,
 } from '../../utils/polymarket/withdraw.js';
+import { processPostQuotePaymentOverride } from '../../utils/post-quote-payment-override.js';
 import { reservePostQuoteGas } from '../../utils/post-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
+import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
   getNativeToken,
   getTokenFiatRate,
@@ -67,11 +73,7 @@ import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { hasRelayDepositStep } from './deposit-step.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import { fetchRelayQuote } from './relay-api.js';
-import {
-  getRelayMaxQuote,
-  isSubsidizedAtomicMaxQuote,
-  throwAtomicPromotionFailed,
-} from './relay-max.js';
+import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -133,31 +135,16 @@ export async function getRelayQuotes(
       ),
     );
 
-    const atomicMaxQuotes = quotes.filter(isSubsidizedAtomicMaxQuote);
-    const otherQuotes = quotes.filter(
-      (quote) => !isSubsidizedAtomicMaxQuote(quote),
-    );
+    // Atomic max quotes are validated as part of the max flow.
+    const quotesToValidate = quotes.filter((quote) => !isAtomicMaxQuote(quote));
 
-    if (otherQuotes.length > 0) {
+    if (quotesToValidate.length > 0) {
       await validateRelayQuotes({
         messenger: request.messenger,
-        quotes: otherQuotes,
+        quotes: quotesToValidate,
         signal: request.signal,
         transaction: request.transaction,
       });
-    }
-
-    if (atomicMaxQuotes.length > 0) {
-      try {
-        await validateRelayQuotes({
-          messenger: request.messenger,
-          quotes: atomicMaxQuotes,
-          signal: request.signal,
-          transaction: request.transaction,
-        });
-      } catch (error) {
-        throwAtomicPromotionFailed(error);
-      }
     }
 
     return quotes;
@@ -177,7 +164,25 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
-  return getRelayMaxQuote(request, fullRequest, getSingleQuote);
+  const [maxQuote] = await getMaxQuotes({
+    fullRequest,
+    getQuoteDetails: getRelayMaxQuoteDetails,
+    getQuotes: async (maxRequest, transaction) => [
+      await getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    ],
+    request,
+    requote: (_quote, maxRequest, transaction) =>
+      getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    validateAtomicQuote: (quote) =>
+      validateRelayQuotes({
+        messenger: fullRequest.messenger,
+        quotes: [quote],
+        signal: fullRequest.signal,
+        transaction: fullRequest.transaction,
+      }),
+  });
+
+  return maxQuote;
 }
 
 /**
@@ -255,16 +260,11 @@ async function getSingleQuote(
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
-    const nonAtomicRecipient = await resolveNonAtomicRecipient(
-      transaction,
-      request,
+    const recipient = await resolveQuoteRecipient({
       messenger,
-    );
-
-    const effectiveRequest = nonAtomicRecipient
-      ? { ...request, recipient: nonAtomicRecipient }
-      : request;
-
+      request,
+      transaction,
+    });
     const body: RelayQuoteRequestDraft = {
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
@@ -276,12 +276,12 @@ async function getSingleQuote(
             metamask: { executeVersion: 2 },
           }
         : {}),
-      recipient: effectiveRequest.recipient ?? from,
+      recipient,
       slippageTolerance,
       user: from,
     };
 
-    if (effectiveRequest.isPolymarketDepositWallet) {
+    if (request.isPolymarketDepositWallet) {
       const overrides = await getPolymarketDepositWalletOverrides(
         from,
         messenger,
@@ -295,32 +295,36 @@ async function getSingleQuote(
       body.strict = true;
     }
 
-    const isAtomic = effectiveRequest.atomic !== false;
-
     const processedTransactions = await processTransactions(
       transaction,
-      effectiveRequest,
+      request,
       body,
       messenger,
     );
 
-    if (
-      !processedTransactions &&
-      isAtomic &&
-      effectiveRequest.isPostQuote &&
-      effectiveRequest.paymentOverride === PaymentOverride.MoneyAccount
-    ) {
-      await processMoneyAccountPostQuote(
-        transaction,
-        effectiveRequest,
-        body,
+    if (!processedTransactions) {
+      const override = await processPostQuotePaymentOverride({
         messenger,
-      );
-    } else if (!processedTransactions && effectiveRequest.refundTo) {
-      // For post-quote flows, honour the caller-specified refund address so that
-      // failed Relay transactions refund to the correct account (e.g. the Predict
-      // Safe proxy) rather than defaulting to the EOA.
-      body.refundTo = effectiveRequest.refundTo;
+        request,
+        transaction,
+      });
+
+      if (override) {
+        body.amount = override.amount;
+        body.authorizationList = normalizeAuthorizationList(
+          override.authorizationList,
+        );
+        body.txs = [
+          {
+            data: buildTokenTransferData(override.recipient, override.amount),
+            to: targetTokenAddress,
+            value: '0x0',
+          },
+          ...override.calls,
+        ];
+      } else if (request.refundTo) {
+        body.refundTo = request.refundTo;
+      }
     }
 
     const pricing = getQuotePricing({
@@ -344,7 +348,11 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, effectiveRequest, fullRequest);
+    return await normalizeQuote(
+      quote,
+      { ...request, recipient: body.recipient },
+      fullRequest,
+    );
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -423,8 +431,7 @@ async function processTransactions(
   // below use EXACT_OUTPUT rather than the usual max EXACT_INPUT quote.
   if (
     isMaxAmount &&
-    (request.isPostQuote === true ||
-      !isAtomicMaxEnabled(messenger, transaction))
+    !isAtomicMaxSupported({ messenger, request, transaction })
   ) {
     throw new Error('Max amount quotes do not support included transactions');
   }
@@ -468,63 +475,12 @@ async function processTransactions(
   return true;
 }
 
-async function processMoneyAccountPostQuote(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-  requestBody: RelayQuoteRequestDraft,
-  messenger: TransactionPayControllerMessenger,
-): Promise<void> {
-  const { transactionData: transactionDataList } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  const transactionData = transactionDataList[transaction.id];
-  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-
-  const {
-    calls: overrideCalls,
-    recipient,
-    authorizationList,
-  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
-    amount: amountHuman,
-    transaction,
-    transactionData,
-  });
-
-  if (!overrideCalls.length) {
-    log('No payment override calls for money account post-quote');
-    return;
-  }
-
-  const fundingRecipient = recipient ?? request.from;
-  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
-
-  requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
-  requestBody.amount = rawAmount;
-  requestBody.txs = [
-    {
-      to: request.targetTokenAddress,
-      data: buildTokenTransferData(fundingRecipient, rawAmount),
-      value: '0x0',
-    },
-    ...overrideCalls.map((call) => ({
-      to: call.to as Hex,
-      data: call.data as Hex,
-      value: (call.value as Hex) ?? '0x0',
-    })),
-  ];
-
-  log('Added money account deposit calls to quote body', {
-    callCount: overrideCalls.length,
-  });
-}
-
 /**
  * Normalizes requests for Relay.
  *
  * @param request - Quote request to normalize.
- * @param transaction - Parent transaction metadata, used to gate
- * Hyperliquid-specific rewrites on transaction type.
+ * @param transaction - Parent transaction metadata, inspected to detect
+ * Hyperliquid perps deposits.
  * @returns Normalized request.
  */
 function normalizeRequest(
@@ -533,56 +489,32 @@ function normalizeRequest(
 ): QuoteRequest {
   const newRequest = {
     ...request,
+    sourceTokenAddress: normalizeTokenAddress(
+      request.sourceTokenAddress,
+      request.sourceChainId,
+      TokenAddressTarget.Relay,
+    ),
+    targetTokenAddress: normalizeTokenAddress(
+      request.targetTokenAddress,
+      request.targetChainId,
+      TokenAddressTarget.Relay,
+    ),
   };
 
-  const isPerpsDeposit =
-    transaction.type !== undefined &&
-    PERPS_DEPOSIT_TYPES.includes(transaction.type);
-
-  const isHyperliquidDeposit =
-    isPerpsDeposit &&
-    !request.isPostQuote &&
-    request.targetChainId === CHAIN_ID_ARBITRUM &&
-    request.targetTokenAddress.toLowerCase() ===
-      ARBITRUM_USDC_ADDRESS.toLowerCase();
-
-  newRequest.sourceTokenAddress = normalizeTokenAddress(
-    newRequest.sourceTokenAddress,
-    newRequest.sourceChainId,
-    TokenAddressTarget.Relay,
-  );
-  newRequest.targetTokenAddress = normalizeTokenAddress(
-    newRequest.targetTokenAddress,
-    newRequest.targetChainId,
-    TokenAddressTarget.Relay,
+  const depositRequest = normalizePerpsDepositRequest(
+    newRequest,
+    transaction,
+    HYPERCORE_USDC_ADDRESS,
   );
 
-  if (isHyperliquidDeposit) {
-    newRequest.targetChainId = CHAIN_ID_HYPERCORE;
-    newRequest.targetTokenAddress = HYPERCORE_USDC_ADDRESS;
-    newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
-      .toString(10);
-
+  if (depositRequest !== newRequest) {
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
       originalRequest: request,
-      normalizedRequest: newRequest,
+      normalizedRequest: depositRequest,
     });
   }
 
-  // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
-  if (request.isHyperliquidSource) {
-    newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
-    newRequest.sourceTokenAddress = HYPERCORE_USDC_ADDRESS;
-
-    if (newRequest.sourceTokenAmount) {
-      newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
-        .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
-        .toString(10);
-    }
-  }
-
-  return newRequest;
+  return normalizePerpsWithdrawRequest(depositRequest, HYPERCORE_USDC_ADDRESS);
 }
 
 /**
@@ -1029,4 +961,29 @@ function isStablecoin(
       tokenAddress.toLowerCase() as Hex,
     ),
   );
+}
+
+function getRelayMaxQuoteDetails({
+  original,
+}: TransactionPayQuote<RelayQuote>): MaxQuoteDetails {
+  const firstTransactionStep = original.steps.find(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const firstStepData = firstTransactionStep?.items[0]?.data;
+
+  return {
+    gasLimits: original.metamask.gasLimits,
+    gasStationTransactions: firstStepData
+      ? {
+          firstStepData,
+          totalItemCount: original.steps.reduce(
+            (count, step) => count + step.items.length,
+            0,
+          ),
+        }
+      : undefined,
+    isGasless: original.metamask.isExecute === true,
+    isSubsidized: isSubsidizedRelayQuote(original),
+    targetAmountRaw: original.details.currencyOut.amount,
+  };
 }

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { TRIGGER_TYPES } from '../constants/index.js';
 import type { INotification } from '../index.js';
 import { createMockSnapNotification } from '../mocks/index.js';

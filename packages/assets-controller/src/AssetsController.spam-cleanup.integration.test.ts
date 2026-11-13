@@ -1,6 +1,7 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import { describe, expect, it } from 'vitest';
 
 import {
   createMockInternalAccount,

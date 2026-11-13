@@ -8,21 +8,8 @@ import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import {
-  array,
-  assign,
-  boolean,
-  enums,
-  is,
-  literal,
-  nullable,
-  number,
-  optional,
-  record,
-  string,
-  type as structType,
-  union,
-} from '@metamask/superstruct';
+import { is } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants.js';
 import type {
@@ -30,10 +17,10 @@ import type {
   BlockedProfilesResponse,
   BlockOptions,
   CommentEngagement,
+  CommentTranslation,
   CopyTradeIntentResponse,
   CreateCopyTradeIntentOptions,
   CreateSwapCommentOptions,
-  FeedItem,
   FeedResponse,
   FetchBlockedListOptions,
   FetchFeedOptions,
@@ -49,343 +36,45 @@ import type {
   FollowingResponse,
   FollowOptions,
   FollowResponse,
+  GifPageResponse,
+  GifQueryParams,
   LeaderboardResponse,
+  ModerationStatusResponse,
   Position,
   PositionsResponse,
+  QuoteTokensResponse,
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
   SwapCommentResponse,
+  TranslateCommentOptions,
   TraderProfileResponse,
+  UnblockProfileOptions,
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';
-import { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
-
-// ---------------------------------------------------------------------------
-// Superstruct validation schemas
-// ---------------------------------------------------------------------------
-
-const SocialHandlesStruct = structType({
-  twitter: optional(nullable(string())),
-  farcaster: optional(nullable(string())),
-  ens: optional(nullable(string())),
-  lens: optional(nullable(string())),
-});
-
-const ProfileSummaryStruct = structType({
-  profileId: string(),
-  address: string(),
-  name: string(),
-  imageUrl: optional(nullable(string())),
-});
-
-const FeedActorStruct = assign(
-  ProfileSummaryStruct,
-  structType({
-    winRate30d: optional(nullable(number())),
-    pnl30d: optional(nullable(number())),
-    tradeCount30d: optional(nullable(number())),
-    followerCount: optional(nullable(number())),
-  }),
-);
-
-const PositionStruct = structType({
-  positionId: string(),
-  tokenSymbol: string(),
-  tokenName: string(),
-  tokenAddress: string(),
-  chain: string(),
-  positionAmount: number(),
-  isOpen: optional(boolean()),
-  // Incomplete Clicker metrics serialize these as `null` (`undefined + n`
-  // becomes `NaN`, then JSON `null`). Rejecting the field used to fail the
-  // entire feed page, so they are nullable here.
-  boughtUsd: nullable(number()),
-  soldUsd: nullable(number()),
-  realizedPnl: nullable(number()),
-  costBasis: nullable(number()),
-  trades: array(TradeStruct),
-  lastTradeAt: number(),
-  tokenImageUrl: optional(nullable(string())),
-  currentValueUSD: optional(nullable(number())),
-  pnlValueUsd: optional(nullable(number())),
-  pnlPercent: optional(nullable(number())),
-  copyCount: optional(number()),
-  perpPositionType: optional(nullable(enums(['long', 'short']))),
-  perpLeverage: optional(nullable(number())),
-  positionAmountWithLeverage: optional(nullable(number())),
-});
-
-const PaginationStruct = structType({
-  hasMore: boolean(),
-  nextPage: optional(number()),
-});
-
-const LeaderboardEntryStruct = structType({
-  rank: number(),
-  addresses: array(string()),
-  profileId: string(),
-  name: string(),
-  imageUrl: optional(nullable(string())),
-  pnl30d: number(),
-  winRate30d: optional(nullable(number())),
-  roiPercent30d: optional(nullable(number())),
-  tradeCount30d: optional(nullable(number())),
-  pnl7d: optional(nullable(number())),
-  winRate7d: optional(nullable(number())),
-  roiPercent7d: optional(nullable(number())),
-  tradeCount7d: optional(nullable(number())),
-  pnlPerChain: record(string(), number()),
-  followerCount: number(),
-  socialHandles: SocialHandlesStruct,
-});
-
-const LeaderboardResponseStruct = structType({
-  traders: array(LeaderboardEntryStruct),
-});
-
-const TraderProfileStruct = structType({
-  profileId: string(),
-  address: string(),
-  allAddresses: array(string()),
-  name: string(),
-  imageUrl: optional(nullable(string())),
-  createdAt: optional(nullable(string())),
-});
-
-const TraderStatsStruct = structType({
-  pnl30d: optional(nullable(number())),
-  winRate30d: optional(nullable(number())),
-  roiPercent30d: optional(nullable(number())),
-  tradeCount30d: optional(nullable(number())),
-  volumeUsd30d: optional(nullable(number())),
-  pnl7d: optional(nullable(number())),
-  winRate7d: optional(nullable(number())),
-  roiPercent7d: optional(nullable(number())),
-  tradeCount7d: optional(nullable(number())),
-  medianHoldMinutes: optional(nullable(number())),
-});
-
-const PerChainBreakdownStruct = structType({
-  perChainPnl: record(string(), number()),
-  perChainRoi: record(string(), nullable(number())),
-  perChainVolume: record(string(), number()),
-  perChainPnl7d: optional(record(string(), number())),
-  perChainRoi7d: optional(record(string(), nullable(number()))),
-  perChainVolume7d: optional(record(string(), number())),
-});
-
-const CopytradedAllTimeStruct = structType({
-  count: number(),
-  volumeUSD: number(),
-  distinctActors: number(),
-});
-
-const TraderProfileResponseStruct = structType({
-  profile: TraderProfileStruct,
-  stats: TraderStatsStruct,
-  perChainBreakdown: PerChainBreakdownStruct,
-  socialHandles: SocialHandlesStruct,
-  followerCount: number(),
-  followingCount: number(),
-  copytradedAllTime: CopytradedAllTimeStruct,
-  rankingTag: optional(nullable(enums(TRADER_RANKING_TAGS))),
-});
-
-const PositionsResponseStruct = structType({
-  positions: array(PositionStruct),
-  pagination: PaginationStruct,
-  computedAt: optional(nullable(string())),
-});
-
-// A feed item is a position plus the trader who made the trade (`actor`) and
-// the item's creation timestamp. Reuses PositionStruct so the trade/position
-// fields stay in lockstep with the positions endpoints.
-const CommentReactionProfileStruct = structType({
-  id: string(),
-  name: string(),
-});
-
-const CommentReactionStruct = structType({
-  emotion: string(),
-  count: number(),
-  profiles: array(CommentReactionProfileStruct),
-});
-
-const CommentEngagementStruct = structType({
-  reactions: array(CommentReactionStruct),
-  userReaction: nullable(string()),
-  replyCount: optional(number()),
-});
-
-const AuthorCommentStruct = structType({
-  uid: string(),
-  text: string(),
-  timestamp: number(),
-  engagement: CommentEngagementStruct,
-});
-
-const SwapCommentAuthorStruct = structType({
-  id: string(),
-  name: string(),
-  images: optional(
-    structType({
-      raw: nullable(string()),
-      xs: nullable(string()),
-      sm: nullable(string()),
-    }),
-  ),
-  addresses: optional(array(string())),
-  externalId: optional(string()),
-});
-
-const SwapCommentResponseStruct = structType({
-  uid: string(),
-  transactionHash: string(),
-  chain: string(),
-  tokenAddress: string(),
-  commentText: string(),
-  author: SwapCommentAuthorStruct,
-  timestamp: number(),
-  isAppUserComment: boolean(),
-  metrics: CommentEngagementStruct,
-});
-
-const CopyTradeAccountStruct = structType({
-  profileId: string(),
-  caip10: string(),
-});
-
-const CopyTradeIntentResponseStruct = structType({
-  id: string(),
-  origin: structType({
-    kind: literal('comment'),
-    id: string(),
-  }),
-  copierAccount: CopyTradeAccountStruct,
-  sourceAccount: nullable(CopyTradeAccountStruct),
-  execution: union([
-    structType({ product: literal('swaps'), quoteId: string() }),
-    structType({ product: literal('perps'), oid: string() }),
-  ]),
-  payoutEligibility: structType({
-    status: enums(['payable', 'non_payable']),
-    reason: string(),
-  }),
-  createdAt: string(),
-});
-
-const FeedItemStruct = assign(
+import {
+  BlockedContentResponseStruct,
+  BlockedProfilesResponseStruct,
+  CommentEngagementStruct,
+  CommentTranslationStruct,
+  CopyTradeIntentResponseStruct,
+  FollowResponseStruct,
+  FollowersResponseStruct,
+  FollowingResponseStruct,
+  GifPageResponseStruct,
+  LeaderboardResponseStruct,
+  ModerationStatusResponseStruct,
   PositionStruct,
-  structType({
-    actor: FeedActorStruct,
-    timestamp: number(),
-    authorComment: optional(nullable(AuthorCommentStruct)),
-    commentCount: optional(number()),
-    replyCount: optional(number()),
-    copyCount: optional(number()),
-    firstTradeAt: optional(nullable(number())),
-    holdTimeMs: optional(nullable(number())),
-    entryPriceUsd: optional(nullable(number())),
-    eventId: optional(string()),
-    revision: optional(number()),
-    occurredAt: optional(string()),
-  }),
-);
+  PositionsResponseStruct,
+  QuoteTokensResponseStruct,
+  SwapCommentResponseStruct,
+  TraderProfileResponseStruct,
+  UnfollowResponseStruct,
+  parseFeedResponse,
+} from './structs.js';
 
-const FeedPaginationStruct = structType({
-  olderCursor: nullable(string()),
-  newerCursor: nullable(string()),
-});
-
-const FeedResponseStruct = structType({
-  items: array(FeedItemStruct),
-  pagination: FeedPaginationStruct,
-});
-
-/**
- * One malformed feed item must not blank the page. When the envelope is
- * well-shaped, keep items that match {@link FeedItemStruct} and drop the rest.
- * Still throw when `items` or `pagination` themselves are unusable.
- *
- * @param feedData - Parsed JSON body from a feed endpoint.
- * @param invalidMessage - Error message to throw when the envelope is unusable.
- * @returns The validated feed response, possibly with invalid items dropped.
- */
-const parseFeedResponse = (
-  feedData: unknown,
-  invalidMessage: string,
-): FeedResponse => {
-  if (is(feedData, FeedResponseStruct)) {
-    return feedData;
-  }
-
-  if (
-    typeof feedData !== 'object' ||
-    feedData === null ||
-    !('items' in feedData) ||
-    !('pagination' in feedData)
-  ) {
-    throw new Error(invalidMessage);
-  }
-
-  const { items, pagination } = feedData;
-
-  if (!Array.isArray(items) || !is(pagination, FeedPaginationStruct)) {
-    throw new Error(invalidMessage);
-  }
-
-  return {
-    items: items.filter((item): item is FeedItem => is(item, FeedItemStruct)),
-    pagination,
-  };
-};
-
-const FollowersResponseStruct = structType({
-  followers: array(ProfileSummaryStruct),
-  count: number(),
-});
-
-const FollowingResponseStruct = structType({
-  following: array(ProfileSummaryStruct),
-  count: number(),
-});
-
-const FollowResponseStruct = structType({
-  followed: array(ProfileSummaryStruct),
-});
-
-const UnfollowResponseStruct = structType({
-  unfollowed: array(ProfileSummaryStruct),
-});
-
-const BlockedProfileStruct = structType({
-  blockedAt: number(),
-  reason: nullable(string()),
-  profile: ProfileSummaryStruct,
-});
-
-const BlockedProfilesResponseStruct = structType({
-  items: array(BlockedProfileStruct),
-  cursor: nullable(string()),
-});
-
-const BlockedContentStruct = structType({
-  blockedAt: number(),
-  reason: nullable(string()),
-  type: enums(['comment', 'reply']),
-  id: string(),
-  text: string(),
-  createdAt: number(),
-  author: nullable(ProfileSummaryStruct),
-});
-
-const BlockedContentResponseStruct = structType({
-  items: array(BlockedContentStruct),
-  cursor: nullable(string()),
-});
-
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Messenger types
 // ---------------------------------------------------------------------------
@@ -407,6 +96,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reactToComment',
   'removeCommentReaction',
   'createSwapComment',
+  'translateComment',
   'createCopyTradeIntent',
   'follow',
   'unfollow',
@@ -414,9 +104,17 @@ const MESSENGER_EXPOSED_METHODS = [
   'optInToLeaderboard',
   'refreshNotificationPreferencesCache',
   'block',
+  'unblockProfile',
   'fetchBlockedProfiles',
   'fetchBlockedContent',
+  'fetchModerationStatus',
+  'fetchQuoteTokens',
+  'fetchTrendingGifs',
+  'searchGifs',
 ] as const;
+
+/** Client cache for a GIF page. The social-api caches the provider response. */
+const GIF_STALE_TIME_MS = 60_000;
 
 export type SocialServiceActions =
   | SocialServiceMethodActions
@@ -766,8 +464,13 @@ export class SocialService extends BaseDataService<
    * `pagination.newerCursor` as `newerThan` to fetch newer items.
    *
    * @param options - Options bag.
-   * @param options.scope - `following` (default) or `leaderboard`.
+   * @param options.scope - `following` (default), `leaderboard`, `all`, or
+   * `trending`.
    * @param options.chains - Filter by one or more chains.
+   * @param options.assetIds - Only items in any of these CAIP-19 assets. Invalid
+   * or unsupported asset ids are rejected with a 400.
+   * @param options.profileId - Only this trader's items.
+   * @param options.commentedOnly - When true, only items with an author comment.
    * @param options.limit - Number of results per page.
    * @param options.olderThan - Cursor for older items (scroll down).
    * @param options.newerThan - Cursor for newer items (refresh).
@@ -778,7 +481,16 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchFeed`, options ?? null],
       staleTime: 0,
       queryFn: async () => {
-        const { scope, chains, limit, olderThan, newerThan } = options ?? {};
+        const {
+          scope,
+          chains,
+          assetIds,
+          profileId,
+          commentedOnly,
+          limit,
+          olderThan,
+          newerThan,
+        } = options ?? {};
         const url = new URL(`${this.#v1Url}/feed`);
         if (scope) {
           url.searchParams.append('scope', scope);
@@ -787,6 +499,17 @@ export class SocialService extends BaseDataService<
           for (const chain of chains) {
             url.searchParams.append('chains', chain);
           }
+        }
+        if (assetIds) {
+          for (const assetId of assetIds) {
+            url.searchParams.append('assetIds', assetId);
+          }
+        }
+        if (profileId) {
+          url.searchParams.append('profileId', profileId);
+        }
+        if (commentedOnly === true) {
+          url.searchParams.append('commentedOnly', 'true');
         }
         if (limit !== undefined) {
           url.searchParams.append('limit', String(limit));
@@ -1090,6 +813,51 @@ export class SocialService extends BaseDataService<
           );
         }
         return comment;
+      },
+    });
+  }
+
+  /**
+   * Requests a translation of a swap comment (Call).
+   *
+   * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate`. social-api
+   * does not expose this route yet, so a missing route rejects with
+   * {@link SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}.
+   * `SocialController.translateComment` logs that case.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @param options.targetLanguage - AWS language code to translate into, for
+   * example `en`.
+   * @returns The detected source language and stored translations.
+   */
+  async translateComment(
+    options: TranslateCommentOptions,
+  ): Promise<CommentTranslation> {
+    const { commentId, targetLanguage } = options;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:translateComment`, commentId, targetLanguage],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/translate`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetLanguage }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED,
+        );
+        const translation = (await response.json()) as unknown;
+        if (!is(translation, CommentTranslationStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.TRANSLATE_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return translation;
       },
     });
   }
@@ -1426,6 +1194,37 @@ export class SocialService extends BaseDataService<
   }
 
   /**
+   * Removes the current user's block on a trader.
+   *
+   * Calls `DELETE ${baseUrl}/moderation/blocks/profiles/${profileId}`.
+   * Unblocking a trader who is not blocked is a no-op. The caller is
+   * identified server-side from the JWT sub claim carried in the
+   * Authorization header.
+   *
+   * @param options - Options bag.
+   * @param options.profileId - Profile id (UUID) of the trader to unblock.
+   */
+  async unblockProfile({ profileId }: UnblockProfileOptions): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:unblockProfile`, profileId],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/moderation/blocks/profiles/${encodeURIComponent(profileId)}`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.UNBLOCK_PROFILE_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
    * Fetches traders the current user has blocked.
    *
    * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
@@ -1514,6 +1313,137 @@ export class SocialService extends BaseDataService<
   }
 
   /**
+   * Fetches whether the moderation team has banned the current user.
+   *
+   * Calls `GET ${baseUrl}/moderation/status`. The caller is identified
+   * server-side from the JWT sub claim carried in the Authorization header.
+   *
+   * @returns The current user's ban status, with the reason they may be shown.
+   */
+  async fetchModerationStatus(): Promise<ModerationStatusResponse> {
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchModerationStatus`],
+      staleTime: 0,
+      queryFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(`${this.#v1Url}/moderation/status`, {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_MODERATION_STATUS_FAILED,
+        );
+        const status = (await response.json()) as unknown;
+        if (!is(status, ModerationStatusResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_MODERATION_STATUS_INVALID_RESPONSE,
+          );
+        }
+        return status;
+      },
+    });
+  }
+
+  /**
+   * Fetches native, wrapped native, and stablecoin assets that do not produce
+   * indexed positions.
+   *
+   * Calls `GET ${baseUrl}/tokens/quote-tokens`.
+   *
+   * @returns CAIP-19 ids grouped by asset category.
+   */
+  async fetchQuoteTokens(): Promise<QuoteTokensResponse> {
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchQuoteTokens`],
+      queryFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(`${this.#v1Url}/tokens/quote-tokens`, {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_FAILED,
+        );
+        const quoteTokens = (await response.json()) as unknown;
+        if (!is(quoteTokens, QuoteTokensResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_INVALID_RESPONSE,
+          );
+        }
+        return quoteTokens;
+      },
+    });
+  }
+
+  /**
+   * Fetches a page of trending GIFs through the social-api GIF proxy.
+   *
+   * Calls `GET ${baseUrl}/gifs/trending`. Query parameters are forwarded
+   * unchanged, and the return value is the provider page itself.
+   *
+   * @param params - Provider query parameters (`page`, `per_page`, `locale`,
+   * `content_filter`, `format_filter`, and any others the caller sets).
+   * @returns The GIF page response.
+   */
+  async fetchTrendingGifs(params?: GifQueryParams): Promise<GifPageResponse> {
+    return this.#fetchGifPage('trending', params);
+  }
+
+  /**
+   * Searches GIFs through the social-api GIF proxy.
+   *
+   * Calls `GET ${baseUrl}/gifs/search`. Query parameters are forwarded
+   * unchanged, and the return value is the provider page itself.
+   *
+   * @param params - Provider query parameters. `q` is the search text.
+   * @returns The GIF page response.
+   */
+  async searchGifs(params?: GifQueryParams): Promise<GifPageResponse> {
+    return this.#fetchGifPage('search', params);
+  }
+
+  /**
+   * Fetches one GIF proxy page and returns the provider body unchanged.
+   *
+   * @param resource - `trending` or `search`.
+   * @param params - Provider query parameters, forwarded as-is.
+   * @returns The GIF page response.
+   */
+  async #fetchGifPage(
+    resource: 'trending' | 'search',
+    params?: GifQueryParams,
+  ): Promise<GifPageResponse> {
+    const method = resource === 'trending' ? 'fetchTrendingGifs' : 'searchGifs';
+    const failedMessage =
+      resource === 'trending'
+        ? SocialServiceErrorMessage.FETCH_TRENDING_GIFS_FAILED
+        : SocialServiceErrorMessage.FETCH_SEARCH_GIFS_FAILED;
+    const invalidMessage =
+      resource === 'trending'
+        ? SocialServiceErrorMessage.FETCH_TRENDING_GIFS_INVALID_RESPONSE
+        : SocialServiceErrorMessage.FETCH_SEARCH_GIFS_INVALID_RESPONSE;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:${method}`, gifQueryCacheKey(params)],
+      staleTime: GIF_STALE_TIME_MS,
+      queryFn: async () => {
+        const url = new URL(`${this.#v1Url}/gifs/${resource}`);
+        appendGifQuery(url, params);
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(response, failedMessage);
+        const body = (await response.json()) as unknown;
+        if (!is(body, GifPageResponseStruct)) {
+          throw new Error(invalidMessage);
+        }
+        return body;
+      },
+    });
+  }
+
+  /**
    * Shared helper for fetching open/closed positions.
    *
    * @param status - "open" or "closed".
@@ -1579,5 +1509,45 @@ export class SocialService extends BaseDataService<
     });
 
     return positionsResponse;
+  }
+}
+
+/**
+ * Appends GIF query parameters without renaming or defaulting them.
+ *
+ * @param url - URL to mutate.
+ * @param params - Provider query parameters. `undefined` values are omitted.
+ */
+/**
+ * Cache key for a GIF query. `undefined` values are dropped so the key is JSON.
+ *
+ * @param params - Provider query parameters.
+ * @returns A JSON object, or `null` when no params were passed.
+ */
+function gifQueryCacheKey(
+  params: GifQueryParams | undefined,
+): { [prop: string]: Json } | null {
+  if (!params) {
+    return null;
+  }
+  const serialized: { [prop: string]: Json } = {};
+  for (const key of Object.keys(params).sort()) {
+    const value = params[key];
+    if (value !== undefined) {
+      serialized[key] = value;
+    }
+  }
+  return serialized;
+}
+
+function appendGifQuery(url: URL, params: GifQueryParams | undefined): void {
+  if (!params) {
+    return;
+  }
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) {
+      continue;
+    }
+    url.searchParams.append(key, String(value));
   }
 }

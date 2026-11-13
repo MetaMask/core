@@ -1,4 +1,5 @@
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { describe, expect, it } from 'vitest';
 
 import type { MessageParamsPersonal, MessageParamsTyped } from '../types.js';
 import {

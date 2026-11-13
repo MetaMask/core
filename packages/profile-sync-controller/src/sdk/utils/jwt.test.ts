@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { decodeJwtPayload } from './jwt.js';
 
 function toBase64Url(value: unknown): string {
@@ -26,7 +28,7 @@ describe('decodeJwtPayload()', () => {
     'rejects malformed token %s',
     (token) => {
       expect(() => decodeJwtPayload(token)).toThrow(
-        /Invalid JWT|Unexpected|JSON|invalid characters/u,
+        /Invalid JWT|Unexpected|JSON|invalid characters|Invalid character/u,
       );
     },
   );

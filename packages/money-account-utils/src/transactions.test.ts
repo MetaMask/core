@@ -4,6 +4,8 @@ import type { Provider } from '@ethersproject/abstract-provider';
 import { Contract } from '@ethersproject/contracts';
 import { CHAIN_IDS, TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { MockedClass } from 'vitest';
 
 import { MUSD_TOKEN_ADDRESS, MUSD_TOKEN_ASSET_ID_BY_CHAIN } from './musd.js';
 import {
@@ -18,9 +20,9 @@ import {
   TELLER_ABI,
 } from './transactions.js';
 
-jest.mock('@ethersproject/contracts');
+vi.mock('@ethersproject/contracts');
 
-const MockContract = Contract as jest.MockedClass<typeof Contract>;
+const MockContract = Contract as MockedClass<typeof Contract>;
 
 const CHAIN_ID = CHAIN_IDS.MONAD;
 const UNSUPPORTED_CHAIN_ID = '0xdead' as Hex;
@@ -40,8 +42,8 @@ const ERC20_INTERFACE = new Interface([
 ]);
 const TELLER_INTERFACE = new Interface(TELLER_ABI);
 
-const previewDeposit = jest.fn();
-const getRate = jest.fn();
+const previewDeposit = vi.fn();
+const getRate = vi.fn();
 
 /**
  * Builds the arguments for a deposit batch, with defaults for every vault
@@ -138,13 +140,12 @@ function decodeErc20Call(
  * declares.
  */
 function mockVaultContracts(): void {
-  jest.clearAllMocks();
-  MockContract.mockImplementation(
-    (_address: string, abi: unknown) =>
-      (JSON.stringify(abi).includes('previewDeposit')
-        ? { previewDeposit }
-        : { getRate }) as unknown as Contract,
-  );
+  vi.clearAllMocks();
+  MockContract.mockImplementation(function (_address: string, abi: unknown) {
+    return (JSON.stringify(abi).includes('previewDeposit')
+      ? { previewDeposit }
+      : { getRate }) as unknown as Contract;
+  });
 }
 
 describe('applySlippage', () => {

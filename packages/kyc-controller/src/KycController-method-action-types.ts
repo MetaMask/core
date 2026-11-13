@@ -6,13 +6,42 @@
 import type { KycController } from './KycController.js';
 
 /**
+ * Creates the UKYC `local_user_secret` and stores it in Encrypted User
+ * Storage when one does not already exist.
+ *
+ * Call this after the user has expressed intent to onboard and before
+ * {@link startSession}. Persisting the secret here moves generation and the
+ * storage write off the `startSession` path. `startSession` still reads the
+ * secret, and still creates it when this has not been called.
+ *
+ * Await this call, or attach a rejection handler. A failure does not block
+ * onboarding: {@link startSession} creates the secret if it is still missing.
+ *
+ * The operation is idempotent and uses the same primary entropy source as
+ * session creation. The plaintext secret is not returned and is not sent to
+ * idOS. Only the encrypted User Storage copy is synced.
+ *
+ * @throws When Encrypted User Storage cannot be read or written, or when a
+ * stored secret has an unexpected length.
+ */
+export type KycControllerEnsureLocalUserSecretAction = {
+  type: `KycController:ensureLocalUserSecret`;
+  handler: KycController['ensureLocalUserSecret'];
+};
+
+/**
  * Starts a KYC session for the given vendor. Reuses a latest vendor session
  * when one exists; otherwise creates a UKYC session.
  *
  * The verified email stored on controller state comes from the partner
  * identity token. When that request returns HTTP 422, a stored email is
- * kept for an existing session. Creating a vendor customer requires the
- * token and sends it as `partnerIdentityToken`.
+ * kept for an existing session. Creating a vendor customer and UKYC session
+ * requires the token, which both requests send as `partnerIdentityToken`.
+ *
+ * Session creation derives client material from the UKYC
+ * `local_user_secret`. Call {@link ensureLocalUserSecret} after the user
+ * has expressed intent to onboard so that secret is generated and stored
+ * before this method runs.
  *
  * @param params - The session parameters.
  * @param params.vendor - Identity vendor for the session.
@@ -51,6 +80,24 @@ export type KycControllerClearStateAction = {
 export type KycControllerGetSessionStatusForVendorAction = {
   type: `KycController:getSessionStatusForVendor`;
   handler: KycController['getSessionStatusForVendor'];
+};
+
+/**
+ * Fetches the vendors this customer's verified identity data has been shared
+ * with, newest first.
+ *
+ * The external user id comes from the session status on state. When no
+ * session has been stored yet, the latest session for the vendor on state is
+ * fetched first (without writing it to state). An unresolvable session — no
+ * vendor on state, or no latest session for it — yields an empty list rather
+ * than an error, so consumers can render an empty "shared with" list.
+ *
+ * @returns The data shares, newest first; empty when no session can be
+ * resolved.
+ */
+export type KycControllerGetDataSharesAction = {
+  type: `KycController:getDataShares`;
+  handler: KycController['getDataShares'];
 };
 
 /**
@@ -211,6 +258,24 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
 };
 
 /**
+ * Deletes the caller's encrypted KYC blobs from MetaMask servers.
+ *
+ * Mints a fresh X25519 keypair, fetches a wrapping key from
+ * `POST /deletions`, seals a `delete`-scoped `ukyc_capability_token` (4 hour
+ * lifetime, client-presented) for that key, and submits it to
+ * `DELETE /deletions/{deletionId}`. Both KYC API calls are authenticated
+ * with `params.aal2Token`. Does not clear controller state.
+ *
+ * @param params - The deletion parameters.
+ * @param params.aal2Token - AAL2 authentication token sent as the
+ * Authorization bearer value for both deletion requests.
+ */
+export type KycControllerDeleteEncryptedStorageAction = {
+  type: `KycController:deleteEncryptedStorage`;
+  handler: KycController['deleteEncryptedStorage'];
+};
+
+/**
  * Presents the identity-provider verification UI. Currently launches SumSub.
  *
  * @param params - Optional SDK presentation options.
@@ -227,10 +292,12 @@ export type KycControllerLaunchProviderFlowAction = {
  * Union of all KycController action types.
  */
 export type KycControllerMethodActions =
+  | KycControllerEnsureLocalUserSecretAction
   | KycControllerStartSessionAction
   | KycControllerResetAction
   | KycControllerClearStateAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetDataSharesAction
   | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
   | KycControllerReadSessionStatusAction
@@ -242,4 +309,5 @@ export type KycControllerMethodActions =
   | KycControllerFetchVendorDisclaimersAction
   | KycControllerRecordVendorDisclaimersAction
   | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerDeleteEncryptedStorageAction
   | KycControllerLaunchProviderFlowAction;

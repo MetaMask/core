@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+import { vi } from 'vitest';
 
 import EMPTY_FUNCTION from './emptyFunction.js';
 
@@ -209,13 +210,13 @@ export default function recordCallsToSetTimeout({
     interceptCallback,
   });
 
-  jest
-    .spyOn(globalThis, 'setTimeout')
-    .mockImplementation(setTimeoutRecorder._mockSetTimeoutImplementation);
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation(
+    setTimeoutRecorder._mockSetTimeoutImplementation,
+  );
 
-  jest
-    .spyOn(globalThis, 'clearTimeout')
-    .mockImplementation(setTimeoutRecorder._mockClearTimeoutImplementation);
+  vi.spyOn(globalThis, 'clearTimeout').mockImplementation(
+    setTimeoutRecorder._mockClearTimeoutImplementation,
+  );
 
   return setTimeoutRecorder;
 }

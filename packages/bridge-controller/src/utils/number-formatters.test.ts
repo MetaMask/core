@@ -1,4 +1,5 @@
 import type { CaipAssetType } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import type { DeepPartial } from '../types.js';
 import type { AmountsAndAsset } from '../validators/amount-and-asset.js';

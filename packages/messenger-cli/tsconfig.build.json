@@ -8,7 +8,13 @@
   },
   "references": [
     {
-      "path": "../utils/tsconfig.build.json"
+      "path": "../node-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../type-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../error-utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

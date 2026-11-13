@@ -1,7 +1,9 @@
 /* eslint-disable no-new */
 import type { Hex } from '@metamask/utils';
+import type { Mock, Mocked, MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import {
@@ -24,12 +26,12 @@ import {
   updateTransactionGasEstimates,
 } from './GasFeePoller.js';
 
-jest.mock('../utils/feature-flags');
-jest.mock('../utils/layer1-gas-fee-flow', () => ({
-  getTransactionLayer1GasFee: jest.fn(),
+vi.mock('../utils/feature-flags');
+vi.mock('../utils/layer1-gas-fee-flow', () => ({
+  getTransactionLayer1GasFee: vi.fn(),
 }));
 
-jest.useFakeTimers();
+vi.useFakeTimers();
 
 const CHAIN_ID_MOCK: Hex = '0x123';
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
@@ -101,41 +103,37 @@ const GAS_FEE_FLOW_RESPONSE_MOCK = {
  *
  * @returns The mock GasFeeFlow.
  */
-function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
+function createGasFeeFlowMock(): Mocked<GasFeeFlow> {
   return {
-    matchesTransaction: jest.fn(),
-    getGasFees: jest.fn(),
+    matchesTransaction: vi.fn(),
+    getGasFees: vi.fn(),
   };
 }
 
 describe('GasFeePoller', () => {
   let constructorOptions: ConstructorParameters<typeof GasFeePoller>[0];
-  let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
+  let gasFeeFlowMock: Mocked<GasFeeFlow>;
   let triggerOnStateChange: () => void;
-  let getTransactionsMock: jest.MockedFunction<() => TransactionMeta[]>;
-  let getTransactionBatchesMock: jest.MockedFunction<
-    () => TransactionBatchMeta[]
-  >;
-  const getTransactionLayer1GasFeeMock = jest.mocked(
-    getTransactionLayer1GasFee,
-  );
+  let getTransactionsMock: MockedFunction<() => TransactionMeta[]>;
+  let getTransactionBatchesMock: MockedFunction<() => TransactionBatchMeta[]>;
+  const getTransactionLayer1GasFeeMock = vi.mocked(getTransactionLayer1GasFee);
   // As we mock implementation of updateTransactionLayer1GasFee, it does not matter if we pass matching flow here
-  const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
-  const getGasFeeControllerEstimatesMock = jest.fn();
+  const layer1GasFeeFlowsMock: Mocked<Layer1GasFeeFlow[]> = [];
+  const getGasFeeControllerEstimatesMock = vi.fn();
   let messengerMock: TransactionControllerMessenger;
 
   beforeEach(() => {
-    jest.clearAllTimers();
-    jest.clearAllMocks();
+    vi.clearAllTimers();
+    vi.clearAllMocks();
 
     gasFeeFlowMock = createGasFeeFlowMock();
     gasFeeFlowMock.matchesTransaction.mockReturnValue(true);
     gasFeeFlowMock.getGasFees.mockResolvedValue(GAS_FEE_FLOW_RESPONSE_MOCK);
 
-    getTransactionsMock = jest.fn();
+    getTransactionsMock = vi.fn();
     getTransactionsMock.mockReturnValue([{ ...TRANSACTION_META_MOCK }]);
 
-    getTransactionBatchesMock = jest.fn();
+    getTransactionBatchesMock = vi.fn();
     getTransactionBatchesMock.mockReturnValue([
       { ...TRANSACTION_BATCH_META_MOCK },
     ]);
@@ -143,12 +141,12 @@ describe('GasFeePoller', () => {
     getTransactionLayer1GasFeeMock.mockResolvedValue(LAYER1_GAS_FEE_MOCK);
 
     messengerMock = {
-      publish: jest.fn(),
-      subscribe: jest.fn(),
-      unsubscribe: jest.fn(),
-      call: jest.fn(),
-      registerActionHandler: jest.fn(),
-      unregisterActionHandler: jest.fn(),
+      publish: vi.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      call: vi.fn(),
+      registerActionHandler: vi.fn(),
+      unregisterActionHandler: vi.fn(),
     } as unknown as TransactionControllerMessenger;
 
     constructorOptions = {
@@ -167,7 +165,7 @@ describe('GasFeePoller', () => {
   describe('on state change', () => {
     describe('if unapproved transaction', () => {
       it('emits updated event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
         gasFeePoller.hub.on('transaction-updated', listener);
@@ -220,9 +218,9 @@ describe('GasFeePoller', () => {
         triggerOnStateChange();
         await flushPromises();
 
-        expect(jest.getTimerCount()).toBe(1);
+        expect(vi.getTimerCount()).toBe(1);
 
-        jest.runOnlyPendingTimers();
+        vi.runOnlyPendingTimers();
         await flushPromises();
 
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(2);
@@ -237,11 +235,11 @@ describe('GasFeePoller', () => {
         triggerOnStateChange();
         await flushPromises();
 
-        expect(jest.getTimerCount()).toBe(1);
+        expect(vi.getTimerCount()).toBe(1);
       });
 
       it('does nothing if no transactions', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         getTransactionsMock.mockReturnValueOnce([{ ...TRANSACTION_META_MOCK }]);
         getTransactionsMock.mockReturnValueOnce([]);
@@ -306,18 +304,18 @@ describe('GasFeePoller', () => {
     });
 
     describe('if unapproved transaction batches', () => {
-      let getGasFeesMock: jest.Mock;
+      let getGasFeesMock: Mock;
       beforeEach(() => {
-        getGasFeesMock = jest.fn().mockResolvedValue({
+        getGasFeesMock = vi.fn().mockResolvedValue({
           estimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK,
         });
-        jest
-          .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
-          .mockImplementation(getGasFeesMock);
+        vi.spyOn(DefaultGasFeeFlow.prototype, 'getGasFees').mockImplementation(
+          getGasFeesMock,
+        );
       });
 
       it('emits batch updated event', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         getTransactionsMock.mockReturnValue([]);
         const gasFeePoller = new GasFeePoller(constructorOptions);
         gasFeePoller.hub.on('transaction-batch-updated', listener);
@@ -365,9 +363,9 @@ describe('GasFeePoller', () => {
         triggerOnStateChange();
         await flushPromises();
 
-        expect(jest.getTimerCount()).toBe(1);
+        expect(vi.getTimerCount()).toBe(1);
 
-        jest.runOnlyPendingTimers();
+        vi.runOnlyPendingTimers();
         await flushPromises();
 
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(2);
@@ -382,11 +380,11 @@ describe('GasFeePoller', () => {
         triggerOnStateChange();
         await flushPromises();
 
-        expect(jest.getTimerCount()).toBe(1);
+        expect(vi.getTimerCount()).toBe(1);
       });
 
       it('does nothing if no transaction batches', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         getTransactionsMock.mockReturnValue([]);
         getTransactionBatchesMock.mockReturnValueOnce([
@@ -452,7 +450,7 @@ describe('GasFeePoller', () => {
 
     describe('does nothing if', () => {
       it('no transactions', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         getTransactionsMock.mockReturnValue([]);
 
@@ -466,7 +464,7 @@ describe('GasFeePoller', () => {
       });
 
       it('transaction has alternate status', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         getTransactionsMock.mockReturnValue([
           {
@@ -485,7 +483,7 @@ describe('GasFeePoller', () => {
       });
 
       it('no gas fee flow matches transaction and already loaded', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         gasFeeFlowMock.matchesTransaction.mockReturnValue(false);
         getTransactionLayer1GasFeeMock.mockResolvedValue(undefined);
@@ -504,7 +502,7 @@ describe('GasFeePoller', () => {
       });
 
       it('gas fee flow throws and already loaded', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
 
         gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
         getTransactionLayer1GasFeeMock.mockResolvedValue(undefined);
@@ -535,7 +533,7 @@ describe('GasFeePoller', () => {
       triggerOnStateChange();
       await flushPromises();
 
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 });
@@ -741,7 +739,7 @@ describe('updateTransactionGasProperties', () => {
     });
 
     it('calls isTxParamsGasFeeUpdatesEnabled with transaction meta', () => {
-      const mockCallback = jest.fn(() => true);
+      const mockCallback = vi.fn(() => true);
       const txMeta = {
         ...TRANSACTION_META_MOCK,
         userFeeLevel: GasFeeEstimateLevel.Low,

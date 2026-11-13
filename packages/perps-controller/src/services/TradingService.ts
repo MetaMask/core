@@ -8,7 +8,10 @@ import {
 import { isTPSLOrder } from '../constants/orderTypes.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import { PerpsControllerError } from '../errors.js';
+import {
+  createTpslLegReplaceUnsupportedError,
+  PerpsControllerError,
+} from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   PerpsAnalyticsEvent,
@@ -31,6 +34,7 @@ import type {
   Position,
   TrackingData,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
   PerpsFeeResolution,
@@ -52,6 +56,8 @@ import {
   isLimitExecutionOrderType,
   SCALE_ORDER_COUNT,
 } from '../utils/orderTypes.js';
+import { toPositionTpslLegPrices } from '../utils/positionProtection.js';
+import { environmentTypeProperty } from './environmentTypeProperty.js';
 import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
 import type { ServiceContext } from './ServiceContext.js';
 
@@ -64,13 +70,17 @@ export type TradingServiceControllerDeps = {
 };
 
 /**
- * Subset of tracking data carrying discovery attribution + hl_fee_rate that is
- * shared across trade/close/cancel/risk events. Both
+ * Subset of tracking data carrying discovery attribution, hl_fee_rate, and the
+ * optional UI surface shared across trade/close/cancel/risk events. Both
  * {@link TrackingData} and {@link TPSLTrackingData} satisfy this shape.
  */
 type AttributionTrackingData = Pick<
   TrackingData,
-  'entryPoint' | 'discoverySource' | 'perpDiscoverySource' | 'hlFeeRate'
+  | 'entryPoint'
+  | 'discoverySource'
+  | 'perpDiscoverySource'
+  | 'hlFeeRate'
+  | 'environmentType'
 >;
 
 /**
@@ -208,6 +218,10 @@ export class TradingService {
     if (trackingData?.hlFeeRate !== undefined) {
       properties[PERPS_EVENT_PROPERTY.HL_FEE_RATE] = trackingData.hlFeeRate;
     }
+    Object.assign(
+      properties,
+      environmentTypeProperty(trackingData?.environmentType),
+    );
     return properties;
   }
 
@@ -553,9 +567,14 @@ export class TradingService {
       });
     }
 
-    // Save executed trade configuration for this market
+    // Save executed trade configuration for this market, keyed by the venue
+    // the placement was routed to
     if (params.leverage && context.saveTradeConfiguration) {
-      context.saveTradeConfiguration(params.symbol, params.leverage);
+      context.saveTradeConfiguration(
+        params.symbol,
+        params.leverage,
+        params.providerId,
+      );
     }
 
     // Report to data lake (fire-and-forget with retry)
@@ -593,16 +612,17 @@ export class TradingService {
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
-   * @param options.feeResolution - The resolved fee and attribution source.
+   * @param options.resolveFee - Resolves the fee after this operation acquires
+   * the fee context, so an expiring candidate cannot go stale in the queue.
    * @param options.operation - The operation value.
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
     provider: PerpsProvider;
-    feeResolution?: PerpsFeeResolution;
+    resolveFee: () => Promise<PerpsFeeResolution | undefined>;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
-    const { provider, feeResolution, operation } = options;
+    const { provider, resolveFee, operation } = options;
     const previous = this.#feeContextTail;
     let release: () => void = () => undefined;
     this.#feeContextTail = new Promise<void>((resolve) => {
@@ -611,6 +631,7 @@ export class TradingService {
     await previous;
 
     try {
+      const feeResolution = await resolveFee();
       if (provider.setUserFeeResolution) {
         provider.setUserFeeResolution(feeResolution);
       } else if (provider.setUserFeeDiscount) {
@@ -732,17 +753,6 @@ export class TradingService {
         },
       });
 
-      // Calculate fee discount at execution time (fresh, secure)
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        this.#resolveOrderNotionalUsd(params),
-      );
-
-      this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
-        feeDiscountBips: feeResolution?.discountBips,
-        feeSource: feeResolution?.source,
-        hasDiscount: feeResolution?.discountBips !== undefined,
-      });
-
       this.#deps.debugLogger.log(
         'TradingService: Submitting order to provider',
         {
@@ -802,7 +812,23 @@ export class TradingService {
       }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: async () => {
+          const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params),
+            provider,
+            context,
+            params.providerId,
+          );
+          this.#deps.debugLogger.log(
+            'TradingService: Fee resolution calculated',
+            {
+              feeDiscountBips: feeResolution?.discountBips,
+              feeSource: feeResolution?.source,
+              hasDiscount: feeResolution?.discountBips !== undefined,
+            },
+          );
+          return feeResolution;
+        },
         operation: () => provider.placeOrder(params),
       });
       if (orderSubmissionThresholdTimeoutId !== undefined) {
@@ -1574,11 +1600,17 @@ export class TradingService {
    * priced. This is what lets the subscription source resolve to a blended
    * rate: omitting it resolves every bounded allowance as a full waiver,
    * charging 0 bips on an order the preview quoted a blend for.
+   * @param provider - The actual provider receiving this submission.
+   * @param context - The submission context, including its network.
+   * @param providerId - Explicit route, when the caller supplied one.
    * @returns The resolved fee, or undefined when controller dependencies are
    * unavailable.
    */
   async #calculateFeeDiscountWithMeasurement(
-    orderNotionalUsd?: number,
+    orderNotionalUsd: number | undefined,
+    provider: PerpsProvider,
+    context: ServiceContext,
+    providerId?: PerpsProviderType,
   ): Promise<PerpsFeeResolution | undefined> {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
@@ -1595,8 +1627,14 @@ export class TradingService {
     // The notional is what lets the subscription source resolve to a blended
     // rate. Submitting without it would resolve every bounded allowance as a
     // full waiver, charging 0 bips on an order the preview quoted a blend for.
-    const resolution =
-      await rewardsIntegrationService.resolveFee(orderNotionalUsd);
+    const resolution = await rewardsIntegrationService.resolveFee(
+      orderNotionalUsd,
+      {
+        providerId:
+          provider.getWriteProviderId?.(providerId) ?? provider.protocolId,
+        isTestnet: context.tracingContext.isTestnet,
+      },
+    );
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -1662,15 +1700,16 @@ export class TradingService {
         },
       });
 
-      // Calculate fee discount only if required dependencies are available
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        this.#resolveOrderNotionalUsd(params.newOrder),
-      );
-
       // Execute order edit with fee discount management
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params.newOrder),
+            provider,
+            context,
+            params.newOrder.providerId,
+          ),
         operation: () => provider.editOrder(params),
       });
 
@@ -1695,6 +1734,9 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
           [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+          ...environmentTypeProperty(
+            params.newOrder.trackingData?.environmentType,
+          ),
         };
         if (params.newOrder.price) {
           editExecutedProps[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(
@@ -1723,6 +1765,9 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
               result.error ?? 'Unknown error',
+            ...environmentTypeProperty(
+              params.newOrder.trackingData?.environmentType,
+            ),
           },
         );
 
@@ -1746,6 +1791,9 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
           error instanceof Error ? error.message : 'Unknown error',
+        ...environmentTypeProperty(
+          params.newOrder.trackingData?.environmentType,
+        ),
       });
 
       this.#deps.logger.error(
@@ -2133,6 +2181,8 @@ export class TradingService {
             : PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        [PERPS_EVENT_PROPERTY.NUMBER_ORDERS_CANCELED]:
+          operationResult?.successCount ?? 0,
       };
       if (operationError) {
         batchCancelProps[PERPS_EVENT_PROPERTY.ERROR_MESSAGE] =
@@ -2224,7 +2274,7 @@ export class TradingService {
       // only a symbol, so `params` alone prices it as undefined and the resolver
       // would quote a full waiver on an order the preview blended. The position
       // loaded above is the authoritative notional for exactly that case.
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+      const closeNotionalUsd =
         this.#resolveOrderNotionalUsd({
           ...params,
           // A partial close names a size but often no price; the position's own
@@ -2233,15 +2283,20 @@ export class TradingService {
           currentPrice:
             params.currentPrice ?? this.#resolvePositionUnitPrice(position),
         }) ??
-          this.#resolveOrderNotionalUsd({
-            usdAmount: position?.positionValue,
-          }),
-      );
+        this.#resolveOrderNotionalUsd({
+          usdAmount: position?.positionValue,
+        });
 
       // Execute position close with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            closeNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
         operation: () => provider.closePosition(params),
       });
 
@@ -2397,13 +2452,19 @@ export class TradingService {
       if (provider.closePositions) {
         // The batch submits under one builder context, so its notional is the
         // sum of the positions it will close, not any single one of them.
-        const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-          await this.#resolveBatchCloseNotionalUsd({ params, provider }),
-        );
+        const batchCloseNotionalUsd = await this.#resolveBatchCloseNotionalUsd({
+          params,
+          provider,
+        });
 
         operationResult = await this.#withFeeDiscount({
           provider,
-          feeResolution,
+          resolveFee: () =>
+            this.#calculateFeeDiscountWithMeasurement(
+              batchCloseNotionalUsd,
+              provider,
+              context,
+            ),
           operation: async () => {
             if (!provider.closePositions) {
               throw new Error('closePositions method not available');
@@ -2535,12 +2596,14 @@ export class TradingService {
     } finally {
       const completionDuration = this.#deps.performance.now() - startTime;
 
-      // Track batch close event (success or failure)
+      // Track batch close event (success or failure). A batch close always
+      // submits market orders, on both the provider and fallback paths.
       const batchCloseProps: PerpsAnalyticsProperties = {
         [PERPS_EVENT_PROPERTY.STATUS]:
           operationResult?.success && operationResult.successCount > 0
             ? PERPS_EVENT_VALUE.STATUS.EXECUTED
             : PERPS_EVENT_VALUE.STATUS.FAILED,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
         [PERPS_EVENT_PROPERTY.NUMBER_POSITIONS_CLOSED]:
@@ -2588,7 +2651,76 @@ export class TradingService {
     params: UpdatePositionTPSLParams;
     context: ServiceContext;
   }): Promise<OrderResult> {
+    const { provider, params } = options;
+    return this.#writePositionTpsl({
+      ...options,
+      operationName: 'updatePositionTPSL',
+      operation: () => provider.updatePositionTPSL(params),
+    });
+  }
+
+  /**
+   * Replace one TP/SL leg of an existing position, leaving the other leg as
+   * it is. Tracing, fee discounts, state and analytics match
+   * {@link updatePositionTPSL}, reported for the replaced leg only.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The leg replacement parameters.
+   * @param options.context - The service context for dependencies.
+   * @returns The result of the operation.
+   */
+  async replacePositionTPSLLeg(options: {
+    provider: PerpsProvider;
+    params: ReplacePositionTPSLLegParams;
+    context: ServiceContext;
+  }): Promise<OrderResult> {
     const { provider, params, context } = options;
+    const { symbol, leg, triggerPrice, limitPrice, trackingData, providerId } =
+      params;
+    return this.#writePositionTpsl({
+      provider,
+      context,
+      params: {
+        symbol,
+        ...toPositionTpslLegPrices({ leg, triggerPrice }),
+        ...(trackingData && { trackingData }),
+        ...(providerId && { providerId }),
+      },
+      limitPrice,
+      operationName: 'replacePositionTPSLLeg',
+      operation: async () => {
+        if (!provider.replacePositionTPSLLeg) {
+          throw createTpslLegReplaceUnsupportedError();
+        }
+        return provider.replacePositionTPSLLeg(params);
+      },
+    });
+  }
+
+  /**
+   * Shared orchestration for position TP/SL writes.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The TP/SL being written, used for fees, tracing and analytics.
+   * @param options.context - The service context for dependencies.
+   * @param options.limitPrice - Fill price of a single replaced leg. The fee
+   * notional uses it instead of the trigger, as the venue fills at it.
+   * @param options.operationName - Method name reported in error context.
+   * @param options.operation - The provider write to run.
+   * @returns The result of the operation.
+   */
+  async #writePositionTpsl(options: {
+    provider: PerpsProvider;
+    params: UpdatePositionTPSLParams;
+    context: ServiceContext;
+    limitPrice?: string;
+    operationName: 'updatePositionTPSL' | 'replacePositionTPSLLeg';
+    operation: () => Promise<OrderResult>;
+  }): Promise<OrderResult> {
+    const { provider, params, context, limitPrice, operationName, operation } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData: { success: boolean; error?: string } | undefined;
@@ -2658,7 +2790,8 @@ export class TradingService {
                 triggerSize === undefined
                   ? undefined
                   : Math.abs(Number.parseFloat(triggerSize)).toString(),
-              price,
+              price: limitPrice,
+              triggerPrice: price,
             });
           }),
       );
@@ -2674,14 +2807,17 @@ export class TradingService {
         pricedTriggerNotionalsUsd.length === triggerNotionalsUsd.length
           ? Math.max(...pricedTriggerNotionalsUsd)
           : undefined;
-      const feeResolution =
-        await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
-
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
-        operation: () => provider.updatePositionTPSL(params),
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            tpslNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
+        operation,
       });
 
       if (result.success) {
@@ -2703,10 +2839,10 @@ export class TradingService {
       traceData = { success: false, error: errorMessage };
 
       this.#deps.logger.error(
-        ensureError(error, 'TradingService.updatePositionTPSL'),
+        ensureError(error, `TradingService.${operationName}`),
         this.#getErrorContext(
           context,
-          'updatePositionTPSL',
+          operationName,
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
             action: PERPS_ERROR_ACTION.PositionTpslUpdate,
@@ -2817,9 +2953,11 @@ export class TradingService {
     provider: PerpsProvider;
     symbol: string;
     amount: string;
+    /** Explicit venue route, forwarded so aggregated routing reaches it. */
+    providerId?: PerpsProviderType;
     context: ServiceContext;
   }): Promise<{ success: boolean; error?: string }> {
-    const { provider, symbol, amount, context } = options;
+    const { provider, symbol, amount, providerId, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
 
@@ -2837,7 +2975,11 @@ export class TradingService {
       });
 
       // Call provider method
-      const result = await provider.updateMargin?.({ symbol, amount });
+      const result = await provider.updateMargin?.({
+        symbol,
+        amount,
+        providerId,
+      });
 
       if (!result) {
         throw new Error('Provider does not support margin adjustment');
@@ -2980,12 +3122,17 @@ export class TradingService {
       // Use 2x position size: 1x to close current position + 1x to open opposite position.
       // Do not pass the position entry price as currentPrice: the provider must fetch
       // live market data for validation and IOC pricing.
+      // Carry the position venue so aggregated placeOrder reaches the same
+      // provider the fee grant below is scoped to.
       const orderParams: OrderParams = {
         symbol: position.symbol,
         isBuy: oppositeDirection,
         size: flipSize.toString(),
         orderType: 'market',
         leverage: position.leverage?.value,
+        ...(position.providerId === undefined
+          ? {}
+          : { providerId: position.providerId }),
         // Lighter placeOrder otherwise logs order_management/place_order and
         // marks the result reported, which drops this flip from flip filters.
         // Close already suppresses that provider report. One Sentry event remains.
@@ -3012,13 +3159,16 @@ export class TradingService {
       const flipNotionalUsd = this.#resolveOrderNotionalUsd({
         usdAmount: position.positionValue,
       });
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
-      );
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
+            provider,
+            context,
+            position.providerId,
+          ),
         operation: () => provider.placeOrder(orderParams),
       });
 

@@ -405,18 +405,31 @@ export class RpcDataSource extends AbstractDataSource<
         balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase() ||
         this.#getAssetType(balance.assetId) === 'native';
 
-      if (isNative && !this.#hasValidDecimals(existingMeta)) {
-        // Only emit a stub when no valid metadata exists in state yet.
-        // Re-emitting existing metadata into the response would overwrite
-        // richer entries (e.g. image/description added by AccountsAPI) with
-        // a simpler stub on every balance poll cycle.
+      const registryNativeAsset = this.#messenger.call(
+        'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+        chainId,
+      )?.assets?.native;
+      // Also re-emit when the registry provides an image for a native entry
+      // that has none, upgrading a previously emitted stub without
+      // clobbering richer entries (e.g. image/description added by AccountsAPI).
+      const shouldEmitStub =
+        isNative &&
+        (!this.#hasValidDecimals(existingMeta) ||
+          (Boolean(registryNativeAsset?.imageUrl) &&
+            existingMeta?.type === 'native' &&
+            existingMeta?.image === undefined));
+
+      if (shouldEmitStub) {
         const chainStatus = this.#chainStatuses[chainId];
         if (chainStatus) {
           assetsInfo[balance.assetId] = {
             type: 'native',
-            symbol: chainStatus.nativeCurrency,
-            name: chainStatus.nativeCurrency,
-            decimals: 18,
+            symbol: registryNativeAsset?.symbol ?? chainStatus.nativeCurrency,
+            name: registryNativeAsset?.name ?? chainStatus.nativeCurrency,
+            decimals: registryNativeAsset?.decimals ?? 18,
+            ...(registryNativeAsset?.imageUrl
+              ? { image: registryNativeAsset.imageUrl }
+              : {}),
           };
         }
       }
@@ -731,9 +744,6 @@ export class RpcDataSource extends AbstractDataSource<
     // Only send new data to AssetsController - it handles merging atomically
     // to avoid race conditions when concurrent updates occur for the same account
     const response: DataResponse = {
-      detectedAssets: {
-        [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
-      },
       assetsInfo: newMetadata,
       assetsBalance: {
         [result.accountId]: newBalances,
@@ -1704,9 +1714,6 @@ export class RpcDataSource extends AbstractDataSource<
       }
 
       const response: DataResponse = {
-        detectedAssets: {
-          [accountId]: result.detectedAssets.map((asset) => asset.assetId),
-        },
         assetsBalance: {
           [accountId]: balances,
         },

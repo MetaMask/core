@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { Order, PositionTriggerOrder } from '../../../src/types/index.js';
 import type {
   OrderType,

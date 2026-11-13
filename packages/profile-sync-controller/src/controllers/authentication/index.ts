@@ -7,6 +7,7 @@ export * as Mocks from './mocks/index.js';
 
 export type {
   AuthenticationControllerPerformSignInAction,
+  AuthenticationControllerExchangeSocialAccessTokenAction,
   AuthenticationControllerPerformSignOutAction,
   AuthenticationControllerGetBearerTokenAction,
   AuthenticationControllerGetSessionProfileAction,
@@ -17,10 +18,15 @@ export type {
   AuthenticationControllerGetPartnerIdentityTokenAction,
   AuthenticationControllerClearStateAction,
   AuthenticationControllerRefreshEnrolledCredentialsAction,
+  AuthenticationControllerRefreshSocialLoginCredentialsAction,
   AuthenticationControllerBeginCredentialEnrollmentAction,
   AuthenticationControllerCompleteCredentialEnrollmentAction,
   AuthenticationControllerBeginCredentialVerificationAction,
   AuthenticationControllerCompleteCredentialVerificationAction,
+  AuthenticationControllerBeginSocialLoginVerificationAction,
+  AuthenticationControllerCompleteSocialLoginVerificationAction,
   AuthenticationControllerGetVerificationTokenAction,
+  AuthenticationControllerRequestMfaApprovalAction,
+  AuthenticationControllerRemoveCredentialAction,
   AuthenticationControllerClearVerificationSessionAction,
 } from './AuthenticationController-method-action-types.js';

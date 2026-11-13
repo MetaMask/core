@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   CAIP_ACCOUNT_ADDRESS_FIXTURES,
   CAIP_ACCOUNT_ID_FIXTURES,

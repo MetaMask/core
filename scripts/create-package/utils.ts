@@ -6,14 +6,14 @@ import path from 'path';
 import { format as prettierFormat } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
 
-import { MonorepoFiles, Placeholders } from './constants.ts';
+import { MONOREPO_FILES, PLACEHOLDERS } from './constants.ts';
 import type { FileMap } from './fs-utils.ts';
 import { readAllFiles, writeFiles } from './fs-utils.ts';
 
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
-const REPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);
-const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MonorepoFiles.TsConfigBuild);
-const REPO_PACKAGE_JSON = path.join(REPO_ROOT, MonorepoFiles.PackageJson);
+const REPO_TS_CONFIG = path.join(REPO_ROOT, MONOREPO_FILES.TsConfig);
+const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MONOREPO_FILES.TsConfigBuild);
+const REPO_PACKAGE_JSON = path.join(REPO_ROOT, MONOREPO_FILES.PackageJson);
 const PACKAGES_PATH = path.join(REPO_ROOT, 'packages');
 const PACKAGE_TEMPLATE_DIR = path.join(PACKAGES_PATH, 'package-template');
 
@@ -26,7 +26,7 @@ const TEMPLATE_IGNORE_PATTERNS = [
 ];
 
 const allPlaceholdersRegex = new RegExp(
-  Object.values(Placeholders).join('|'),
+  Object.values(PLACEHOLDERS).join('|'),
   'gu',
 );
 
@@ -237,15 +237,15 @@ function processTemplateContent(
 
   return content.replace(allPlaceholdersRegex, (match) => {
     switch (match) {
-      case Placeholders.CurrentYear:
+      case PLACEHOLDERS.CurrentYear:
         return currentYear;
-      case Placeholders.NodeVersions:
+      case PLACEHOLDERS.NodeVersions:
         return nodeVersions;
-      case Placeholders.PackageName:
+      case PLACEHOLDERS.PackageName:
         return name;
-      case Placeholders.PackageDescription:
+      case PLACEHOLDERS.PackageDescription:
         return description;
-      case Placeholders.PackageDirectoryName:
+      case PLACEHOLDERS.PackageDirectoryName:
         return packageData.directoryName;
       /* istanbul ignore next: should be impossible */
       default:

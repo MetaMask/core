@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,

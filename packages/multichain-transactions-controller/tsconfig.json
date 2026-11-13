@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "types": ["jest"]
-  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -11,13 +8,16 @@
       "path": "../base-controller"
     },
     {
+      "path": "../core-backend"
+    },
+    {
       "path": "../keyring-controller"
     },
     {
-      "path": "../polling-controller"
+      "path": "../messenger"
     },
     {
-      "path": "../messenger"
+      "path": "../polling-controller"
     },
     {
       "path": "../utils"

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { formatHostnameToUrl } from '../tests/utils.js';
 import { PhishingDetector } from './PhishingDetector.js';
 import type { PhishingDetectorOptions } from './PhishingDetector.js';
-import { formatHostnameToUrl } from './tests/utils.js';
 import { PhishingDetectorResultType } from './types.js';
 import { sha256Hash } from './utils.js';
 

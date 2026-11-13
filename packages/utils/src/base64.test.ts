@@ -1,4 +1,5 @@
 import { is, size, string } from '@metamask/superstruct';
+import { describe, expect, it } from 'vitest';
 
 import type { Base64Options } from './base64.js';
 import { base64 } from './base64.js';

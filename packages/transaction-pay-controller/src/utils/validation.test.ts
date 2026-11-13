@@ -1,24 +1,26 @@
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../types.js';
 import {
   simulateQuoteTransactions,
   TransactionPaySimulationError,
 } from './simulation.js';
+import type { QuoteSimulation } from './simulation.js';
 import * as tokenModule from './token.js';
 import {
   isQuoteError,
   QuoteError,
   validateQuoteExecution,
+  validateQuotes,
 } from './validation.js';
-import type { QuoteSimulation } from './validation.js';
 
-jest.mock('./simulation', () => ({
-  ...jest.requireActual('./simulation'),
-  simulateQuoteTransactions: jest.fn(),
+vi.mock(import('./simulation.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  simulateQuoteTransactions: vi.fn(),
 }));
-jest.mock('./token');
+vi.mock(import('./token.js'));
 
 const CHAIN_ID_MOCK = '0x38' as Hex;
 const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -68,16 +70,18 @@ function buildSimulation(
 
 describe('validateQuoteExecution', () => {
   let messengerMock: ReturnType<typeof getMessengerMock>;
-  const simulateQuoteTransactionsMock = jest.mocked(simulateQuoteTransactions);
-  const getLiveTokenBalanceMock = jest.mocked(tokenModule.getLiveTokenBalance);
-  const getNativeTokenMock = jest.mocked(tokenModule.getNativeToken);
-  const getTokenInfoMock = jest.mocked(tokenModule.getTokenInfo);
-  const normalizeTokenAddressMock = jest.mocked(
+  const simulateQuoteTransactionsMock = vi.mocked(simulateQuoteTransactions);
+  const getLiveTokenBalanceMock = vi.mocked(
+    tokenModule.getLiveTokenBalanceOrUndefined,
+  );
+  const getNativeTokenMock = vi.mocked(tokenModule.getNativeToken);
+  const getTokenInfoMock = vi.mocked(tokenModule.getTokenInfo);
+  const normalizeTokenAddressMock = vi.mocked(
     tokenModule.normalizeTokenAddress,
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     messengerMock = getMessengerMock();
 
     // Default: balance is sufficient
@@ -230,8 +234,29 @@ describe('validateQuoteExecution', () => {
       ).toBeUndefined();
     });
 
-    it('throws balance-unavailable when getLiveTokenBalance rejects', async () => {
-      getLiveTokenBalanceMock.mockRejectedValue(new Error('RPC timeout'));
+    it('skips the balance check when the live balance is unavailable', async () => {
+      // An unreadable balance is unknown, not insufficient, so validation
+      // falls through to simulation rather than blocking the quote.
+      getLiveTokenBalanceMock.mockResolvedValue(undefined);
+
+      expect(
+        await validateQuoteExecution({
+          messenger: messengerMock.messenger,
+          quote: buildQuote(),
+          simulation: buildSimulation(),
+        }),
+      ).toBeUndefined();
+
+      expect(simulateQuoteTransactionsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('still fails when the live balance is unavailable and simulation reverts', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue(undefined);
+      simulateQuoteTransactionsMock.mockRejectedValue(
+        new TransactionPaySimulationError(
+          'ERC20: transfer amount exceeds balance',
+        ),
+      );
 
       await expect(
         validateQuoteExecution({
@@ -241,9 +266,8 @@ describe('validateQuoteExecution', () => {
         }),
       ).rejects.toMatchObject({
         info: {
-          reason: 'balance-unavailable',
-          message: 'Unable to verify balance',
-          detail: ['RPC timeout'],
+          reason: 'simulation-failed',
+          detail: ['ERC20: transfer amount exceeds balance'],
         },
       });
     });
@@ -520,6 +544,121 @@ describe('validateQuoteExecution', () => {
         }),
       ).rejects.toThrow('Quote validation aborted');
     });
+  });
+});
+
+describe('validateQuotes', () => {
+  const { messenger } = getMessengerMock();
+  const simulateQuoteTransactionsMock = vi.mocked(simulateQuoteTransactions);
+  const getLiveTokenBalanceMock = vi.mocked(
+    tokenModule.getLiveTokenBalanceOrUndefined,
+  );
+  const getNativeTokenMock = vi.mocked(tokenModule.getNativeToken);
+  const normalizeTokenAddressMock = vi.mocked(
+    tokenModule.normalizeTokenAddress,
+  );
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+
+    getLiveTokenBalanceMock.mockResolvedValue('1000');
+    simulateQuoteTransactionsMock.mockResolvedValue(undefined);
+    getNativeTokenMock.mockReturnValue(
+      '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    );
+    normalizeTokenAddressMock.mockImplementation((addr) => addr);
+  });
+
+  it('validates every quote', async () => {
+    await validateQuotes({
+      buildSimulation: async () => buildSimulation(),
+      messenger,
+      quotes: [buildQuote(), buildQuote()],
+    });
+
+    expect(simulateQuoteTransactionsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips quotes with no simulation', async () => {
+    await validateQuotes({
+      buildSimulation: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(buildSimulation()),
+      messenger,
+      quotes: [buildQuote(), buildQuote()],
+    });
+
+    expect(simulateQuoteTransactionsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('wraps simulation build errors as simulation failures', async () => {
+    await expect(
+      validateQuotes({
+        buildSimulation: async () => {
+          throw new Error('build failed');
+        },
+        messenger,
+        quotes: [buildQuote()],
+      }),
+    ).rejects.toMatchObject({
+      info: {
+        detail: ['build failed'],
+        message: 'Quote simulation failed',
+        reason: 'simulation-failed',
+      },
+    });
+  });
+
+  it('attaches all quotes to insufficient source balance errors', async () => {
+    getLiveTokenBalanceMock.mockResolvedValue('100');
+
+    const quotes = [buildQuote(), buildQuote()];
+
+    const error = await validateQuotes({
+      buildSimulation: async () => buildSimulation(),
+      messenger,
+      quotes,
+    }).catch((caughtError: unknown) => caughtError);
+
+    expect(error).toMatchObject({
+      info: { reason: 'insufficient-source-balance' },
+    });
+    expect((error as QuoteError).quotes).toStrictEqual(quotes);
+  });
+
+  it('throws other quote errors without quotes', async () => {
+    simulateQuoteTransactionsMock.mockRejectedValue(
+      new TransactionPaySimulationError('revert'),
+    );
+
+    const error = await validateQuotes({
+      buildSimulation: async () => buildSimulation(),
+      messenger,
+      quotes: [buildQuote()],
+    }).catch((caughtError: unknown) => caughtError);
+
+    expect(error).toMatchObject({
+      info: { detail: ['revert'], reason: 'simulation-failed' },
+    });
+    expect((error as QuoteError).quotes).toBeUndefined();
+  });
+
+  it('rethrows errors unchanged when aborted', async () => {
+    const abortController = new AbortController();
+    const abortError = new Error('aborted');
+
+    await expect(
+      validateQuotes({
+        buildSimulation: async () => {
+          abortController.abort();
+          throw abortError;
+        },
+        messenger,
+        quotes: [buildQuote()],
+        signal: abortController.signal,
+      }),
+    ).rejects.toBe(abortError);
   });
 });
 

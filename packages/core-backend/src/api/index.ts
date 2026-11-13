@@ -45,6 +45,17 @@ export type {
   V1TransactionByHashResponse,
   V1AccountTransactionsResponse,
   V4MultiAccountTransactionsResponse,
+  V5Transaction,
+  V5TransactionValueTransfer,
+  V5TransactionMiscOperation,
+  V5TransactionFeeAsset,
+  V5TransactionFee,
+  V5TransactionLog,
+  V5TransactionRecord,
+  V5TransactionByIdResponse,
+  V5TransactionByIdQueryOptions,
+  V5MultiAccountTransactionsResponse,
+  V5MultiAccountTransactionsQueryOptions,
   ValueTransfer,
   V1AccountRelationshipResult,
   NftItem,
@@ -81,6 +92,8 @@ export type {
   TopGainersSortOption,
   TrendingSortOption,
   V1SuggestedOccurrenceFloorsResponse,
+  V2AssetResponse,
+  V2AssetsQueryOptions,
 } from './token/index.js';
 
 // Tokens API

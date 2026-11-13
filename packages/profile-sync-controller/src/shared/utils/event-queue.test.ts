@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { EventQueue } from './event-queue.js';
 
 describe('EventQueue', () => {
@@ -12,7 +14,7 @@ describe('EventQueue', () => {
   });
 
   it('should add callbacks to the queue', () => {
-    const mockCallback = jest.fn().mockResolvedValue(undefined);
+    const mockCallback = vi.fn().mockResolvedValue(undefined);
 
     eventQueue.push(mockCallback);
 
@@ -54,8 +56,8 @@ describe('EventQueue', () => {
   });
 
   it('should handle async callbacks', async () => {
-    const mockCallback1 = jest.fn().mockResolvedValue(undefined);
-    const mockCallback2 = jest.fn().mockResolvedValue(undefined);
+    const mockCallback1 = vi.fn().mockResolvedValue(undefined);
+    const mockCallback2 = vi.fn().mockResolvedValue(undefined);
 
     eventQueue.push(mockCallback1);
     eventQueue.push(mockCallback2);
@@ -69,12 +71,12 @@ describe('EventQueue', () => {
   it('should execute callbacks sequentially', async () => {
     let counter = 0;
 
-    const mockCallback1 = jest.fn().mockImplementation(async () => {
+    const mockCallback1 = vi.fn().mockImplementation(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
       counter += 1;
     });
 
-    const mockCallback2 = jest.fn().mockImplementation(async () => {
+    const mockCallback2 = vi.fn().mockImplementation(async () => {
       expect(counter).toBe(1);
       counter += 1;
     });
@@ -88,10 +90,10 @@ describe('EventQueue', () => {
   });
 
   it('should handle errors in callbacks without breaking the queue', async () => {
-    const mockErrorCallback = jest
+    const mockErrorCallback = vi
       .fn()
       .mockRejectedValue(new Error('Test error'));
-    const mockSuccessCallback = jest.fn().mockResolvedValue(undefined);
+    const mockSuccessCallback = vi.fn().mockResolvedValue(undefined);
 
     eventQueue.push(mockErrorCallback);
     eventQueue.push(mockSuccessCallback);

@@ -27,6 +27,7 @@ import {
   createPerpsErrorContext,
 } from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
+import { environmentTypeProperty } from './environmentTypeProperty.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -242,6 +243,7 @@ export class AccountService {
             [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.EXECUTED,
             [PERPS_EVENT_PROPERTY.WITHDRAWAL_AMOUNT]: parseFloat(params.amount),
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+            ...environmentTypeProperty(params.environmentType),
           },
         );
 
@@ -313,6 +315,7 @@ export class AccountService {
           [PERPS_EVENT_PROPERTY.WITHDRAWAL_AMOUNT]: parseFloat(params.amount),
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
+          ...environmentTypeProperty(params.environmentType),
         },
       );
 
@@ -375,6 +378,7 @@ export class AccountService {
           [PERPS_EVENT_PROPERTY.WITHDRAWAL_AMOUNT]: params.amount,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
+          ...environmentTypeProperty(params.environmentType),
         },
       );
 

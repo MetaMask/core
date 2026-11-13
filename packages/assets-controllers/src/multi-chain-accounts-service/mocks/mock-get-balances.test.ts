@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   MOCK_GET_BALANCES_RESPONSE,
   createMockGetBalancesResponse,

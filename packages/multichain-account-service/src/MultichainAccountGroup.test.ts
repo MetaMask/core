@@ -7,11 +7,9 @@ import {
 } from '@metamask/account-api';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { describe, expect, it } from 'vitest';
 
-import type { GroupState } from './MultichainAccountGroup.js';
-import { MultichainAccountGroup } from './MultichainAccountGroup.js';
-import { MultichainAccountWallet } from './MultichainAccountWallet.js';
-import type { RootMessenger, MockAccountProvider } from './tests/index.js';
+import type { RootMessenger, MockAccountProvider } from '../tests/index.js';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -22,7 +20,10 @@ import {
   setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-} from './tests/index.js';
+} from '../tests/index.js';
+import type { GroupState } from './MultichainAccountGroup.js';
+import { MultichainAccountGroup } from './MultichainAccountGroup.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
 
 function setup({

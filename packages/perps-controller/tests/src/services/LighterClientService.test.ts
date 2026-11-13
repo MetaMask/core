@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   LighterApiError,
   LighterClientService,
@@ -57,7 +60,7 @@ const VALID_TRADE_WIRE = {
 };
 
 describe('LighterClientService', () => {
-  let fetchMock: jest.Mock;
+  let fetchMock: Mock;
 
   const buildService = (isTestnet = true): LighterClientService =>
     new LighterClientService(createMockInfrastructure(), { isTestnet });
@@ -66,15 +69,15 @@ describe('LighterClientService', () => {
     payload: unknown,
     ok = true,
     status = 200,
-  ): { ok: boolean; status: number; json: jest.Mock } => ({
+  ): { ok: boolean; status: number; json: Mock } => ({
     ok,
     status,
-    json: jest.fn().mockResolvedValue(payload),
+    json: vi.fn().mockResolvedValue(payload),
   });
 
   beforeEach(() => {
-    fetchMock = jest.fn();
-    global.fetch = fetchMock;
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   describe('lossless native edit reads', () => {
@@ -84,7 +87,7 @@ describe('LighterClientService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        text: jest.fn().mockResolvedValue(raw),
+        text: vi.fn().mockResolvedValue(raw),
       });
       const result = await buildService().getEditableOrders(28, 'auth');
       expect(result.orders[0].orderIndex).toBe('288230376151711745');
@@ -97,7 +100,7 @@ describe('LighterClientService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        text: jest.fn().mockResolvedValue(raw),
+        text: vi.fn().mockResolvedValue(raw),
       });
       await buildService().getEditableOrders(28, 'auth', ['1']);
       expect(fetchMock).toHaveBeenCalledWith(
@@ -115,7 +118,7 @@ describe('LighterClientService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        text: jest
+        text: vi
           .fn()
           .mockResolvedValue(
             raw.replace(
@@ -134,7 +137,7 @@ describe('LighterClientService', () => {
         fetchMock.mockResolvedValue({
           ok: true,
           status: 200,
-          text: jest
+          text: vi
             .fn()
             .mockResolvedValue(raw.replace('288230376151711745', id)),
         });
@@ -573,6 +576,69 @@ describe('LighterClientService', () => {
         expect.anything(),
       );
     });
+  });
+
+  describe('getRecentTrades', () => {
+    const PUBLIC_TRADE_WIRE = {
+      trade_id: 2154393,
+      trade_id_str: '2154393',
+      tx_hash: 'a713',
+      type: 'trade',
+      market_id: 1,
+      size: '0.00020',
+      price: '73504.0',
+      is_maker_ask: false,
+      timestamp: 1700000000000,
+      // Account-specific fields the public feed does not read, in a shape
+      // the account trade decoder would reject.
+      taker_fee: 'not-a-number',
+    };
+
+    it('reads the market without auth and keeps only the fields it reads', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({ code: 200, trades: [PUBLIC_TRADE_WIRE] }),
+      );
+
+      const response = await buildService(false).getRecentTrades(1, 20);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://mainnet.zklighter.elliot.ai/api/v1/recentTrades?market_id=1&limit=20',
+        expect.objectContaining({ method: 'GET', headers: undefined }),
+      );
+      expect(response.trades[0]).toMatchObject({
+        tradeId: 2154393,
+        tradeIdStr: '2154393',
+        txHash: 'a713',
+        marketId: 1,
+        size: '0.00020',
+        price: '73504.0',
+        isMakerAsk: false,
+        timestamp: 1700000000000,
+      });
+    });
+
+    it('rejects a malformed public trade', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          trades: [{ ...PUBLIC_TRADE_WIRE, price: '-1' }],
+        }),
+      );
+
+      await expect(buildService().getRecentTrades(1, 20)).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
+    it.each([0, 101, 1.5])(
+      'rejects limit %s outside the venue range without a request',
+      async (limit) => {
+        await expect(buildService().getRecentTrades(1, limit)).rejects.toThrow(
+          'Invalid Lighter recent trades limit',
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('getTrades', () => {

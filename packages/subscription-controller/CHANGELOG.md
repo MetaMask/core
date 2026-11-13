@@ -9,6 +9,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+
+## [15.2.2]
+
+### Changed
+
+- Bump `@metamask/money-account-utils` from `^2.2.0` to `^2.2.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [15.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.1.0` to `^73.1.2` ([#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/money-account-balance-service` from `^3.1.2` to `^3.2.1` ([#11390](https://github.com/MetaMask/core/pull/11390), [#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/money-account-upgrade-controller` from `^6.0.0` to `^7.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390), [#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/chomp-api-service` from `^7.0.0` to `^7.1.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+
+## [15.2.0]
+
+### Added
+
+- Expose `startPolling` and `stopPollingByPollingToken` methods through the SubscriptionController messenger ([#11245](https://github.com/MetaMask/core/pull/11245))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
+
+## [15.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.1` to `^73.0.0` ([#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/money-account-utils` from `^2.1.0` to `^2.2.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+
+## [15.1.1]
+
+### Changed
+
+- Bump `@metamask/chomp-api-service` from `^6.0.1` to `^7.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/money-account-upgrade-controller` from `^5.1.0` to `^6.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [15.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** `getBenefits` returns an ineligible benefits response instead of throwing `UserNotSubscribed`. ([#10994](https://github.com/MetaMask/core/pull/10994))
+- **BREAKING:** Remove `builderCode` from `PerpsBenefitUsage` and from benefits-response validation. The Perps benefits payload no longer includes it, and requiring the field rejected otherwise valid responses. ([#10995](https://github.com/MetaMask/core/pull/10995))
+
+## [14.0.2]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
+## [14.0.1]
+
+### Changed
+
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
@@ -655,7 +728,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.2...HEAD
+[15.2.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.1...@metamask/subscription-controller@15.2.2
+[15.2.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.2.0...@metamask/subscription-controller@15.2.1
+[15.2.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.2...@metamask/subscription-controller@15.2.0
+[15.1.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.1...@metamask/subscription-controller@15.1.2
+[15.1.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.0...@metamask/subscription-controller@15.1.1
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.0.0...@metamask/subscription-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.2...@metamask/subscription-controller@15.0.0
+[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.1...@metamask/subscription-controller@14.0.2
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.0...@metamask/subscription-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@13.0.0...@metamask/subscription-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.1...@metamask/subscription-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.0...@metamask/subscription-controller@12.0.1

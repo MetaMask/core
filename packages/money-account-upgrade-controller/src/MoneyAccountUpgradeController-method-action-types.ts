@@ -63,8 +63,83 @@ export type MoneyAccountUpgradeControllerForceUpgradeAccountAction = {
 };
 
 /**
+ * Upgrades `address` as the successor of an existing Money Account, as part
+ * of migrating that Money Account to a new address. Runs the same steps as
+ * {@link upgradeAccount}, except that associating the address with the
+ * CHOMP profile also links it to `predecessorAddress`, which starts the
+ * migration on CHOMP and freezes the predecessor until it completes or is
+ * cancelled.
+ *
+ * Like {@link forceUpgradeAccount}, this skips the recorded-upgrade
+ * shortcut, so a previously recorded upgrade of `address` cannot cause the
+ * link to be skipped. Each step still only performs its action if its own
+ * remote check finds it is not already done.
+ *
+ * @param address - The new Money Account address.
+ * @param predecessorAddress - The current address of the Money Account
+ * that `address` succeeds.
+ * @throws If the controller is not bootstrapped, if the armed config is
+ * disarmed or superseded while the sequence is running, or if a step
+ * fails (wrapped in a {@link MoneyAccountUpgradeStepError}). A link CHOMP
+ * can never accept is marked terminal; a predecessor with a withdrawal in
+ * progress is not, and its cause carries the
+ * `PREDECESSOR_HAS_OPEN_WITHDRAWALS` CHOMP error code.
+ */
+export type MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction = {
+  type: `MoneyAccountUpgradeController:upgradeSuccessorAccount`;
+  handler: MoneyAccountUpgradeController['upgradeSuccessorAccount'];
+};
+
+/**
+ * Registers the CHOMP intents that `predecessorAddress` signs to migrate its
+ * Money Account: the root delegation to the successor, the open mUSD and
+ * vmUSD transfers to the successor and, for a premium migration, the pvmUSD
+ * transfer through the vault migration helper.
+ *
+ * The successor and the incomplete steps are read from CHOMP, so only the
+ * missing intents are registered and a migration can be resumed by calling
+ * this again. The vault migration helper of a premium migration is read
+ * from the CHOMP service details when it is needed, so one CHOMP starts
+ * serving after the bootstrap is used. The steps signed by the successor
+ * are completed by {@link upgradeSuccessorAccount}. Nothing is recorded in
+ * state.
+ *
+ * @param predecessorAddress - The current address of the migrating Money
+ * Account.
+ * @param successorAddress - The address the Money Account is expected to
+ * migrate to. Nothing is signed unless CHOMP reports this successor.
+ * @throws If the controller is not bootstrapped, if the armed config is
+ * disarmed or superseded first, or if the step fails (wrapped in a
+ * {@link MoneyAccountUpgradeStepError}): `predecessorAddress` is not the
+ * predecessor of a migration to `successorAddress`, a premium migration is missing the premium
+ * vault or the vault migration helper, or signing or a CHOMP call fails.
+ */
+export type MoneyAccountUpgradeControllerRegisterMigrationIntentsAction = {
+  type: `MoneyAccountUpgradeController:registerMigrationIntents`;
+  handler: MoneyAccountUpgradeController['registerMigrationIntents'];
+};
+
+/**
+ * Looks up whether `address` is registered with CHOMP, meaning it is part of
+ * a Money Account identity of the authenticated profile in any role:
+ * current, previous, or pending successor.
+ *
+ * Unlike the upgrade methods, this does not require a bootstrap.
+ *
+ * @param address - The address to look up.
+ * @returns Whether the address is registered.
+ */
+export type MoneyAccountUpgradeControllerGetRegistrationStatusAction = {
+  type: `MoneyAccountUpgradeController:getRegistrationStatus`;
+  handler: MoneyAccountUpgradeController['getRegistrationStatus'];
+};
+
+/**
  * Union of all MoneyAccountUpgradeController action types.
  */
 export type MoneyAccountUpgradeControllerMethodActions =
   | MoneyAccountUpgradeControllerUpgradeAccountAction
-  | MoneyAccountUpgradeControllerForceUpgradeAccountAction;
+  | MoneyAccountUpgradeControllerForceUpgradeAccountAction
+  | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction
+  | MoneyAccountUpgradeControllerRegisterMigrationIntentsAction
+  | MoneyAccountUpgradeControllerGetRegistrationStatusAction;

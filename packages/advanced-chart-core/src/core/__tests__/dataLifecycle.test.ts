@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   onDataLifecycle,
   notifyDataLifecycle,
@@ -11,15 +13,15 @@ describe('core/dataLifecycle', () => {
   });
 
   it('notifies listeners when an event fires', () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     onDataLifecycle('ohlcvReset', listener);
     notifyDataLifecycle('ohlcvReset');
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it('supports multiple listeners on the same event', () => {
-    const a = jest.fn();
-    const b = jest.fn();
+    const a = vi.fn();
+    const b = vi.fn();
     onDataLifecycle('ohlcvPrepended', a);
     onDataLifecycle('ohlcvPrepended', b);
     notifyDataLifecycle('ohlcvPrepended');
@@ -28,14 +30,14 @@ describe('core/dataLifecycle', () => {
   });
 
   it('does not cross-fire between events', () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     onDataLifecycle('ohlcvReset', listener);
     notifyDataLifecycle('ohlcvPrepended');
     expect(listener).not.toHaveBeenCalled();
   });
 
   it('unsubscribe removes the listener', () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     const unsub = onDataLifecycle('visibleRangeChanged', listener);
     unsub();
     notifyDataLifecycle('visibleRangeChanged');
@@ -43,13 +45,13 @@ describe('core/dataLifecycle', () => {
   });
 
   it('reports listener errors to RN without stopping other listeners', () => {
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
 
-    const bad = jest.fn(() => {
+    const bad = vi.fn(() => {
       throw new Error('boom');
     });
-    const good = jest.fn();
+    const good = vi.fn();
     onDataLifecycle('ohlcvReset', bad);
     onDataLifecycle('ohlcvReset', good);
 
@@ -62,7 +64,7 @@ describe('core/dataLifecycle', () => {
   });
 
   it('_resetDataLifecycleForTests clears all listeners', () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     onDataLifecycle('ohlcvReset', listener);
     onDataLifecycle('ohlcvPrepended', listener);
     onDataLifecycle('visibleRangeChanged', listener);

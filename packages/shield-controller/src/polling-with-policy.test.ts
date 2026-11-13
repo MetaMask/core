@@ -1,4 +1,6 @@
 import { HttpError } from '@metamask/controller-utils';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { delay } from '../tests/utils.js';
 import { PollingWithCockatielPolicy } from './polling-with-policy.js';
@@ -15,7 +17,7 @@ describe('PollingWithCockatielPolicy', () => {
   it('should retry the request and complete successfully', async () => {
     const policy = new PollingWithCockatielPolicy();
     let invocationCount = 0;
-    const mockRequestFn = jest
+    const mockRequestFn = vi
       .fn()
       .mockImplementation(async (_abortSignal: AbortSignal) => {
         invocationCount += 1;
@@ -35,7 +37,7 @@ describe('PollingWithCockatielPolicy', () => {
 
   it('should not retry when the error is not retryable', async () => {
     const policy = new PollingWithCockatielPolicy();
-    const mockRequestFn = jest
+    const mockRequestFn = vi
       .fn()
       .mockImplementation(async (_abortSignal: AbortSignal) => {
         return new Promise((_resolve, reject) => {
@@ -53,7 +55,7 @@ describe('PollingWithCockatielPolicy', () => {
       maxRetries: 3,
     });
 
-    const requestFn = jest
+    const requestFn = vi
       .fn()
       .mockImplementation(async (_abortSignal: AbortSignal) => {
         return new Promise((_resolve, reject) => {
@@ -73,7 +75,7 @@ describe('PollingWithCockatielPolicy', () => {
       maxRetries: 3,
     });
 
-    const requestFn = jest
+    const requestFn = vi
       .fn()
       .mockImplementation(async (abortSignal: AbortSignal) => {
         return new Promise((_resolve, reject) => {
@@ -96,7 +98,7 @@ describe('PollingWithCockatielPolicy', () => {
   it('should throw a `Request Cancelled` error when a new request is started with the same request id', async () => {
     const policy = new PollingWithCockatielPolicy();
 
-    const requestFn = jest
+    const requestFn = vi
       .fn()
       .mockImplementation(async (abortSignal: AbortSignal) => {
         return new Promise((resolve, reject) => {
@@ -119,8 +121,8 @@ describe('PollingWithCockatielPolicy', () => {
   it('should resolve the result when two requests are started with the different request ids', async () => {
     const policy = new PollingWithCockatielPolicy();
 
-    const requestFn = (result: string): jest.Mock =>
-      jest.fn().mockImplementation(async (abortSignal: AbortSignal) => {
+    const requestFn = (result: string): Mock =>
+      vi.fn().mockImplementation(async (abortSignal: AbortSignal) => {
         return new Promise((resolve, reject) => {
           if (abortSignal.aborted) {
             reject(new Error('test error'));

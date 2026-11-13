@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PasskeyControllerErrorMessage } from './constants.js';
 import { deriveKeyFromAuthenticationResponse } from './key-derivation.js';
 import { PasskeyRecord } from './types.js';

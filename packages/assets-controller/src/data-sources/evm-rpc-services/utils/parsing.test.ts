@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { chainIdToHex, weiToHumanReadable } from './parsing.js';
 
 describe('parsing utilities', () => {

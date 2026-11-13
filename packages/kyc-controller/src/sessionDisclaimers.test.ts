@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 import type { KycConsentDocument } from './types.js';
 

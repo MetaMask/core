@@ -10,6 +10,24 @@ export type AssetsControllerGetAssetsAction = {
   handler: AssetsController['getAssets'];
 };
 
+/**
+ * Force-fetch spot prices for an explicit asset list.
+ *
+ * Calls `PriceDataSource` directly and merges the result into `assetsPrice`.
+ * Prices are shared across accounts, so this does not take an account or
+ * chain scope and does not run the balance pipeline.
+ *
+ * Returns without calling the Price API when basic functionality is off.
+ * That matches the asset pipeline, which drops the price source in RPC-only
+ * mode, and `setSelectedCurrency`, which skips its price refresh.
+ *
+ * @param assetIds - CAIP-19 asset IDs to sync.
+ */
+export type AssetsControllerSyncAssetsPricesAction = {
+  type: `AssetsController:syncAssetsPrices`;
+  handler: AssetsController['syncAssetsPrices'];
+};
+
 export type AssetsControllerGetAssetsBalanceAction = {
   type: `AssetsController:getAssetsBalance`;
   handler: AssetsController['getAssetsBalance'];
@@ -200,6 +218,7 @@ export type AssetsControllerSetSelectedCurrencyAction = {
  */
 export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsAction
+  | AssetsControllerSyncAssetsPricesAction
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAccountAssetByIDAction

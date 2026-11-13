@@ -63,8 +63,9 @@ export const USDC_ETHEREUM_MAINNET_ADDRESS =
   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 export const USDC_ARBITRUM_MAINNET_ADDRESS =
   '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+// USDC2: the token the Arbitrum Sepolia bridge credits (its usdcToken())
 export const USDC_ARBITRUM_TESTNET_ADDRESS =
-  '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
+  '0x1baAbB04529D43a73232B713C0FE471f7c7334d5';
 
 // USDC token icon URL using MetaMask's official Token Icons API
 // Format: https://static.cx.metamask.io/api/v1/tokenIcons/{chainId}/{contractAddress}.png
@@ -92,7 +93,7 @@ export const METAMASK_PERPS_ICONS_BASE_URL =
 export const HYPERLIQUID_ASSET_CONFIGS: HyperLiquidAssetConfigs = {
   usdc: {
     mainnet: `${ARBITRUM_MAINNET_CAIP_CHAIN_ID}/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831/default`,
-    testnet: `${ARBITRUM_TESTNET_CAIP_CHAIN_ID}/erc20:0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d/default`,
+    testnet: `${ARBITRUM_TESTNET_CAIP_CHAIN_ID}/erc20:0x1baAbB04529D43a73232B713C0FE471f7c7334d5/default`,
   },
 };
 

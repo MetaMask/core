@@ -1,6 +1,7 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TransactionPayStrategy } from '../../constants.js';
 import type {
@@ -15,9 +16,9 @@ import type { RelayQuote } from '../relay/types.js';
 import { submitSimpleRelay } from './fiat-submit-simple.js';
 import type { FiatQuote } from './types.js';
 
-jest.mock('../../utils/feature-flags');
-jest.mock('../relay/relay-quotes');
-jest.mock('../relay/relay-submit');
+vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../relay/relay-quotes.js'));
+vi.mock(import('../relay/relay-submit.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -84,7 +85,7 @@ function buildRequest(
   return {
     accountSupports7702: false,
     isSmartTransaction: () => false,
-    messenger: { call: jest.fn() } as never,
+    messenger: { call: vi.fn() } as never,
     quotes: [buildFiatQuote()],
     transaction: TRANSACTION_MOCK,
     ...overrides,
@@ -92,14 +93,12 @@ function buildRequest(
 }
 
 describe('submitSimpleRelay', () => {
-  const getRelayQuotesMock = jest.mocked(getRelayQuotes);
-  const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
-  const getFiatMaxRateDriftPercentMock = jest.mocked(
-    getFiatMaxRateDriftPercent,
-  );
+  const getRelayQuotesMock = vi.mocked(getRelayQuotes);
+  const submitRelayQuotesMock = vi.mocked(submitRelayQuotes);
+  const getFiatMaxRateDriftPercentMock = vi.mocked(getFiatMaxRateDriftPercent);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({ transactionHash: '0xabc' });
     getFiatMaxRateDriftPercentMock.mockReturnValue(10);

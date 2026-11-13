@@ -20,12 +20,15 @@ import {
   type,
 } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
+import { patchKycSessionStatus } from './types.js';
 import type {
   KycConsentRecord,
+  KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
@@ -58,9 +61,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'createUkycSession',
   'resetWrappingKeys',
   'setAuthorizations',
+  'createDeletion',
+  'completeDeletion',
   'createJourney',
   'getSessionStatus',
   'getSessionStatusForVendor',
+  'getDataShares',
 ] as const;
 
 /**
@@ -208,6 +214,12 @@ const UkycSessionResponseStruct = type({
 });
 export type UkycSessionResponse = Infer<typeof UkycSessionResponseStruct>;
 
+const CreateDeletionResponseStruct = type({
+  deletionId: string(),
+  ukycCapabilityToken: EncryptionSchemaStruct,
+});
+export type CreateDeletionResponse = Infer<typeof CreateDeletionResponseStruct>;
+
 const ApplicantAccessTokenResponseStruct = type({
   status: string(),
   applicantAccessToken: string(),
@@ -227,7 +239,19 @@ const SessionStatusResponseStruct = type({
   consentStatus: optional(string()),
   idOSStatus: optional(string()),
   capabilityAuthorizationStatus: optional(string()),
+  currentStep: optional(string()),
 });
+
+// A single data-sharing record from the idOS relay. `vendor` is validated as a
+// plain string — like `SessionStatusResponseStruct.vendor` — because the relay
+// serves vendors this package does not model (e.g. `kalshi`, `kraken`), and one
+// of those must not invalidate the whole list.
+const DataShareStruct = type({
+  kycSessionId: string(),
+  vendor: string(),
+  sharedAt: string(),
+});
+const DataSharesResponseStruct = type({ shares: array(DataShareStruct) });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
 // failing validation while still requiring the fields the controller needs.
@@ -341,6 +365,12 @@ export type CreateUkycSessionParams = {
    * token.
    */
   aal2Token: string;
+  /**
+   * Partner identity token minted by
+   * `AuthenticationController:getPartnerIdentityToken` for the session's
+   * vendor audience. Omitted from the request body when not provided.
+   */
+  partnerIdentityToken?: string;
 };
 
 /**
@@ -360,8 +390,46 @@ export type SetAuthorizationsParams = {
   wrappedUkycCapabilityToken: CapabilityAuthorization;
 };
 
+export type CreateDeletionParams = {
+  /**
+   * The client's per-request X25519 public key (unpadded base64url). Generated
+   * with the matching private key used to wrap the `delete`-scoped
+   * `ukyc_capability_token`, so the deletion server can open that box.
+   */
+  sessionClientPublicKey: string;
+  /**
+   * AAL2 authentication token sent as the `Authorization` bearer value.
+   * `POST /deletions` rejects a canonical JWT whose `ext.aal` is below 2.
+   */
+  aal2Token: string;
+};
+
+export type CompleteDeletionParams = {
+  /**
+   * Deletion id returned by {@link KycService.createDeletion}. Relay uses it
+   * to find the server-side private key for this request.
+   */
+  deletionId: string;
+  /** `delete`-scoped uKYC capability token, sealed with `wrapEncryptionKey`. */
+  wrappedUkycCapabilityToken: CapabilityAuthorization;
+  /**
+   * AAL2 authentication token sent as the `Authorization` bearer value.
+   * `DELETE /deletions/{deletionId}` rejects a canonical JWT whose `ext.aal`
+   * is below 2.
+   */
+  aal2Token: string;
+};
+
 export type GetSessionStatusParams = {
   sessionId: string;
+};
+
+export type GetDataSharesParams = {
+  /**
+   * The vendor-agnostic external user id, from
+   * {@link KycSessionStatus.externalUserId}.
+   */
+  externalUserId: string;
 };
 
 export type ResetWrappingKeysParams = {
@@ -375,14 +443,19 @@ export type ResetWrappingKeysParams = {
   sessionClientPublicKey: string;
 };
 
+// Successful well-known JWKS responses stay fresh for one day. Issuer keys
+// rotate infrequently, and session creation verifies against them more than once.
+const JWKS_CACHE_TTL_MS = inMilliseconds(1, Duration.Day);
+
 // === SERVICE DEFINITION ===
 
 /**
  * `KycService` communicates with the Universal KYC (UKYC) backend to drive the
- * identity + document-verification flow. It is stateless and platform-agnostic:
- * HTTP is performed through the runtime's native `fetch` (or an injected
- * `fetch` when provided), and the auth bearer token and geolocation come from
- * other controllers via the messenger.
+ * identity + document-verification flow. It does not persist session state and
+ * is platform-agnostic: HTTP is performed through the runtime's native `fetch`
+ * (or an injected `fetch` when provided), and the auth bearer token and
+ * geolocation come from other controllers via the messenger. Successful
+ * well-known JWKS responses are kept in the service query cache for 24 hours.
  *
  * HTTP endpoints call `#requestJson` (via the injected or native `fetch`).
  */
@@ -685,6 +758,12 @@ export class KycService extends BaseDataService<
   /**
    * Fetches a well-known JWKS from `baseUrl`.
    *
+   * A successful response stays fresh in the service query cache for 24 hours.
+   * A later call for the same URL within that window returns the cached keys.
+   * Failed and malformed responses are not cached. Concurrent callers for the
+   * same URL share one in-flight request. `KycService:invalidateQueries` drops
+   * the cached keys.
+   *
    * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
    * @param responseLabel - Label used in malformed-response errors.
    * @param missingConfigMessage - Error thrown when `baseUrl` is empty.
@@ -699,12 +778,22 @@ export class KycService extends BaseDataService<
       throw new Error(missingConfigMessage);
     }
     const url = new URL(UKYC_JWKS_PATH, baseUrl);
-    const data = await this.#requestJson(
-      url,
-      { method: 'GET' },
-      { authenticated: false },
-    );
-    return this.#validateResponse(data, JwksResponseStruct, responseLabel);
+    return this.fetchQuery({
+      queryKey: [`${serviceName}:fetchWellKnownJwks`, url.toString()],
+      queryFn: async () => {
+        const data = await this.#requestJson(
+          url,
+          { method: 'GET' },
+          { authenticated: false },
+        );
+        return this.#validateResponse(data, JwksResponseStruct, responseLabel);
+      },
+      staleTime: JWKS_CACHE_TTL_MS,
+      // fetchQuery does not subscribe an observer, so the entry is inactive
+      // immediately. Without gcTime the default 5-minute GC would drop it
+      // while it is still fresh.
+      gcTime: JWKS_CACHE_TTL_MS,
+    });
   }
 
   /**
@@ -713,7 +802,8 @@ export class KycService extends BaseDataService<
    * {@link KycService.createUkycSession}.
    *
    * This is an unauthenticated request to a well-known path on the idOS enclave
-   * host, distinct from the UKYC base URL.
+   * host, distinct from the UKYC base URL. A successful response is cached in
+   * the service query cache for 24 hours.
    *
    * @returns The JWKS keys.
    */
@@ -730,7 +820,8 @@ export class KycService extends BaseDataService<
    * schema's `jwtChain` from {@link KycService.createUkycSession}.
    *
    * This is an unauthenticated request to a well-known path on the idOS relay
-   * host, distinct from both the UKYC base URL and the idOS enclave.
+   * host, distinct from both the UKYC base URL and the idOS enclave. A
+   * successful response is cached in the service query cache for 24 hours.
    *
    * @returns The JWKS keys.
    */
@@ -759,6 +850,8 @@ export class KycService extends BaseDataService<
    * @param params - The session parameters.
    * @param params.aal2Token - AAL2 authentication token used as the
    * Authorization bearer value.
+   * @param params.partnerIdentityToken - Optional partner identity token for
+   * the session's vendor audience, sent as `partnerIdentityToken`.
    * @returns The UKYC session id and encryption schemas.
    */
   async createUkycSession(
@@ -781,6 +874,9 @@ export class KycService extends BaseDataService<
           sessionClientPublicKey: params.sessionClientPublicKey,
           residenceCountry: params.residenceCountry,
           vendorMetadata: params.vendorMetadata ?? {},
+          ...(params.partnerIdentityToken && {
+            partnerIdentityToken: params.partnerIdentityToken,
+          }),
         }),
       },
       { bearerToken: params.aal2Token },
@@ -851,10 +947,89 @@ export class KycService extends BaseDataService<
         wrappedUkycCapabilityToken: params.wrappedUkycCapabilityToken,
       }),
     });
+    return this.#validateAndPatchSessionStatus(data, 'authorizations');
+  }
+
+  /**
+   * Prepares deletion of the caller's encrypted KYC blobs
+   * (`POST /deletions`).
+   *
+   * The client registers a fresh X25519 public key. The response carries the
+   * deletion id and the `ukycCapabilityToken` encryption schema used to wrap
+   * a `delete`-scoped capability token and submit it via
+   * {@link KycService.completeDeletion}.
+   *
+   * Authenticated with `params.aal2Token` as the `Authorization` bearer
+   * value. The KYC API requires `ext.aal` of at least 2.
+   *
+   * @param params - The deletion parameters.
+   * @param params.sessionClientPublicKey - Per-request X25519 public key
+   * (unpadded base64url).
+   * @param params.aal2Token - AAL2 authentication token used as the
+   * Authorization bearer value.
+   * @returns The deletion id and the capability-token encryption schema.
+   */
+  async createDeletion(
+    params: CreateDeletionParams,
+  ): Promise<CreateDeletionResponse> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycService.createDeletion: aal2Token is required to authenticate deletion preparation.',
+      );
+    }
+
+    const url = new URL('/deletions', this.#baseUrl);
+    const data = await this.#requestJson(
+      url,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionClientPublicKey: params.sessionClientPublicKey,
+        }),
+      },
+      { bearerToken: params.aal2Token },
+    );
     return this.#validateResponse(
       data,
-      SessionStatusResponseStruct,
-      'authorizations',
+      CreateDeletionResponseStruct,
+      'deletions',
+    );
+  }
+
+  /**
+   * Completes a prepared deletion (`DELETE /deletions/{deletionId}`) by
+   * forwarding the wrapped `delete`-scoped uKYC capability token. Relay
+   * redacts the encrypted blobs for the user named by that token.
+   *
+   * Authenticated with `params.aal2Token` as the `Authorization` bearer
+   * value. The KYC API requires `ext.aal` of at least 2.
+   *
+   * @param params - The wrapped deletion.
+   * @param params.deletionId - Deletion id from {@link KycService.createDeletion}.
+   * @param params.wrappedUkycCapabilityToken - Sealed `delete`-scoped token.
+   * @param params.aal2Token - AAL2 authentication token used as the
+   * Authorization bearer value.
+   */
+  async completeDeletion(params: CompleteDeletionParams): Promise<void> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycService.completeDeletion: aal2Token is required to authenticate deletion.',
+      );
+    }
+
+    const url = new URL(
+      `/deletions/${encodeURIComponent(params.deletionId)}`,
+      this.#baseUrl,
+    );
+    await this.#requestJson(
+      url,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({
+          wrappedUkycCapabilityToken: params.wrappedUkycCapabilityToken,
+        }),
+      },
+      { bearerToken: params.aal2Token },
     );
   }
 
@@ -896,11 +1071,7 @@ export class KycService extends BaseDataService<
       this.#baseUrl,
     );
     const data = await this.#requestJson(url, { method: 'GET' });
-    return this.#validateResponse(
-      data,
-      SessionStatusResponseStruct,
-      'session status',
-    );
+    return this.#validateAndPatchSessionStatus(data, 'session status');
   }
 
   /**
@@ -922,17 +1093,64 @@ export class KycService extends BaseDataService<
       if (data === null) {
         return null;
       }
-      return this.#validateResponse(
-        data,
-        SessionStatusResponseStruct,
-        'latest session status',
-      );
+      return this.#validateAndPatchSessionStatus(data, 'latest session status');
     } catch (error) {
       if (error instanceof HttpError && error.httpStatus === 404) {
         return null;
       }
       throw error;
     }
+  }
+
+  /**
+   * Fetches the vendors the customer's verified identity data has been shared
+   * with (`GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS
+   * relay), newest first.
+   *
+   * Reads metadata only, so shares remain listed after the relay redacts the
+   * underlying session (14 days).
+   *
+   * @param params - The parameters.
+   * @param params.externalUserId - The vendor-agnostic external user id.
+   * @returns The data shares, newest first.
+   */
+  async getDataShares({
+    externalUserId,
+  }: GetDataSharesParams): Promise<KycDataShare[]> {
+    if (!this.#idosRelayBaseUrl) {
+      throw new Error(
+        'KycService: idosRelayBaseUrl is not configured; cannot fetch data shares.',
+      );
+    }
+    const url = new URL(
+      `/api/kyc/external-user-id/${encodeURIComponent(externalUserId)}/shares`,
+      this.#idosRelayBaseUrl,
+    );
+    const data = await this.#requestJson(url, { method: 'GET' });
+    const { shares } = this.#validateResponse(
+      data,
+      DataSharesResponseStruct,
+      'data shares',
+    );
+    return shares;
+  }
+
+  /**
+   * Validates a kyc-api session-status body and applies
+   * {@link patchKycSessionStatus} so `finalStatus` stays as reported unless
+   * the session is `pending` at the `kyc` step.
+   *
+   * @param data - The parsed response body.
+   * @param apiName - A human-readable name of the API, used in the error message.
+   * @returns The session status consumers should store and act on.
+   */
+  #validateAndPatchSessionStatus(
+    data: unknown,
+    apiName: string,
+  ): KycSessionStatus {
+    return patchKycSessionStatus(
+      this.#validateResponse(data, SessionStatusResponseStruct, apiName),
+    );
   }
 
   /**

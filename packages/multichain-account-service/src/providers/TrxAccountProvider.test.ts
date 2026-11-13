@@ -5,8 +5,9 @@ import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { TraceName } from '../analytics/traces.js';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -16,8 +17,9 @@ import {
   MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
   toGroupIndexRangeArray,
-} from '../tests/index.js';
-import type { RootMessenger, DeepPartial } from '../tests/index.js';
+} from '../../tests/index.js';
+import type { RootMessenger, DeepPartial } from '../../tests/index.js';
+import { TraceName } from '../analytics/traces.js';
 import { AccountProviderWrapper } from './AccountProviderWrapper.js';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
@@ -62,7 +64,7 @@ class MockTronKeyring {
     this.accounts = accounts;
   }
 
-  createAccounts = jest.fn().mockImplementation((options) => {
+  createAccounts = vi.fn().mockImplementation((options) => {
     const groupIndices =
       options.type === 'bip44:derive-index'
         ? [options.groupIndex]
@@ -90,9 +92,9 @@ class MockTronKeyring {
   });
 
   // Add discoverAccounts method to match the provider's usage
-  discoverAccounts = jest.fn().mockResolvedValue([]);
+  discoverAccounts = vi.fn().mockResolvedValue([]);
 
-  deleteAccount = jest.fn().mockResolvedValue(undefined);
+  deleteAccount = vi.fn().mockResolvedValue(undefined);
 }
 
 class MockTrxAccountProvider extends TrxAccountProvider {
@@ -126,12 +128,12 @@ function setup({
   messenger: RootMessenger;
   keyring: MockTronKeyring;
   mocks: {
-    handleRequest: jest.Mock;
+    handleRequest: Mock;
     keyring: {
-      createAccounts: jest.Mock;
-      discoverAccounts: jest.Mock;
+      createAccounts: Mock;
+      discoverAccounts: Mock;
     };
-    trace: jest.Mock;
+    trace: Mock;
   };
 } {
   const keyring = new MockTronKeyring(accounts);
@@ -156,7 +158,7 @@ function setup({
     () => accounts,
   );
 
-  const mockGetAccount = jest.fn().mockImplementation((id) => {
+  const mockGetAccount = vi.fn().mockImplementation((id) => {
     return keyring.accounts.find((account) => account.id === id);
   });
   messenger.registerActionHandler(
@@ -164,7 +166,7 @@ function setup({
     mockGetAccount,
   );
 
-  const mockHandleRequest = jest.fn().mockImplementation((request) => {
+  const mockHandleRequest = vi.fn().mockImplementation((request) => {
     // Handle KeyringClient discoverAccounts calls
     if (request.request?.method === 'keyring_discoverAccounts') {
       // Return the keyring's discoverAccounts result directly
@@ -189,7 +191,7 @@ function setup({
       }),
   );
 
-  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+  const mockTrace = vi.fn().mockImplementation(async (_request, fn) => {
     return await fn();
   });
 

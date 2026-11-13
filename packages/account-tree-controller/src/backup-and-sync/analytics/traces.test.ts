@@ -1,4 +1,5 @@
 import type { TraceRequest } from '@metamask/controller-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TraceName, traceFallback } from './traces.js';
 
@@ -30,7 +31,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
 
     it('executes the provided function and return its result', async () => {
       const mockResult = 'test-result';
-      const mockFn = jest.fn().mockReturnValue(mockResult);
+      const mockFn = vi.fn().mockReturnValue(mockResult);
 
       const result = await traceFallback(mockTraceRequest, mockFn);
 
@@ -41,7 +42,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
 
     it('executes async function and return its result', async () => {
       const mockResult = { data: 'async-result' };
-      const mockAsyncFn = jest.fn().mockResolvedValue(mockResult);
+      const mockAsyncFn = vi.fn().mockResolvedValue(mockResult);
 
       const result = await traceFallback(mockTraceRequest, mockAsyncFn);
 
@@ -51,7 +52,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
 
     it('handles function that throws an error', async () => {
       const mockError = new Error('Test error');
-      const mockFn = jest.fn().mockImplementation(() => {
+      const mockFn = vi.fn().mockImplementation(() => {
         throw mockError;
       });
 
@@ -63,7 +64,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
 
     it('handles function that returns a rejected promise', async () => {
       const mockError = new Error('Async error');
-      const mockFn = jest.fn().mockRejectedValue(mockError);
+      const mockFn = vi.fn().mockRejectedValue(mockError);
 
       await expect(traceFallback(mockTraceRequest, mockFn)).rejects.toThrow(
         mockError,

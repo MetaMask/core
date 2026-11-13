@@ -1,4 +1,5 @@
 import { HttpError } from '@metamask/controller-utils';
+import { describe, it, expect } from 'vitest';
 
 import {
   MAX_RESPONSE_BODY_LENGTH,

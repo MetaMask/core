@@ -2,6 +2,7 @@ import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json } from '@metamask/utils';
 import util from 'util';
+import { vi } from 'vitest';
 
 import type { PollingBlockTrackerOptions } from '../src/index.js';
 import { PollingBlockTracker } from '../src/index.js';
@@ -95,9 +96,8 @@ function getFakeProvider({
   }
 
   const provider = new InternalProvider({ engine: new JsonRpcEngine() });
-  jest
-    .spyOn(provider, 'request')
-    .mockImplementation(async (eip1193Request): Promise<Json> => {
+  vi.spyOn(provider, 'request').mockImplementation(
+    async (eip1193Request): Promise<Json> => {
       const index = stubs.findIndex(
         (stub) => stub.methodName === eip1193Request.method,
       );
@@ -122,7 +122,8 @@ function getFakeProvider({
           'Current set of stubs:\n\n' +
           `${util.inspect(stubs, { depth: null })}\n\n`,
       );
-    });
+    },
+  );
   return provider;
 }
 

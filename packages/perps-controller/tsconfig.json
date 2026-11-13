@@ -2,8 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "types": ["jest"]
+    "moduleResolution": "Bundler"
   },
   "references": [
     {

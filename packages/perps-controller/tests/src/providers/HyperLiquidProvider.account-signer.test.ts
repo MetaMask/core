@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
+
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
@@ -28,19 +31,19 @@ import { keyringCalls } from '../../helpers/serviceMocks.js';
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
 // cancel errors against its error class.
-jest.mock('@nktkas/hyperliquid', () => ({
+vi.mock('@nktkas/hyperliquid', () => ({
   HyperliquidError: class MockHyperliquidError extends Error {},
 }));
 
 // The client and subscription services are mocked: they own the SDK's
 // REST/exchange/info clients and the WebSocket subscriptions. The wallet
 // service, the signing caches and the validation run for real.
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 
 describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
-  let loggerError: jest.SpyInstance;
-  let trackPerpsEvent: jest.SpyInstance;
+  let loggerError: MockInstance;
+  let trackPerpsEvent: MockInstance;
 
   beforeEach(() => {
     ({ loggerError, trackPerpsEvent } = setUpAccountSignerSuite());
@@ -134,7 +137,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
         abstraction: 'unifiedAccount',
         signer: { isReady: () => false },
         // Not approved yet, and the locked signer cannot approve it.
-        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+        info: { maxBuilderFee: vi.fn().mockResolvedValue(0) },
       });
 
     const result = await accountSignerProvider.updatePositionTPSL({
@@ -156,7 +159,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
       createAccountSignerProvider({
         abstraction: 'unifiedAccount',
         // Not approved yet.
-        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+        info: { maxBuilderFee: vi.fn().mockResolvedValue(0) },
       });
     // The signer reports ready, but rejects the approval as locked.
     accountSigner.signTypedData.mockImplementation(
@@ -191,7 +194,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
         abstraction: 'unifiedAccount',
         signer: { isReady: () => signerReady },
         // Not approved yet.
-        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+        info: { maxBuilderFee: vi.fn().mockResolvedValue(0) },
       });
     // The venue fails the approval for its own reason while the signer locks.
     exchangeClient.approveBuilderFee.mockImplementation(async () => {
@@ -221,7 +224,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
         abstraction: 'unifiedAccount',
         signer: { isReady: () => false },
         // Not approved yet.
-        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+        info: { maxBuilderFee: vi.fn().mockResolvedValue(0) },
       });
     // Another provider holds the approval and ends without caching one.
     const release = PerpsSigningCache.setInFlight(
@@ -230,15 +233,15 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
       MAIN_ADDRESS,
     );
     const isInFlight = PerpsSigningCache.isInFlight.bind(PerpsSigningCache);
-    jest
-      .spyOn(PerpsSigningCache, 'isInFlight')
-      .mockImplementation((operationType, network, userAddress) => {
+    vi.spyOn(PerpsSigningCache, 'isInFlight').mockImplementation(
+      function (operationType, network, userAddress) {
         const pending = isInFlight(operationType, network, userAddress);
         if (operationType === 'builderFee' && pending) {
           release();
         }
         return pending;
-      });
+      },
+    );
 
     let result;
     try {
@@ -267,7 +270,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
      * @returns The provider, the two endpoints and the lock switch.
      */
     function createLockingProvider(): AccountSignerFixture & {
-      withdraw3: jest.Mock;
+      withdraw3: Mock;
       lock: () => void;
     } {
       let signerReady = true;
@@ -279,7 +282,7 @@ describe('HyperLiquidProvider with accountSigner: main-account signing', () => {
         await fixture.sdkWallet().signTypedData(USER_SIGNED_PAYLOAD);
         return { status: 'ok' };
       };
-      const withdraw3 = jest.fn(signUserAction);
+      const withdraw3 = vi.fn(signUserAction);
       Object.assign(fixture.exchangeClient, { withdraw3 });
       fixture.exchangeClient.sendAsset.mockImplementation(signUserAction);
       return {

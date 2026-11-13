@@ -11,7 +11,6 @@
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
-const { PACKAGES_ON_JEST } = require('./test-runner-package-map.cjs');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
 const { basename, resolve } = require('path');
@@ -54,7 +53,6 @@ const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
-  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
   '@metamask/platform-api-docs',
 ];
@@ -66,12 +64,8 @@ const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
 
 /**
  * We don't check that test scripts are defined for these packages.
- *
- * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
- * prebuild fetch to its "test" script, as the native addon isn't built
- * during `yarn install` (Yarn runs with `enableScripts: false`).
  */
-const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
+const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = [];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -239,16 +233,24 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
         );
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs:fix',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
       }
 
       if (isChildWorkspace) {
+        // All non-root packages must have a "scripts.allow-scripts" script that
+        // calls the root package's "allow-scripts" script.
+        expectWorkspaceField(
+          workspace,
+          'scripts.allow-scripts',
+          `yarn workspace ${rootWorkspace.manifest.name} run allow-scripts`,
+        );
+
         // The list of files included in all non-root packages must only include
         // files generated during the build process.
         expectWorkspaceArrayField(workspace, 'files', 'dist/');
@@ -306,7 +308,7 @@ module.exports = defineConfig({
       }
 
       // All packages must specify a minimum Node.js version of 22.
-      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24');
+      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24 || ^26');
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
@@ -642,40 +644,27 @@ function expectCorrectWorkspaceExports(workspace) {
 
 /**
  * Expect that the workspace has "changelog:update" and "changelog:validate"
- * scripts, and that these package scripts call a common script by passing the
- * name of the package as the first argument.
+ * scripts, and that these package scripts call a common script. The update
+ * script is passed the name of the package as the first argument, whereas the
+ * validate script works out the package from the working directory.
  *
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectCorrectWorkspaceChangelogScripts(workspace) {
-  /**
-   * @type {Record<string, { expectedStartString: string, script: string, match: RegExpMatchArray | null }>}
-   */
-  const scripts = ['update', 'validate'].reduce((obj, variant) => {
-    const expectedStartString = `../../scripts/${variant}-changelog.sh ${workspace.manifest.name}`;
+  const expectedStartStrings = {
+    update: `../../scripts/update-changelog.sh ${workspace.manifest.name}`,
+    validate: '../../scripts/validate-changelog.sh',
+  };
+
+  for (const [variant, expectedStartString] of Object.entries(
+    expectedStartStrings,
+  )) {
     /** @type {string} */
     const script = workspace.manifest.scripts[`changelog:${variant}`] ?? '';
-    const match = script.match(new RegExp(`^${expectedStartString}(.*)$`, 'u'));
-    return { ...obj, [variant]: { expectedStartString, script, match } };
-  }, {});
 
-  if (
-    scripts.update.match &&
-    scripts.validate.match &&
-    scripts.update.match[1] !== scripts.validate.match[1]
-  ) {
-    workspace.error(
-      'Expected package\'s "changelog:validate" and "changelog:update" scripts to pass the same arguments to their underlying scripts',
-    );
-  }
-
-  for (const [
-    variant,
-    { expectedStartString, script, match },
-  ] of Object.entries(scripts)) {
     expectWorkspaceField(workspace, `scripts.changelog:${variant}`);
 
-    if (script !== '' && !match) {
+    if (script !== '' && !script.startsWith(expectedStartString)) {
       workspace.error(
         `Expected package's "changelog:${variant}" script to be or start with "${expectedStartString}", but it was "${script}".`,
       );
@@ -691,70 +680,12 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
  * the type tests, otherwise just the unit tests.
  *
  * It must also provide scripts that allow the tests to be run in silent mode,
- * clean mode, verbose mode, and watch mode.
+ * clean mode, verbose mode, and watch mode, and a coverage script that enforces
+ * coverage thresholds (coverage is off by default).
  *
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectTestScripts(workspace) {
-  // Delete this block, and PACKAGES_ON_JEST, once no package is on Jest.
-  if (PACKAGES_ON_JEST.has(workspace.ident)) {
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:watch',
-      'NODE_OPTIONS=--experimental-vm-modules jest --watch',
-    );
-
-    if (workspace.manifest.scripts['test:types'] === undefined) {
-      expectWorkspaceField(
-        workspace,
-        'scripts.test',
-        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:clean',
-        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:verbose',
-        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-      );
-    } else {
-      expectWorkspaceField(
-        workspace,
-        'scripts.test',
-        'yarn test:unit && yarn test:types',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:clean',
-        'yarn test:unit:clean && yarn test:types',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:verbose',
-        'yarn test:unit:verbose && yarn test:types',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:unit',
-        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:unit:clean',
-        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:unit:verbose',
-        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-      );
-    }
-    return;
-  }
-
   expectWorkspaceField(workspace, 'scripts.test:watch', 'vitest --watch');
 
   if (workspace.manifest.scripts['test:types'] === undefined) {
@@ -768,6 +699,11 @@ function expectTestScripts(workspace) {
       workspace,
       'scripts.test:verbose',
       'vitest --reporter=verbose',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:coverage',
+      'vitest --coverage',
     );
   } else {
     expectWorkspaceField(
@@ -795,6 +731,16 @@ function expectTestScripts(workspace) {
       workspace,
       'scripts.test:unit:verbose',
       'vitest --reporter=verbose',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:coverage',
+      'yarn test:unit:coverage && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:coverage',
+      'vitest --coverage',
     );
   }
 }

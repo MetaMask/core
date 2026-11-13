@@ -1,4 +1,5 @@
 import { JsonRpcRequest } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { makeRequest } from '../tests/utils.js';
 import { createOriginMiddleware } from './createOriginMiddleware.js';

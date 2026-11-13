@@ -8,6 +8,7 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createRequest } from '../test/util/helpers.js';
 import { createFetchMiddleware } from './fetch.js';
@@ -23,7 +24,7 @@ describe('createFetchMiddleware', () => {
     'calls the RPC service with the correct request headers and body with originHttpHeaderKey="%s" and origin="%s"',
     async (originHttpHeaderKey, origin) => {
       const rpcService = createRpcService();
-      const requestSpy = jest.spyOn(rpcService, 'request');
+      const requestSpy = vi.spyOn(rpcService, 'request');
 
       const engine = JsonRpcEngineV2.create({
         middleware: [
@@ -69,7 +70,7 @@ describe('createFetchMiddleware', () => {
   describe('if the response from the service does not contain an `error` field', () => {
     it('returns a successful JSON-RPC response containing the value of the `result` field', async () => {
       const rpcService = createRpcService();
-      jest.spyOn(rpcService, 'request').mockResolvedValue({
+      vi.spyOn(rpcService, 'request').mockResolvedValue({
         id: 1,
         jsonrpc: '2.0',
         result: 'the result',
@@ -96,7 +97,7 @@ describe('createFetchMiddleware', () => {
   describe('if the response from the service contains an `error` field with a standard JSON-RPC error object', () => {
     it('returns an unsuccessful JSON-RPC response containing the error, wrapped in an "internal" error', async () => {
       const rpcService = createRpcService();
-      jest.spyOn(rpcService, 'request').mockResolvedValue({
+      vi.spyOn(rpcService, 'request').mockResolvedValue({
         id: 1,
         jsonrpc: '2.0',
         error: {
@@ -126,7 +127,7 @@ describe('createFetchMiddleware', () => {
   describe('if the response from the service contains an `error` field with a non-standard JSON-RPC error object', () => {
     it('returns an unsuccessful JSON-RPC response containing the error, wrapped in an "internal" error', async () => {
       const rpcService = createRpcService();
-      jest.spyOn(rpcService, 'request').mockResolvedValue({
+      vi.spyOn(rpcService, 'request').mockResolvedValue({
         id: 1,
         jsonrpc: '2.0',
         error: {
@@ -164,7 +165,7 @@ describe('createFetchMiddleware', () => {
   describe('if the request throws', () => {
     it('returns an unsuccessful JSON-RPC response containing the error', async () => {
       const rpcService = createRpcService();
-      jest.spyOn(rpcService, 'request').mockRejectedValue(new Error('oops'));
+      vi.spyOn(rpcService, 'request').mockRejectedValue(new Error('oops'));
 
       const engine = JsonRpcEngineV2.create({
         middleware: [

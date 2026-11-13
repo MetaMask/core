@@ -1,4 +1,6 @@
 import * as hl from '@nktkas/hyperliquid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { HYPERLIQUID_TRANSPORT_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
@@ -18,9 +20,9 @@ type MockSocket = EventTarget & {
 
 type MockTransport = {
   options: Record<string, unknown>;
-  close: jest.Mock;
+  close: Mock;
   socket: MockSocket;
-  subscribe: jest.Mock;
+  subscribe: Mock;
 };
 /** Invokes the connection's listener with the raw snapshot (wrapped as `detail`). */
 type L2Emit = (data: unknown) => void;
@@ -34,16 +36,16 @@ type MockState = {
     /** The SDK's post-confirmation failure callback, if the caller passed one. */
     onError?: (error: Error) => void;
   }[];
-  unsubscribe: jest.Mock;
+  unsubscribe: Mock;
   resolveSubscribe: boolean;
   rejectSubscribe: boolean;
 };
 
-jest.mock('@nktkas/hyperliquid', () => {
+vi.mock('@nktkas/hyperliquid', () => {
   const state: MockState = {
     transports: [],
     listeners: [],
-    unsubscribe: jest.fn().mockResolvedValue(undefined),
+    unsubscribe: vi.fn().mockResolvedValue(undefined),
     resolveSubscribe: true,
     rejectSubscribe: false,
   };
@@ -74,11 +76,11 @@ jest.mock('@nktkas/hyperliquid', () => {
     // Mirror the SDK: closing aborts the termination signal (as
     // `TERMINATED_BY_USER` if not already aborted) and dispatches a final
     // `close` event.
-    close = jest.fn(() => {
+    close = vi.fn(() => {
       this.socket.terminate('TERMINATED_BY_USER');
     });
 
-    subscribe = jest.fn(
+    subscribe = vi.fn(
       (
         channel: string,
         params: unknown,
@@ -249,7 +251,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    const callback = jest.fn();
+    const callback = vi.fn();
 
     connection.subscribe({
       symbol: 'BTC',
@@ -281,7 +283,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => true,
     });
-    connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: vi.fn() });
     expect(mockState.transports[0].options).toStrictEqual({
       isTestnet: true,
       ...HYPERLIQUID_TRANSPORT_CONFIG,
@@ -293,7 +295,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    const callback = jest.fn();
+    const callback = vi.fn();
     connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback });
 
     mockState.listeners[0].listener({
@@ -310,7 +312,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    const callback = jest.fn();
+    const callback = vi.fn();
     connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback });
 
     mockState.listeners[0].listener({
@@ -326,8 +328,8 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
-    connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
+    connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: vi.fn() });
 
     expect(mockState.transports).toHaveLength(1);
     expect(mockState.transports[0].subscribe).toHaveBeenCalledTimes(2);
@@ -337,10 +339,10 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
 
     expect(() =>
-      connection.subscribe({ symbol: 'BTC', nSigFigs: 5, callback: jest.fn() }),
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 5, callback: vi.fn() }),
     ).toThrow(
       'AggregatedOrderBookConnection: "BTC" is already subscribed with different params',
     );
@@ -352,10 +354,10 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
 
     expect(() =>
-      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() }),
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() }),
     ).not.toThrow();
     expect(mockState.transports).toHaveLength(1);
     expect(mockState.transports[0].subscribe).toHaveBeenCalledTimes(2);
@@ -369,7 +371,7 @@ describe('AggregatedOrderBookConnection', () => {
       symbol: 'BTC',
       nSigFigs: 2,
       levels: 5,
-      callback: jest.fn(),
+      callback: vi.fn(),
     });
 
     expect(() =>
@@ -377,7 +379,7 @@ describe('AggregatedOrderBookConnection', () => {
         symbol: 'BTC',
         nSigFigs: 2,
         levels: 20,
-        callback: jest.fn(),
+        callback: vi.fn(),
       }),
     ).not.toThrow();
   });
@@ -389,12 +391,12 @@ describe('AggregatedOrderBookConnection', () => {
     const unsub = connection.subscribe({
       symbol: 'BTC',
       nSigFigs: 2,
-      callback: jest.fn(),
+      callback: vi.fn(),
     });
     unsub();
 
     expect(() =>
-      connection.subscribe({ symbol: 'BTC', nSigFigs: 5, callback: jest.fn() }),
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 5, callback: vi.fn() }),
     ).not.toThrow();
   });
 
@@ -405,12 +407,12 @@ describe('AggregatedOrderBookConnection', () => {
     const unsubA = connection.subscribe({
       symbol: 'BTC',
       nSigFigs: 2,
-      callback: jest.fn(),
+      callback: vi.fn(),
     });
     const unsubB = connection.subscribe({
       symbol: 'ETH',
       nSigFigs: 2,
-      callback: jest.fn(),
+      callback: vi.fn(),
     });
     await flush();
 
@@ -430,11 +432,11 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => testnet,
     });
-    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
     expect(mockState.transports).toHaveLength(1);
 
     testnet = true;
-    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
     expect(mockState.transports).toHaveLength(2);
     expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
     expect(mockState.transports[1].options).toStrictEqual({
@@ -452,7 +454,7 @@ describe('AggregatedOrderBookConnection', () => {
     const unsubOld = connection.subscribe({
       symbol: 'BTC',
       nSigFigs: 2,
-      callback: jest.fn(),
+      callback: vi.fn(),
     });
 
     // Network flips, so the next subscribe recreates the transport.
@@ -460,7 +462,7 @@ describe('AggregatedOrderBookConnection', () => {
     const unsubNew = connection.subscribe({
       symbol: 'BTC',
       nSigFigs: 2,
-      callback: jest.fn(),
+      callback: vi.fn(),
     });
     expect(mockState.transports).toHaveLength(2);
     const [, newTransport] = mockState.transports;
@@ -478,7 +480,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    const callback = jest.fn();
+    const callback = vi.fn();
     const unsub = connection.subscribe({
       symbol: 'BTC',
       nSigFigs: 2,
@@ -501,7 +503,7 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
     });
-    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+    connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
     connection.close();
     expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
   });
@@ -511,11 +513,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
 
@@ -528,11 +530,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
       const { socket } = mockState.transports[0];
@@ -548,11 +550,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
 
@@ -566,11 +568,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
 
@@ -585,11 +587,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
 
@@ -608,11 +610,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
 
@@ -635,22 +637,22 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => testnet,
       });
-      const onStatusChangeOld = jest.fn();
+      const onStatusChangeOld = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange: onStatusChangeOld,
       });
 
       // Flip the network before the first subscribe settles: this recreates the
       // transport, so the first (still-pending) subscription is now stale.
       testnet = true;
-      const onStatusChangeNew = jest.fn();
+      const onStatusChangeNew = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange: onStatusChangeNew,
       });
       expect(mockState.transports).toHaveLength(2);
@@ -670,8 +672,8 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => testnet,
       });
-      const onStatusChangeOld = jest.fn();
-      const callbackOld = jest.fn();
+      const onStatusChangeOld = vi.fn();
+      const callbackOld = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
@@ -684,7 +686,7 @@ describe('AggregatedOrderBookConnection', () => {
       // Flip the network and subscribe again: this rebuilds the transport,
       // orphaning the first subscription that was live on the old socket.
       testnet = true;
-      connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
+      connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: vi.fn() });
 
       // The orphaned subscription is notified with `error` and its SDK
       // subscription is cleaned up rather than left dangling on the dead socket.
@@ -706,7 +708,7 @@ describe('AggregatedOrderBookConnection', () => {
         isTestnet: (): boolean => false,
       });
       let reentered = false;
-      const onStatusChange = jest.fn((status: string) => {
+      const onStatusChange = vi.fn((status: string) => {
         // Re-subscribe synchronously from within the terminal `error`
         // notification emitted while the transport is being torn down.
         if (status === 'error' && !reentered) {
@@ -714,14 +716,14 @@ describe('AggregatedOrderBookConnection', () => {
           connection.subscribe({
             symbol: 'ETH',
             nSigFigs: 2,
-            callback: jest.fn(),
+            callback: vi.fn(),
           });
         }
       });
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
       const [firstTransport] = mockState.transports;
@@ -743,11 +745,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
 
@@ -758,12 +760,12 @@ describe('AggregatedOrderBookConnection', () => {
       // Resubscribe rebuilds the transport. Closing the exhausted socket
       // dispatches a final `close`; that must not re-flag the connection as
       // terminated after it was cleared.
-      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
       expect(mockState.transports).toHaveLength(2);
 
       // A further subscribe on the same network must REUSE the healthy new
       // transport rather than tearing it down as if it were dead.
-      connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: jest.fn() });
+      connection.subscribe({ symbol: 'ETH', nSigFigs: 2, callback: vi.fn() });
       expect(mockState.transports).toHaveLength(2);
     });
 
@@ -772,11 +774,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
 
@@ -792,7 +794,7 @@ describe('AggregatedOrderBookConnection', () => {
       const unsub = connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
 
       await flush();
@@ -809,11 +811,11 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const onStatusChange = jest.fn();
+      const onStatusChange = vi.fn();
       const unsub = connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
         onStatusChange,
       });
       const { socket } = mockState.transports[0];
@@ -831,13 +833,13 @@ describe('AggregatedOrderBookConnection', () => {
       const unsub = connection.subscribe({
         symbol: 'BTC',
         nSigFigs: 2,
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       mockState.transports[0].socket.terminate();
 
       // Reconnect flow: tear the dead subscription down, then resubscribe.
       unsub();
-      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: jest.fn() });
+      connection.subscribe({ symbol: 'BTC', nSigFigs: 2, callback: vi.fn() });
 
       expect(mockState.transports).toHaveLength(2);
       expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);

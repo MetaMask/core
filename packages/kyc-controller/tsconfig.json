@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "types": ["jest"]
-  },
   "references": [
     {
       "path": "../authenticated-user-storage"
@@ -12,6 +9,9 @@
     },
     {
       "path": "../base-data-service"
+    },
+    {
+      "path": "../cryptography"
     },
     {
       "path": "../controller-utils"

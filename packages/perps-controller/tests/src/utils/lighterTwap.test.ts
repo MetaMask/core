@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { prepareLighterTwapOrder } from '../../../src/utils/lighterTwap.js';
 
 const intent = {

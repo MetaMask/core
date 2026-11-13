@@ -3,6 +3,8 @@ import {
   ConfigRegistryApiService,
 } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -20,8 +22,8 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
   return new Messenger({ namespace: 'Root' });
 }
 
-function makeFetchMock(response = MOCK_API_RESPONSE): jest.Mock {
-  return jest
+function makeFetchMock(response = MOCK_API_RESPONSE): Mock {
+  return vi
     .fn()
     .mockResolvedValue(
       new globalThis.Response(JSON.stringify(response), { status: 200 }),

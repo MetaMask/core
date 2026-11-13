@@ -12,13 +12,16 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
+      "path": "../core-backend/tsconfig.build.json"
+    },
+    {
       "path": "../keyring-controller/tsconfig.build.json"
     },
     {
-      "path": "../polling-controller/tsconfig.build.json"
+      "path": "../messenger/tsconfig.build.json"
     },
     {
-      "path": "../messenger/tsconfig.build.json"
+      "path": "../polling-controller/tsconfig.build.json"
     },
     {
       "path": "../utils/tsconfig.build.json"

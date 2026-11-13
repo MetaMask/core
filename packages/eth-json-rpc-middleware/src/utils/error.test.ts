@@ -1,4 +1,5 @@
 import { errorCodes } from '@metamask/rpc-errors';
+import { describe, expect, it } from 'vitest';
 
 import { isExecutionRevertedError } from './error.js';
 

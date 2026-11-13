@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { pickPaymentMethod } from './paymentMethodMerge.js';
 import type { PaymentMethod } from './RampsService.js';
 

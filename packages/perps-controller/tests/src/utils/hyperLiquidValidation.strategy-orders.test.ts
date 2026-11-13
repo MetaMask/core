@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
 import {
   CHASE_ORDER_CONFIG,

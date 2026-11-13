@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ProofOfOwnershipService } from './index.js';
 import type { ProofOfOwnershipServiceMessenger } from './index.js';
@@ -80,8 +81,8 @@ describe('ProofOfOwnershipService', () => {
 
   describe('eip155 dispatch', () => {
     it('routes EVM accounts through KeyringController:signPersonalMessage with the canonical message', async () => {
-      const signPersonalMessage = jest
-        .fn<Promise<string>, [{ data: string; from: string }]>()
+      const signPersonalMessage = vi
+        .fn<(args: { data: string; from: string }) => Promise<string>>()
         .mockResolvedValue('0xevmsignature');
       const { rootMessenger } = getService({ signPersonalMessage });
 
@@ -110,8 +111,8 @@ describe('ProofOfOwnershipService', () => {
     });
 
     it('surfaces errors thrown by the keyring without wrapping them', async () => {
-      const signPersonalMessage = jest
-        .fn<Promise<string>, [{ data: string; from: string }]>()
+      const signPersonalMessage = vi
+        .fn<(args: { data: string; from: string }) => Promise<string>>()
         .mockRejectedValue(new Error('keyring locked'));
       const { rootMessenger } = getService({ signPersonalMessage });
 
@@ -144,8 +145,8 @@ describe('ProofOfOwnershipService', () => {
     ])(
       'routes $namespace accounts through SnapController:handleRequest with the canonical message',
       async ({ address, scope }) => {
-        const snapHandle = jest
-          .fn<Promise<unknown>, [unknown]>()
+        const snapHandle = vi
+          .fn<(args: unknown) => Promise<unknown>>()
           .mockResolvedValue({ signature: '0xsnapsig' });
         const { rootMessenger } = getService({
           snapHandle,
@@ -215,8 +216,8 @@ describe('ProofOfOwnershipService', () => {
     });
 
     it('throws when the snap returns a malformed response (missing signature)', async () => {
-      const snapHandle = jest
-        .fn<Promise<unknown>, [unknown]>()
+      const snapHandle = vi
+        .fn<(args: unknown) => Promise<unknown>>()
         .mockResolvedValue({ notSignature: true });
       const { rootMessenger } = getService({ snapHandle });
       const account = createMockAccount({
@@ -235,8 +236,8 @@ describe('ProofOfOwnershipService', () => {
     });
 
     it('throws when the snap returns a non-string signature', async () => {
-      const snapHandle = jest
-        .fn<Promise<unknown>, [unknown]>()
+      const snapHandle = vi
+        .fn<(args: unknown) => Promise<unknown>>()
         .mockResolvedValue({ signature: 12345 });
       const { rootMessenger } = getService({ snapHandle });
       const account = createMockAccount({
@@ -253,8 +254,8 @@ describe('ProofOfOwnershipService', () => {
     });
 
     it('tolerates additional fields in the snap response (forward-compatible schema)', async () => {
-      const snapHandle = jest
-        .fn<Promise<unknown>, [unknown]>()
+      const snapHandle = vi
+        .fn<(args: unknown) => Promise<unknown>>()
         .mockResolvedValue({
           signature: '0xsnapsig',
           publicKey: '0xpub',
@@ -275,8 +276,8 @@ describe('ProofOfOwnershipService', () => {
     });
 
     it('surfaces errors thrown by the snap without wrapping them', async () => {
-      const snapHandle = jest
-        .fn<Promise<unknown>, [unknown]>()
+      const snapHandle = vi
+        .fn<(args: unknown) => Promise<unknown>>()
         .mockRejectedValue(new Error('snap unavailable'));
       const { rootMessenger } = getService({ snapHandle });
       const account = createMockAccount({
@@ -336,8 +337,8 @@ describe('ProofOfOwnershipService', () => {
     });
 
     it('dispatches based on the first scope when an account carries multiple scopes from the same namespace', async () => {
-      const signPersonalMessage = jest
-        .fn<Promise<string>, [{ data: string; from: string }]>()
+      const signPersonalMessage = vi
+        .fn<(args: { data: string; from: string }) => Promise<string>>()
         .mockResolvedValue('0xsig');
       const { rootMessenger } = getService({ signPersonalMessage });
 

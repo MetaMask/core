@@ -4,7 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { QuoteRequest } from '../../types.js';
-import { isSupportedAcrossPerpsDepositRequest } from './perps.js';
+import { isPerpsDepositRequest } from '../../utils/perps.js';
 import type { AcrossAction, AcrossActionArg } from './types.js';
 
 export const TOKEN_TRANSFER_SIGNATURE =
@@ -78,7 +78,7 @@ export function getAcrossDestination(
   transaction: TransactionMeta,
   request: QuoteRequest,
 ): AcrossDestination {
-  if (isSupportedAcrossPerpsDepositRequest(request, transaction.type)) {
+  if (isPerpsDepositRequest(request, transaction)) {
     return {
       actions: [],
       recipient: request.from,

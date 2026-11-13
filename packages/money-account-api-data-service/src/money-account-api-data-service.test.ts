@@ -1,3 +1,4 @@
+import type { TraceContext } from '@metamask/controller-utils';
 import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -5,7 +6,10 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import type { QueryClientConfig } from '@tanstack/query-core';
+import nock from 'nock';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants.js';
 import {
@@ -156,6 +160,125 @@ const MOCK_VAULT_RATE_RESPONSE = {
   indexer_lag_seconds: 4,
 };
 
+const MOCK_TX_HASH =
+  '0x8b6975a5d81b44bbe4487b5e5237e25be7ffc71e38d48146e8a501299fddc9f1';
+const MOCK_OTHER_TX_HASH =
+  '0x6c6975a5d81b44bbe4487b5e5237e25be7ffc71e38d48146e8a501299fddc9f2';
+
+const MOCK_VAULT_SHARE_VALUATIONS_RESPONSE = {
+  address: MOCK_ADDRESS,
+  chain_id: 143,
+  results: [
+    {
+      tx_hash: MOCK_TX_HASH,
+      found: true,
+      valuations: [
+        {
+          vault_address: MOCK_VAULT_ADDRESS,
+          vault_key: 'standard',
+          asset_symbol: 'mUSD',
+          asset_decimals: 6,
+          type: 'transfer_out' as const,
+          log_index: 156,
+          block_number: 108974623,
+          timestamp: '2026-09-29T07:17:22Z',
+          shares_wei: '951755696',
+          assets_wei: '968399999',
+          rate: '1.017488',
+          source: 'erc20_transfer' as const,
+        },
+      ],
+    },
+  ],
+  as_of_block: 121037906,
+  as_of_timestamp: '2026-11-10T12:34:56Z',
+  data_freshness: 'live' as const,
+  indexer_lag_seconds: 4,
+};
+
+const MOCK_SIWE_NONCE = 'a'.repeat(64);
+const MOCK_SIWE_OTHER_ADDRESS = '0x3333333333333333333333333333333333333333';
+const MOCK_SIWE_ISSUED_AT = Date.parse('2026-10-22T12:00:00.000Z');
+const MOCK_SIWE_DOMAIN = new URL(MONEY_ACCOUNT_API_URL_MAP[Env.DEV]).host;
+const MOCK_SIWE_CHALLENGE_TTL_MS = 300_000;
+
+// Hand-written copy of the Money Account API's SIWE template.
+//
+// Deliberately independent of the production builder so these tests catch a
+// divergence in the service's validation.
+function createMockSiweMessage({
+  address = MOCK_ADDRESS,
+  nonce = MOCK_SIWE_NONCE,
+  domain = MOCK_SIWE_DOMAIN,
+  uri = `https://${MOCK_SIWE_DOMAIN}`,
+  statement = 'Sign in to view your VBA transfers.',
+  version = '1',
+  chainId = '143',
+  issuedAt = Date.now(),
+  expirationTime = issuedAt + MOCK_SIWE_CHALLENGE_TTL_MS,
+  extraLines = [],
+}: {
+  address?: string;
+  nonce?: string;
+  domain?: string;
+  uri?: string;
+  statement?: string;
+  version?: string;
+  chainId?: string;
+  issuedAt?: number;
+  expirationTime?: number;
+  extraLines?: string[];
+} = {}): string {
+  return [
+    `${domain} wants you to sign in with your Ethereum account:`,
+    address,
+    '',
+    statement,
+    '',
+    `URI: ${uri}`,
+    `Version: ${version}`,
+    `Chain ID: ${chainId}`,
+    `Nonce: ${nonce}`,
+    `Issued At: ${new Date(issuedAt).toISOString()}`,
+    `Expiration Time: ${new Date(expirationTime).toISOString()}`,
+    ...extraLines,
+  ].join('\n');
+}
+
+function createMockSiweChallenge(
+  overrides: Parameters<typeof createMockSiweMessage>[0] = {},
+): { nonce: string; message: string } {
+  return {
+    nonce: overrides.nonce ?? MOCK_SIWE_NONCE,
+    message: createMockSiweMessage(overrides),
+  };
+}
+
+const MOCK_SIWE_SESSION = {
+  token_type: 'bearer' as const,
+  access_token: 'siwe-session-token',
+  expires_in: 900,
+};
+const MOCK_VBA_TRANSFERS_RESPONSE = {
+  transfers: [
+    {
+      event_id: 'f22ba628-4ab6-4a01-8d08-ff5de0ca2334',
+      transfer_id: 'e4f31eb4-da3a-4776-b70e-856a88492a17',
+      status: 'processing' as const,
+      event_timestamp: '2026-10-21T14:59:26.769Z',
+      updated_at: '2026-10-22T12:00:00.000Z',
+      transfer: {
+        sender_address: null,
+        recipient_address: MOCK_ADDRESS,
+        network: 'Ethereum',
+        amount: '1000.000000',
+        asset: 'USDC',
+        transaction_hash: null,
+      },
+    },
+  ],
+};
+
 // ============================================================
 // Messenger helpers
 // ============================================================
@@ -188,9 +311,16 @@ function createService(
   {
     trace,
     getBearerToken,
+    signPersonalMessage,
+    queryClientConfig,
   }: {
     trace?: MoneyAccountApiDataServiceTraceCallback;
     getBearerToken?: () => Promise<string>;
+    signPersonalMessage?: (messageParams: {
+      data: string;
+      from: string;
+    }) => Promise<string>;
+    queryClientConfig?: QueryClientConfig;
   } = {},
 ): {
   service: MoneyAccountApiDataService;
@@ -205,15 +335,25 @@ function createService(
       getBearerToken,
     );
   }
+  if (signPersonalMessage) {
+    rootMessenger.registerActionHandler(
+      'KeyringController:signPersonalMessage',
+      signPersonalMessage,
+    );
+  }
   rootMessenger.delegate({
     messenger,
-    actions: ['AuthenticationController:getBearerToken'],
+    actions: [
+      'AuthenticationController:getBearerToken',
+      'KeyringController:signPersonalMessage',
+    ],
     events: [],
   });
   const service = new MoneyAccountApiDataService({
     messenger,
     env,
     trace,
+    queryClientConfig,
   });
   return { service, rootMessenger, messenger };
 }
@@ -224,7 +364,7 @@ function createService(
 
 describe('MoneyAccountApiDataService', () => {
   afterEach(() => {
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {
@@ -245,7 +385,7 @@ describe('MoneyAccountApiDataService', () => {
 
   describe('authentication headers', () => {
     it('attaches the profile bearer token to every API request', async () => {
-      const getBearerToken = jest.fn().mockResolvedValue('jwt-token');
+      const getBearerToken = vi.fn().mockResolvedValue('jwt-token');
       const { service } = createService(Env.DEV, { getBearerToken });
       const requestHeaders = {
         reqheaders: { authorization: 'Bearer jwt-token' },
@@ -285,6 +425,13 @@ describe('MoneyAccountApiDataService', () => {
       )
         .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
         .reply(200, MOCK_VAULT_RATE_RESPONSE);
+      const vaultShareValuationsScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
 
       await service.fetchPositions(MOCK_ADDRESS);
       await service.fetchInterest(MOCK_ADDRESS, {
@@ -294,13 +441,17 @@ describe('MoneyAccountApiDataService', () => {
       await service.fetchHistory(MOCK_ADDRESS);
       await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
       await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
 
-      expect(getBearerToken).toHaveBeenCalledTimes(5);
+      expect(getBearerToken).toHaveBeenCalledTimes(6);
       positionsScope.done();
       interestScope.done();
       historyScope.done();
       rateHistoryScope.done();
       vaultRateScope.done();
+      vaultShareValuationsScope.done();
       service.destroy();
     });
 
@@ -990,7 +1141,7 @@ describe('MoneyAccountApiDataService', () => {
     });
 
     it('attaches the profile bearer token', async () => {
-      const getBearerToken = jest.fn().mockResolvedValue('jwt-token');
+      const getBearerToken = vi.fn().mockResolvedValue('jwt-token');
       const { service } = createService(Env.DEV, { getBearerToken });
       const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
         reqheaders: { authorization: 'Bearer jwt-token' },
@@ -1114,11 +1265,293 @@ describe('MoneyAccountApiDataService', () => {
     });
   });
 
+  describe('fetchVaultShareValuations', () => {
+    it('returns valuations, lowercases the address, and omits chain_id', async () => {
+      const { service } = createService(Env.DEV);
+      const mixedCaseAddress = '0xAbCd111111111111111111111111111111111111';
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(
+          `/v1/positions/${mixedCaseAddress.toLowerCase()}/vault-share-valuations`,
+        )
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      const result = await service.fetchVaultShareValuations(mixedCaseAddress, {
+        txHashes: [MOCK_TX_HASH],
+      });
+
+      expect(result).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      service.destroy();
+    });
+
+    it('sends chain_id when provided', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH, chain_id: '143' })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      const result = await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+        chainId: 143,
+      });
+
+      expect(result).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      service.destroy();
+    });
+
+    it('lowercases and de-duplicates tx hashes in first-seen order', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: `${MOCK_TX_HASH},${MOCK_OTHER_TX_HASH}` })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [
+          MOCK_TX_HASH,
+          MOCK_OTHER_TX_HASH.toUpperCase(),
+          MOCK_TX_HASH.toUpperCase(),
+        ],
+      });
+
+      expect(nock.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('rejects an empty batch before making a request', async () => {
+      const { service } = createService(Env.DEV);
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, { txHashes: [] }),
+      ).rejects.toThrow('At least one transaction hash is required');
+      service.destroy();
+    });
+
+    it('rejects more than 50 distinct tx hashes before making a request', async () => {
+      const { service } = createService(Env.DEV);
+      const txHashes = Array.from(
+        { length: 51 },
+        (_, index) => `0x${index.toString(16).padStart(64, '0')}`,
+      );
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, { txHashes }),
+      ).rejects.toThrow('At most 50 distinct transaction hashes are supported');
+      service.destroy();
+    });
+
+    it('caches a fully found batch for 24 hours', async () => {
+      const { service } = createService(Env.DEV);
+      const now = Date.parse('2026-11-11T12:00:00Z');
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .twice()
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      const options = { txHashes: [MOCK_TX_HASH] };
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      nowSpy.mockReturnValue(now + 23 * 60 * 60 * 1000);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(false);
+
+      nowSpy.mockReturnValue(now + 24 * 60 * 60 * 1000 + 1);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('keeps a complete batch cached past the default gc time', async () => {
+      vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
+
+      try {
+        const { service } = createService(Env.DEV, {
+          queryClientConfig: {
+            defaultOptions: { queries: { gcTime: 300_000 } },
+          },
+        });
+        const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+          .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+          .query({ tx_hashes: MOCK_TX_HASH })
+          .twice()
+          .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+        const options = { txHashes: [MOCK_TX_HASH] };
+
+        await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+        await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+        const cached = await service.fetchVaultShareValuations(
+          MOCK_ADDRESS,
+          options,
+        );
+
+        expect(cached).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+        expect(scope.isDone()).toBe(false);
+        service.destroy();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('refetches a partial batch after 30 seconds', async () => {
+      const { service } = createService(Env.DEV);
+      const now = Date.parse('2026-11-11T12:00:00Z');
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      const partialResponse = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        results: [
+          MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+          { tx_hash: MOCK_OTHER_TX_HASH, found: false, valuations: [] },
+        ],
+      };
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: `${MOCK_TX_HASH},${MOCK_OTHER_TX_HASH}` })
+        .twice()
+        .reply(200, partialResponse);
+      const options = { txHashes: [MOCK_TX_HASH, MOCK_OTHER_TX_HASH] };
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      nowSpy.mockReturnValue(now + 29_000);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(false);
+
+      nowSpy.mockReturnValue(now + 31_000);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('throws HttpError on a 404 response', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(404);
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, {
+          txHashes: [MOCK_TX_HASH],
+        }),
+      ).rejects.toThrow(HttpError);
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiResponseValidationError on a malformed response', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .once()
+        .reply(200, { not: 'valid' });
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, {
+          txHashes: [MOCK_TX_HASH],
+        }),
+      ).rejects.toThrow(MoneyAccountApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('accepts null unused fields and new type and source values', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithNulls = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        results: [
+          {
+            ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+            valuations: [
+              {
+                ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0]
+                  .valuations[0],
+                asset_symbol: null,
+                type: 'future_type',
+                log_index: null,
+                block_number: null,
+                timestamp: null,
+                shares_wei: null,
+                rate: null,
+                source: 'future_source',
+              },
+            ],
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, responseWithNulls);
+
+      const result = await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
+      expect(result).toStrictEqual(responseWithNulls);
+      service.destroy();
+    });
+
+    it('rejects a null required valuation field', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithNullRequiredField = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        results: [
+          {
+            ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+            valuations: [
+              {
+                ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0]
+                  .valuations[0],
+                assets_wei: null,
+              },
+            ],
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .once()
+        .reply(200, responseWithNullRequiredField);
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, {
+          txHashes: [MOCK_TX_HASH],
+        }),
+      ).rejects.toThrow(MoneyAccountApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { rootMessenger, service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH, chain_id: '143' })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'MoneyAccountApiDataService:fetchVaultShareValuations',
+        MOCK_ADDRESS,
+        { txHashes: [MOCK_TX_HASH], chainId: 143 },
+      );
+      expect(result).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      service.destroy();
+    });
+  });
+
   describe('tracing', () => {
-    let mockTrace: jest.Mock<MoneyAccountApiDataServiceTraceCallback>;
+    let mockTrace: Mock<MoneyAccountApiDataServiceTraceCallback>;
 
     beforeEach(() => {
-      mockTrace = jest.fn().mockResolvedValue(undefined);
+      mockTrace = vi.fn().mockResolvedValue(undefined);
     });
 
     it('emits a trace for fetchPositions on cache miss', async () => {
@@ -1247,6 +1680,38 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('emits a trace for fetchVaultShareValuations on cache miss', async () => {
+      const traceRequests: MoneyAccountApiDataServiceTraceRequest[] = [];
+      const trace: MoneyAccountApiDataServiceTraceCallback = async <Result>(
+        request: MoneyAccountApiDataServiceTraceRequest,
+        fn?: (context?: TraceContext) => Result,
+      ): Promise<Result> => {
+        traceRequests.push(request);
+        return await Promise.resolve(fn?.() as Result);
+      };
+      const { service } = createService(Env.DEV, { trace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
+
+      expect(traceRequests).toHaveLength(1);
+      const [request] = traceRequests;
+      expect(request?.name).toBe(TRACES.VAULT_SHARE_VALUATIONS_API);
+      expect(request?.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchVaultShareValuations',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
     it('does not emit a trace on cache hit', async () => {
       const { service } = createService(Env.DEV, { trace: mockTrace });
 
@@ -1290,7 +1755,7 @@ describe('MoneyAccountApiDataService', () => {
 
     it('traces non-Error rejections with the thrown value type', async () => {
       const { service } = createService(Env.DEV, { trace: mockTrace });
-      jest.spyOn(globalThis, 'fetch').mockRejectedValue('network down');
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue('network down');
 
       await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toBe(
         'network down',
@@ -1306,12 +1771,12 @@ describe('MoneyAccountApiDataService', () => {
           errorName: 'string',
         }),
       );
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
       service.destroy();
     });
 
     it('does not break the request when trace callback throws synchronously', async () => {
-      const throwingTrace = jest.fn().mockImplementation(() => {
+      const throwingTrace = vi.fn().mockImplementation(() => {
         throw new Error('trace sync failure');
       }) as unknown as MoneyAccountApiDataServiceTraceCallback;
 
@@ -1327,7 +1792,7 @@ describe('MoneyAccountApiDataService', () => {
     });
 
     it('does not break the request when trace callback rejects', async () => {
-      const rejectingTrace = jest
+      const rejectingTrace = vi
         .fn()
         .mockRejectedValue(
           new Error('trace async failure'),
@@ -1461,6 +1926,38 @@ describe('MoneyAccountApiDataService', () => {
       expect(result).toStrictEqual(responseWithExtras);
       service.destroy();
     });
+
+    it('accepts unknown fields on vault share valuations responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        future_valuations_field: 'ok',
+        results: [
+          {
+            ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+            future_result_field: 42,
+            valuations: [
+              {
+                ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0]
+                  .valuations[0],
+                future_valuation_field: true,
+              },
+            ],
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
   });
 
   describe('invalidateQueries', () => {
@@ -1486,6 +1983,593 @@ describe('MoneyAccountApiDataService', () => {
         'MoneyAccountApiDataService:invalidateQueries',
       );
       expect(result).toBeUndefined();
+      service.destroy();
+    });
+  });
+
+  describe('fetchVbaTransfers', () => {
+    beforeEach(() => {
+      vi.spyOn(Date, 'now').mockReturnValue(MOCK_SIWE_ISSUED_AT);
+    });
+
+    function mockSiweAuthentication(
+      address: string,
+      token: string,
+      signPersonalMessage: ReturnType<typeof vi.fn>,
+      issuedAt: number = Date.now(),
+    ): string {
+      const challenge = createMockSiweChallenge({ address, issuedAt });
+      const { message } = challenge;
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge', { address })
+        .reply(200, challenge);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/verify', {
+          message,
+          signature: '0xsignature',
+        })
+        .reply(200, { ...MOCK_SIWE_SESSION, access_token: token });
+      signPersonalMessage.mockResolvedValue('0xsignature');
+      return message;
+    }
+
+    // Registers a challenge that fails the client-side SIWE validation.
+    function mockInvalidSiweChallenge(
+      overrides: Parameters<typeof createMockSiweMessage>[0],
+    ): ReturnType<typeof nock> {
+      return nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge', { address: MOCK_ADDRESS })
+        .reply(200, createMockSiweChallenge(overrides));
+    }
+
+    it('authenticates with the exact SIWE challenge and returns current transfers', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const message = mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'token-1',
+        signPersonalMessage,
+      );
+      const transfersScope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer token-1' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, MOCK_VBA_TRANSFERS_RESPONSE);
+
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual(MOCK_VBA_TRANSFERS_RESPONSE);
+      expect(signPersonalMessage).toHaveBeenCalledWith({
+        data: message,
+        from: MOCK_ADDRESS,
+      });
+      transfersScope.done();
+      service.destroy();
+    });
+
+    const templateMismatchCases: [
+      string,
+      Parameters<typeof createMockSiweMessage>[0],
+    ][] = [
+      ['a wrong address', { address: MOCK_SIWE_OTHER_ADDRESS }],
+      ['a wrong domain', { domain: 'evil.example' }],
+      ['a wrong URI', { uri: 'https://evil.example' }],
+      ['a wrong statement', { statement: 'Sign in to move your money.' }],
+      ['a wrong chain ID', { chainId: '1' }],
+      ['a wrong version', { version: '2' }],
+    ];
+
+    it.each(templateMismatchCases)(
+      'rejects a challenge with %s before signing',
+      async (_label, overrides) => {
+        const signPersonalMessage = vi.fn();
+        const { service } = createService(Env.DEV, { signPersonalMessage });
+        const challengeScope = mockInvalidSiweChallenge(overrides);
+
+        await expect(
+          service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+        ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+        expect(signPersonalMessage).not.toHaveBeenCalled();
+        challengeScope.done();
+        expect(nock.pendingMocks()).toHaveLength(0);
+        service.destroy();
+      },
+    );
+
+    const malformedFieldCases: [
+      string,
+      Parameters<typeof createMockSiweMessage>[0],
+    ][] = [
+      ['an extra field', { extraLines: ['Resources: https://evil.example'] }],
+      [
+        'a shifted expiration time',
+        {
+          expirationTime:
+            MOCK_SIWE_ISSUED_AT + MOCK_SIWE_CHALLENGE_TTL_MS + 1000,
+        },
+      ],
+    ];
+
+    it.each(malformedFieldCases)(
+      'rejects a challenge with %s before signing',
+      async (_label, overrides) => {
+        const signPersonalMessage = vi.fn();
+        const { service } = createService(Env.DEV, { signPersonalMessage });
+        const challengeScope = mockInvalidSiweChallenge(overrides);
+
+        await expect(
+          service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+        ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+        expect(signPersonalMessage).not.toHaveBeenCalled();
+        challengeScope.done();
+        service.destroy();
+      },
+    );
+
+    it('rejects a challenge whose message nonce differs from the challenge nonce', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge', { address: MOCK_ADDRESS })
+        .reply(200, {
+          nonce: 'b'.repeat(64),
+          message: createMockSiweMessage(),
+        });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('rejects a challenge with a nonce that is not 64 lowercase hex characters', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        nonce: 'a'.repeat(63),
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('rejects an expired challenge before signing', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        issuedAt: MOCK_SIWE_ISSUED_AT - MOCK_SIWE_CHALLENGE_TTL_MS,
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('rejects a challenge issued beyond the clock-skew allowance', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        issuedAt: MOCK_SIWE_ISSUED_AT + 60_001,
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('accepts a challenge issued within the clock-skew allowance', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'skew-token',
+        signPersonalMessage,
+        MOCK_SIWE_ISSUED_AT + 60_000,
+      );
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer skew-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual({ transfers: [] });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      service.destroy();
+    });
+
+    it('does not retry an invalid challenge through the service policy', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        statement: 'Sign in to move your money.',
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      expect(nock.pendingMocks()).toHaveLength(0);
+      service.destroy();
+    });
+
+    it('does not retry a rejected SIWE signature through the service policy', async () => {
+      const signPersonalMessage = vi
+        .fn()
+        .mockRejectedValue(new Error('user rejected signature'));
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .reply(200, createMockSiweChallenge());
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toMatchObject({
+        name: 'SiweSigningError',
+        cause: new Error('user rejected signature'),
+      });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      service.destroy();
+    });
+
+    it('throws an HTTP error when the SIWE challenge request fails', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .reply(401, 'challenge unavailable');
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toMatchObject({ httpStatus: 401 });
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      service.destroy();
+    });
+
+    it('throws an HTTP error when SIWE verification fails', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .reply(200, createMockSiweChallenge());
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/verify')
+        .reply(401, 'invalid signature');
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toMatchObject({ httpStatus: 401 });
+      service.destroy();
+    });
+
+    it('returns an empty list when the wallet has no transfers', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'token-empty', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer token-empty' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual({ transfers: [] });
+      service.destroy();
+    });
+
+    it('reuses an unexpired session for the same wallet and lowercases its address', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const mixedCaseAddress = MOCK_ADDRESS.toUpperCase().replace('0X', '0x');
+      mockSiweAuthentication(MOCK_ADDRESS, 'token-1', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer token-1' },
+      })
+        .get('/v1/vba/transfers')
+        .twice()
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: mixedCaseAddress });
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      service.destroy();
+    });
+
+    it('renews an expired SIWE session', async () => {
+      let now = MOCK_SIWE_ISSUED_AT;
+      const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'first-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer first-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      now += MOCK_SIWE_SESSION.expires_in * 1000 + 1;
+
+      // The renewed challenge must be issued at the advanced clock, otherwise
+      // the service rejects it as expired before signing.
+      mockSiweAuthentication(MOCK_ADDRESS, 'second-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer second-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+
+      expect(signPersonalMessage).toHaveBeenCalledTimes(2);
+      expect(nock.pendingMocks()).toHaveLength(0);
+      dateNowSpy.mockRestore();
+      service.destroy();
+    });
+
+    it('keeps sessions scoped to each wallet', async () => {
+      const otherAddress = '0x2222222222222222222222222222222222222222';
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'token-a', signPersonalMessage);
+      mockSiweAuthentication(otherAddress, 'token-b', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer token-a' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer token-b' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      await service.fetchVbaTransfers({ address: otherAddress });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(2);
+      service.destroy();
+    });
+
+    it('shares an in-flight SIWE challenge and signature for the same wallet', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .delay(10)
+        .reply(200, createMockSiweChallenge());
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/verify')
+        .reply(200, MOCK_SIWE_SESSION);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer siwe-session-token' },
+      })
+        .get('/v1/vba/transfers')
+        .twice()
+        .reply(200, { transfers: [] });
+      signPersonalMessage.mockImplementation(async () => {
+        await Promise.resolve();
+        return '0xsignature';
+      });
+
+      const first = service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      const second = service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      await vi.waitFor(() => {
+        expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      });
+      const results = await Promise.all([first, second]);
+      expect(results).toHaveLength(2);
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      service.destroy();
+    });
+
+    it('settles the in-flight SIWE request before reusing the session', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const message = mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'first-token',
+        signPersonalMessage,
+      );
+      const transfersScope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer first-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      const result = await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+
+      expect(result).toStrictEqual({ transfers: [] });
+      expect(signPersonalMessage).toHaveBeenCalledWith({
+        data: message,
+        from: MOCK_ADDRESS,
+      });
+      transfersScope.done();
+      expect(nock.pendingMocks()).toHaveLength(0);
+      service.destroy();
+    });
+
+    it('uses the cached session when another call starts after authentication completes', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'cached-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer cached-token' },
+      })
+        .get('/v1/vba/transfers')
+        .thrice()
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      expect(nock.pendingMocks()).toHaveLength(0);
+      service.destroy();
+    });
+
+    it('re-authenticates once and retries the read after a 401', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'expired-token',
+        signPersonalMessage,
+      );
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'renewed-token',
+        signPersonalMessage,
+      );
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer expired-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(401);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer renewed-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual({ transfers: [] });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(2);
+      service.destroy();
+    });
+
+    it('does not retry when the renewed session is rejected', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'expired-token',
+        signPersonalMessage,
+      );
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'renewed-token',
+        signPersonalMessage,
+      );
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vba/transfers')
+        .reply(401);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vba/transfers')
+        .reply(401);
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toMatchObject({ httpStatus: 401 });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(2);
+      service.destroy();
+    });
+
+    it('rejects malformed challenge, session, and transfer responses', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .reply(200, { nonce: 'bad' });
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .reply(200, createMockSiweChallenge());
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/verify')
+        .reply(200, { token_type: 'basic' });
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'bad-response-token',
+        signPersonalMessage,
+      );
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer bad-response-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [{ status: 'invalid' }] });
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('reuses an unexpired in-flight SIWE session for concurrent reads', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'concurrent-token',
+        signPersonalMessage,
+      );
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer concurrent-token' },
+      })
+        .get('/v1/vba/transfers')
+        .twice()
+        .reply(200, { transfers: [] });
+
+      await Promise.all([
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ]);
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      service.destroy();
+    });
+
+    it('does not reuse cached transfer data across wallets', async () => {
+      const otherAddress = '0x2222222222222222222222222222222222222222';
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'token-a', signPersonalMessage);
+      mockSiweAuthentication(otherAddress, 'token-b', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer token-a' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, {
+          transfers: [
+            {
+              ...MOCK_VBA_TRANSFERS_RESPONSE.transfers[0],
+              transfer: {
+                ...MOCK_VBA_TRANSFERS_RESPONSE.transfers[0].transfer,
+                recipient_address: MOCK_ADDRESS,
+              },
+            },
+          ],
+        });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer token-b' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      const first = await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      const second = await service.fetchVbaTransfers({ address: otherAddress });
+      expect(first.transfers).toHaveLength(1);
+      expect(second.transfers).toHaveLength(0);
       service.destroy();
     });
   });

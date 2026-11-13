@@ -1,11 +1,17 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
+import { describe, expect, it } from 'vitest';
 
 import type { AssetsControllerState } from '../AssetsController.js';
 import type { AccountId } from '../types.js';
 import {
+  getAccountBackgroundLoadingStatus,
+  getAccountGroupBackgroundLoadingStatus,
   getAccountGroupLoadingStatus,
   getAccountLoadingStatus,
+  getIsAssetsBackgroundLoadingForSelectedAccountGroup,
   getIsAssetsLoadingForSelectedAccountGroup,
+  isAccountBackgroundLoading,
+  isAccountGroupBackgroundLoading,
   isAccountGroupLoading,
   isAccountLoading,
 } from './loading.js';
@@ -174,5 +180,114 @@ describe('getIsAssetsLoadingForSelectedAccountGroup', () => {
         createAccountTreeState(''),
       ),
     ).toBe(false);
+  });
+});
+
+describe('background loading selectors', () => {
+  const createBackgroundState = (
+    assetsBackgroundLoadingStatus?: Record<AccountId, 'loading' | 'loaded'>,
+  ): Pick<AssetsControllerState, 'assetsBackgroundLoadingStatus'> => ({
+    assetsBackgroundLoadingStatus,
+  });
+
+  describe('getAccountBackgroundLoadingStatus', () => {
+    it('returns the background loading status for an account', () => {
+      const state = createBackgroundState({
+        [ACCOUNT_ID_A]: 'loading',
+        [ACCOUNT_ID_B]: 'loaded',
+      });
+      expect(getAccountBackgroundLoadingStatus(state, ACCOUNT_ID_A)).toBe(
+        'loading',
+      );
+      expect(getAccountBackgroundLoadingStatus(state, ACCOUNT_ID_B)).toBe(
+        'loaded',
+      );
+    });
+
+    it('returns undefined when no background fetch was tracked', () => {
+      expect(
+        getAccountBackgroundLoadingStatus(
+          createBackgroundState(),
+          ACCOUNT_ID_A,
+        ),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('isAccountBackgroundLoading', () => {
+    it('returns true only while the account has a background fetch in flight', () => {
+      const state = createBackgroundState({
+        [ACCOUNT_ID_A]: 'loading',
+        [ACCOUNT_ID_B]: 'loaded',
+      });
+      expect(isAccountBackgroundLoading(state, ACCOUNT_ID_A)).toBe(true);
+      expect(isAccountBackgroundLoading(state, ACCOUNT_ID_B)).toBe(false);
+      expect(isAccountBackgroundLoading(state, ACCOUNT_ID_C)).toBe(false);
+    });
+  });
+
+  describe('getAccountGroupBackgroundLoadingStatus', () => {
+    it('returns background statuses for the tracked accounts in the group', () => {
+      const state = createBackgroundState({
+        [ACCOUNT_ID_A]: 'loading',
+        [ACCOUNT_ID_C]: 'loaded',
+      });
+      expect(
+        getAccountGroupBackgroundLoadingStatus(
+          state,
+          createAccountTreeState(GROUP_ID_1),
+          GROUP_ID_1,
+        ),
+      ).toStrictEqual({ [ACCOUNT_ID_A]: 'loading' });
+    });
+  });
+
+  describe('isAccountGroupBackgroundLoading', () => {
+    it('returns true while any account in the group has a background fetch in flight', () => {
+      const state = createBackgroundState({
+        [ACCOUNT_ID_A]: 'loaded',
+        [ACCOUNT_ID_B]: 'loading',
+      });
+      expect(
+        isAccountGroupBackgroundLoading(
+          state,
+          createAccountTreeState(GROUP_ID_1),
+          GROUP_ID_1,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when no account in the group is background loading', () => {
+      const state = createBackgroundState({ [ACCOUNT_ID_C]: 'loading' });
+      expect(
+        isAccountGroupBackgroundLoading(
+          state,
+          createAccountTreeState(GROUP_ID_1),
+          GROUP_ID_1,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('getIsAssetsBackgroundLoadingForSelectedAccountGroup', () => {
+    it('returns true while the selected group is background loading', () => {
+      const state = createBackgroundState({ [ACCOUNT_ID_C]: 'loading' });
+      expect(
+        getIsAssetsBackgroundLoadingForSelectedAccountGroup(
+          state,
+          createAccountTreeState(GROUP_ID_2),
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when no group is selected', () => {
+      const state = createBackgroundState({ [ACCOUNT_ID_A]: 'loading' });
+      expect(
+        getIsAssetsBackgroundLoadingForSelectedAccountGroup(
+          state,
+          createAccountTreeState(''),
+        ),
+      ).toBe(false);
+    });
   });
 });

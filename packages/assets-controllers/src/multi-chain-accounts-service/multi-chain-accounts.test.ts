@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { describe, expect, it } from 'vitest';
 
 import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances.js';
 import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks.js';

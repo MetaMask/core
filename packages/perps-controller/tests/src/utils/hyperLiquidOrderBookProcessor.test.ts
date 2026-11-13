@@ -4,6 +4,8 @@
  */
 
 import type { BboWsEvent, L2BookResponse } from '@nktkas/hyperliquid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { PriceUpdate } from '../../../src/types/index.js';
 import {
@@ -19,20 +21,20 @@ import type {
 describe('hyperLiquidOrderBookProcessor', () => {
   let mockOrderBookCache: Map<string, OrderBookCacheEntry>;
   let mockCachedPriceData: Map<string, PriceUpdate>;
-  let mockCreatePriceUpdate: jest.Mock;
-  let mockNotifySubscribers: jest.Mock;
+  let mockCreatePriceUpdate: Mock;
+  let mockNotifySubscribers: Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockOrderBookCache = new Map();
     mockCachedPriceData = new Map();
-    mockCreatePriceUpdate = jest.fn((symbol: string, price: string) => ({
+    mockCreatePriceUpdate = vi.fn((symbol: string, price: string) => ({
       symbol,
       price,
       timestamp: Date.now(),
       isTradable: true,
     }));
-    mockNotifySubscribers = jest.fn();
+    mockNotifySubscribers = vi.fn();
   });
 
   describe('processL2BookData', () => {

@@ -1,4 +1,5 @@
 import { KnownCaipNamespace } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { mockBridgeQuotesErc20Erc20V2Migration } from '../../tests/mock-quotes-erc20-erc20-migration-v2.js';
 import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20.js';
@@ -60,7 +61,7 @@ describe('quote-response-v2 migration', () => {
       expect(() =>
         toQuoteResponseV2(quoteResponse),
       ).toThrowErrorMatchingInlineSnapshot(
-        `"At path: quote.src -- Expected an object, but received: undefined"`,
+        `[StructError: At path: quote.src -- Expected an object, but received: undefined]`,
       );
     });
 

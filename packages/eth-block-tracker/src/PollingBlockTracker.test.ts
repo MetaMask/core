@@ -1,4 +1,5 @@
 import { createDeferredPromise } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import EMPTY_FUNCTION from '../tests/emptyFunction.js';
 import recordCallsToSetTimeout from '../tests/recordCallsToSetTimeout.js';
@@ -258,7 +259,7 @@ describe('PollingBlockTracker', () => {
                   },
                 },
                 async ({ blockTracker }) => {
-                  const errorListener = jest.fn();
+                  const errorListener = vi.fn();
                   blockTracker.on('error', errorListener);
                   await expect(blockTracker.getLatestBlock()).rejects.toThrow(
                     'boom',
@@ -318,7 +319,7 @@ describe('PollingBlockTracker', () => {
         await withPollingBlockTracker(
           { blockTracker: { setSkipCacheFlag: true } },
           async ({ provider, blockTracker }) => {
-            jest.spyOn(provider, 'request');
+            vi.spyOn(provider, 'request');
 
             await blockTracker.getLatestBlock();
 
@@ -337,7 +338,7 @@ describe('PollingBlockTracker', () => {
         recordCallsToSetTimeout();
 
         await withPollingBlockTracker(async ({ provider, blockTracker }) => {
-          const requestSpy = jest.spyOn(provider, 'request');
+          const requestSpy = vi.spyOn(provider, 'request');
           await blockTracker.getLatestBlock();
           await blockTracker.getLatestBlock();
           const requestsForLatestBlock = requestSpy.mock.calls.filter(
@@ -396,7 +397,7 @@ describe('PollingBlockTracker', () => {
           },
           async ({ blockTracker, provider }) => {
             blockTracker.on('latest', EMPTY_FUNCTION);
-            const requestSpy = jest.spyOn(provider, 'request');
+            const requestSpy = vi.spyOn(provider, 'request');
 
             const latestBlockPromise = blockTracker.getLatestBlock();
             await blockTracker.destroy();
@@ -434,12 +435,14 @@ describe('PollingBlockTracker', () => {
           },
           async ({ blockTracker }) => {
             blockTracker.on('latest', EMPTY_FUNCTION);
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+            vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
-            await expect(blockTracker.getLatestBlock()).rejects.toThrow('boom');
-            await new Promise((resolve) => {
+            const waitingForNextIteration = new Promise((resolve) => {
               blockTracker.on('_waitingForNextIteration', resolve);
             });
+
+            await expect(blockTracker.getLatestBlock()).rejects.toThrow('boom');
+            await waitingForNextIteration;
 
             expect(console.error).toHaveBeenCalledWith(
               'Error updating latest block: boom',
@@ -465,12 +468,14 @@ describe('PollingBlockTracker', () => {
           },
           async ({ blockTracker }) => {
             blockTracker.on('latest', EMPTY_FUNCTION);
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+            vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
-            await expect(blockTracker.getLatestBlock()).rejects.toThrow('boom');
-            await new Promise((resolve) => {
+            const waitingForNextIteration = new Promise((resolve) => {
               blockTracker.on('_waitingForNextIteration', resolve);
             });
+
+            await expect(blockTracker.getLatestBlock()).rejects.toThrow('boom');
+            await waitingForNextIteration;
 
             expect(console.error).toHaveBeenCalledWith(
               'Error updating latest block: boom',
@@ -591,7 +596,7 @@ describe('PollingBlockTracker', () => {
                   },
                 },
                 async ({ blockTracker }) => {
-                  const errorListener = jest.fn();
+                  const errorListener = vi.fn();
                   blockTracker.on('error', errorListener);
                   blockTracker.on('latest', EMPTY_FUNCTION);
                   await expect(blockTracker.getLatestBlock()).rejects.toThrow(
@@ -618,9 +623,7 @@ describe('PollingBlockTracker', () => {
                   },
                 },
                 async ({ blockTracker }) => {
-                  jest
-                    .spyOn(console, 'error')
-                    .mockImplementation(EMPTY_FUNCTION);
+                  vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
                   blockTracker.on('latest', EMPTY_FUNCTION);
                   await expect(blockTracker.getLatestBlock()).rejects.toThrow(
                     'boom',
@@ -728,7 +731,7 @@ describe('PollingBlockTracker', () => {
                 },
               },
               async ({ blockTracker }) => {
-                const errorListener = jest.fn();
+                const errorListener = vi.fn();
                 blockTracker.on('error', errorListener);
                 blockTracker.on('latest', EMPTY_FUNCTION);
                 const promise1 = blockTracker.getLatestBlock();
@@ -755,7 +758,7 @@ describe('PollingBlockTracker', () => {
                 },
               },
               async ({ blockTracker }) => {
-                jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+                vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
                 blockTracker.on('latest', EMPTY_FUNCTION);
                 const promise1 = blockTracker.getLatestBlock();
                 const promise2 = blockTracker.getLatestBlock();
@@ -801,7 +804,7 @@ describe('PollingBlockTracker', () => {
             },
             async ({ blockTracker }) => {
               blockTracker[methodToAddListener]('latest', EMPTY_FUNCTION);
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               expect(blockTracker.isRunning()).toBe(true);
               blockTracker[methodToAddListener]('error', errorListener);
               await expect(blockTracker.getLatestBlock()).rejects.toThrow(
@@ -835,7 +838,7 @@ describe('PollingBlockTracker', () => {
             },
             async ({ blockTracker }) => {
               blockTracker[methodToAddListener]('latest', EMPTY_FUNCTION);
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               expect(blockTracker.isRunning()).toBe(true);
               blockTracker[methodToAddListener]('error', errorListener);
               await expect(blockTracker.getLatestBlock()).rejects.toThrow(
@@ -1296,7 +1299,7 @@ describe('PollingBlockTracker', () => {
       await withPollingBlockTracker(
         { blockTracker: { setSkipCacheFlag: true } },
         async ({ provider, blockTracker }) => {
-          jest.spyOn(provider, 'request');
+          vi.spyOn(provider, 'request');
 
           await blockTracker.checkForLatestBlock();
 
@@ -1767,7 +1770,7 @@ describe('PollingBlockTracker', () => {
           await withPollingBlockTracker(
             { blockTracker: { setSkipCacheFlag: true } },
             async ({ provider, blockTracker }) => {
-              jest.spyOn(provider, 'request');
+              vi.spyOn(provider, 'request');
 
               await new Promise((resolve) => {
                 blockTracker[methodToAddListener]('latest', resolve);
@@ -1806,7 +1809,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
@@ -1840,7 +1843,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
@@ -1876,7 +1879,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+              vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
               blockTracker[methodToAddListener]('latest', EMPTY_FUNCTION);
               await new Promise((resolve) => {
@@ -1910,7 +1913,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+              vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
               blockTracker[methodToAddListener]('latest', EMPTY_FUNCTION);
               await new Promise((resolve) => {
@@ -2310,7 +2313,7 @@ describe('PollingBlockTracker', () => {
           await withPollingBlockTracker(
             { blockTracker: { setSkipCacheFlag: true } },
             async ({ provider, blockTracker }) => {
-              jest.spyOn(provider, 'request');
+              vi.spyOn(provider, 'request');
 
               await new Promise((resolve) => {
                 blockTracker[methodToAddListener]('sync', resolve);
@@ -2349,7 +2352,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
@@ -2383,7 +2386,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
@@ -2415,7 +2418,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+              vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
               blockTracker[methodToAddListener]('sync', EMPTY_FUNCTION);
               await new Promise((resolve) => {
@@ -2445,7 +2448,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+              vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
               blockTracker[methodToAddListener]('sync', EMPTY_FUNCTION);
               await new Promise((resolve) => {
@@ -3080,7 +3083,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
@@ -3114,7 +3117,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
@@ -3151,7 +3154,7 @@ describe('PollingBlockTracker', () => {
             },
           },
           async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+            vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
             blockTracker.once('latest', EMPTY_FUNCTION);
             await new Promise((resolve) => {
@@ -3185,7 +3188,7 @@ describe('PollingBlockTracker', () => {
             },
           },
           async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+            vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
             blockTracker.once('latest', EMPTY_FUNCTION);
             await new Promise((resolve) => {
@@ -3277,7 +3280,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
@@ -3311,7 +3314,7 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const errorListener = jest.fn();
+              const errorListener = vi.fn();
               blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
@@ -3348,7 +3351,7 @@ describe('PollingBlockTracker', () => {
             },
           },
           async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+            vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
             blockTracker.once('sync', EMPTY_FUNCTION);
             await new Promise((resolve) => {
@@ -3382,7 +3385,7 @@ describe('PollingBlockTracker', () => {
             },
           },
           async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
+            vi.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
 
             blockTracker.once('sync', EMPTY_FUNCTION);
             await new Promise((resolve) => {
@@ -3405,7 +3408,7 @@ describe('PollingBlockTracker', () => {
         recordCallsToSetTimeout({ numAutomaticCalls: 2 });
 
         await withPollingBlockTracker(async ({ blockTracker }) => {
-          const listener = jest.fn();
+          const listener = vi.fn();
           blockTracker.on('_ended', listener);
           blockTracker.once('somethingElse', EMPTY_FUNCTION);
 

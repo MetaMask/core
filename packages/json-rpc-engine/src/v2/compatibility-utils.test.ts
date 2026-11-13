@@ -1,5 +1,15 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   deepClone,
@@ -354,10 +364,10 @@ describe('compatibility-utils', () => {
     describe('Error.isError', () => {
       const isErrorExists = 'isError' in Error;
       let originalIsError: (value: unknown) => boolean;
-      let isError: jest.Mock<boolean, [unknown]>;
+      let isError: Mock<(value: unknown) => boolean>;
 
       beforeAll(() => {
-        isError = jest.fn();
+        isError = vi.fn();
         // @ts-expect-error - Error type outdated
         originalIsError = Error.isError;
         // @ts-expect-error - Error type outdated

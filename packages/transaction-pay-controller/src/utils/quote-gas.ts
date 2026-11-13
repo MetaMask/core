@@ -105,7 +105,7 @@ export async function estimateQuoteGasLimits({
  * @param options.request - Quote request.
  * @param options.transaction - Original transaction metadata.
  * @param options.transactions - Quote transactions to estimate.
- * @returns Source gas, with per-transaction limits in submission order.
+ * @returns Source gas, with separate limits in submission order.
  */
 export async function estimateSourceGas({
   fromOverride,
@@ -165,7 +165,7 @@ async function estimateQuoteGasLimitsBatch(
     parseGasLimit(transaction.gas),
   );
 
-  const { gasLimits, requiresAuthorizationList } = await messenger.call(
+  const { gasLimits, mode, requiresAuthorizationList } = await messenger.call(
     'TransactionController:estimateGasBatch',
     {
       chainId: firstTransaction.chainId,
@@ -174,7 +174,15 @@ async function estimateQuoteGasLimitsBatch(
     },
   );
 
-  if (gasLimits.length !== 1 && gasLimits.length !== transactions.length) {
+  // Older TransactionController versions return no `mode`, so detect a
+  // combined EIP-7702 gas limit from the number of gas limits instead.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const is7702 =
+    mode === undefined ? gasLimits.length === 1 : mode === 'eip7702';
+
+  const expectedGasLimitCount = is7702 ? 1 : transactions.length;
+
+  if (gasLimits.length !== expectedGasLimitCount) {
     throw new Error('Unexpected batch gas limit count');
   }
 
@@ -186,9 +194,9 @@ async function estimateQuoteGasLimitsBatch(
     // Per-entry batch results currently preserve validated input gas values
     // for transactions that already provided gas. If that contract changes
     // and batch estimation returns a different value, treat it as a fresh
-    // estimate and apply the buffer. A single combined 7702 result is always
+    // estimate and apply the buffer. A combined 7702 result is always
     // buffered because it is a fresh batch estimate.
-    const useBuffer = gasLimits.length === 1 || !providedGasWasPreserved;
+    const useBuffer = is7702 || !providedGasWasPreserved;
     const bufferedGas = Math.ceil(gasLimit * (useBuffer ? gasBuffer : 1));
 
     return {
@@ -201,7 +209,6 @@ async function estimateQuoteGasLimitsBatch(
     (acc, gasLimit) => acc + gasLimit.max,
     0,
   );
-  const is7702 = bufferedGasLimits.length === 1;
   const batchGasLimit = is7702 ? bufferedGasLimits[0] : undefined;
 
   return {

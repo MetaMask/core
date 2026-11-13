@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { shouldDeferUnifiedAccountSetup } from '../../../src/utils/hyperLiquidAbstraction.js';
 
 describe('shouldDeferUnifiedAccountSetup', () => {

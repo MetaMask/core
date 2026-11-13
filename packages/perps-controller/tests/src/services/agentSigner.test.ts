@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   AgentBindings,
   AgentSignerUnavailableError,
@@ -19,7 +21,7 @@ const UPPER_CASE_MAIN_ADDRESS = `0x${MAINNET_ACCOUNT.mainAddress
   .toUpperCase()}` as const;
 const AGENT = {
   address: AGENT_ADDRESS,
-  signTypedData: jest.fn(),
+  signTypedData: vi.fn(),
 } as const;
 
 describe('AgentBindings', () => {
@@ -30,7 +32,7 @@ describe('AgentBindings', () => {
   });
 
   it('answers with a binding for its account and network only, and asks getAgentSigner for the others', async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const getAgentSigner = vi.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
     const otherAccount: PerpsAgentAccount = {
       ...MAINNET_ACCOUNT,
@@ -49,7 +51,7 @@ describe('AgentBindings', () => {
   });
 
   it('matches a binding whatever the main address casing', async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const getAgentSigner = vi.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
 
     bindings.set(MAINNET_ACCOUNT, AGENT);
@@ -64,7 +66,7 @@ describe('AgentBindings', () => {
   });
 
   it('forgets bindings and pins once cleared', async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const getAgentSigner = vi.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
     const otherAccount: PerpsAgentAccount = {
       ...MAINNET_ACCOUNT,
@@ -85,7 +87,7 @@ describe('AgentBindings', () => {
   });
 
   it('releases a binding to the rejected agent whatever the address casing', async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const getAgentSigner = vi.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
     bindings.set(MAINNET_ACCOUNT, AGENT);
 
@@ -99,7 +101,7 @@ describe('AgentBindings', () => {
   });
 
   it("releases only the rejecting account's binding to the agent", async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const getAgentSigner = vi.fn().mockResolvedValue(null);
     const bindings = new AgentBindings(getAgentSigner);
     bindings.set(MAINNET_ACCOUNT, AGENT);
     bindings.set(TESTNET_ACCOUNT, AGENT);
@@ -112,7 +114,7 @@ describe('AgentBindings', () => {
   });
 
   it('keeps a binding to another agent and a pin when an agent is rejected', async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue(AGENT);
+    const getAgentSigner = vi.fn().mockResolvedValue(AGENT);
     const bindings = new AgentBindings(getAgentSigner);
     bindings.set(MAINNET_ACCOUNT, AGENT);
     bindings.set(TESTNET_ACCOUNT, null);

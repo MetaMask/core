@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import type { MoneyAccountVaultConfig } from './vault-config.js';
 import {
   areMoneyAccountVaultConfigsEqual,

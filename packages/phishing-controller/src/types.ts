@@ -359,6 +359,7 @@ export const TOKEN_SCAN_SUPPORTED_CHAINS = [
   'base-sepolia',
   'bitcoin',
   'abstract',
+  'arc',
   'soneium',
   'ink',
   'berachain',

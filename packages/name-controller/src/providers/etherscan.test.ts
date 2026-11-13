@@ -1,9 +1,11 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { CHAIN_IDS } from '../constants.js';
 import { NameType } from '../types.js';
 import { handleFetch } from '../util.js';
 import { EtherscanNameProvider } from './etherscan.js';
 
-jest.mock('../util');
+vi.mock(import('../util.js'));
 
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
@@ -12,7 +14,7 @@ const CONTRACT_NAME_MOCK = 'TestContractName';
 const CONTRACT_NAME_2_MOCK = 'TestContractName2';
 
 describe('EtherscanNameProvider', () => {
-  const handleFetchMock = jest.mocked(handleFetch);
+  const handleFetchMock = vi.mocked(handleFetch);
 
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {

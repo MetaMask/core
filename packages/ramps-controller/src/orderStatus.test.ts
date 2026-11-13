@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   TERMINAL_ORDER_STATUSES,
   isTerminalOrderStatus,

@@ -1,7 +1,6 @@
 import type { Struct } from '@metamask/superstruct';
 import { pattern } from '@metamask/superstruct';
-
-import { assert } from './assert.js';
+import { assert } from '@metamask/type-utils';
 
 export type Base64Options = {
   /**

@@ -1,4 +1,5 @@
 import type { SemVerVersion } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { isVersionFeatureFlag, getVersionData } from './version.js';
 

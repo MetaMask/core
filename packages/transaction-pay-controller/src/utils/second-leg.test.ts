@@ -2,11 +2,13 @@ import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { withChompRecovery } from './chomp.js';
 import { getNetworkClientId } from './provider.js';
-import { resolveNonAtomicRecipient, submitSecondLeg } from './second-leg.js';
+import { submitSecondLeg } from './second-leg.js';
 import {
   collectTransactionIds,
   getTransaction,
@@ -15,9 +17,9 @@ import {
   waitForTransactionConfirmed,
 } from './transaction.js';
 
-jest.mock('./chomp');
-jest.mock('./provider');
-jest.mock('./transaction');
+vi.mock(import('./chomp.js'));
+vi.mock(import('./provider.js'));
+vi.mock(import('./transaction.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -27,9 +29,6 @@ const TOKEN_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const SETTLEMENT_HASH_MOCK = '0xsettlement' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'network-client-id-mock';
 const AMOUNT_MOCK = '5000000';
-const PAYER_MOCK = '0x3333333333333333333333333333333333333333' as Hex;
-const OVERRIDE_RECIPIENT_MOCK =
-  '0x4444444444444444444444444444444444444444' as Hex;
 
 const TRANSACTION_MOCK = {
   id: TRANSACTION_ID_MOCK,
@@ -43,7 +42,7 @@ const TRANSACTION_MOCK = {
 } as unknown as TransactionMeta;
 
 function buildMessenger(
-  callMock: jest.Mock = jest.fn(),
+  callMock: Mock = vi.fn(),
 ): TransactionPayControllerMessenger {
   return { call: callMock } as unknown as TransactionPayControllerMessenger;
 }
@@ -53,8 +52,8 @@ function buildAmountDataCallMock(
     addTransactionBatch?: () => Promise<unknown>;
     updates?: { data: string; nestedTransactionIndex: number }[];
   } = {},
-): jest.Mock {
-  return jest.fn((action: string) => {
+): Mock {
+  return vi.fn((action: string) => {
     if (action === 'TransactionPayController:getAmountData') {
       return Promise.resolve({
         updates: overrides.updates ?? [
@@ -76,20 +75,20 @@ function buildAmountDataCallMock(
 }
 
 describe('second-leg', () => {
-  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
-  const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
-  const getTransactionMock = jest.mocked(getTransaction);
-  const getTransferredAmountFromTxHashMock = jest.mocked(
+  const collectTransactionIdsMock = vi.mocked(collectTransactionIds);
+  const getNetworkClientIdMock = vi.mocked(getNetworkClientId);
+  const getTransactionMock = vi.mocked(getTransaction);
+  const getTransferredAmountFromTxHashMock = vi.mocked(
     getTransferredAmountFromTxHash,
   );
-  const updateTransactionMock = jest.mocked(updateTransaction);
-  const waitForTransactionConfirmedMock = jest.mocked(
+  const updateTransactionMock = vi.mocked(updateTransaction);
+  const waitForTransactionConfirmedMock = vi.mocked(
     waitForTransactionConfirmed,
   );
-  const withChompRecoveryMock = jest.mocked(withChompRecovery);
+  const withChompRecoveryMock = vi.mocked(withChompRecovery);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     withChompRecoveryMock.mockImplementation(
       async (_options, submit) => await submit(),
@@ -101,7 +100,7 @@ describe('second-leg', () => {
       (_chainId, _from, _messenger, onTransaction) => {
         onTransaction('child-1');
         onTransaction('child-2');
-        return { end: jest.fn() };
+        return { end: vi.fn() };
       },
     );
 
@@ -116,93 +115,6 @@ describe('second-leg', () => {
     });
 
     waitForTransactionConfirmedMock.mockResolvedValue();
-  });
-
-  describe('resolveNonAtomicRecipient', () => {
-    it('returns undefined for atomic flows', async () => {
-      expect(
-        await resolveNonAtomicRecipient(
-          TRANSACTION_MOCK,
-          { atomic: true, from: PAYER_MOCK } as never,
-          buildMessenger(),
-        ),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined when the request does not specify atomicity', async () => {
-      expect(
-        await resolveNonAtomicRecipient(
-          TRANSACTION_MOCK,
-          { from: PAYER_MOCK } as never,
-          buildMessenger(),
-        ),
-      ).toBeUndefined();
-    });
-
-    it('settles on the transaction account rather than the payer for non-post-quote flows', async () => {
-      expect(
-        await resolveNonAtomicRecipient(
-          TRANSACTION_MOCK,
-          { atomic: false, from: PAYER_MOCK } as never,
-          buildMessenger(),
-        ),
-      ).toBe(FROM_MOCK);
-    });
-
-    it('asks the client for the recipient on post-quote flows', async () => {
-      const callMock = jest.fn((action: string) => {
-        if (action === 'TransactionPayController:getState') {
-          return {
-            transactionData: {
-              [TRANSACTION_ID_MOCK]: { tokens: [{ amountHuman: '1.5' }] },
-            },
-          };
-        }
-
-        if (action === 'TransactionPayController:getPaymentOverrideData') {
-          return Promise.resolve({ recipient: OVERRIDE_RECIPIENT_MOCK });
-        }
-
-        throw new Error(`Unexpected action: ${action}`);
-      });
-
-      const result = await resolveNonAtomicRecipient(
-        TRANSACTION_MOCK,
-        { atomic: false, from: PAYER_MOCK, isPostQuote: true } as never,
-        buildMessenger(callMock),
-      );
-
-      expect(result).toBe(OVERRIDE_RECIPIENT_MOCK);
-      expect(callMock).toHaveBeenCalledWith(
-        'TransactionPayController:getPaymentOverrideData',
-        expect.objectContaining({ amount: '1.5' }),
-      );
-    });
-
-    it('defaults the post-quote amount to zero when no token amount is known', async () => {
-      const callMock = jest.fn((action: string) => {
-        if (action === 'TransactionPayController:getState') {
-          return { transactionData: {} };
-        }
-
-        if (action === 'TransactionPayController:getPaymentOverrideData') {
-          return Promise.resolve({ recipient: OVERRIDE_RECIPIENT_MOCK });
-        }
-
-        throw new Error(`Unexpected action: ${action}`);
-      });
-
-      await resolveNonAtomicRecipient(
-        TRANSACTION_MOCK,
-        { atomic: false, from: PAYER_MOCK, isPostQuote: true } as never,
-        buildMessenger(callMock),
-      );
-
-      expect(callMock).toHaveBeenCalledWith(
-        'TransactionPayController:getPaymentOverrideData',
-        expect.objectContaining({ amount: '0' }),
-      );
-    });
   });
 
   describe('submitSecondLeg', () => {
@@ -291,7 +203,7 @@ describe('second-leg', () => {
     });
 
     it('calls getCalls with the settled amount', async () => {
-      const getCallsMock = jest
+      const getCallsMock = vi
         .fn()
         .mockResolvedValue([{ data: '0xcall' as Hex, to: '0xtarget' as Hex }]);
 
@@ -650,7 +562,7 @@ describe('second-leg', () => {
     });
 
     it('does not prefix errors resolving the calls', async () => {
-      const callMock = jest.fn().mockResolvedValue({ updates: [] });
+      const callMock = vi.fn().mockResolvedValue({ updates: [] });
 
       await expect(
         submitSecondLeg({
@@ -665,7 +577,7 @@ describe('second-leg', () => {
     });
 
     it('throws when no child transactions were submitted', async () => {
-      collectTransactionIdsMock.mockReturnValue({ end: jest.fn() });
+      collectTransactionIdsMock.mockReturnValue({ end: vi.fn() });
 
       await expect(
         submitSecondLeg({

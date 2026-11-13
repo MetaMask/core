@@ -9,6 +9,7 @@ import type {
   PasskeyRecord,
   PasskeyRegistrationResponse,
 } from '@metamask/passkey-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -137,7 +138,7 @@ describe('passkeyController', () => {
 
   it('uses the provided getIsOnboardingCompleted callback', async () => {
     const messenger = passkeyController.getMessenger(getRootMessenger());
-    const getIsOnboardingCompleted = jest.fn().mockReturnValue(true);
+    const getIsOnboardingCompleted = vi.fn().mockReturnValue(true);
 
     const instance = passkeyController.init({
       state: undefined,

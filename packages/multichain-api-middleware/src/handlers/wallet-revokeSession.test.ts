@@ -8,6 +8,7 @@ import {
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { walletRevokeSessionHandler } from './wallet-revokeSession.js';
 
@@ -23,11 +24,11 @@ const baseRequest: JsonRpcRequest & {
 };
 
 const createMockedHandler = () => {
-  const next = jest.fn();
-  const end = jest.fn();
-  const revokePermissionForOrigin = jest.fn();
-  const updateCaveat = jest.fn();
-  const getCaveatForOrigin = jest.fn();
+  const next = vi.fn();
+  const end = vi.fn();
+  const revokePermissionForOrigin = vi.fn();
+  const updateCaveat = vi.fn();
+  const getCaveatForOrigin = vi.fn();
   const response = {
     result: true,
     id: 1,

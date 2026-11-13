@@ -1,4 +1,5 @@
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import { describe, expect, it } from 'vitest';
 
 import { createRequest } from '../test/util/helpers.js';
 import { createInflightCacheMiddleware } from './index.js';

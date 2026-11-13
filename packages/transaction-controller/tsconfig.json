@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "types": ["jest"]
-  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -42,6 +39,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../sentinel-api-service"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

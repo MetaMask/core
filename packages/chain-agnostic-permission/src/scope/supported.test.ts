@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   KnownNotifications,
   KnownRpcMethods,
@@ -39,7 +41,7 @@ describe('Scope Support', () => {
   });
 
   describe('isSupportedMethod', () => {
-    const getNonEvmSupportedMethods = jest.fn();
+    const getNonEvmSupportedMethods = vi.fn();
 
     beforeEach(() => {
       getNonEvmSupportedMethods.mockReturnValue([]);
@@ -143,8 +145,8 @@ describe('Scope Support', () => {
   });
 
   describe('isSupportedScopeString', () => {
-    const isEvmChainIdSupported = jest.fn();
-    const isNonEvmScopeSupported = jest.fn();
+    const isEvmChainIdSupported = vi.fn();
+    const isNonEvmScopeSupported = vi.fn();
 
     it('returns true for the wallet namespace', () => {
       expect(
@@ -276,8 +278,8 @@ describe('Scope Support', () => {
   });
 
   describe('isSupportedAccount', () => {
-    const getEvmInternalAccounts = jest.fn();
-    const getNonEvmAccountAddresses = jest.fn();
+    const getEvmInternalAccounts = vi.fn();
+    const getNonEvmAccountAddresses = vi.fn();
 
     beforeEach(() => {
       getEvmInternalAccounts.mockReturnValue([]);

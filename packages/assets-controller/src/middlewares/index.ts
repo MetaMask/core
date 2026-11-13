@@ -1,7 +1,5 @@
 export { CustomAssetGraduationMiddleware } from './CustomAssetGraduationMiddleware.js';
 export type { CustomAssetGraduationMiddlewareOptions } from './CustomAssetGraduationMiddleware.js';
-export { DetectionMiddleware } from './DetectionMiddleware.js';
-export type { DetectionMiddlewareOptions } from './DetectionMiddleware.js';
 export { RpcFallbackMiddleware } from './RpcFallbackMiddleware.js';
 export type { RpcFallbackMiddlewareOptions } from './RpcFallbackMiddleware.js';
 export {

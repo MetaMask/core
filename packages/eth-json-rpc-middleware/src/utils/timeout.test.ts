@@ -1,3 +1,13 @@
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+
 import { timeout } from './timeout.js';
 
 describe('timeout', () => {
@@ -37,21 +47,21 @@ describe('timeout', () => {
 
   describe('with fake timers', () => {
     beforeAll(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.clearAllTimers();
+      vi.clearAllTimers();
     });
 
     afterAll(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('does not resolve before given duration', async () => {
       const promise = timeout(100);
 
-      jest.advanceTimersByTime(50);
+      vi.advanceTimersByTime(50);
 
       await expect(promise).toNeverResolve();
     });
@@ -59,7 +69,7 @@ describe('timeout', () => {
     it('resolves after the given duration', async () => {
       const promise = timeout(100);
 
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       expect(await promise).toBeUndefined();
     });

@@ -11,9 +11,11 @@ import type { PerpsMaxSlippageSource } from '../constants/eventNames.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type { PerpsErrorDetails } from '../errors.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
+import type { LighterProvider } from '../providers/LighterProvider.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
+  OrderDirection,
   OrderType,
   StrategyOrderType,
   TpslLinkage,
@@ -201,6 +203,9 @@ export type TrackingData = {
   discoverySource?: string;
   perpDiscoverySource?: string;
 
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
+
   // HyperLiquid protocol fee rate. Emitted as hl_fee_rate on trade +
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
@@ -242,6 +247,9 @@ export type TPSLTrackingData = {
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
+
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
 };
 
 /** Collateral mode requested for a new order. */
@@ -906,6 +914,21 @@ export type PositionTriggerOrder = {
   reduceOnly: boolean; // Whether the trigger can only reduce the position
 };
 
+/**
+ * Provider-agnostic cross-margin summary, in USD decimal strings. Clients
+ * derive account ratio, account leverage and cross margin usage from it.
+ *
+ * HL: crossMarginSummary + crossMaintenanceMarginUsed, summed across DEXs.
+ * Lighter: the bound account's cross positions; accountValue is the total
+ * balance less isolated positions' unrealized PnL.
+ */
+export type CrossMarginSummary = {
+  accountValue: string;
+  maintenanceMargin: string;
+  marginUsed: string;
+  notional: string;
+};
+
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
   /**
@@ -933,6 +956,11 @@ export type AccountState = {
   marginUsed: string;
   unrealizedPnl: string;
   returnOnEquity: string;
+  /**
+   * Cross-margin account summary. Absent when the provider does not report
+   * one for this read.
+   */
+  crossMarginSummary?: CrossMarginSummary;
   /**
    * Per-sub-account balance breakdown (protocol-specific, optional)
    * Maps sub-account identifier to its balance details.
@@ -1078,10 +1106,10 @@ export type MarketInfo = {
  */
 export type PerpsMarketData = {
   /**
-   * Stable backend market identifier supplied by the v3 Terminal snapshot
+   * Stable backend market identifier supplied by the Terminal global snapshot
    * (e.g. 'btc-hyperliquid-mainnet'). Used as the key for perp-alerts API
-   * calls. Only present when data originates from the v3 global-snapshot
-   * endpoint; omit checks against this field must guard with `?? undefined`.
+   * calls. Only present when data originates from that endpoint; omit checks
+   * against this field must guard with `?? undefined`.
    */
   id?: string;
   /**
@@ -1114,6 +1142,28 @@ export type PerpsMarketData = {
    * 24h price change percentage as formatted string (e.g., '+2.5%', '-1.8%')
    */
   change24hPercent: string;
+  /**
+   * 5-minute mark-price change from the v4 Terminal snapshot, formatted like
+   * `change24h`. `--` means the window is unavailable. Clients should hide
+   * that period and suppress its alerts.
+   */
+  change5m?: string;
+  /**
+   * 5-minute percent change from the v4 Terminal snapshot. `--%` means the
+   * window is unavailable.
+   */
+  changePercent5m?: string;
+  /**
+   * 1-hour mark-price change from the v4 Terminal snapshot, formatted like
+   * `change24h`. `--` means the window is unavailable. Clients should hide
+   * that period and suppress its alerts.
+   */
+  change1h?: string;
+  /**
+   * 1-hour percent change from the v4 Terminal snapshot. `--%` means the
+   * window is unavailable.
+   */
+  changePercent1h?: string;
   /**
    * Trading volume as formatted string (e.g., '$1.2B', '$850M')
    */
@@ -1224,6 +1274,56 @@ export type SwitchProviderResult = {
   error?: string;
 };
 
+/**
+ * Result of setting the default provider used by aggregated-mode routing.
+ *
+ * `setDefaultProvider` never re-initializes the controller or reconnects
+ * any stream, so there is no asynchronous work to await.
+ */
+export type SetDefaultProviderResult = {
+  success: boolean;
+  defaultProvider: PerpsProviderType;
+  error?: string;
+};
+
+/**
+ * Temporary trade configuration captured while a placement flow is
+ * interrupted. Expires after `PERPS_CONSTANTS.PendingTradeConfigurationTtlMs`.
+ */
+export type PerpsPendingTradeConfiguration = {
+  amount?: string; // Order size in USD
+  leverage?: number; // Leverage
+  takeProfitPrice?: string; // Take profit price
+  stopLossPrice?: string; // Stop loss price
+  limitPrice?: string; // Limit price (for limit orders)
+  orderType?: OrderType; // Market vs limit
+  reduceOnly?: boolean; // Whether the order may only reduce a position
+  direction?: OrderDirection; // Long vs short
+  /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
+  selectedPaymentToken?: PerpsSelectedPaymentToken | null;
+  timestamp: number; // When the config was saved (for expiration check)
+};
+
+/**
+ * Persisted per-market trade configuration: leverage, order-book grouping,
+ * margin mode and the expiring pending config.
+ */
+export type PerpsTradeConfiguration = {
+  leverage?: number; // Last used leverage for this market
+  orderBookGrouping?: number; // Persisted price grouping for order book
+  marginMode?: MarginMode; // Last Isolated/Cross pick for this market
+  pendingConfig?: PerpsPendingTradeConfiguration;
+};
+
+/**
+ * Trade configurations keyed by provider id and then market symbol, so a
+ * value saved for one venue (for example HyperLiquid BTC) never applies to
+ * the same symbol on another venue.
+ */
+export type PerpsProviderTradeConfigurations = {
+  [providerId: string]: { [marketSymbol: string]: PerpsTradeConfiguration };
+};
+
 export type CancelOrderParams = {
   orderId: string; // Order ID to cancel, or the strategy handle when orderType is a strategy type
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
@@ -1272,6 +1372,13 @@ export type CancelOrdersResult = {
   success: boolean; // Overall success (true if at least one order cancelled)
   successCount: number; // Number of orders cancelled successfully
   failureCount: number; // Number of orders that failed to cancel
+  /**
+   * Batch-level operation error.
+   *
+   * Set when the cancel is refused as a whole before any order is submitted,
+   * such as `PROVIDER_ROUTE_REQUIRED`.
+   */
+  error?: string;
   results: {
     orderId: string;
     symbol: string;
@@ -1335,6 +1442,7 @@ export type WithdrawParams = {
   destination?: Hex; // Destination address (optional, defaults to current account)
   assetId?: CaipAssetId; // Asset to withdraw (defaults to USDC)
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  environmentType?: string; // UI surface. Omitted from events when unset.
 };
 
 export type WithdrawResult = {
@@ -1487,6 +1595,14 @@ export type LighterCredentials = {
    * platform surface stays venue-agnostic.
    */
   signerBridge?: LighterSignerBridge;
+  /**
+   * Loads the Lighter provider module. Clients whose bundler cannot load the
+   * controller's own bundler-ignored import (for example Next.js) pass
+   * `() => import('@metamask/perps-controller/providers/lighter')`, so only
+   * clients that import that path bundle Lighter. Without it the controller
+   * imports the module itself.
+   */
+  loadProvider?: () => Promise<{ LighterProvider: typeof LighterProvider }>;
 };
 
 export type PerpsProviderCredentials = {
@@ -1594,6 +1710,12 @@ export type GetAccountStateParams = {
   source?: string; // Optional: source of the call for tracing (e.g., 'health_check', 'initial_connection')
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
+  /**
+   * Optional: throw instead of returning zero-valued state when the read
+   * fails. Lighter throws `ACCOUNT_STATE_FAILED` (with the cause attached);
+   * a wallet without a Lighter account still reads as empty.
+   */
+  throwOnUnavailable?: boolean;
 };
 
 export type GetUserDataSnapshotParams = {
@@ -1764,6 +1886,52 @@ export type SubscribeTwapOrdersParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
 };
 
+/**
+ * USD amount the venue lets the account commit to a new order on one market,
+ * per side. It is the venue's own figure (Hyperliquid: `activeAssetData`
+ * `availableToTrade`), so it reflects the market's open position, its
+ * unrealized PnL, resting orders and leverage. It differs from the
+ * account-wide `AccountState.spendableBalance` whenever those apply.
+ */
+export type PerpsAvailableToTrade = Readonly<{
+  /** Provider that reported the value. */
+  providerId: PerpsProviderType;
+  /** Market the value applies to, as subscribed. */
+  symbol: string;
+  /** Available to open or increase a long (buy), as a decimal USD string. */
+  long: string;
+  /** Available to open or increase a short (sell), as a decimal USD string. */
+  short: string;
+}>;
+
+/**
+ * Subscription to one market's available to trade.
+ *
+ * The callback receives venue values only. Until the first one arrives the
+ * value is unknown and clients should render a placeholder. A provider that
+ * cannot read the value from its venue never invokes the callback, so the
+ * value stays unknown: no provider computes an estimate.
+ */
+export type SubscribeAvailableToTradeParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /** Optional: defaults to the selected account. */
+  accountId?: CaipAccountId;
+  /** Receives each venue update for the market. */
+  callback: (availableToTrade: PerpsAvailableToTrade) => void;
+  /**
+   * Receives a failure to open the stream, or one that stops it after it
+   * opened (for example a rejected resubscription). Also invalidates the old
+   * venue's value when a default-routed subscription changes providers.
+   * The value is unknown again.
+   * Not terminal: keep the subscription, since the stream reopens when the
+   * WebSocket transport is replaced.
+   */
+  onError?: (error: Error) => void;
+};
+
 export type SubscribeAccountParams = {
   callback: (account: AccountState | null) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -1779,6 +1947,65 @@ export type SubscribeCandlesParams = {
   interval: CandlePeriod;
   duration?: TimeDuration;
   callback: (data: CandleData) => void;
+  onError?: (error: Error) => void;
+};
+
+/**
+ * One public trade on a market (any user's), the same shape for every
+ * provider. Prices and sizes are decimal strings, as in `OrderFill`.
+ */
+export type PublicTrade = {
+  /**
+   * Venue trade id, compared for equality only. Unique within a provider and
+   * market, not across providers, so dedupe on `(providerId, symbol, id)`
+   * when trades from several providers share a list.
+   * Sources: Hyperliquid `coin:time:tid`, its documented trade identity
+   * (`tid` alone can repeat across block times), Lighter `trade_id`.
+   */
+  id: string;
+  /** Market symbol the trade belongs to, as the caller requested it. */
+  symbol: string;
+  /** Execution price. */
+  price: string;
+  /** Size in the base asset. */
+  size: string;
+  /** Side of the aggressor (taker): `buy` lifted an ask, `sell` hit a bid. */
+  side: 'buy' | 'sell';
+  /** Execution time, Unix milliseconds. */
+  timestamp: number;
+  /** Transaction hash, when the venue reports one. */
+  txHash?: string;
+  /** Provider whose venue reported the trade. */
+  providerId: PerpsProviderType;
+};
+
+export type GetPublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data reads. */
+  symbol: string;
+  /**
+   * Maximum number of trades, newest first (default 50). Must be a positive
+   * integer. Venues cap the count: Hyperliquid returns its last 10 trades
+   * and Lighter at most 100.
+   */
+  limit?: number;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+};
+
+export type SubscribePublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data streams. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /**
+   * Receives each batch of new trades the venue pushes, newest first. Only a
+   * subscription that opens the venue channel may first receive the venue's
+   * recent trades; one that joins a market another subscription already
+   * streams receives only new trades. Seed the list with `getPublicTrades` and
+   * dedupe batches on `id`.
+   */
+  callback: (trades: PublicTrade[]) => void;
+  /** Receives a failure to open the stream. */
   onError?: (error: Error) => void;
 };
 
@@ -1871,9 +2098,9 @@ export type PositionModifyPreviewSource = Pick<
 /**
  * Proposed order plus the live position it would modify.
  *
- * Isolated-margin previews apply `leverage` to the *whole* resulting
- * position, matching `updateLeverage` before placement. Cross-margin
- * positions are not projected.
+ * Isolated-margin previews model `updateLeverage` before placement: the venue
+ * keeps the existing margin and the order margins its own size at
+ * `leverage`. Cross-margin positions are not projected.
  */
 export type PositionModifyPreviewParams = {
   position: PositionModifyPreviewSource;
@@ -1889,8 +2116,10 @@ export type PositionModifyPreviewParams = {
    */
   price: string;
   /**
-   * Isolated leverage the provider will set on the asset before placing.
-   * Applied to the entire resulting position, not only the added size.
+   * Isolated leverage the provider will set on the asset before placing. The
+   * order is margined at this leverage and the existing margin is kept. Below
+   * the leverage the existing margin can cover, the venue rejects the change
+   * and the resulting margin and liquidation price are unavailable.
    */
   leverage: number;
   reduceOnly?: boolean;
@@ -1931,8 +2160,10 @@ export type PositionModifyPreviewOpen = {
     size: number;
     entryPrice: number;
     /**
-     * Isolated leverage from mark notional / remaining margin, matching
-     * HyperLiquid's displayed leverage rather than entry notional / margin.
+     * Effective isolated leverage, mark notional / resulting margin. Below the
+     * selected leverage when margin kept from before a leverage rise exceeds
+     * the new initial margin; the selected leverage when margin is
+     * unavailable.
      */
     leverage: number;
     margin: PositionPreviewValue;
@@ -2186,7 +2417,6 @@ export type FeeCalculationResult = {
   // Total fees (protocol + MetaMask)
   feeRate?: number; // Total fee rate as decimal (e.g., 0.00145 for 0.145%), undefined when unavailable
   feeAmount?: number; // Total fee amount in USD (when amount is provided)
-
   // Protocol-specific base fees
   protocolFeeRate?: number; // Protocol fee rate (e.g., 0.00045 for HyperLiquid taker), undefined when unavailable
   protocolFeeAmount?: number; // Protocol fee amount in USD
@@ -2343,11 +2573,29 @@ export type PerpsSubscriptionFeeWaiverStatus = {
 /**
  * Fee source that won the unified resolver.
  *
- * `rewards` covers both VIP and season discounts: `RewardsController` already
- * returns the better of the two as a single discount, so the perps controller
- * treats them as one source rather than re-deriving the split.
+ * `rewards` covers the account-scoped VIP and season discount. `grant` is an
+ * independent route-scoped trading-fee grant supplied by RewardsController.
  */
-export type PerpsFeeSource = 'default' | 'rewards' | 'subscription';
+export type PerpsFeeSource = 'default' | 'rewards' | 'grant' | 'subscription';
+
+/**
+ * Provider route for resolving route-specific fee candidates.
+ */
+export type PerpsFeeResolverScope = {
+  providerId: string;
+  isTestnet: boolean;
+};
+
+/**
+ * Independent RewardsController fee candidate for one exact provider route.
+ */
+export type PerpsTradingFeeGrant = PerpsFeeResolverScope & {
+  /** Absolute MetaMask builder fee, in basis points. */
+  feeBips: number;
+
+  /** Expiry as a Unix timestamp in milliseconds. */
+  expiresAt: number;
+};
 
 /**
  * Outcome of the unified fee resolver.
@@ -2418,6 +2666,37 @@ export type UpdatePositionTPSLParams = {
   position?: Position;
 };
 
+/** One side of a position's protection: take profit or stop loss. */
+export type PositionTPSLLeg = 'tp' | 'sl';
+
+export type ReplacePositionTPSLLegParams = {
+  /** Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA'). */
+  symbol: string;
+  /** The leg to replace. The other leg is left as it is. */
+  leg: PositionTPSLLeg;
+  /** New trigger price for the leg. */
+  triggerPrice: string;
+  /**
+   * Price the leg fills at once triggered. Omit to execute at market when the
+   * trigger fires.
+   */
+  limitPrice?: string;
+  /**
+   * Max slippage in basis points for a market leg (no `limitPrice`). Omit to
+   * use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
+  /**
+   * Optional mutation precondition, checked against authoritative position data
+   * before setup and again before protection writes. Size is signed base units.
+   */
+  expectedPosition?: { size: string; entryPrice: string };
+  /** Optional tracking data for MetaMetrics events. */
+  trackingData?: TPSLTrackingData;
+  /** Multi-provider: optional provider override for routing. */
+  providerId?: PerpsProviderType;
+};
+
 export type Order = {
   orderId: string; // Order ID
   symbol: string; // Asset symbol (e.g., 'ETH', 'BTC')
@@ -2459,6 +2738,29 @@ export type Funding = {
   transactionHash?: string; // Optional transaction hash
 };
 
+/**
+ * A provider-owned reason that the selected account cannot submit Perps
+ * actions through a route.
+ */
+export type PerpsAccountUnsupportedReason = 'multi_sig_account';
+
+/**
+ * Whether the selected account can submit Perps actions through a provider.
+ */
+export type PerpsAccountSupport =
+  | { isSupported: true }
+  | {
+      isSupported: false;
+      reason: PerpsAccountUnsupportedReason;
+    };
+
+/**
+ * Selects the provider route whose account support should be checked.
+ */
+export type GetAccountSupportParams = {
+  providerId?: PerpsProviderType;
+};
+
 export type PerpsProvider = {
   /** Local durable Scale inventory; unsupported providers omit the methods. */
   getScaleOrderGroups?(): Promise<ScaleOrderGroup[]>;
@@ -2471,6 +2773,14 @@ export type PerpsProvider = {
 
   /** Whether this provider routes individual requests by `providerId`. */
   readonly routesOrdersByProviderId?: boolean;
+
+  /**
+   * Return whether the selected account can submit actions through this
+   * provider. Providers that omit this hook are treated as supported.
+   */
+  getAccountSupport?(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport>;
 
   /**
    * Return order capabilities for the provider/market route. Providers may
@@ -2531,6 +2841,15 @@ export type PerpsProvider = {
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
+  /**
+   * Replace one TP/SL leg of a position and leave the other leg untouched. The
+   * new leg protects the whole position. A provider that cannot do this from
+   * its venue rejects with `TPSL_LEG_REPLACE_UNSUPPORTED` before any write;
+   * callers treat a provider without this method the same way.
+   */
+  replacePositionTPSLLeg?(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult>;
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
   // Durable-settlement surfacing (optional: providers with durable local
   // settlement state — Lighter). Read-only listings plus selective,
@@ -2582,6 +2901,12 @@ export type PerpsProvider = {
     params?: GetOrderFillsParams,
     options?: PerpsReadOptions,
   ): Promise<OrderFill[]>;
+
+  /**
+   * A market's most recent public trades (every user's), newest first.
+   * Optional so providers without a public trade feed can omit it.
+   */
+  getPublicTrades?(params: GetPublicTradesParams): Promise<PublicTrade[]>;
 
   /**
    * Get fills using WebSocket cache first, falling back to REST API.
@@ -2685,6 +3010,19 @@ export type PerpsProvider = {
   subscribeToOICaps(params: SubscribeOICapsParams): () => void;
   subscribeToCandles(params: SubscribeCandlesParams): () => void;
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void;
+  /**
+   * Stream a market's public trades (every user's). Optional so providers
+   * without a public trade feed can omit it.
+   */
+  subscribeToPublicTrades?(params: SubscribePublicTradesParams): () => void;
+  /**
+   * Stream one market's per-side available to trade as the venue reports it.
+   * Optional: a provider whose venue has no per-market value omits it, and the
+   * value stays unknown (`undefined`) for clients. Never computed locally.
+   */
+  subscribeToAvailableToTrade?(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void;
 
   // Live data configuration
   setLiveDataConfig(config: Partial<LiveDataConfig>): void;
@@ -3332,6 +3670,11 @@ export type PerpsGlobalSnapshotRequest = {
 /** Validated snapshot data and its source-bounded expiry. */
 export type PerpsGlobalSnapshotResult = {
   markets: PerpsMarketData[];
+  /**
+   * Trading-rule rows for `markets`, in the same order. `getMarkets` reads
+   * this instead of mapping the snapshot a second time.
+   */
+  marketInfos: MarketInfo[];
   expiresAt: number;
 };
 
@@ -3390,7 +3733,10 @@ export type PerpsPlatformDependencies = {
     /** Full endpoint URL for the legacy perpetuals market-data endpoint. */
     marketDataUrl?: string;
 
-    /** Full endpoint URL for the schema-v3 atomic global Perps snapshot. */
+    /**
+     * Full endpoint URL for the schema-v4 atomic global Perps snapshot
+     * (`GET /v4/perpetuals`).
+     */
     globalSnapshotUrl?: string;
   };
 
@@ -3410,10 +3756,10 @@ export type PerpsPlatformDependencies = {
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {
     /**
-     * Get fee discount for an account from the RewardsController.
-     * Returns discount in basis points (e.g., 6500 = 65% discount), or null
-     * when subscription state hasn't hydrated yet — callers should skip
-     * caching null results and retry on the next fee calculation.
+     * Get the VIP and season fee discount for an account.
+     *
+     * Returns a numeric discount in basis points (e.g., 6500 = 65%), or `null`
+     * when rewards state has not hydrated yet.
      *
      * Pass the perps MetaMask builder base fee in bips so the rewards
      * controller can convert an absolute VIP fee into a discount fraction.
@@ -3422,6 +3768,22 @@ export type PerpsPlatformDependencies = {
       caipAccountId: `${string}:${string}:${string}`,
       baseFeeBips: number,
     ): Promise<number | null>;
+
+    /**
+     * Get the independent trading fee grant for an explicit provider route.
+     *
+     * The client owns grant retrieval, authentication, payload validation, and
+     * deciding which routes it supports. Core calls this only when the resolver
+     * has an explicit scope, validates the returned fee, expiry, and exact scope
+     * match after concurrent candidate work settles, and compares valid
+     * candidates with the other fee sources.
+     *
+     * Optional so clients predating grant support retain their existing
+     * behavior.
+     */
+    getPerpsTradingFeeGrant?(
+      scope: PerpsFeeResolverScope,
+    ): Promise<PerpsTradingFeeGrant | null>;
   };
 
   // === Subscription (DI — benefits endpoint is owned by the Subscription team) ===

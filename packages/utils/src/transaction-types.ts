@@ -1,5 +1,5 @@
-import type { Bytes } from './bytes.js';
-import type { Hex } from './hex.js';
+import type { Bytes } from '@metamask/byte-utils';
+import type { Hex } from '@metamask/byte-utils';
 
 export type Transaction =
   | LegacyTransaction

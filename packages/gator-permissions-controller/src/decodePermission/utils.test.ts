@@ -1,5 +1,6 @@
 import type { Caveat } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { buildMockDelegationEnforcerContracts } from '../../tests/mocks.js';
 import { createPermissionDecodersForContracts } from './decoders/index.js';

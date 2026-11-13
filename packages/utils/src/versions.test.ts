@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { SemVerRange, SemVerVersion } from './versions.js';
 import {
   assertIsSemVerRange,

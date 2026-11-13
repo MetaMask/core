@@ -225,8 +225,12 @@ export type FungibleAssetPrice = BaseAssetPrice & {
   marketCapPercentChange1d?: number;
   /** 24h price change in USD */
   priceChange1d?: number;
+  /** 5m price change percentage */
+  pricePercentChange5m?: number;
   /** 1h price change percentage */
   pricePercentChange1h?: number;
+  /** 4h price change percentage */
+  pricePercentChange4h?: number;
   /** 24h price change percentage */
   pricePercentChange1d?: number;
   /** 7d price change percentage */
@@ -370,8 +374,6 @@ export type DataRequest = {
   bypassServerCache?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
   updateInterval?: number;
-  /** Specific CAIP-19 asset IDs for price update */
-  assetsForPriceUpdate?: Caip19AssetId[];
 };
 
 /**
@@ -386,8 +388,6 @@ export type DataResponse = {
   assetsBalance?: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
   /** Errors encountered, keyed by chain ID (chain-axis fallback + telemetry) */
   errors?: Record<ChainId, string>;
-  /** Detected assets (assets that do not have metadata) */
-  detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**
    * How to apply this response to state. See {@link AssetsUpdateMode}.
    * Defaults to `'merge'` if omitted.
@@ -503,6 +503,11 @@ export type AssetsControllerState = {
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
   assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
+  /**
+   * Per-account status of the background (Snap + RPC) fetch that runs after
+   * the initial balance has resolved. Tracked on every forced fetch.
+   */
+  assetsBackgroundLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
 };
 
 // ============================================================================
@@ -666,12 +671,4 @@ export type PriceChangeEvent = {
 export type MetadataChangeEvent = {
   assetId: Caip19AssetId;
   changes: Partial<AssetMetadata>;
-};
-
-/**
- * Event emitted when assets without metadata are detected
- */
-export type AssetsDetectedEvent = {
-  accountId: AccountId;
-  assetIds: Caip19AssetId[];
 };

@@ -1,4 +1,6 @@
 /* eslint-disable */
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import { ProviderRouter } from '../../../src/routing/ProviderRouter.js';
 
 describe('ProviderRouter', () => {

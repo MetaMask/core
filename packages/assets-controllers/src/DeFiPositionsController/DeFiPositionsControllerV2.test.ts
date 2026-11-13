@@ -20,6 +20,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks.js';
 import { DEFI_SUPPORTED_NETWORKS } from './build-defi-balances-query.js';
@@ -164,10 +166,10 @@ function setupController({
   remoteFeatureFlags = {},
   mockGroupAccounts = GROUP_ACCOUNTS,
   getGroupAccounts,
-  mockFetchV6MultiAccountBalances = jest
+  mockFetchV6MultiAccountBalances = vi
     .fn()
     .mockResolvedValue(buildMockBalancesResponse()),
-  captureException = jest.fn(),
+  captureException = vi.fn(),
   state,
 }: {
   isEnabled?: () => boolean;
@@ -175,8 +177,8 @@ function setupController({
   remoteFeatureFlags?: FeatureFlags;
   mockGroupAccounts?: InternalAccount[];
   getGroupAccounts?: () => InternalAccount[];
-  mockFetchV6MultiAccountBalances?: jest.Mock;
-  captureException?: jest.Mock;
+  mockFetchV6MultiAccountBalances?: Mock;
+  captureException?: Mock;
   state?: Partial<ReturnType<typeof getDefaultDeFiPositionsControllerV2State>>;
 } = {}): {
   controller: DeFiPositionsControllerV2;
@@ -186,10 +188,10 @@ function setupController({
     AllDeFiPositionsControllerV2Events,
     RootMessenger
   >;
-  mockFetchV6MultiAccountBalances: jest.Mock;
-  mockInvalidateQueries: jest.Mock;
-  mockGetV6MultiAccountBalancesQueryOptions: jest.Mock;
-  mockCaptureException: jest.Mock;
+  mockFetchV6MultiAccountBalances: Mock;
+  mockInvalidateQueries: Mock;
+  mockGetV6MultiAccountBalancesQueryOptions: Mock;
+  mockCaptureException: Mock;
 } {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -225,8 +227,8 @@ function setupController({
     ],
   });
 
-  const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
-  const mockGetV6MultiAccountBalancesQueryOptions = jest.fn().mockReturnValue({
+  const mockInvalidateQueries = vi.fn().mockResolvedValue(undefined);
+  const mockGetV6MultiAccountBalancesQueryOptions = vi.fn().mockReturnValue({
     queryKey: ['accounts', 'balances', 'v6'],
   });
 
@@ -261,8 +263,8 @@ function setupController({
 
 describe('DeFiPositionsControllerV2', () => {
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('sets default state', () => {
@@ -333,7 +335,7 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('maps mixed-case EVM response account IDs back to internal IDs', async () => {
-    const mockFetchV6MultiAccountBalances = jest.fn().mockResolvedValue(
+    const mockFetchV6MultiAccountBalances = vi.fn().mockResolvedValue(
       buildMockBalancesResponse({
         balances: [
           {
@@ -359,7 +361,7 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('requests Solana and EVM networks when both accounts are present', async () => {
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockResolvedValue(buildMockBalancesResponse({ balances: [] }));
 
@@ -399,14 +401,14 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('polls until processing accounts become ready and keeps prior state meanwhile', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     const {
       controller,
       mockFetchV6MultiAccountBalances,
       mockInvalidateQueries,
     } = setupController({
-      mockFetchV6MultiAccountBalances: jest
+      mockFetchV6MultiAccountBalances: vi
         .fn()
         .mockResolvedValueOnce(buildMockBalancesResponse())
         .mockResolvedValueOnce(buildProcessingBalancesResponse())
@@ -423,7 +425,7 @@ describe('DeFiPositionsControllerV2', () => {
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toBe(cached);
     expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
 
-    await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
     await secondFetch;
 
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(3);
@@ -451,10 +453,10 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('reports attempt count to Sentry when positions become ready after polling', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     const { controller, mockCaptureException } = setupController({
-      mockFetchV6MultiAccountBalances: jest
+      mockFetchV6MultiAccountBalances: vi
         .fn()
         .mockResolvedValueOnce(buildProcessingBalancesResponse())
         .mockResolvedValueOnce(buildProcessingBalancesResponse())
@@ -465,11 +467,11 @@ describe('DeFiPositionsControllerV2', () => {
     await Promise.resolve();
     expect(mockCaptureException).not.toHaveBeenCalled();
 
-    await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
     await Promise.resolve();
     expect(mockCaptureException).not.toHaveBeenCalled();
 
-    await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
     await fetchPromise;
 
     expect(mockCaptureException).toHaveBeenCalledTimes(1);
@@ -483,9 +485,9 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('reports to Sentry when polling hits the max limit while still processing', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockResolvedValue(buildProcessingBalancesResponse());
     const { controller, mockCaptureException } = setupController({
@@ -496,7 +498,7 @@ describe('DeFiPositionsControllerV2', () => {
 
     for (let i = 0; i < DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS - 1; i++) {
       await Promise.resolve();
-      await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
     }
 
     await fetchPromise;
@@ -511,7 +513,7 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('keeps prior state for all accounts while any account is still processing', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     const solanaDefiBalance: V6BalanceItem = {
       accountId: `solana:${SolScope.Mainnet.split(':')[1]}:${SOLANA_ADDRESS}`,
@@ -540,7 +542,7 @@ describe('DeFiPositionsControllerV2', () => {
       mockFetchV6MultiAccountBalances,
     } = setupController({
       mockGroupAccounts: GROUP_ACCOUNTS_WITH_SOLANA,
-      mockFetchV6MultiAccountBalances: jest
+      mockFetchV6MultiAccountBalances: vi
         .fn()
         .mockResolvedValueOnce(
           buildMockBalancesResponse({
@@ -581,7 +583,7 @@ describe('DeFiPositionsControllerV2', () => {
     );
     expect(mockInvalidateQueries).toHaveBeenCalledTimes(1);
 
-    await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
     await secondFetch;
 
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(3);
@@ -597,9 +599,9 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('stops polling after the max attempt limit while still processing', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockResolvedValue(buildProcessingBalancesResponse());
 
@@ -611,7 +613,7 @@ describe('DeFiPositionsControllerV2', () => {
 
     for (let i = 0; i < DEFAULT_PROCESSING_POLL_MAX_ATTEMPTS - 1; i++) {
       await Promise.resolve();
-      await jest.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(DEFAULT_PROCESSING_POLL_INTERVAL_MS);
     }
 
     await fetchPromise;
@@ -626,11 +628,11 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('uses maxAttempts and pollInterval from the defiControllerV2 remote flag', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     const remoteMaxAttempts = 3;
     const remotePollInterval = 1_000;
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockResolvedValue(buildProcessingBalancesResponse());
 
@@ -648,7 +650,7 @@ describe('DeFiPositionsControllerV2', () => {
 
     for (let i = 0; i < remoteMaxAttempts - 1; i++) {
       await Promise.resolve();
-      await jest.advanceTimersByTimeAsync(remotePollInterval);
+      await vi.advanceTimersByTimeAsync(remotePollInterval);
     }
 
     await fetchPromise;
@@ -662,7 +664,7 @@ describe('DeFiPositionsControllerV2', () => {
 
   it('shares one in-flight promise across concurrent fetchDeFiPositions calls', async () => {
     let resolveFetch!: (value: V6BalancesResponse) => void;
-    const mockFetchV6MultiAccountBalances = jest.fn().mockImplementation(
+    const mockFetchV6MultiAccountBalances = vi.fn().mockImplementation(
       () =>
         new Promise<V6BalancesResponse>((resolve) => {
           resolveFetch = resolve;
@@ -688,7 +690,7 @@ describe('DeFiPositionsControllerV2', () => {
     let vsCurrency = 'USD';
 
     let resolveUsdFetch!: (value: V6BalancesResponse) => void;
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockImplementationOnce(
         () =>
@@ -740,7 +742,7 @@ describe('DeFiPositionsControllerV2', () => {
     let groupAccounts: InternalAccount[] = GROUP_ACCOUNTS;
 
     let resolveFirstFetch!: (value: V6BalancesResponse) => void;
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockImplementationOnce(
         () =>
@@ -807,7 +809,7 @@ describe('DeFiPositionsControllerV2', () => {
 
     let resolveFirstFetch!: (value: V6BalancesResponse) => void;
     let resolveSecondFetch!: (value: V6BalancesResponse) => void;
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockImplementationOnce(
         () =>
@@ -864,7 +866,7 @@ describe('DeFiPositionsControllerV2', () => {
     let groupAccounts: InternalAccount[] = GROUP_ACCOUNTS;
     const { controller } = setupController({
       getGroupAccounts: () => groupAccounts,
-      mockFetchV6MultiAccountBalances: jest
+      mockFetchV6MultiAccountBalances: vi
         .fn()
         .mockResolvedValueOnce(buildMockBalancesResponse())
         .mockResolvedValueOnce(buildMockBalancesResponse({ balances: [] })),
@@ -938,10 +940,10 @@ describe('DeFiPositionsControllerV2', () => {
   });
 
   it('keeps prior state when a fetch fails', async () => {
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
-    const mockFetchV6MultiAccountBalances = jest
+    const mockFetchV6MultiAccountBalances = vi
       .fn()
       .mockResolvedValueOnce(buildMockBalancesResponse())
       .mockRejectedValueOnce(new Error('network error'));

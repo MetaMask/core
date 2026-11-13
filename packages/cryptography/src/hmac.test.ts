@@ -1,4 +1,5 @@
 import { stringToBytes, bytesToHex, hexToBytes } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { hmacSha256, hmacSha384, hmacSha512 } from './hmac.js';
 

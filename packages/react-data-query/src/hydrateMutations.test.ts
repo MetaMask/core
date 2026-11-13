@@ -6,6 +6,7 @@ import {
   MutationCacheNotifyEvent,
 } from '@tanstack/query-core';
 import assert from 'assert';
+import { describe, expect, it } from 'vitest';
 
 import { hydrateMutations } from './hydrateMutations.js';
 

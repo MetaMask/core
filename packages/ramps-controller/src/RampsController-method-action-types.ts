@@ -360,6 +360,9 @@ export type RampsControllerGetQuoteWithFeesAction = {
  * Unchanged syncable payloads (including unchanged poll results) are ignored
  * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
  *
+ * When network access is denied, the order is still written locally and the
+ * remote push is deferred to the next full sync.
+ *
  * @param order - The RampsOrder to add or update.
  */
 export type RampsControllerAddOrderAction = {
@@ -369,6 +372,9 @@ export type RampsControllerAddOrderAction = {
 
 /**
  * Removes a V2 order from controller state by providerOrderId.
+ *
+ * When network access is denied, the order is still removed locally and the
+ * remote tombstone is deferred to the next full sync.
  *
  * @param providerOrderId - The provider order ID to remove.
  */
@@ -518,6 +524,18 @@ export type RampsControllerRefreshAutorampAction = {
 };
 
 /**
+ * Fetches the MoonPay customer's rail abilities from the neo-bank proxy and
+ * stores them in `vbaCustomerAbilities`. A failed fetch throws and leaves the
+ * stored value unchanged.
+ *
+ * @returns The fetched abilities.
+ */
+export type RampsControllerRefreshCustomerAbilitiesAction = {
+  type: `RampsController:refreshCustomerAbilities`;
+  handler: RampsController['refreshCustomerAbilities'];
+};
+
+/**
  * Refreshes all known local autoramps from MoonPay.
  * Intended for app resume / unlock catch-up when webhooks were missed.
  *
@@ -526,6 +544,27 @@ export type RampsControllerRefreshAutorampAction = {
 export type RampsControllerRefreshAutorampsAction = {
   type: `RampsController:refreshAutoramps`;
   handler: RampsController['refreshAutoramps'];
+};
+
+/**
+ * Fetches the newest page of transactions for one autoramp and calls
+ * `trackAutorampTransactionStatusChanged` for each new id or status change.
+ *
+ * The updated record is written before the callback runs. A failed fetch
+ * leaves the record untouched. Concurrent calls for the same autoramp share
+ * one request. The first successful fetch seeds the record and calls
+ * nothing. When this autoramp was on the cursor at the start of the fetch
+ * and was removed before the response is applied (`removeAutoramp`, a cursor
+ * replace that drops the id, or a foreign VBA session discard), the record
+ * is not restored and the callback is not called. A callback that throws
+ * is ignored, so one failing change does not drop the rest of the batch.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns Transaction summaries from the newest page.
+ */
+export type RampsControllerRefreshAutorampTransactionsAction = {
+  type: `RampsController:refreshAutorampTransactions`;
+  handler: RampsController['refreshAutorampTransactions'];
 };
 
 /**
@@ -581,6 +620,9 @@ export type RampsControllerGetFallbackBuyWidgetDataAction = {
  * Registers an order ID for polling until the order is created or resolved.
  * Adds a minimal stub order to controller state; the existing order polling
  * will fetch the full order when the provider has created it.
+ *
+ * When network access is denied, the stub is still written locally and its
+ * remote push is deferred to the next full sync.
  *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
@@ -697,6 +739,9 @@ export type RampsControllerTransakVerifyUserOtpAction = {
 /**
  * Logs the user out of Transak. Clears authentication state and user details
  * regardless of whether the API call succeeds or fails.
+ *
+ * When network access is denied, the local session is cleared and a message
+ * is returned without calling the Transak service.
  *
  * @returns A message indicating the logout result.
  */
@@ -967,7 +1012,9 @@ export type RampsControllerMethodActions =
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction
   | RampsControllerRefreshAutorampAction
+  | RampsControllerRefreshCustomerAbilitiesAction
   | RampsControllerRefreshAutorampsAction
+  | RampsControllerRefreshAutorampTransactionsAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction

@@ -4,6 +4,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants.js';
 import type {
@@ -18,14 +19,14 @@ import { submitAcrossQuotes } from './across-submit.js';
 import { AcrossStrategy } from './AcrossStrategy.js';
 import type { AcrossQuote } from './types.js';
 
-jest.mock('./across-quotes');
-jest.mock('./across-submit');
-jest.mock('../../utils/feature-flags');
+vi.mock(import('./across-quotes.js'));
+vi.mock(import('./across-submit.js'));
+vi.mock(import('../../utils/feature-flags.js'));
 
 describe('AcrossStrategy', () => {
-  const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
-  const getAcrossQuotesMock = jest.mocked(getAcrossQuotes);
-  const submitAcrossQuotesMock = jest.mocked(submitAcrossQuotes);
+  const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
+  const getAcrossQuotesMock = vi.mocked(getAcrossQuotes);
+  const submitAcrossQuotesMock = vi.mocked(submitAcrossQuotes);
 
   const messenger = {} as never;
 
@@ -37,6 +38,16 @@ describe('AcrossStrategy', () => {
     time: Date.now(),
     txParams: {
       from: '0xabc',
+    },
+  } as TransactionMeta;
+
+  const PERPS_DEPOSIT_TRANSACTION_MOCK = {
+    ...TRANSACTION_META_MOCK,
+    txParams: {
+      from: '0xabc',
+      to: ARBITRUM_USDC_ADDRESS,
+      // transfer(HL bridge, 1000000)
+      data: '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240',
     },
   } as TransactionMeta;
 
@@ -77,7 +88,7 @@ describe('AcrossStrategy', () => {
   } as TransactionPayQuote<AcrossQuote>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
         apiBase: 'https://across.test',
@@ -117,10 +128,7 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
         requests: [
           {
             from: '0xabc',
@@ -142,10 +150,7 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
         requests: [
           {
             from: '0xabc',
@@ -274,10 +279,7 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
       }),
     ).toBe(false);
   });
@@ -501,7 +503,7 @@ describe('AcrossStrategy', () => {
       messenger,
       quotes: [],
       transaction: TRANSACTION_META_MOCK,
-      isSmartTransaction: jest.fn(),
+      isSmartTransaction: vi.fn(),
     } as PayStrategyExecuteRequest<AcrossQuote>;
 
     submitAcrossQuotesMock.mockResolvedValue({ transactionHash: '0xhash' });

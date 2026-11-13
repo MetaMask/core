@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { generateActionTypesContent } from './generate-content.js';
 import type { SourceInfo } from './parse-source.js';
 

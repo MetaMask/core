@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [14.1.0]
+
+### Added
+
+- Add `AccountsApiClient.fetchV5TransactionById` and `getV5TransactionByIdQueryOptions` for Accounts API `GET /v5/accounts/{accountId}/transactions/{txId}` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - The response `data` is a `V5TransactionRecord`, the same row shape as `GET /v5/multiaccount/transactions`
+
+### Changed
+
+- V5 transaction types now use CAIP identifiers from `@metamask/utils` instead of `string` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - `V5TransactionRecord.accountId`, fee `payer`, `unprocessedAccounts`, and the `accountIds` arguments of the v5 transaction fetch methods are `CaipAccountId`
+  - `V5Transaction.chainId` and the `networks` filter are `CaipChainId`
+  - Value-transfer, fee, and misc-operation `assetId` fields, and the `assetIds` filter, are `CaipAssetType`
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+- Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+
+### Deprecated
+
+- Deprecate `AccountsApiClient.fetchV1TransactionByHash` and `getV1TransactionByHashQueryOptions` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - Fetch one transaction with `fetchV5TransactionById` (`GET /v5/accounts/{accountId}/transactions/{txId}`) instead of `GET /v1/networks/{chainId}/transactions/{txHash}`
+
+## [14.0.0]
+
+### Added
+
+- Add `TokenApiClient.fetchV2Assets` and `getV2AssetsQueryOptions` for Token API `GET /v2/assets`, supporting `includeLaunchpadData` and `includeTokenSecurityData`, along with `V2AssetResponse` and `V2AssetsQueryOptions` types ([#11251](https://github.com/MetaMask/core/pull/11251))
+- Add optional `subscriptionNamespace` to `OHLCVService` so callers can select the WebSocket channel namespace (default: `ohlcv.v1`) ([#11249](https://github.com/MetaMask/core/pull/11249))
+
+### Changed
+
+- **BREAKING:** `OHLCVService` WebSocket channels now use the `ohlcv.v1` namespace instead of `market-data.v1` ([#11249](https://github.com/MetaMask/core/pull/11249))
+  - Channel strings change from `market-data.v1.<assetId>.<interval>.<currency>` to `ohlcv.v1.<assetId>.<interval>.<currency>`, and system notifications move to `system-notifications.v1.ohlcv.v1`.
+  - Pass `subscriptionNamespace: 'market-data.v1'` when constructing `OHLCVService` to keep the previous stream until `ohlcv.v1` is available in production.
+- Bump `uuid` from `^14.0.0` to `^14.0.1` ([#11179](https://github.com/MetaMask/core/pull/11179))
+
+## [13.0.0]
+
+### Added
+
+- Add `AccountsApiClient.fetchV5MultiAccountTransactions`, `getV5MultiAccountTransactionsQueryOptions`, and `getV5MultiAccountTransactionsInfiniteQueryOptions` for Accounts API `GET /v5/multiaccount/transactions`, which returns transactions for EVM and CAS-backed accounts ([#11194](https://github.com/MetaMask/core/pull/11194))
+- Add `LaunchpadTokenDetailsService` for real-time launchpad token detail streaming over the shared backend WebSocket, exposing `subscribe`/`unsubscribe` by `assetId` and publishing `tokenUpdated`, `statusChanged`, and `subscriptionError` events, along with `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS`/`LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` and launchpad event types/normalizers (`parseBatch`, `normalizeEvent`, `buildChannel`) ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add `ChannelSubscriptionManager`, a reusable per-channel WebSocket subscription lifecycle helper (reference counting, grace-period unsubscribe, unsubscribe retry, and resubscribe on reconnect) shared by `OHLCVService` and `LaunchpadTokenDetailsService` ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** Remove the unused `BackendWebSocketService:getConnectionInfo` and `BackendWebSocketService:findSubscriptionsByChannelPrefix` actions from `OHLCV_SERVICE_ALLOWED_ACTIONS` ([#10884](https://github.com/MetaMask/core/pull/10884))
+  - `OHLCV_SERVICE_ALLOWED_ACTIONS` / `OHLCV_SERVICE_ALLOWED_EVENTS` and `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS` / `LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` are now sourced from a single shared set (the `BackendWebSocketService` actions/events the `ChannelSubscriptionManager` actually calls), so both services grant identical, minimal permissions.
+  - If you build the `OHLCVService` restricted messenger from `OHLCV_SERVICE_ALLOWED_ACTIONS`, it will no longer be granted those two actions. Neither action was ever called by `OHLCVService`, so no runtime behavior changes; grant them explicitly only if your own code calls them through that messenger.
+- Refactor `OHLCVService` to delegate its subscription lifecycle to the shared `ChannelSubscriptionManager` via composition, with no change to its public methods or published events ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Stop publishing the `api/test-utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
+- Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.2.0` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^36.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
 ## [12.3.0]
 
 ### Changed
@@ -511,7 +573,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...@metamask/core-backend@14.1.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...@metamask/core-backend@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...@metamask/core-backend@13.0.0
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.2.0...@metamask/core-backend@12.3.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...@metamask/core-backend@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...@metamask/core-backend@12.1.0

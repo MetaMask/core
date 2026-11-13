@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { PerpsMarketData } from '../../../src/types/index.js';
 import {
   MarketMatchRank,

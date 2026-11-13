@@ -4,7 +4,6 @@ import type {
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import { parseCaipAssetType } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
@@ -17,7 +16,13 @@ import type {
   AssetsControllerState,
 } from '../types.js';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
-import { fetchWithTimeout, safeNormalizeAssetId } from '../utils/index.js';
+import {
+  filterAssetsBySupportedNetworks,
+  getAssetIdsForPriceFetch,
+  getUnpricedResponseAssetIds,
+  isPriceableAsset,
+} from '../utils/getAssetIdsForPriceFetch.js';
+import { fetchWithTimeout } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -113,30 +118,7 @@ export type PriceDataSourceOptions = PriceDataSourceConfig & {
  * Asset reference patterns that should NOT be sent to the Price API.
  * These are internal resource tracking values without market prices.
  */
-const NON_PRICEABLE_ASSET_PATTERNS = [
-  // Synthetic slip44 staking-position assets: the Price API only knows about
-  // pure numeric coin-type references (e.g. slip44:195). Any suffix after the
-  // number (e.g. slip44:195-ready-for-withdrawal, slip44:195-in-lock-period,
-  // slip44:195-staking-rewards, slip44:195-staked-for-…) is a MetaMask-internal
-  // synthetic asset that has no market price.
-  /\/slip44:\d+-/u,
-  // Tron non-price resource assets (bandwidth, energy)
-  /\/slip44:bandwidth$/u,
-  /\/slip44:energy$/u,
-  /\/slip44:maximum-bandwidth$/u,
-  /\/slip44:maximum-energy$/u,
-];
-
-/**
- * Check if an asset ID represents a priceable asset.
- * Filters out internal resource tracking values that don't have market prices.
- *
- * @param assetId - The CAIP-19 asset ID to check.
- * @returns True if the asset has market price data.
- */
-export function isPriceableAsset(assetId: Caip19AssetId): boolean {
-  return !NON_PRICEABLE_ASSET_PATTERNS.some((pattern) => pattern.test(assetId));
-}
+export { isPriceableAsset } from '../utils/getAssetIdsForPriceFetch.js';
 
 /** Market data item from spot prices response (same as FungibleAssetPrice without lastUpdated) */
 type SpotPriceMarketData = Omit<
@@ -231,81 +213,34 @@ export class PriceDataSource {
    * Get the middleware for enriching responses with price data.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Fetches prices for detected assets (assets without metadata)
-   * 3. Enriches the response with fetched prices
-   * 4. Calls next() at the end to continue the middleware chain
-   *
-   * Note: This middleware ONLY fetches prices for detected assets.
-   * For fetching prices for all assets, use the subscription mechanism
-   * which polls prices for all assets in the balance state.
+   * 1. Selects response balances that still need a price.
+   *    {@link getUnpricedResponseAssetIds} skips hidden, non-priceable, and
+   *    already-priced assets, and assets on chains the Price API does not support
+   * 2. Fetches those prices. A price asked for within the freshness window is
+   *    skipped, unless the request forces an update
+   * 3. Merges fetched prices into the response and continues the chain. A
+   *    failed fetch leaves the response balances unchanged
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
-      // Extract response from context
       const { response, request } = ctx;
-
-      const statePrices = (this.#getAssetsState()?.assetsPrice ?? {}) as Record<
-        string,
-        FungibleAssetPrice
-      >;
-
-      const assetIds = new Set<Caip19AssetId>();
-
-      for (const assetId of request.assetsForPriceUpdate ?? []) {
-        assetIds.add(assetId);
-      }
-
-      // Detected assets only need a price fetch when state has none yet.
-      // Explicit assetsForPriceUpdate (e.g. currency change) are always fetched.
-      for (const detectedAccountAssets of Object.values(
-        response.detectedAssets ?? {},
-      )) {
-        for (const assetId of detectedAccountAssets) {
-          const normalizedAssetId = safeNormalizeAssetId(assetId);
-          const alreadyQueued = request.assetsForPriceUpdate?.some(
-            (queuedId) =>
-              queuedId === assetId || queuedId === normalizedAssetId,
-          );
-          if (
-            statePrices[assetId] === undefined &&
-            statePrices[normalizedAssetId] === undefined &&
-            !alreadyQueued
-          ) {
-            assetIds.add(normalizedAssetId);
-          }
-        }
-      }
-
-      if (assetIds.size === 0) {
-        return next(ctx);
-      }
-
-      // Filter to only priceable assets
-      const priceableAssetIds = [...assetIds].filter(isPriceableAsset);
-
-      if (priceableAssetIds.length === 0) {
-        return next(ctx);
-      }
-
-      const supportedNetworks = await this.#getSupportedNetworks();
-      const supportedAssetIds = this.#filterAssetsByNetwork(
-        priceableAssetIds,
-        supportedNetworks,
-      );
-
-      if (supportedAssetIds.length === 0) {
+      const unpricedAssetIds = await getUnpricedResponseAssetIds({
+        state: this.#getAssetsState(),
+        response,
+        getSupportedNetworks: () => this.#getSupportedNetworks(),
+      });
+      if (unpricedAssetIds.length === 0) {
         return next(ctx);
       }
 
       if (request.forceUpdate) {
-        this.#deduper.invalidateKeys(supportedAssetIds);
+        this.#deduper.invalidateKeys(unpricedAssetIds);
       }
 
       try {
-        const spotPrices = await this.#fetchSpotPrices(supportedAssetIds);
+        const spotPrices = await this.#fetchSpotPrices(unpricedAssetIds);
         response.assetsPrice = {
           ...(response.assetsPrice ?? {}),
           ...spotPrices,
@@ -317,6 +252,25 @@ export class PriceDataSource {
       // Call next() at the end to continue the middleware chain
       return next(ctx);
     });
+  }
+
+  /**
+   * Fetch spot prices for an explicit asset list, bypassing the freshness cache.
+   *
+   * @param assetIds - CAIP-19 asset IDs to price.
+   * @returns Prices keyed by asset ID. Empty when none are priceable or supported.
+   */
+  async fetchAssetPrices(
+    assetIds: Caip19AssetId[],
+  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
+    const supportedAssetIds =
+      await this.#filterToSupportedPriceableAssets(assetIds);
+    if (supportedAssetIds.length === 0) {
+      return {};
+    }
+
+    this.#deduper.invalidateKeys(supportedAssetIds);
+    return this.#fetchSpotPrices(supportedAssetIds);
   }
 
   // ============================================================================
@@ -454,54 +408,35 @@ export class PriceDataSource {
    */
   #getAssetIdsFromBalanceState(request: DataRequest): Caip19AssetId[] {
     try {
-      const state = this.#getAssetsState();
-      const assetIds = new Set<Caip19AssetId>();
-
-      const accountIds = request.accountsWithSupportedChains.map(
-        (a) => a.account.id,
-      );
-      const accountFilter =
-        accountIds.length > 0 ? new Set(accountIds) : undefined;
-      const chainFilter =
-        request.chainIds.length > 0 ? new Set(request.chainIds) : undefined;
-
-      if (state?.assetsBalance) {
-        for (const [accountId, accountBalances] of Object.entries(
-          state.assetsBalance,
-        )) {
-          // Filter by account if specified
-          if (accountFilter && !accountFilter.has(accountId)) {
-            continue;
-          }
-
-          for (const assetId of Object.keys(accountBalances)) {
-            // Filter by chain if specified; skip malformed asset IDs for this entry only
-            if (chainFilter) {
-              try {
-                const { chainId } = parseCaipAssetType(
-                  assetId as Caip19AssetId,
-                );
-                if (!chainFilter.has(chainId)) {
-                  continue;
-                }
-              } catch (error) {
-                log('Skipping malformed asset ID in balance state', {
-                  assetId,
-                  error,
-                });
-                continue;
-              }
-            }
-            assetIds.add(assetId as Caip19AssetId);
-          }
-        }
-      }
-
-      return [...assetIds];
+      return [
+        ...getAssetIdsForPriceFetch({
+          state: this.#getAssetsState(),
+          request,
+        }),
+      ];
     } catch (error) {
       log('Failed to get asset IDs from balance state', { error });
       return [];
     }
+  }
+
+  /**
+   * Drop non-priceable assets, then assets on chains the price API does not
+   * support. An empty supported-network set keeps every priceable asset.
+   *
+   * @param assetIds - Candidate CAIP-19 asset IDs.
+   * @returns Priceable IDs on a supported chain.
+   */
+  async #filterToSupportedPriceableAssets(
+    assetIds: Caip19AssetId[],
+  ): Promise<Caip19AssetId[]> {
+    const priceableAssetIds = assetIds.filter(isPriceableAsset);
+    if (priceableAssetIds.length === 0) {
+      return [];
+    }
+
+    const supportedNetworks = await this.#getSupportedNetworks();
+    return this.#filterAssetsByNetwork(priceableAssetIds, supportedNetworks);
   }
 
   /**
@@ -536,18 +471,7 @@ export class PriceDataSource {
     assetIds: Caip19AssetId[],
     supportedNetworks: Set<string>,
   ): Caip19AssetId[] {
-    if (supportedNetworks.size === 0) {
-      return assetIds;
-    }
-    return assetIds.filter((assetId) => {
-      try {
-        const parsed = parseCaipAssetType(assetId);
-        const chainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
-        return supportedNetworks.has(chainId);
-      } catch {
-        return false;
-      }
-    });
+    return filterAssetsBySupportedNetworks(assetIds, supportedNetworks);
   }
 
   // ============================================================================
@@ -555,8 +479,10 @@ export class PriceDataSource {
   // ============================================================================
 
   /**
-   * Fetch prices for assets held by the accounts and chains in the request.
-   * Reads asset IDs from balance state via the constructor `getAssetsState`.
+   * Fetch prices for visible assets on the accounts and chains in the request:
+   * saved balances and custom assets. Metadata with no balance is skipped.
+   * Unlike the middleware, this includes assets that already have a stored
+   * price so the poll can refresh them. The freshness cache skips recent ones.
    *
    * @param request - The data request specifying accounts and chains.
    * @returns DataResponse containing asset prices.
@@ -564,28 +490,15 @@ export class PriceDataSource {
   async fetch(request: DataRequest): Promise<DataResponse> {
     const response: DataResponse = {};
 
-    // Get asset IDs from balance state
-    const rawAssetIds = this.#getAssetIdsFromBalanceState(request);
-
-    // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources)
-    const priceableAssetIds = rawAssetIds.filter(isPriceableAsset);
-
-    if (priceableAssetIds.length === 0) {
-      return response;
-    }
-
-    const supportedNetworks = await this.#getSupportedNetworks();
-    const assetIds = this.#filterAssetsByNetwork(
-      priceableAssetIds,
-      supportedNetworks,
+    const assetIds = await this.#filterToSupportedPriceableAssets(
+      this.#getAssetIdsFromBalanceState(request),
     );
-
     if (assetIds.length === 0) {
       return response;
     }
 
     try {
-      const spotPrices = await this.#fetchSpotPrices([...assetIds]);
+      const spotPrices = await this.#fetchSpotPrices(assetIds);
 
       response.assetsPrice = {
         ...(response.assetsPrice ?? {}),

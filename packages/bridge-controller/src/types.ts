@@ -6,6 +6,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type { TraceRequest } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -26,6 +27,8 @@ import type {
 import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types.js';
 import type { BridgeController } from './bridge-controller.js';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge.js';
+import { TraceFeatureTag } from './constants/traces.js';
+import type { TraceOperation } from './constants/traces.js';
 import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell.js';
 import type { BatchSellTradesResponseSchema } from './validators/batch-sell.js';
 import type {
@@ -42,6 +45,41 @@ import type { FeeDataSchema } from './validators/quote.js';
 import type { GaslessPropertiesSchema } from './validators/quote.js';
 import type { StepSchema } from './validators/step.js';
 import type { TokenFeatureSchema } from './validators/token-feature.js';
+
+/**
+ * Filters the client-supplied trace names to only include swap/bridge/batch sell related names
+ */
+export type SwapRelatedTraceName<TNameEnum extends string> = {
+  [TName in TNameEnum]: `${TName}` extends
+    | `${string}Swap${string}`
+    | `${string}Bridge${string}`
+    | `${string}Batch Sell${string}`
+    ? TName
+    : never;
+}[TNameEnum];
+
+/**
+ * Trace request type for swap/bridge traces
+ */
+export type SwapTraceRequest<TTraceName> = Omit<
+  TraceRequest,
+  'name' | 'tags' | 'parentContext'
+> & {
+  name: TTraceName;
+  op?: TraceOperation;
+  tags: { feature: TraceFeatureTag };
+};
+
+/**
+ * Generic trace function type that supports both mobile and extension interfaces
+ */
+export type SwapTraceFunction<TTraceName extends string> = {
+  <TResult>(
+    request: SwapTraceRequest<TTraceName>,
+    fn: (args?: unknown) => TResult,
+  ): TResult;
+  (request: SwapTraceRequest<TTraceName>): unknown;
+};
 
 export type FetchFunction = (
   input: RequestInfo | URL | string,

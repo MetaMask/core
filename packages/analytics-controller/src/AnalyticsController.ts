@@ -38,6 +38,15 @@ import type {
   ReadonlyAnalyticsEventFragment,
 } from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';
+import type {
+  ErrorTrackingSession,
+  TrackErrorAsAnalyticsOptions,
+} from './track-error-as-analytics.js';
+import {
+  ERROR_OCCURRED_EVENT_NAME,
+  releaseErrorTrackingReservation,
+  reserveErrorOccurredEvent,
+} from './track-error-as-analytics.js';
 
 // === GENERAL ===
 
@@ -355,6 +364,7 @@ const analyticsControllerMetadata = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'trackEvent',
+  'trackErrorAsAnalytics',
   'identify',
   'trackView',
   'optIn',
@@ -425,15 +435,27 @@ export type AnalyticsControllerMessenger = Messenger<
 // === CONTROLLER DEFINITION ===
 
 /**
+ * Initial state accepted by {@link AnalyticsController}.
+ *
+ * `analyticsId` is required. All other fields are optional and filled from
+ * {@link getDefaultAnalyticsControllerState} when omitted.
+ */
+export type AnalyticsControllerInitialState =
+  Partial<AnalyticsControllerState> &
+    Pick<AnalyticsControllerState, 'analyticsId'>;
+
+/**
  * The options that AnalyticsController takes.
  */
 export type AnalyticsControllerOptions = {
   /**
    * Initial controller state. Must include a valid UUIDv4 `analyticsId`.
-   * The platform is responsible for generating the ID on first run.
-   * It is then persisted with controller state when using a persisted store.
+   * Other fields are optional; defaults come from
+   * {@link getDefaultAnalyticsControllerState}. The platform is responsible
+   * for generating the ID on first run. It is then persisted with controller
+   * state when using a persisted store.
    */
-  state: AnalyticsControllerState;
+  state: AnalyticsControllerInitialState;
   /**
    * Messenger used to communicate with BaseController and other controllers.
    */
@@ -762,11 +784,20 @@ export class AnalyticsController extends BaseController<
   #locationContext: AnalyticsLocationContext | undefined;
 
   /**
+   * In-memory sampling, deduplication, and session-cap state for
+   * {@link trackErrorAsAnalytics}. Not persisted.
+   */
+  readonly #errorTrackingSession: ErrorTrackingSession = {
+    emittedCount: 0,
+    lastEmittedAtBySignature: new Map(),
+  };
+
+  /**
    * Constructs an AnalyticsController instance.
    *
    * @param options - Controller options
    * @param options.state - Initial controller state. Must include a valid UUIDv4 `analyticsId`.
-   * Use `getDefaultAnalyticsControllerState()` for default opt-in preferences.
+   * Other fields are optional and default via `getDefaultAnalyticsControllerState()`.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
    * @param options.isAnonymousEventsFeatureEnabled - Whether the anonymous events feature is enabled
@@ -1942,6 +1973,74 @@ export class AnalyticsController extends BaseController<
       this.#purposesFromName(event.name),
       this.#eventsConfigVersion,
     );
+  }
+
+  /**
+   * Report a caught error as an `Error Occurred` analytics event.
+   *
+   * Properties always include `source` and a sanitized `error_message`.
+   * Whitespace is collapsed and the message is capped at 500 characters.
+   * Stack traces are never included. Optional `properties` are merged in
+   * as well.
+   *
+   * `source` must uniquely identify the error case (for example
+   * `swap-quote-fetch`). Do not reuse one value for every error in a file
+   * or package.
+   *
+   * Sampling, a deduplication window, and a per-session cap bound volume.
+   * Those controls default to always emitting, 10 seconds, and 50 events.
+   * A caller can only lower the session cap. The budget belongs to this
+   * controller instance and is not persisted.
+   *
+   * Delivery goes through {@link trackEvent}, so consent gating, the
+   * pre-consent queue, and geolocation enrichment all apply. Opted-out
+   * calls return before the volume controls run, so they do not consume
+   * the session budget.
+   *
+   * Fail-safe: this method never throws. If delivery throws, the session
+   * reservation is released.
+   *
+   * @param error - The caught value to report.
+   * @param options - Source and optional volume controls.
+   * @param options.source - Unique discriminator for this error case.
+   * @param options.volumeControls - Optional sampling, dedup, and session cap.
+   * @param properties - Optional extra properties.
+   */
+  trackErrorAsAnalytics(
+    error: unknown,
+    options: TrackErrorAsAnalyticsOptions,
+    properties?: AnalyticsEventProperties,
+  ): void {
+    try {
+      if (
+        !this.#isCaptureAllowed(
+          this.#purposesFromName(ERROR_OCCURRED_EVENT_NAME),
+        )
+      ) {
+        return;
+      }
+
+      const reserved = reserveErrorOccurredEvent(
+        this.#errorTrackingSession,
+        error,
+        options,
+        properties,
+      );
+      if (reserved === undefined) {
+        return;
+      }
+
+      try {
+        this.trackEvent(reserved.event);
+      } catch {
+        releaseErrorTrackingReservation(
+          this.#errorTrackingSession,
+          reserved.reservation,
+        );
+      }
+    } catch {
+      // Fail-safe: telemetry must never break the calling flow.
+    }
   }
 
   #trackEvent(

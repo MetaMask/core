@@ -1,10 +1,18 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import type { IDisposable } from 'cockatiel';
+import {
+  nullable,
+  object,
+  pattern as matches,
+  string,
+} from '@metamask/superstruct';
 
 import { Env } from '../types.js';
 import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types.js';
@@ -63,6 +71,15 @@ export function getUnknownGeolocationData(): GeolocationData {
  * the United States and Canada (e.g. `US-NY`, `CA-ON`) and returned the country
  * alone for everywhere else.
  */
+/**
+ * Describes the validated shape of {@link GeolocationData}.
+ */
+const GeolocationDataStruct = object({
+  country: nullable(matches(string(), COUNTRY_PATTERN)),
+  region: nullable(matches(string(), REGION_PATTERN)),
+  timezone: nullable(matches(string(), TIMEZONE_PATTERN)),
+});
+
 const REGION_APPENDED_COUNTRIES = new Set(['US', 'CA']);
 
 /**
@@ -97,9 +114,17 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * Invalidates cached queries for {@link GeolocationApiService}.
+ */
+export type GeolocationApiServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link GeolocationApiService} exposes to other consumers.
  */
-export type GeolocationApiServiceActions = GeolocationApiServiceMethodActions;
+export type GeolocationApiServiceActions =
+  | GeolocationApiServiceMethodActions
+  | GeolocationApiServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link GeolocationApiServiceMessenger}
@@ -108,9 +133,24 @@ export type GeolocationApiServiceActions = GeolocationApiServiceMethodActions;
 type AllowedActions = never;
 
 /**
+ * Published when {@link GeolocationApiService}'s cache is updated.
+ */
+export type GeolocationApiServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link GeolocationApiService}'s cache is
+ * updated.
+ */
+export type GeolocationApiServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
  * Events that {@link GeolocationApiService} exposes to other consumers.
  */
-export type GeolocationApiServiceEvents = never;
+export type GeolocationApiServiceEvents =
+  | GeolocationApiServiceCacheUpdatedEvent
+  | GeolocationApiServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link GeolocationApiService} subscribes
@@ -209,7 +249,7 @@ function parseGeolocationResponse(raw: string): GeolocationData {
  * Options accepted by {@link GeolocationApiService.fetchGeolocation}.
  */
 export type FetchGeolocationOptions = {
-  /** When true, the TTL cache is invalidated so the next request fetches fresh data. */
+  /** When true, ignores any cached result and fetches fresh data. */
   bypassCache?: boolean;
 };
 
@@ -220,40 +260,21 @@ export type FetchGeolocationOptions = {
  * Responsibilities:
  * - HTTP request to the geolocation endpoint (wrapped in a service policy)
  * - Response validation of the country, region, and timezone fields
- * - TTL-based in-memory cache
- * - Promise deduplication (concurrent callers share a single in-flight request)
  *
  * This class is intentionally not a controller: it does not manage UI state.
  * Its {@link fetchGeolocation} and {@link fetchGeolocationData} methods are
  * automatically registered on the messenger so that controllers and other
  * packages can call them directly.
  */
-export class GeolocationApiService {
-  /**
-   * The name of the service.
-   */
-  readonly name: typeof serviceName;
-
-  readonly #messenger: GeolocationApiServiceMessenger;
-
+export class GeolocationApiService extends BaseDataService<
+  typeof serviceName,
+  GeolocationApiServiceMessenger
+> {
   readonly #fetch: typeof globalThis.fetch;
 
   readonly #url: string;
 
   readonly #ttlMs: number;
-
-  /**
-   * The policy that wraps each HTTP request.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #policy: ServicePolicy;
-
-  #cachedGeolocation: GeolocationData = getUnknownGeolocationData();
-
-  #lastFetchedAt: number | null = null;
-
-  #fetchPromise: Promise<GeolocationData> | null = null;
 
   /**
    * Constructs a new {@link GeolocationApiService}.
@@ -264,7 +285,8 @@ export class GeolocationApiService {
    * Defaults to PRD.
    * @param args.fetch - A function that can be used to make an HTTP request.
    * Defaults to the global fetch.
-   * @param args.ttlMs - Cache TTL in milliseconds. Defaults to 5 minutes.
+   * @param args.ttlMs - How long a fetched result is served from cache, in
+   * milliseconds. Defaults to 5 minutes.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
@@ -281,66 +303,24 @@ export class GeolocationApiService {
     ttlMs?: number;
     policyOptions?: CreateServicePolicyOptions;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({ name: serviceName, messenger, policyOptions });
     this.#url = getGeolocationUrl(env);
     this.#fetch = fetchFunction;
     this.#ttlMs = ttlMs ?? DEFAULT_TTL_MS;
-    this.#policy = createServicePolicy(policyOptions);
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
   }
 
   /**
-   * Registers a handler that will be called after a request returns a 5xx
-   * response, causing a retry.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
-    return this.#policy.onRetry(listener);
-  }
-
-  /**
-   * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to the API endpoint consistently return a 5xx response.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   * @see {@link createServicePolicy}
-   */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
-    return this.#policy.onBreak(listener);
-  }
-
-  /**
-   * Registers a handler that will be called when requests are consistently
-   * failing or when a successful request takes longer than the degraded
-   * threshold.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler.
-   */
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): IDisposable {
-    return this.#policy.onDegraded(listener);
-  }
-
-  /**
    * Returns the geolocation code. Serves from cache when the TTL has not
-   * expired, otherwise performs a network fetch. Concurrent callers are
-   * deduplicated to a single in-flight request.
+   * expired, otherwise performs a network fetch.
    *
    * @param options - Optional fetch options.
-   * @param options.bypassCache - When true, invalidates the TTL cache. If a
-   * request is already in-flight it will be reused (deduplication always
-   * applies).
+   * @param options.bypassCache - When true, ignores any cached result and
+   * fetches fresh data.
    * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
    * {@link UNKNOWN_LOCATION} when the API returns an empty or invalid body.
    */
@@ -351,86 +331,48 @@ export class GeolocationApiService {
   /**
    * Returns the country, region, and timezone for the current client. Serves
    * from cache when the TTL has not expired, otherwise performs a network
-   * fetch. Concurrent callers are deduplicated to a single in-flight request.
+   * fetch.
    *
    * @param options - Optional fetch options.
-   * @param options.bypassCache - When true, invalidates the TTL cache. If a
-   * request is already in-flight it will be reused (deduplication always
-   * applies).
+   * @param options.bypassCache - When true, ignores any cached result and
+   * fetches fresh data.
    * @returns The geolocation data, where each field is `null` when the API
    * omits it or returns a value that fails validation.
    */
   async fetchGeolocationData(
     options?: FetchGeolocationOptions,
   ): Promise<GeolocationData> {
+    const queryKey = [`${this.name}:fetchGeolocationData`] as const;
+
     if (options?.bypassCache) {
-      this.#lastFetchedAt = null;
+      await this.invalidateQueries({ queryKey, refetchType: 'none' });
     }
 
-    if (this.#isCacheValid()) {
-      return this.#cachedGeolocation;
-    }
-
-    if (this.#fetchPromise) {
-      return this.#fetchPromise;
-    }
-
-    const promise = this.#performFetch();
-    this.#fetchPromise = promise;
-
-    try {
-      return await promise;
-    } finally {
-      this.#fetchPromise = null;
-    }
-  }
-
-  /**
-   * Checks whether the cached geolocation is still within the TTL window.
-   *
-   * @returns True if the cache is valid.
-   */
-  #isCacheValid(): boolean {
-    return (
-      this.#lastFetchedAt !== null &&
-      Date.now() - this.#lastFetchedAt < this.#ttlMs
-    );
-  }
-
-  /**
-   * Performs the actual HTTP fetch, wrapped in the service policy for automatic
-   * retry and circuit-breaking, and validates the response.
-   *
-   * @returns The validated geolocation data.
-   */
-  async #performFetch(): Promise<GeolocationData> {
-    const response = await this.#policy.execute(async () => {
-      const localResponse = await this.#fetch(this.#url);
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Geolocation fetch failed: ${localResponse.status}`,
-        );
-      }
-      return localResponse;
+    const geolocation = await this.fetchQuery({
+      queryKey,
+      staleTime: this.#ttlMs,
+      responseStruct: GeolocationDataStruct,
+      gcTime: this.#ttlMs,
+      queryFn: async () => {
+        const response = await this.#fetch(this.#url);
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Geolocation fetch failed: ${response.status}`,
+          );
+        }
+        return parseGeolocationResponse((await response.text()).trim());
+      },
     });
 
-    const geolocation = parseGeolocationResponse(
-      (await response.text()).trim(),
-    );
-
-    // Cache whenever at least one field resolved. A partially-known result
-    // (e.g. timezone without a valid country) is still worth caching so we do
-    // not re-fetch it within the TTL window; only a fully-unknown response is
-    // left uncached so it can be retried.
-    const hasKnownField =
-      geolocation.country !== null ||
-      geolocation.region !== null ||
-      geolocation.timezone !== null;
-
-    if (hasKnownField) {
-      this.#cachedGeolocation = geolocation;
-      this.#lastFetchedAt = Date.now();
+    // A partially-known result is worth keeping for the whole TTL. A
+    // fully-unknown one is marked stale so the next call retries it.
+    if (
+      geolocation.country === null &&
+      geolocation.region === null &&
+      geolocation.timezone === null
+    ) {
+      await this.invalidateQueries({ queryKey, refetchType: 'none' });
     }
 
     return geolocation;

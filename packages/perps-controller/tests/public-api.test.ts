@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,
@@ -18,20 +20,57 @@ import {
 import {
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
+  PERPS_ERROR_CODES,
   PerpsController,
+  TP_SL_PRECISION_CONFIG,
+  calculateAccountSummary,
+  calculateNetClosedPnl,
+  calculatePercentageForPrice,
+  calculatePriceForPercentage,
+  calculatePriceForRoE,
+  calculateRoEForPrice,
+  calculateSignedRoEForPrice,
+  estimateCloseReceive,
+  estimateIsolatedLeverageChange,
+  formatRoePercent,
+  getCrossCollateral,
+  getMaxStopLossPercentage,
+  isPositiveTriggerPrice,
+  isStopLossSafeFromLiquidation,
+  isValidStopLossPercentage,
+  isValidStopLossPrice,
+  isValidTakeProfitPrice,
+  validateTPSLPrices,
 } from '../src/index.js';
 import type {
+  CalculateAccountSummaryParams,
+  CloseReceiveEstimate,
+  CloseReceiveEstimateParams,
+  IsolatedLeverageChange,
+  IsolatedLeverageChangeParams,
+  NetClosedPnlParams,
+  PerpsAccountSummary,
+  TpslCalculationParams,
+  TpslValidationResult,
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
+  GetAccountSupportParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   MarketInfo,
+  PerpsAccountSupport,
   PerpsAccountSigner,
   PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsControllerClearAgentSignersAction,
+  PerpsControllerGetAccountSupportAction,
   PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
+  PerpsControllerReplacePositionTPSLLegAction,
   PerpsControllerSetAgentSignerAction,
+  PerpsFeeResolverScope,
+  PerpsPlatformDependencies,
+  PerpsTradingFeeGrant,
   PerpsTypedDataPayload,
 } from '../src/index.js';
 import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidClient.js';
@@ -90,6 +129,44 @@ describe('@metamask/perps-controller public API', () => {
       typeof PerpsController.prototype.reconcileChaseOrderCancellation,
     ).toBe('function');
     expect(action).toBe('PerpsController:reconcileChaseOrderCancellation');
+  });
+
+  it('exports the account support contracts and controller method', () => {
+    const params: GetAccountSupportParams = { providerId: 'hyperliquid' };
+    const support: PerpsAccountSupport = {
+      isSupported: false,
+      reason: 'multi_sig_account',
+    };
+    const action: PerpsControllerGetAccountSupportAction['type'] =
+      'PerpsController:getAccountSupport';
+
+    expect(typeof PerpsController.prototype.getAccountSupport).toBe('function');
+    expect(params.providerId).toBe('hyperliquid');
+    expect(support).toStrictEqual({
+      isSupported: false,
+      reason: 'multi_sig_account',
+    });
+    expect(action).toBe('PerpsController:getAccountSupport');
+  });
+
+  it('exports the single-leg TP/SL replace method, action and error code', () => {
+    const params: ReplacePositionTPSLLegParams = {
+      symbol: 'BTC',
+      leg: 'sl',
+      triggerPrice: '45000',
+      limitPrice: '44900',
+    };
+    const action: PerpsControllerReplacePositionTPSLLegAction['type'] =
+      'PerpsController:replacePositionTPSLLeg';
+
+    expect(typeof PerpsController.prototype.replacePositionTPSLLeg).toBe(
+      'function',
+    );
+    expect(params.leg).toBe('sl');
+    expect(action).toBe('PerpsController:replacePositionTPSLLeg');
+    expect(PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED).toBe(
+      'TPSL_LEG_REPLACE_UNSUPPORTED',
+    );
   });
 
   it('exports the trading configuration constants', () => {
@@ -213,5 +290,129 @@ describe('@metamask/perps-controller public API', () => {
       'PerpsController:clearAgentSigners',
       'PerpsController:prepareTradingWallet',
     ]);
+  });
+
+  it('exports the shared TP/SL and account summary calculations', () => {
+    const params: TpslCalculationParams = {
+      currentPrice: 2500,
+      entryPrice: 2500,
+      direction: 'long',
+      leverage: 2,
+    };
+    const accountParams: CalculateAccountSummaryParams = {
+      totalEquity: '15.57',
+      crossMarginSummary: {
+        accountValue: '10.4',
+        maintenanceMargin: '0.2444',
+        notional: '12.31',
+        marginUsed: '1.231',
+      },
+      spotCollateral: 0,
+    };
+    const summary: PerpsAccountSummary = calculateAccountSummary(accountParams);
+    const validation: TpslValidationResult = validateTPSLPrices(
+      '2625',
+      '2375',
+      params,
+    );
+
+    expect(calculatePriceForRoE(-10, false, params)).toBe('2375');
+    expect(calculateSignedRoEForPrice('2375', params)).toBe('-10.00');
+    expect(calculateRoEForPrice('2375', true, params)).toBe('0.00');
+    expect(calculatePriceForPercentage(10, true, params)).toBe('2750');
+    expect(calculatePercentageForPrice('2750', true, params)).toBe('10.00');
+    expect(getMaxStopLossPercentage(2)).toBe(198);
+    expect(isValidStopLossPercentage(199, 2)).toBe(false);
+    expect(isPositiveTriggerPrice('-5')).toBe(false);
+    expect(isValidTakeProfitPrice('2625', params)).toBe(true);
+    expect(isValidStopLossPrice('2625', params)).toBe(false);
+    expect(isStopLossSafeFromLiquidation('1900', '2000', 'long')).toBe(false);
+    expect(validation).toBe('valid');
+    expect(formatRoePercent(12.5, { signed: true })).toBe('+12.50');
+    expect(TP_SL_PRECISION_CONFIG).toStrictEqual({
+      TriggerPriceBands: [
+        { BelowPrice: 0.01, Decimals: 8 },
+        { BelowPrice: 1, Decimals: 6 },
+        { BelowPrice: 100, Decimals: 4 },
+      ],
+      TriggerPriceDefaultDecimals: 2,
+      PercentageDecimals: 2,
+    });
+    expect(getCrossCollateral(accountParams.crossMarginSummary, 0)).toBeCloseTo(
+      10.4,
+    );
+    expect(summary.accountLeverage).toBeCloseTo(12.31 / 15.57);
+  });
+
+  it('exports the shared close-receive estimate and net closed PnL', () => {
+    const closeParams: CloseReceiveEstimateParams = {
+      position: {
+        size: '1',
+        entryPrice: '2000',
+        marginUsed: '1100',
+        unrealizedPnl: '100',
+        leverage: { type: 'isolated' },
+      },
+      providerId: 'hyperliquid',
+      closeSize: 0.5,
+      price: 2100,
+      feeRate: 0.0005,
+    };
+    const fill: NetClosedPnlParams = { pnl: '1234.56789', fee: '0.1' };
+    const close: CloseReceiveEstimate = estimateCloseReceive(closeParams);
+
+    expect(close).toStrictEqual({
+      marginReturned: 500,
+      realizedPnl: 50,
+      fee: 0.525,
+      receive: 549.47,
+    });
+    expect(calculateNetClosedPnl(fill)).toBe(1234.46789);
+  });
+
+  it('exports the isolated leverage change estimate', () => {
+    const params: IsolatedLeverageChangeParams = {
+      position: {
+        size: '1',
+        positionValue: '2000',
+        marginUsed: '400',
+        leverage: { type: 'isolated', value: 5 },
+      },
+      providerId: 'hyperliquid',
+      market: {},
+      leverage: 10,
+      marginTiers: [{ lowerBound: 0, maxLeverage: 25 }],
+    };
+    const result: IsolatedLeverageChange =
+      estimateIsolatedLeverageChange(params);
+
+    expect(result.removableMargin).toBeCloseTo(180);
+    expect(result.margin).toBeCloseTo(220);
+    expect(result.liquidationPrice).toBeCloseTo(1780 / 0.98);
+  });
+
+  it('exports the optional trading fee grant dependency contract', async () => {
+    const scope: PerpsFeeResolverScope = {
+      providerId: 'hyperliquid',
+      isTestnet: false,
+    };
+    const grant: PerpsTradingFeeGrant = {
+      ...scope,
+      feeBips: 2,
+      expiresAt: Date.now() + 60_000,
+    };
+    const rewardsWithGrant: PerpsPlatformDependencies['rewards'] = {
+      getPerpsDiscountForAccount: async () => null,
+      getPerpsTradingFeeGrant: async (requestedScope) =>
+        requestedScope.providerId === scope.providerId ? grant : null,
+    };
+    const legacyRewards: PerpsPlatformDependencies['rewards'] = {
+      getPerpsDiscountForAccount: async () => 6500,
+    };
+
+    expect(
+      await rewardsWithGrant.getPerpsTradingFeeGrant?.(scope),
+    ).toStrictEqual(grant);
+    expect(legacyRewards.getPerpsTradingFeeGrant).toBeUndefined();
   });
 });

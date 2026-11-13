@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { OrderType } from '../../../src/types/perps-types.js';

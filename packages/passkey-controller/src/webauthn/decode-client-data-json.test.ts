@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { decodeClientDataJSON } from './decode-client-data-json.js';
 
 describe('decodeClientDataJSON', () => {

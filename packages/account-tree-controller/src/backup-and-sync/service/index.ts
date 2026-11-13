@@ -302,7 +302,7 @@ export class BackupAndSyncService {
     );
 
     // Encapsulate the sync logic in a function to allow tracing
-    const bigSyncFn = async () => {
+    const bigSyncFn = async (): Promise<void> => {
       try {
         // 1. Identifies all local entropy wallets that can be synchronized
         const localSyncableWallets = getLocalEntropyWallets(this.#context);

@@ -1,5 +1,7 @@
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { GatorPermissionsProviderError } from './errors.js';
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController.js';
@@ -9,12 +11,12 @@ import { executeSnapRpc } from './utils.js';
 describe('executeSnapRpc', () => {
   const mockSnapId = 'npm:@metamask/test-snap' as SnapId;
 
-  function createMockMessenger(): { call: jest.Mock } {
-    return { call: jest.fn() };
+  function createMockMessenger(): { call: Mock } {
+    return { call: vi.fn() };
   }
 
   function getMessenger(mock: {
-    call: jest.Mock;
+    call: Mock;
   }): GatorPermissionsControllerMessenger {
     return mock as unknown as GatorPermissionsControllerMessenger;
   }

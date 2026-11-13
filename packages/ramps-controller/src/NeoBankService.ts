@@ -1,25 +1,33 @@
+import { BaseDataService, handleWhen } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import {
-  createServicePolicy,
-  handleWhen,
-  HttpError,
-} from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Infer, Struct } from '@metamask/superstruct';
+import { array, size, string, type, union } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
 
 import packageJson from '../package.json';
 import type {
+  AutorampDepositInstructions,
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  UsBankDepositInstructions,
+  UsBankDepositRail,
 } from './autoramp-types.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
-import { WalletRegistrationService } from './wallet-registration-service.js';
+import {
+  WalletRegistrationError,
+  WalletRegistrationService,
+} from './wallet-registration-service.js';
 import type {
   RegistrationOutcome,
   RegistrationStatus,
@@ -52,6 +60,76 @@ function isRetryableError(error: unknown): boolean {
 }
 
 /**
+ * Minimal shape check for an autoramp payload: it must carry a non-empty `id`.
+ * The full mapping is done by {@link mapNeoBankAutorampToRemoteSnapshot}.
+ */
+const AutorampResponseStruct = type({ id: size(string(), 1, Infinity) });
+
+/**
+ * The validated body of an autoramp response.
+ */
+type AutorampResponseBody = Infer<typeof AutorampResponseStruct>;
+
+/**
+ * An autoramp payload read only for its `deposit_rails`: any object is
+ * accepted, and {@link extractPixDepositInstructions} tolerates anything in
+ * `deposit_rails`.
+ */
+const PixAutorampResponseStruct = type({});
+
+/**
+ * Minimal shape check for the microdeposits list: an array of objects. The
+ * items are returned unmodified.
+ */
+const MicrodepositListResponseStruct = array(type({}));
+
+/**
+ * Minimal shape check for the customer abilities response: an object with a
+ * `fiat_deposit` object. The rest is returned unmodified.
+ */
+const CustomerAbilitiesResponseStruct = type({ fiat_deposit: type({}) });
+
+/**
+ * Minimal shape check for one autoramp transaction. Other fields are read
+ * leniently when mapping.
+ */
+const AutorampTransactionResponseStruct = type({
+  id: string(),
+  status: string(),
+});
+
+/**
+ * Builds a struct for a MoonPay list: either a paged object with an `items`
+ * array or a raw array.
+ *
+ * @param itemStruct - Struct for each list item.
+ * @returns Struct for the list response.
+ */
+function pagedListStruct<Item>(
+  itemStruct: Struct<Item>,
+): Struct<Item[] | { items: Item[] }> {
+  return union([array(itemStruct), type({ items: array(itemStruct) })]);
+}
+
+const AutorampListResponseStruct = pagedListStruct(AutorampResponseStruct);
+
+const AutorampTransactionListResponseStruct = pagedListStruct(
+  AutorampTransactionResponseStruct,
+);
+
+/**
+ * Drops `undefined` values so query params can be used in a query key.
+ *
+ * @param query - Query params as passed by the caller.
+ * @returns The same params without `undefined` values.
+ */
+function toQueryKeyParams(query: NeoBankQueryParams): Record<string, Json> {
+  return Object.fromEntries(
+    Object.entries(query).filter(([, value]) => value !== undefined),
+  ) as Record<string, Json>;
+}
+
+/**
  * Raw autoramp payload from the MetaMask Ramp API neo-bank proxy.
  * Shape mirrors MoonPay Enterprise `GET /api/autoramps/{autoramp_id}`.
  * The Ramp API handles partner auth / headers; the client only sends the
@@ -81,6 +159,78 @@ export type NeoBankAutorampResponse = {
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   deposit_rails?: unknown[];
+};
+
+/**
+ * A MoonPay microdeposit: a small test credit a bank sends when a user links
+ * their account. Shape mirrors MoonPay `GET /api/customers/{id}/microdeposits`
+ * and is returned unmodified. There is no id field, so consumers derive their
+ * own key.
+ */
+export type NeoBankMicrodeposit = {
+  /** Decimal string, e.g. `"0.34"`. */
+  amount: string;
+  /** Currency code, e.g. `"USD"`. */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  currency_code: string;
+  /** ISO-8601 datetime. */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  created_at: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  counterparty_name?: string;
+};
+
+/**
+ * Status of one MoonPay rail ability. Only `Active` lets the customer use the
+ * rail.
+ */
+export type NeoBankAbilityStatus =
+  | 'Active'
+  | 'Pending'
+  | 'Unavailable'
+  | 'Blocked'
+  | 'Maintenance';
+
+/**
+ * Rail statuses keyed by lowercase fiat code, then rail name, e.g. `usd.ach`
+ * or `brl.pix_thirdparty`.
+ */
+export type NeoBankFiatAbilities = Record<
+  string,
+  Record<string, NeoBankAbilityStatus>
+>;
+
+/**
+ * A MoonPay currency, as it appears in a customer's currency abilities.
+ */
+export type NeoBankAbilityCurrency =
+  | { type: 'Fiat'; code: string }
+  | { type: 'Crypto'; token: string; blockchain: string };
+
+/**
+ * What a MoonPay customer can do with one currency.
+ */
+export type NeoBankCurrencyAbility = {
+  currency: NeoBankAbilityCurrency;
+  flows: ('Onramp' | 'Offramp' | 'Swap' | 'Mint' | 'Redeem')[];
+  /** Mint/redeem counterparts. Empty except for mint-only brand tokens. */
+  counterparts: NeoBankAbilityCurrency[];
+};
+
+/**
+ * A MoonPay customer's rail abilities. Shape mirrors MoonPay
+ * `GET /api/customers/{id}/abilities` and is returned unmodified.
+ */
+export type NeoBankCustomerAbilities = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  fiat_deposit: NeoBankFiatAbilities;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  fiat_payout: NeoBankFiatAbilities;
+  /** What the customer can do with each currency it can currently use. */
+  currencies: NeoBankCurrencyAbility[];
+  /** Why a rail is `Unavailable`, keyed by rail name (e.g. `ach`). */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  blocking_abilities: Record<string, string>;
 };
 
 /**
@@ -129,9 +279,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'attachAutorampQuote',
   'getCustomerByExternalId',
   'getMoonpayCustomerId',
+  'getMicrodeposits',
+  'getCustomerAbilities',
   'getWalletRegistrationStatus',
   'registerSelfHostedWallet',
   'getPixDepositInstructions',
+  'getDepositInstructions',
   'listAutorampTransactions',
 ] as const;
 
@@ -141,15 +294,41 @@ const MESSENGER_EXPOSED_METHODS = [
 const AUTORAMP_LIST_PAGE_SIZE = 100;
 
 /**
+ * Invalidates cached queries for {@link NeoBankService}.
+ */
+export type NeoBankServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link NeoBankService} exposes to other consumers.
  */
-export type NeoBankServiceActions = NeoBankServiceMethodActions;
+export type NeoBankServiceActions =
+  | NeoBankServiceMethodActions
+  | NeoBankServiceInvalidateQueriesAction;
 
 type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
 
-export type NeoBankServiceEvents = never;
+/**
+ * Published when {@link NeoBankService}'s cache is updated.
+ */
+export type NeoBankServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+/**
+ * Published when a key within {@link NeoBankService}'s cache is updated.
+ */
+export type NeoBankServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Events that {@link NeoBankService} exposes to other consumers.
+ */
+export type NeoBankServiceEvents =
+  | NeoBankServiceCacheUpdatedEvent
+  | NeoBankServiceGranularCacheUpdatedEvent;
 
 type AllowedEvents = never;
 
@@ -210,10 +389,12 @@ export function mapNeoBankAutorampToRemoteSnapshot(
   const depositRails = response.deposit_rails;
   const hasDepositRails =
     Array.isArray(depositRails) && depositRails.length > 0;
+  const currency = readDepositRailCurrency(depositRails);
   const depositRailsSummary: AutorampDepositRailsSummary | undefined =
     hasDepositRails || response.status === 'Approved'
       ? {
           ready: response.status === 'Approved' && hasDepositRails,
+          ...(currency ? { currency } : {}),
         }
       : undefined;
 
@@ -231,27 +412,14 @@ export function mapNeoBankAutorampToRemoteSnapshot(
 }
 
 /**
- * Reads a MoonPay paged list (an object with an items array) or a raw array.
+ * Reads the items of a validated MoonPay list (a paged object with an `items`
+ * array, or a raw array).
  *
- * @param response - Proxy JSON body.
- * @param malformedMessage - Error when the body is neither shape.
+ * @param response - Validated proxy JSON body.
  * @returns Item list.
  */
-function readPagedItems(
-  response: unknown,
-  malformedMessage: string,
-): unknown[] {
-  if (Array.isArray(response)) {
-    return response;
-  }
-  if (
-    response !== null &&
-    typeof response === 'object' &&
-    Array.isArray((response as { items?: unknown }).items)
-  ) {
-    return (response as { items: unknown[] }).items;
-  }
-  throw new Error(malformedMessage);
+function readPagedItems<Item>(response: Item[] | { items: Item[] }): Item[] {
+  return Array.isArray(response) ? response : response.items;
 }
 
 /**
@@ -296,7 +464,8 @@ export function extractPixDepositInstructions(
     if (
       typeof record.br_code !== 'string' ||
       record.br_code.length === 0 ||
-      typeof record.instruction !== 'string'
+      typeof record.instruction !== 'string' ||
+      record.instruction.length === 0
     ) {
       continue;
     }
@@ -311,6 +480,124 @@ export function extractPixDepositInstructions(
       instructions.expiresAt = record.expires_at;
     }
     return instructions;
+  }
+  return null;
+}
+
+/**
+ * US rails in the order to prefer when an autoramp lists more than one.
+ */
+const US_BANK_DEPOSIT_RAILS: readonly UsBankDepositRail[] = [
+  'ACH',
+  'Wire',
+  'RTP',
+  'FedNow',
+];
+
+/**
+ * Fiat code implied by each MoonPay `deposit_rails` type that the app reads.
+ */
+const DEPOSIT_RAIL_CURRENCIES: Readonly<Record<string, string>> = {
+  Pix: 'BRL',
+  SEPA: 'EUR',
+  ACH: 'USD',
+  Wire: 'USD',
+  RTP: 'USD',
+  FedNow: 'USD',
+};
+
+/**
+ * Reads a non-empty string field from a deposit rail.
+ *
+ * @param record - Deposit rail object.
+ * @param key - MoonPay field name.
+ * @returns The value, or undefined when missing or empty.
+ */
+function readRailString(
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Lists the object entries of a MoonPay `deposit_rails` value.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns Rail objects, skipping anything that is not an object.
+ */
+function readDepositRails(depositRails: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(depositRails)) {
+    return [];
+  }
+  return depositRails.filter(
+    (rail): rail is Record<string, unknown> =>
+      rail !== null && typeof rail === 'object',
+  );
+}
+
+/**
+ * Fiat of the rail {@link NeoBankService.getDepositInstructions} would return.
+ * Incomplete rails do not count, so a stub PIX entry cannot label an ACH account
+ * as BRL. SEPA is included when it has an IBAN, which is the EUR equivalent.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns Uppercase fiat code, or undefined when no rail is complete.
+ */
+function readDepositRailCurrency(depositRails: unknown): string | undefined {
+  if (extractPixDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.Pix;
+  }
+  if (extractUsBankDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.ACH;
+  }
+  const sepa = readDepositRails(depositRails).find(
+    (rail) => rail.type === 'SEPA' && readRailString(rail, 'iban'),
+  );
+  return sepa ? DEPOSIT_RAIL_CURRENCIES.SEPA : undefined;
+}
+
+/**
+ * Pulls US bank transfer details out of an autoramp `deposit_rails` array.
+ * ACH is preferred, then Wire, RTP, and FedNow.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns US bank details, or null when no complete US rail is present.
+ */
+export function extractUsBankDepositInstructions(
+  depositRails: unknown,
+): UsBankDepositInstructions | null {
+  const rails = readDepositRails(depositRails);
+  for (const railType of US_BANK_DEPOSIT_RAILS) {
+    for (const record of rails) {
+      if (record.type !== railType) {
+        continue;
+      }
+      const accountHolder = readRailString(record, 'recipient_name');
+      const routingNumber = readRailString(record, 'routing_number');
+      const accountNumber = readRailString(record, 'account_number');
+      const bankName = readRailString(record, 'bank_name');
+      if (!accountHolder || !routingNumber || !accountNumber || !bankName) {
+        continue;
+      }
+      const instructions: UsBankDepositInstructions = {
+        rail: railType,
+        accountHolder,
+        routingNumber,
+        accountNumber,
+        bankName,
+      };
+      const bankAddress = readRailString(record, 'bank_address');
+      if (bankAddress) {
+        instructions.bankAddress = bankAddress;
+      }
+      const accountHolderAddress = readRailString(record, 'recipient_address');
+      if (accountHolderAddress) {
+        instructions.accountHolderAddress = accountHolderAddress;
+      }
+      return instructions;
+    }
   }
   return null;
 }
@@ -338,16 +625,11 @@ function readAmount(value: unknown): string | undefined {
  *
  * Paths use the neobank-proxy `/neobank` prefix on the on-ramp.api host.
  */
-export class NeoBankService {
-  readonly name: typeof serviceName;
-
-  readonly #messenger: NeoBankServiceMessenger;
-
+export class NeoBankService extends BaseDataService<
+  typeof serviceName,
+  NeoBankServiceMessenger
+> {
   readonly #fetch: typeof fetch;
-
-  readonly #policy: ServicePolicy;
-
-  readonly #noRetryPolicy: ServicePolicy;
 
   readonly #environment: RampsEnvironment;
 
@@ -356,6 +638,10 @@ export class NeoBankService {
   readonly #baseUrlOverride?: string;
 
   #walletRegistrationService: WalletRegistrationService | undefined;
+
+  #customerIdLookup:
+    | { externalId: string; customerId: Promise<string> }
+    | undefined;
 
   constructor({
     messenger,
@@ -372,23 +658,20 @@ export class NeoBankService {
     policyOptions?: CreateServicePolicyOptions;
     baseUrlOverride?: string;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({
+      name: serviceName,
+      messenger,
+      policyOptions: {
+        retryFilterPolicy: handleWhen(isRetryableError),
+        ...policyOptions,
+      },
+    });
     this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy({
-      retryFilterPolicy: handleWhen(isRetryableError),
-      ...policyOptions,
-    });
-    this.#noRetryPolicy = createServicePolicy({
-      retryFilterPolicy: handleWhen(isRetryableError),
-      ...policyOptions,
-      maxRetries: 0,
-    });
     this.#environment = environment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
@@ -413,7 +696,7 @@ export class NeoBankService {
       fetch: this.#fetch,
       baseUrl: this.#getBaseUrl(),
       getAuthToken: async (): Promise<string> =>
-        this.#messenger.call('AuthenticationController:getBearerToken'),
+        this.messenger.call('AuthenticationController:getBearerToken'),
       getExternalId: async (): Promise<string> =>
         this.#getCanonicalExternalId(),
     });
@@ -423,7 +706,7 @@ export class NeoBankService {
   async #getRequestHeaders(
     options: NeoBankRequestOptions = {},
   ): Promise<Record<string, string>> {
-    const bearerToken = await this.#messenger.call(
+    const bearerToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
     const headers: Record<string, string> = {
@@ -476,49 +759,51 @@ export class NeoBankService {
     );
   }
 
-  async #getJson<ResponseBody>(
+  /**
+   * Performs one authenticated GET.
+   *
+   * @param path - Path under `/neobank`.
+   * @param query - Optional query params.
+   * @returns Parsed JSON body.
+   */
+  async #getJson<ResponseBody extends Json = Json>(
     path: string,
     query?: NeoBankQueryParams,
   ): Promise<ResponseBody> {
     const url = this.#buildUrl(path, query);
-    return this.#policy.execute(async () => {
-      const headers = await this.#getRequestHeaders();
-      const fetchResponse = await this.#fetch(url, { headers });
-      if (!fetchResponse.ok) {
-        await this.#throwHttpError(url, fetchResponse);
-      }
-      return fetchResponse.json() as Promise<ResponseBody>;
-    });
+    const headers = await this.#getRequestHeaders();
+    const fetchResponse = await this.#fetch(url, { headers });
+    if (!fetchResponse.ok) {
+      await this.#throwHttpError(url, fetchResponse);
+    }
+    return fetchResponse.json() as Promise<ResponseBody>;
   }
 
-  async #postJson<ResponseBody>(
+  /**
+   * Performs one authenticated JSON POST.
+   *
+   * @param path - Path under `/neobank`.
+   * @param body - JSON request body.
+   * @param options - Optional idempotency key.
+   * @returns Parsed JSON body.
+   */
+  async #postJson<ResponseBody extends Json = Json>(
     path: string,
     body: Record<string, unknown>,
     options: NeoBankRequestOptions,
   ): Promise<ResponseBody> {
     const url = this.#buildUrl(path);
-    return this.#noRetryPolicy.execute(async () => {
-      const headers = await this.#getRequestHeaders(options);
-      headers['Content-Type'] = 'application/json';
-      const fetchResponse = await this.#fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-      if (!fetchResponse.ok) {
-        await this.#throwHttpError(url, fetchResponse);
-      }
-      return fetchResponse.json() as Promise<ResponseBody>;
+    const headers = await this.#getRequestHeaders(options);
+    headers['Content-Type'] = 'application/json';
+    const fetchResponse = await this.#fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
     });
-  }
-
-  #mapAutorampResponse(
-    response: NeoBankAutorampResponse,
-  ): AutorampRemoteSnapshot {
-    if (!response || typeof response !== 'object' || !response.id) {
-      throw new Error('Malformed response received from neo-bank autoramp API');
+    if (!fetchResponse.ok) {
+      await this.#throwHttpError(url, fetchResponse);
     }
-    return mapNeoBankAutorampToRemoteSnapshot(response);
+    return fetchResponse.json() as Promise<ResponseBody>;
   }
 
   /**
@@ -530,10 +815,19 @@ export class NeoBankService {
    * @returns Remote snapshot for controller apply/refresh.
    */
   async getAutoramp(autorampId: string): Promise<AutorampRemoteSnapshot> {
-    const response = await this.#getJson<NeoBankAutorampResponse>(
-      `autoramps/${encodeURIComponent(autorampId)}`,
+    const response = await this.fetchQuery({
+      queryKey: [`${this.name}:getAutoramp`, autorampId],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: AutorampResponseStruct,
+      queryFn: async () =>
+        this.#getJson<AutorampResponseBody>(
+          `autoramps/${encodeURIComponent(autorampId)}`,
+        ),
+    });
+    return mapNeoBankAutorampToRemoteSnapshot(
+      response as NeoBankAutorampResponse,
     );
-    return this.#mapAutorampResponse(response);
   }
 
   /**
@@ -551,22 +845,28 @@ export class NeoBankService {
   async getAutoramps(
     params: { customerId?: string } = {},
   ): Promise<AutorampRemoteSnapshot[]> {
-    const autoramps: unknown[] = [];
+    const autoramps: AutorampResponseBody[] = [];
     const seenCursors = new Set<string>();
     let cursor: string | undefined;
 
     do {
-      const response = await this.#getJson<unknown>('autoramps', {
+      const query: NeoBankQueryParams = {
         customer_id: params.customerId,
         page_size: AUTORAMP_LIST_PAGE_SIZE,
         cursor,
+      };
+      const response = await this.fetchQuery({
+        queryKey: [`${this.name}:getAutoramps`, toQueryKeyParams(query)],
+        staleTime: 0,
+        gcTime: 0,
+        responseStruct: AutorampListResponseStruct,
+        queryFn: async () =>
+          this.#getJson<Infer<typeof AutorampListResponseStruct>>(
+            'autoramps',
+            query,
+          ),
       });
-      autoramps.push(
-        ...readPagedItems(
-          response,
-          'Malformed response received from neo-bank autoramps API',
-        ),
-      );
+      autoramps.push(...readPagedItems(response));
       const nextCursor = readNextCursor(response);
       if (nextCursor === undefined || seenCursors.has(nextCursor)) {
         break;
@@ -576,7 +876,7 @@ export class NeoBankService {
     } while (cursor !== undefined);
 
     return autoramps.map((autoramp) =>
-      this.#mapAutorampResponse(autoramp as NeoBankAutorampResponse),
+      mapNeoBankAutorampToRemoteSnapshot(autoramp as NeoBankAutorampResponse),
     );
   }
 
@@ -593,13 +893,56 @@ export class NeoBankService {
   async getPixDepositInstructions(
     autorampId: string,
   ): Promise<PixDepositInstructions | null> {
-    const response = await this.#getJson<NeoBankAutorampResponse>(
-      `autoramps/${encodeURIComponent(autorampId)}`,
+    const response = await this.fetchQuery({
+      queryKey: [`${this.name}:getPixDepositInstructions`, autorampId],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: PixAutorampResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof PixAutorampResponseStruct>>(
+          `autoramps/${encodeURIComponent(autorampId)}`,
+        ),
+    });
+    return extractPixDepositInstructions(
+      (response as Pick<NeoBankAutorampResponse, 'deposit_rails'>)
+        .deposit_rails,
     );
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from neo-bank autoramp API');
+  }
+
+  /**
+   * Loads deposit details for an autoramp, whichever rail it has.
+   *
+   * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
+   * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`). Returns null until MoonPay
+   * has attached a supported rail. MoonPay only verifies the rail at
+   * `Approved`, so callers should not show these details before then.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns Deposit details discriminated by `type`, or null.
+   */
+  async getDepositInstructions(
+    autorampId: string,
+  ): Promise<AutorampDepositInstructions | null> {
+    const response = await this.fetchQuery({
+      queryKey: [`${this.name}:getDepositInstructions`, autorampId],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: PixAutorampResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof PixAutorampResponseStruct>>(
+          `autoramps/${encodeURIComponent(autorampId)}`,
+        ),
+    });
+    const { deposit_rails: depositRails } = response as Pick<
+      NeoBankAutorampResponse,
+      'deposit_rails'
+    >;
+    const pix = extractPixDepositInstructions(depositRails);
+    if (pix) {
+      return { type: 'Pix', ...pix };
     }
-    return extractPixDepositInstructions(response.deposit_rails);
+    const usBank = extractUsBankDepositInstructions(depositRails);
+    return usBank ? { type: 'UsBank', ...usBank } : null;
   }
 
   /**
@@ -610,42 +953,43 @@ export class NeoBankService {
    * (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
    *
    * @param autorampId - MoonPay autoramp id.
+   * @param options - Optional page size. Omitted requests use the API default.
+   * @param options.pageSize - `page_size` query value. Callers that diff
+   * status pass 50.
    * @returns Transaction summaries from the newest page.
    */
   async listAutorampTransactions(
     autorampId: string,
+    options?: { pageSize?: number },
   ): Promise<AutorampTransactionSummary[]> {
-    const response = await this.#getJson<unknown>('autoramp-transactions', {
+    const query: NeoBankQueryParams = {
       autoramp_id: autorampId,
       sort_order: 'desc',
+      ...(options?.pageSize === undefined
+        ? {}
+        : { page_size: options.pageSize }),
+    };
+    const response = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:listAutorampTransactions`,
+        toQueryKeyParams(query),
+      ],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: AutorampTransactionListResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof AutorampTransactionListResponseStruct>>(
+          'autoramp-transactions',
+          query,
+        ),
     });
-    const transactions = readPagedItems(
-      response,
-      'Malformed response received from neo-bank autoramp transactions API',
-    );
-    return transactions.map((transaction) => {
-      if (
-        transaction === null ||
-        typeof transaction !== 'object' ||
-        typeof (transaction as { id?: unknown }).id !== 'string'
-      ) {
-        throw new Error(
-          'Malformed response received from neo-bank autoramp transactions API',
-        );
-      }
-      const record = transaction as {
-        id: string;
+    return readPagedItems(response).map((transaction) => {
+      const record = transaction as typeof transaction & {
         autoramp_id?: unknown;
-        status?: unknown;
         source_amount?: unknown;
         destination_amount?: unknown;
         created_at?: unknown;
       };
-      if (typeof record.status !== 'string') {
-        throw new Error(
-          'Malformed response received from neo-bank autoramp transactions API',
-        );
-      }
       const createdAt =
         typeof record.created_at === 'string' && record.created_at.length > 0
           ? record.created_at
@@ -675,8 +1019,11 @@ export class NeoBankService {
   async registerPixAddress(
     body: Record<string, unknown>,
     options: NeoBankRequestOptions = {},
-  ): Promise<unknown> {
-    return this.#postJson('addresses/pix', body, options);
+  ): Promise<Json> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:registerPixAddress`],
+      mutationFn: async () => this.#postJson('addresses/pix', body, options),
+    });
   }
 
   /**
@@ -685,8 +1032,13 @@ export class NeoBankService {
    * @param query - Quote query params (forwarded as-is).
    * @returns Parsed proxy JSON response.
    */
-  async getAutorampQuote(query: NeoBankQueryParams = {}): Promise<unknown> {
-    return this.#getJson('autoramps/quote', query);
+  async getAutorampQuote(query: NeoBankQueryParams = {}): Promise<Json> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getAutorampQuote`, toQueryKeyParams(query)],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => this.#getJson('autoramps/quote', query),
+    });
   }
 
   /**
@@ -701,12 +1053,15 @@ export class NeoBankService {
     body: Record<string, unknown>,
     options: NeoBankRequestOptions = {},
   ): Promise<AutorampRemoteSnapshot> {
-    const response = await this.#postJson<NeoBankAutorampResponse>(
-      'autoramps',
-      body,
-      options,
+    const response = await this.executeMutation({
+      mutationKey: [`${this.name}:createAutoramp`],
+      responseStruct: AutorampResponseStruct,
+      mutationFn: async () =>
+        this.#postJson<AutorampResponseBody>('autoramps', body, options),
+    });
+    return mapNeoBankAutorampToRemoteSnapshot(
+      response as NeoBankAutorampResponse,
     );
-    return this.#mapAutorampResponse(response);
   }
 
   /**
@@ -720,11 +1075,21 @@ export class NeoBankService {
   async getAutorampQuoteForAutoramp(
     autorampId: string,
     query: NeoBankQueryParams = {},
-  ): Promise<unknown> {
-    return this.#getJson(
-      `autoramps/${encodeURIComponent(autorampId)}/quote`,
-      query,
-    );
+  ): Promise<Json> {
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:getAutorampQuoteForAutoramp`,
+        autorampId,
+        toQueryKeyParams(query),
+      ],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () =>
+        this.#getJson(
+          `autoramps/${encodeURIComponent(autorampId)}/quote`,
+          query,
+        ),
+    });
   }
 
   /**
@@ -740,12 +1105,16 @@ export class NeoBankService {
     autorampId: string,
     body: Record<string, unknown>,
     options: NeoBankRequestOptions = {},
-  ): Promise<unknown> {
-    return this.#postJson(
-      `autoramps/${encodeURIComponent(autorampId)}/quotes`,
-      body,
-      options,
-    );
+  ): Promise<Json> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:attachAutorampQuote`, autorampId],
+      mutationFn: async () =>
+        this.#postJson(
+          `autoramps/${encodeURIComponent(autorampId)}/quotes`,
+          body,
+          options,
+        ),
+    });
   }
 
   /**
@@ -755,10 +1124,14 @@ export class NeoBankService {
    * @param externalId - Partner-assigned external customer id.
    * @returns Parsed proxy JSON response.
    */
-  async getCustomerByExternalId(externalId: string): Promise<unknown> {
-    return this.#getJson(
-      `customers/${encodeURIComponent(externalId)}/external`,
-    );
+  async getCustomerByExternalId(externalId: string): Promise<Json> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getCustomerByExternalId`, externalId],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () =>
+        this.#getJson(`customers/${encodeURIComponent(externalId)}/external`),
+    });
   }
 
   /**
@@ -769,6 +1142,103 @@ export class NeoBankService {
    */
   async getMoonpayCustomerId(): Promise<string> {
     return await this.#getWalletRegistrationService().getMoonpayCustomerId();
+  }
+
+  /**
+   * Lists the customer's bank-link microdeposits via neobank-proxy
+   * `GET /neobank/customers/{customer_id}/microdeposits` (MoonPay
+   * `GET /api/customers/{id}/microdeposits`).
+   *
+   * The customer id is resolved through {@link getMoonpayCustomerId} at most
+   * once per service instance; concurrent callers share the in-flight lookup
+   * and a failed lookup is retried by the next call. A 404 (from the customer
+   * lookup or the list) means there is no customer or no deposits yet and
+   * resolves `[]`. Any other non-2xx response throws an {@link HttpError}. The
+   * customer lookup is a single attempt: it does not go through the retry
+   * policy.
+   *
+   * @returns MoonPay microdeposits, unmodified.
+   */
+  async getMicrodeposits(): Promise<NeoBankMicrodeposit[]> {
+    let response: Infer<typeof MicrodepositListResponseStruct>;
+    try {
+      const customerId = await this.#resolveCustomerId();
+      response = await this.fetchQuery({
+        queryKey: [`${this.name}:getMicrodeposits`, customerId],
+        staleTime: 0,
+        gcTime: 0,
+        responseStruct: MicrodepositListResponseStruct,
+        queryFn: async () =>
+          this.#getJson<Infer<typeof MicrodepositListResponseStruct>>(
+            `customers/${encodeURIComponent(customerId)}/microdeposits`,
+          ),
+      });
+    } catch (error) {
+      if ((error as { httpStatus?: unknown }).httpStatus === 404) {
+        return [];
+      }
+      throw error;
+    }
+    return response as NeoBankMicrodeposit[];
+  }
+
+  /**
+   * Reads the customer's rail abilities via neobank-proxy
+   * `GET /neobank/customers/{customer_id}/abilities` (MoonPay
+   * `GET /api/customers/{id}/abilities`).
+   *
+   * MoonPay rejects an autoramp create with a 422 when the rail it needs is not
+   * `Active`, even for an `Active` customer. The customer id is resolved the
+   * same way as in {@link getMicrodeposits}. Any non-2xx response, including a
+   * 404 when there is no customer yet, throws an {@link HttpError}.
+   *
+   * @returns MoonPay customer abilities, unmodified.
+   */
+  async getCustomerAbilities(): Promise<NeoBankCustomerAbilities> {
+    const customerId = await this.#resolveCustomerId();
+    const response = await this.fetchQuery({
+      queryKey: [`${this.name}:getCustomerAbilities`, customerId],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: CustomerAbilitiesResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof CustomerAbilitiesResponseStruct>>(
+          `customers/${encodeURIComponent(customerId)}/abilities`,
+        ),
+    });
+    return response as NeoBankCustomerAbilities;
+  }
+
+  /**
+   * Resolves the MoonPay customer id through {@link getMoonpayCustomerId} at
+   * most once per session profile, so a profile switch looks the customer up
+   * again. Concurrent callers share the in-flight lookup and a failed lookup
+   * is retried by the next call. The lookup is a single attempt: it does not
+   * go through the retry policy.
+   *
+   * @returns Iron's internal customer id.
+   */
+  async #resolveCustomerId(): Promise<string> {
+    const externalId = await this.#getCanonicalExternalId();
+    if (this.#customerIdLookup?.externalId !== externalId) {
+      const customerId = this.getMoonpayCustomerId().catch((error: unknown) => {
+        if (this.#customerIdLookup?.externalId === externalId) {
+          this.#customerIdLookup = undefined;
+        }
+        // The lookup runs outside the service policy and throws
+        // WalletRegistrationError; surface HTTP failures as HttpError like
+        // every other method.
+        if (error instanceof WalletRegistrationError && error.httpStatus) {
+          throw new HttpError(
+            error.httpStatus,
+            `Fetching neo-bank customer lookup failed with status '${error.httpStatus}'${error.body ? ` - ${error.body}` : ''}`,
+          );
+        }
+        throw error;
+      });
+      this.#customerIdLookup = { externalId, customerId };
+    }
+    return await this.#customerIdLookup.customerId;
   }
 
   /**
@@ -814,7 +1284,7 @@ export class NeoBankService {
    * @returns Canonical profile id.
    */
   async #getCanonicalExternalId(): Promise<string> {
-    const profile = await this.#messenger.call(
+    const profile = await this.messenger.call(
       'AuthenticationController:getSessionProfile',
     );
     const canonical = profile?.canonicalProfileId;
@@ -828,23 +1298,5 @@ export class NeoBankService {
       );
     }
     return externalId;
-  }
-
-  onRetry(
-    listener: Parameters<ServicePolicy['onRetry']>[0],
-  ): ReturnType<ServicePolicy['onRetry']> {
-    return this.#policy.onRetry(listener);
-  }
-
-  onBreak(
-    listener: Parameters<ServicePolicy['onBreak']>[0],
-  ): ReturnType<ServicePolicy['onBreak']> {
-    return this.#policy.onBreak(listener);
-  }
-
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): ReturnType<ServicePolicy['onDegraded']> {
-    return this.#policy.onDegraded(listener);
   }
 }

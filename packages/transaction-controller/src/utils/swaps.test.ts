@@ -5,8 +5,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import { CHAIN_IDS } from '../constants.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { TransactionMeta } from '../types.js';
@@ -19,11 +20,11 @@ import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from './swaps.js';
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
-jest.useFakeTimers();
+vi.useFakeTimers();
 
 describe('updateSwapsTransaction', () => {
   let transactionMeta: TransactionMeta;
@@ -76,14 +77,14 @@ describe('updateSwapsTransaction', () => {
     });
     request = {
       isSwapsDisabled: false,
-      cancelTransaction: jest.fn(),
+      cancelTransaction: vi.fn(),
       messenger,
     };
   });
 
   it('should not update if swaps are disabled', async () => {
     request.isSwapsDisabled = true;
-    jest.spyOn(messenger, 'call');
+    vi.spyOn(messenger, 'call');
     updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
     expect(messenger.call).not.toHaveBeenCalled();
@@ -91,7 +92,7 @@ describe('updateSwapsTransaction', () => {
 
   it('should not update if transaction type is not swap, swapAndSend, swapApproval', async () => {
     transactionType = TransactionType.deployContract;
-    jest.spyOn(messenger, 'call');
+    vi.spyOn(messenger, 'call');
     updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
     expect(messenger.call).not.toHaveBeenCalled();
@@ -111,7 +112,7 @@ describe('updateSwapsTransaction', () => {
 
   it('should not update or call swap events if swaps meta is not defined', async () => {
     swaps.meta = undefined;
-    jest.spyOn(messenger, 'call');
+    vi.spyOn(messenger, 'call');
     updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
     expect(messenger.call).not.toHaveBeenCalled();
@@ -142,7 +143,7 @@ describe('updateSwapsTransaction', () => {
       approvalTxId,
     };
 
-    const transactionNewSwapEventListener = jest.fn();
+    const transactionNewSwapEventListener = vi.fn();
     messenger.subscribe(
       'TransactionController:transactionNewSwap',
       transactionNewSwapEventListener,
@@ -221,7 +222,7 @@ describe('updateSwapsTransaction', () => {
     };
     transactionType = TransactionType.swapApproval;
 
-    const transactionNewSwapApprovalEventListener = jest.fn();
+    const transactionNewSwapApprovalEventListener = vi.fn();
     messenger.subscribe(
       'TransactionController:transactionNewSwapApproval',
       transactionNewSwapApprovalEventListener,
@@ -300,7 +301,7 @@ describe('updateSwapsTransaction', () => {
       swapAndSendRecipient,
     };
 
-    const transactionNewSwapAndSendEventListener = jest.fn();
+    const transactionNewSwapAndSendEventListener = vi.fn();
     messenger.subscribe(
       'TransactionController:transactionNewSwapAndSend',
       transactionNewSwapAndSendEventListener,
@@ -395,7 +396,7 @@ describe('updateSwapsTransaction', () => {
 });
 
 describe('updatePostTransactionBalance', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
   const messengerMock = {} as unknown as TransactionControllerMessenger;
   const networkClientIdMock = 'testNetworkClientId' as NetworkClientId;
   let transactionMeta: TransactionMeta;
@@ -404,7 +405,7 @@ describe('updatePostTransactionBalance', () => {
   let request: any;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     transactionMeta = {
       id: '1',
@@ -421,8 +422,8 @@ describe('updatePostTransactionBalance', () => {
     request = {
       messenger: messengerMock,
       networkClientId: networkClientIdMock,
-      getTransaction: jest.fn().mockReturnValue(transactionMeta),
-      updateTransaction: jest.fn(),
+      getTransaction: vi.fn().mockReturnValue(transactionMeta),
+      updateTransaction: vi.fn(),
     };
   });
 
@@ -432,9 +433,8 @@ describe('updatePostTransactionBalance', () => {
 
     // First call to getTransaction returns transactionMeta
     // Second call to getTransaction returns approvalTransactionMeta
-    jest
-      .spyOn(request, 'getTransaction')
-      .mockImplementation()
+    vi.spyOn(request, 'getTransaction')
+      .mockImplementation(() => undefined)
       .mockReturnValueOnce(transactionMeta)
       .mockReturnValueOnce(undefined);
 
@@ -478,9 +478,8 @@ describe('updatePostTransactionBalance', () => {
 
     // First call to getTransaction returns transactionMeta
     // Second call to getTransaction returns approvalTransactionMeta
-    jest
-      .spyOn(request, 'getTransaction')
-      .mockImplementation()
+    vi.spyOn(request, 'getTransaction')
+      .mockImplementation(() => undefined)
       .mockReturnValueOnce(transactionMeta)
       .mockReturnValueOnce(mockApprovalTransactionMeta);
 
@@ -505,15 +504,15 @@ describe('updatePostTransactionBalance', () => {
     const mockPostTxBalance = transactionMeta.preTxBalance;
     rpcRequestMock.mockResolvedValue(mockPostTxBalance);
 
-    jest
-      .spyOn(request, 'getTransaction')
-      .mockImplementation(() => transactionMeta);
+    vi.spyOn(request, 'getTransaction').mockImplementation(
+      () => transactionMeta,
+    );
 
     const promise = updatePostTransactionBalance(transactionMeta, request);
 
     for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
       await flushPromises();
-      jest.runAllTimers();
+      vi.runAllTimers();
     }
 
     const { updatedTransactionMeta } = await promise;

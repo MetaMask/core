@@ -20,6 +20,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { v4 as uuidv4 } from 'uuid';
+import { describe, expect, it, vi } from 'vitest';
 
 import { MultichainBalancesController } from './index.js';
 import type {
@@ -183,7 +184,7 @@ const setupController = ({
   const messenger = getRootMessenger();
   const multichainBalancesMessenger = getRestrictedMessenger(messenger);
 
-  const mockSnapHandleRequest = jest.fn();
+  const mockSnapHandleRequest = vi.fn();
   messenger.registerActionHandler(
     'SnapController:handleRequest',
     mockSnapHandleRequest.mockReturnValue(
@@ -191,7 +192,7 @@ const setupController = ({
     ),
   );
 
-  const mockListMultichainAccounts = jest.fn();
+  const mockListMultichainAccounts = vi.fn();
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     mockListMultichainAccounts.mockReturnValue(
@@ -199,7 +200,7 @@ const setupController = ({
     ),
   );
 
-  const mockGetAssetsState = jest.fn().mockReturnValue(
+  const mockGetAssetsState = vi.fn().mockReturnValue(
     mocks?.handleMockGetAssetsState ?? {
       accountsAssets: {
         [mockBtcAccount.id]: [mockBtcNativeAsset],
@@ -211,7 +212,7 @@ const setupController = ({
     mockGetAssetsState,
   );
 
-  const mockGetKeyringState = jest.fn().mockReturnValue({
+  const mockGetKeyringState = vi.fn().mockReturnValue({
     isUnlocked: true,
   });
   messenger.registerActionHandler(
@@ -253,18 +254,18 @@ describe('MultichainBalancesController', () => {
     const messenger = getRootMessenger();
     const multichainBalancesMessenger = getRestrictedMessenger(messenger);
 
-    messenger.registerActionHandler('SnapController:handleRequest', jest.fn());
+    messenger.registerActionHandler('SnapController:handleRequest', vi.fn());
     messenger.registerActionHandler(
       'AccountsController:listMultichainAccounts',
-      jest.fn().mockReturnValue([]),
+      vi.fn().mockReturnValue([]),
     );
     messenger.registerActionHandler(
       'MultichainAssetsController:getState',
-      jest.fn(),
+      vi.fn(),
     );
     messenger.registerActionHandler(
       'KeyringController:getState',
-      jest.fn().mockReturnValue({ isUnlocked: true }),
+      vi.fn().mockReturnValue({ isUnlocked: true }),
     );
 
     const controller = new MultichainBalancesController({

@@ -1,8 +1,10 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   MOCK_WALLET_1_ENTROPY_SOURCE,
-} from '../tests/index.js';
+} from '../../tests/index.js';
 import { AccountProviderWrapper } from './AccountProviderWrapper.js';
 import { EvmAccountProvider } from './EvmAccountProvider.js';
 
@@ -21,7 +23,7 @@ describe('AccountProviderWrapper', () => {
   describe('ensureReady', () => {
     it('delegates to the inner provider when enabled', async () => {
       const { wrapper, innerProvider } = setup();
-      const ensureReadySpy = jest.spyOn(innerProvider, 'ensureReady');
+      const ensureReadySpy = vi.spyOn(innerProvider, 'ensureReady');
 
       await wrapper.ensureReady();
 
@@ -31,7 +33,7 @@ describe('AccountProviderWrapper', () => {
     it('returns immediately without calling the inner provider when disabled', async () => {
       const { wrapper, innerProvider } = setup();
       wrapper.setEnabled(false);
-      const ensureReadySpy = jest.spyOn(innerProvider, 'ensureReady');
+      const ensureReadySpy = vi.spyOn(innerProvider, 'ensureReady');
 
       await wrapper.ensureReady();
 

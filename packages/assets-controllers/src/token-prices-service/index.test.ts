@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as allExports from './index.js';
 
 describe('token-prices-service', () => {

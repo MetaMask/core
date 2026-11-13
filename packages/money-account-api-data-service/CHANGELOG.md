@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [2.4.0]
+
+### Added
+
+- Add `fetchVaultShareValuations`, which reads `GET /v1/positions/:address/vault-share-valuations` for up to 50 transaction hashes and is exposed as the `MoneyAccountApiDataService:fetchVaultShareValuations` action. Export `VaultShareValuationsResponse`, `VaultShareValuation`, `VaultShareValuationResult`, `VaultShareValuationsOptions`, `VAULT_SHARE_VALUATIONS_MAX_TX_HASHES`, and `MoneyAccountApiDataServiceFetchVaultShareValuationsAction` ([#11433](https://github.com/MetaMask/core/pull/11433))
+  - Unused valuation fields accept `null`, and `type` and `source` are plain strings, so new values do not require a client release.
+
+## [2.3.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Fixed
+
+- Validate VBA SIWE challenge messages against the expected Money Account template before signing, rejecting a message whose domain, URI, address, statement, version, chain ID, nonce, or timestamps do not match ([#11112](https://github.com/MetaMask/core/pull/11112))
+
+## [2.3.0]
+
+### Added
+
+- Add SIWE-authenticated `fetchVbaTransfers` and `MoneyAccountApiDataService:fetchVbaTransfers` to read current VBA transfers for a wallet, with wallet-scoped in-memory sessions ([#11012](https://github.com/MetaMask/core/pull/11012))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ## [2.2.0]
 
 ### Added
@@ -96,7 +124,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.4.0...HEAD
+[2.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.1...@metamask/money-account-api-data-service@2.4.0
+[2.3.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.0...@metamask/money-account-api-data-service@2.3.1
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...@metamask/money-account-api-data-service@2.3.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.1.0...@metamask/money-account-api-data-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...@metamask/money-account-api-data-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...@metamask/money-account-api-data-service@2.0.0

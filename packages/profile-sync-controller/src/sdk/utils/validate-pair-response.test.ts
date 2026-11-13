@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { RawPairResponse } from './validate-pair-response.js';
 import { validatePairResponse } from './validate-pair-response.js';
 

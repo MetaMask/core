@@ -1,6 +1,8 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { TransactionPayStrategy } from '../../constants.js';
 import type {
@@ -19,10 +21,10 @@ import type { RelayQuote } from '../relay/types.js';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data.js';
 import type { FiatQuote } from './types.js';
 
-jest.mock('../../utils/feature-flags');
-jest.mock('../../utils/transaction');
-jest.mock('../relay/relay-quotes');
-jest.mock('../relay/relay-submit');
+vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../../utils/transaction.js'));
+vi.mock(import('../relay/relay-quotes.js'));
+vi.mock(import('../relay/relay-submit.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -100,8 +102,8 @@ function buildCallMock({
 }: {
   getAmountDataUpdates?: { nestedTransactionIndex: number; data: string }[];
   featureFlags?: Record<string, unknown>;
-} = {}): jest.Mock {
-  return jest.fn((action: string) => {
+} = {}): Mock {
+  return vi.fn((action: string) => {
     if (action === 'TransactionPayController:getAmountData') {
       return Promise.resolve({ updates: getAmountDataUpdates });
     }
@@ -117,7 +119,7 @@ function buildRequest({
   quotes = [buildFiatQuote()],
   transaction = TRANSACTION_MOCK,
 }: {
-  callMock?: jest.Mock;
+  callMock?: Mock;
   quotes?: TransactionPayQuote<FiatQuote>[];
   transaction?: TransactionMeta;
 } = {}): PayStrategyExecuteRequest<FiatQuote> {
@@ -131,19 +133,17 @@ function buildRequest({
 }
 
 describe('submitWithCalldataReEncoding', () => {
-  const getRelayQuotesMock = jest.mocked(getRelayQuotes);
-  const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
-  const getTransactionMock = jest.mocked(getTransaction);
-  const updateTransactionMock = jest.mocked(updateTransaction);
-  const getFiatFeeReserveMultiplierMock = jest.mocked(
+  const getRelayQuotesMock = vi.mocked(getRelayQuotes);
+  const submitRelayQuotesMock = vi.mocked(submitRelayQuotes);
+  const getTransactionMock = vi.mocked(getTransaction);
+  const updateTransactionMock = vi.mocked(updateTransaction);
+  const getFiatFeeReserveMultiplierMock = vi.mocked(
     getFiatFeeReserveMultiplier,
   );
-  const getFiatMaxRateDriftPercentMock = jest.mocked(
-    getFiatMaxRateDriftPercent,
-  );
+  const getFiatMaxRateDriftPercentMock = vi.mocked(getFiatMaxRateDriftPercent);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({ transactionHash: '0xabc' });
     getTransactionMock.mockReturnValue(TRANSACTION_MOCK);

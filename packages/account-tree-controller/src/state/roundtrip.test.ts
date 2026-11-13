@@ -11,6 +11,8 @@
 import { toMultichainAccountWalletId } from '@metamask/account-api';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   AccountTreeControllerMessenger,
@@ -50,13 +52,13 @@ const MOCK_PRIVATE_KEY_WALLET_STATE: AccountTreeControllerState['accountTree']['
 function makeExportContext(
   wallets: AccountTreeControllerState['accountTree']['wallets'],
   messengerActions: {
-    withKeyringV2Unsafe?: jest.Mock;
-    withKeyringV2?: jest.Mock;
-    getAccount?: jest.Mock;
+    withKeyringV2Unsafe?: Mock;
+    withKeyringV2?: Mock;
+    getAccount?: Mock;
   } = {},
 ): ExportContext {
   const messenger = {
-    call: jest.fn().mockImplementation((action: string, ...args: unknown[]) => {
+    call: vi.fn().mockImplementation((action: string, ...args: unknown[]) => {
       switch (action) {
         case 'KeyringController:getState':
           return { isUnlocked: true };
@@ -87,14 +89,14 @@ function makeExportContext(
 function makeImportContext(
   walletsRef: { current: AccountTreeControllerState['accountTree']['wallets'] },
   messengerActions: {
-    withKeyringV2Unsafe?: jest.Mock;
-    withController?: jest.Mock;
-    createMultichainAccountWallet?: jest.Mock;
-    createMultichainAccountGroups?: jest.Mock;
+    withKeyringV2Unsafe?: Mock;
+    withController?: Mock;
+    createMultichainAccountWallet?: Mock;
+    createMultichainAccountGroups?: Mock;
   } = {},
 ): ImportContext {
   const messenger = {
-    call: jest.fn().mockImplementation((action: string, ...args: unknown[]) => {
+    call: vi.fn().mockImplementation((action: string, ...args: unknown[]) => {
       switch (action) {
         case 'KeyringController:withKeyringV2Unsafe':
           return messengerActions.withKeyringV2Unsafe?.(...args);
@@ -123,18 +125,18 @@ function makeImportContext(
       accountWalletsMetadata: {},
     }),
     messenger,
-    setWalletName: jest.fn(),
-    setAccountGroupName: jest.fn(),
-    setAccountGroupPinned: jest.fn(),
-    setAccountGroupHidden: jest.fn(),
+    setWalletName: vi.fn(),
+    setAccountGroupName: vi.fn(),
+    setAccountGroupPinned: vi.fn(),
+    setAccountGroupHidden: vi.fn(),
   };
 }
 
 function makeHdKeyringUnsafeHandler(
   entropySourceId: string,
   mnemonic: Uint8Array | null = null,
-): jest.Mock {
-  return jest
+): Mock {
+  return vi
     .fn()
     .mockImplementation(
       async (
@@ -153,8 +155,8 @@ function makeHdKeyringUnsafeHandler(
 function makePrivateKeyExportHandler(result: {
   privateKey: string;
   encoding: string;
-}): jest.Mock {
-  return jest
+}): Mock {
+  return vi
     .fn()
     .mockImplementation(
       async (
@@ -166,12 +168,12 @@ function makePrivateKeyExportHandler(result: {
 
 type WithControllerFn = (ctx: {
   keyrings: { keyring: { type: string }; keyringV2: unknown }[];
-  addNewKeyring: jest.Mock;
+  addNewKeyring: Mock;
 }) => Promise<unknown>;
 
-function makeWithControllerMock(keyringV2: unknown): jest.Mock {
-  return jest.fn().mockImplementation(async (fn: WithControllerFn) => {
-    const addNewKeyring = jest.fn().mockResolvedValue({
+function makeWithControllerMock(keyringV2: unknown): Mock {
+  return vi.fn().mockImplementation(async (fn: WithControllerFn) => {
+    const addNewKeyring = vi.fn().mockResolvedValue({
       keyring: { type: KeyringTypes.simple },
       keyringV2,
     });
@@ -203,7 +205,7 @@ describe('export -> serialize -> deserialize -> import round-trip', () => {
         current: {} as AccountTreeControllerState['accountTree']['wallets'],
       };
       let capturedMnemonic: Uint8Array | undefined;
-      const createMultichainAccountWallet = jest
+      const createMultichainAccountWallet = vi
         .fn()
         .mockImplementation(async (opts: { mnemonic: Uint8Array }) => {
           capturedMnemonic = opts.mnemonic;
@@ -244,7 +246,7 @@ describe('export -> serialize -> deserialize -> import round-trip', () => {
 
       // -- Export --
       const exportCtx = makeExportContext(MOCK_PRIVATE_KEY_WALLET_STATE, {
-        getAccount: jest
+        getAccount: vi
           .fn()
           .mockReturnValue({ id: 'account-private-key-1', address: '0xabc' }),
         withKeyringV2: makePrivateKeyExportHandler({
@@ -259,7 +261,7 @@ describe('export -> serialize -> deserialize -> import round-trip', () => {
       const deserialized = await AccountTreeSnapshot.deserialize(serialized);
 
       // -- Import: capture the decoded private key passed to createAccounts --
-      const createAccounts = jest
+      const createAccounts = vi
         .fn()
         .mockResolvedValue([{ id: 'new-account-private-key-1' }]);
       const walletsRef = {
@@ -283,7 +285,7 @@ describe('export -> serialize -> deserialize -> import round-trip', () => {
 
     it('assertAccountTreePayload accepts the exported payload without error', async () => {
       const exportCtx = makeExportContext(MOCK_PRIVATE_KEY_WALLET_STATE, {
-        getAccount: jest
+        getAccount: vi
           .fn()
           .mockReturnValue({ id: 'account-private-key-1', address: '0xabc' }),
         withKeyringV2: makePrivateKeyExportHandler({

@@ -2,10 +2,9 @@
  * File system utilities that are agnostic of your use case.
  */
 
+import { writeFile } from '@metamask/node-utils';
 import { promises as fs } from 'fs';
 import path from 'path';
-
-import { writeFile } from '../lib/utils.ts';
 
 /**
  * A map of file paths to file contents.

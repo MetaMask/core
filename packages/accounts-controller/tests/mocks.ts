@@ -1,3 +1,12 @@
+/**
+ * Mock accounts for tests.
+ *
+ * NOTE: This module is imported by packages that are still on Jest (see
+ * `assets-controllers`), so it must not import from `vitest`. Helpers that need
+ * an asymmetric matcher live in `expectations.ts` instead, because a matcher from
+ * one runner is not understood by the other.
+ */
+
 import {
   BtcAccountType,
   EthAccountType,
@@ -104,16 +113,6 @@ export const createMockInternalAccount = ({
       ...(snap ? { snap } : {}),
     },
   } as InternalAccount;
-};
-
-export const createExpectedInternalAccount = (
-  args: Parameters<typeof createMockInternalAccount>[0],
-): InternalAccount => {
-  return createMockInternalAccount({
-    ...args,
-    importTime: expect.any(Number),
-    lastSelected: expect.any(Number),
-  });
 };
 
 export const createMockInternalAccountOptions = (

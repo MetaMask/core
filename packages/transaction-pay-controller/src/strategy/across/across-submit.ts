@@ -15,13 +15,14 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { PERPS_DEPOSIT_TYPES } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { accountSupports7702 } from '../../utils/7702.js';
+import { accountSupports7702 } from '../../utils/account.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getGasBuffer } from '../../utils/feature-flags.js';
 import {
@@ -523,7 +524,15 @@ async function estimateSubmitBatchGasLimit7702({
       },
     );
 
-    if (result.gasLimits.length !== 1) {
+    // Older TransactionController versions return no `mode`, so detect a
+    // combined EIP-7702 gas limit from the number of gas limits instead.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const is7702Result =
+      result.mode === undefined
+        ? result.gasLimits.length === 1
+        : result.mode === 'eip7702';
+
+    if (!is7702Result) {
       return undefined;
     }
 
@@ -597,9 +606,11 @@ function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
     return TransactionType.predictAcrossWithdraw;
   }
 
+  if (transaction.type && PERPS_DEPOSIT_TYPES.includes(transaction.type)) {
+    return TransactionType.perpsAcrossDeposit;
+  }
+
   switch (transaction.type) {
-    case TransactionType.perpsDeposit:
-      return TransactionType.perpsAcrossDeposit;
     case TransactionType.predictDeposit:
       return TransactionType.predictAcrossDeposit;
     case undefined:

@@ -5,6 +5,8 @@ import { Web3Provider } from '@ethersproject/providers';
 import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import * as balanceUtils from './balance.js';
 import { fetchTokenBalance } from './balance.js';
@@ -13,34 +15,34 @@ declare global {
   var ethereumProvider: Provider;
 }
 
-jest.mock('@ethersproject/contracts', () => {
+vi.mock('@ethersproject/contracts', async (importOriginal) => {
   return {
-    ...jest.requireActual('@ethersproject/contracts'),
-    Contract: jest.fn(),
+    ...(await importOriginal<typeof import('@ethersproject/contracts')>()),
+    Contract: vi.fn(),
   };
 });
 
-jest.mock('@ethersproject/providers', () => {
+vi.mock('@ethersproject/providers', async (importOriginal) => {
   return {
-    ...jest.requireActual('@ethersproject/providers'),
-    Web3Provider: jest.fn(),
+    ...(await importOriginal<typeof import('@ethersproject/providers')>()),
+    Web3Provider: vi.fn(),
   };
 });
 
 describe('balance', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     global.ethereumProvider = new MockInternalProvider();
   });
 
   describe('calcLatestSrcBalance', () => {
     it('should return the ERC20 token balance', async () => {
-      const mockBalanceOf = jest
-        .fn()
-        .mockResolvedValueOnce(BigNumber.from(100));
-      (Contract as unknown as jest.Mock).mockImplementation(() => ({
-        balanceOf: mockBalanceOf,
-      }));
+      const mockBalanceOf = vi.fn().mockResolvedValueOnce(BigNumber.from(100));
+      (Contract as unknown as Mock).mockImplementation(function () {
+        return {
+          balanceOf: mockBalanceOf,
+        };
+      });
 
       expect(
         await balanceUtils.calcLatestSrcBalance(
@@ -55,10 +57,10 @@ describe('balance', () => {
     });
 
     it('should return the native asset balance', async () => {
-      const mockGetBalance = jest.fn().mockImplementation(() => {
+      const mockGetBalance = vi.fn().mockImplementation(() => {
         return BigNumber.from(100);
       });
-      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+      (Web3Provider as unknown as Mock).mockImplementation(function () {
         return {
           getBalance: mockGetBalance,
         };
@@ -79,17 +81,14 @@ describe('balance', () => {
     });
 
     it('should return undefined if token address and chainId are undefined', async () => {
-      const mockGetBalance = jest.fn();
-      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+      const mockGetBalance = vi.fn();
+      (Web3Provider as unknown as Mock).mockImplementation(function () {
         return {
           getBalance: mockGetBalance,
         };
       });
 
-      const mockFetchTokenBalance = jest.spyOn(
-        balanceUtils,
-        'fetchTokenBalance',
-      );
+      const mockFetchTokenBalance = vi.spyOn(balanceUtils, 'fetchTokenBalance');
       expect(
         await balanceUtils.calcLatestSrcBalance(
           global.ethereumProvider,
@@ -105,8 +104,8 @@ describe('balance', () => {
 
   describe('hasSufficientBalance', () => {
     it('should return true if user has sufficient balance', async () => {
-      const mockGetBalance = jest.fn();
-      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+      const mockGetBalance = vi.fn();
+      (Web3Provider as unknown as Mock).mockImplementation(function () {
         return {
           getBalance: mockGetBalance,
         };
@@ -116,12 +115,14 @@ describe('balance', () => {
         return BigNumber.from('10000000000000000000');
       });
 
-      const mockBalanceOf = jest
+      const mockBalanceOf = vi
         .fn()
         .mockResolvedValueOnce(BigNumber.from('10000000000000000001'));
-      (Contract as unknown as jest.Mock).mockImplementation(() => ({
-        balanceOf: mockBalanceOf,
-      }));
+      (Contract as unknown as Mock).mockImplementation(function () {
+        return {
+          balanceOf: mockBalanceOf,
+        };
+      });
 
       expect(
         await balanceUtils.hasSufficientBalance(
@@ -145,8 +146,8 @@ describe('balance', () => {
     });
 
     it('should return false if user has native assets but insufficient ERC20 src tokens', async () => {
-      const mockGetBalance = jest.fn();
-      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+      const mockGetBalance = vi.fn();
+      (Web3Provider as unknown as Mock).mockImplementation(function () {
         return {
           getBalance: mockGetBalance,
         };
@@ -155,10 +156,7 @@ describe('balance', () => {
       mockGetBalance.mockImplementation(() => {
         return BigNumber.from('10000000000000000000');
       });
-      const mockFetchTokenBalance = jest.spyOn(
-        balanceUtils,
-        'fetchTokenBalance',
-      );
+      const mockFetchTokenBalance = vi.spyOn(balanceUtils, 'fetchTokenBalance');
       mockFetchTokenBalance.mockResolvedValueOnce(
         BigNumber.from('9000000000000000000'),
       );
@@ -175,10 +173,12 @@ describe('balance', () => {
     });
 
     it('should return false if source token balance is undefined', async () => {
-      const mockBalanceOf = jest.fn().mockResolvedValueOnce(undefined);
-      (Contract as unknown as jest.Mock).mockImplementation(() => ({
-        balanceOf: mockBalanceOf,
-      }));
+      const mockBalanceOf = vi.fn().mockResolvedValueOnce(undefined);
+      (Contract as unknown as Mock).mockImplementation(function () {
+        return {
+          balanceOf: mockBalanceOf,
+        };
+      });
 
       expect(
         await balanceUtils.hasSufficientBalance(
@@ -205,21 +205,25 @@ describe('fetchTokenBalance', () => {
   const mockBalance = BigNumber.from(1000);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockProvider = new MockInternalProvider();
 
     // Mock Web3Provider
-    (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({
-      // Add any provider methods needed
-    }));
+    (Web3Provider as unknown as Mock).mockImplementation(function () {
+      return {
+        // Add any provider methods needed
+      };
+    });
   });
 
   it('should fetch token balance when contract is valid', async () => {
     // Mock Contract
-    const mockBalanceOf = jest.fn().mockResolvedValue(mockBalance);
-    (Contract as unknown as jest.Mock).mockImplementation(() => ({
-      balanceOf: mockBalanceOf,
-    }));
+    const mockBalanceOf = vi.fn().mockResolvedValue(mockBalance);
+    (Contract as unknown as Mock).mockImplementation(function () {
+      return {
+        balanceOf: mockBalanceOf,
+      };
+    });
 
     const result = await fetchTokenBalance(
       mockAddress,
@@ -239,9 +243,11 @@ describe('fetchTokenBalance', () => {
 
   it('should return undefined when contract is invalid', async () => {
     // Mock Contract to return an object without balanceOf method
-    (Contract as unknown as jest.Mock).mockImplementation(() => ({
-      // Empty object without balanceOf method
-    }));
+    (Contract as unknown as Mock).mockImplementation(function () {
+      return {
+        // Empty object without balanceOf method
+      };
+    });
 
     const result = await fetchTokenBalance(
       mockAddress,

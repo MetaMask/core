@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { parseLighterLosslessJson } from '../../../src/utils/lighterLosslessJson.js';
 
 describe('parseLighterLosslessJson', () => {

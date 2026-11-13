@@ -11,6 +11,7 @@ import {
 } from '@metamask/delegation-deployments';
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DELEGATION_FRAMEWORK_VERSION } from './constants.js';
 import { toEnforcerAddressesByName } from './decodePermission/enforcerAddresses.js';
@@ -127,7 +128,7 @@ describe('permissionOnChainStatus', () => {
   describe('readDelegationDisabledOnChain', () => {
     it('returns true when eth_call result is bool true', async () => {
       const provider = {
-        request: jest
+        request: vi
           .fn()
           .mockResolvedValue(
             '0x0000000000000000000000000000000000000000000000000000000000000001',
@@ -148,7 +149,7 @@ describe('permissionOnChainStatus', () => {
     it('returns the block timestamp in seconds', async () => {
       const timestamp = 1_700_000_000;
       const provider = {
-        request: jest.fn().mockResolvedValue({
+        request: vi.fn().mockResolvedValue({
           timestamp: numberToHex(timestamp),
         }),
       };
@@ -157,7 +158,7 @@ describe('permissionOnChainStatus', () => {
 
     it('throws when the block payload has no timestamp', async () => {
       const provider = {
-        request: jest.fn().mockResolvedValue({}),
+        request: vi.fn().mockResolvedValue({}),
       };
       await expect(readLatestBlockTimestampSeconds(provider)).rejects.toThrow(
         'Latest block missing timestamp',
@@ -167,7 +168,7 @@ describe('permissionOnChainStatus', () => {
 
   describe('resolveGrantedPermissionOnChainStatus', () => {
     it('returns Revoked when revocationMetadata is present without calling the network', async () => {
-      const getProviderForChainId = jest.fn();
+      const getProviderForChainId = vi.fn();
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -200,7 +201,7 @@ describe('permissionOnChainStatus', () => {
     });
 
     it('preserves prior status when decoded context does not contain exactly one delegation', async () => {
-      const getProviderForChainId = jest.fn();
+      const getProviderForChainId = vi.fn();
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -232,7 +233,7 @@ describe('permissionOnChainStatus', () => {
     });
 
     it('defaults missing entry status to Active when preserving after a resolution error', async () => {
-      const getProviderForChainId = jest.fn();
+      const getProviderForChainId = vi.fn();
       const entry = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),
@@ -306,8 +307,8 @@ describe('permissionOnChainStatus', () => {
         status: 'Expired',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -379,8 +380,8 @@ describe('permissionOnChainStatus', () => {
         status: 'Active',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -441,8 +442,8 @@ describe('permissionOnChainStatus', () => {
         status: 'Active',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000001';
           }
@@ -500,8 +501,8 @@ describe('permissionOnChainStatus', () => {
         status: 'Expired',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -570,8 +571,8 @@ describe('permissionOnChainStatus', () => {
         status: 'Expired',
       };
 
-      const getProviderForChainId = jest.fn().mockResolvedValue({
-        request: jest.fn(async (req) => {
+      const getProviderForChainId = vi.fn().mockResolvedValue({
+        request: vi.fn(async (req) => {
           if (req.method === 'eth_call') {
             return '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
@@ -592,7 +593,7 @@ describe('permissionOnChainStatus', () => {
 
   describe('updateGrantedPermissionsStatus', () => {
     it('resolves each permission entry', async () => {
-      const getProviderForChainId = jest.fn();
+      const getProviderForChainId = vi.fn();
       const entry: PermissionInfoWithMetadata = {
         permissionResponse: {
           chainId: numberToHex(CHAIN_ID.sepolia),

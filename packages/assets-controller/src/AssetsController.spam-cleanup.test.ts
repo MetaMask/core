@@ -1,6 +1,7 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createMockInternalAccount,
@@ -297,7 +298,7 @@ describe('AssetsController spam cleanup', () => {
   it('leaves the wallet untouched and reports when the Token API is down', async () => {
     mockSuggestedOccurrenceFloors({ status: 503 });
     const state = buildSpamWalletState();
-    const captureException = jest.fn();
+    const captureException = vi.fn();
 
     await withController(
       { state, captureException },

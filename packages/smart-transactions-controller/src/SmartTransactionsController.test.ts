@@ -24,13 +24,10 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import packageJson from '../package.json';
-import {
-  advanceTime,
-  flushPromises,
-  getFakeProvider,
-} from '../tests/helpers.js';
+import { flushPromises, getFakeProvider } from '../tests/helpers.js';
 import {
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
@@ -51,10 +48,10 @@ type AllEvents = MessengerEvents<SmartTransactionsControllerMessenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-jest.mock('@metamask/eth-query', () => {
-  const EthQuery = jest.requireActual('@metamask/eth-query');
-  return class FakeEthQuery extends EthQuery {
-    sendAsync = jest.fn(({ method, params }, callback) => {
+vi.mock(import('@metamask/eth-query'), async (importOriginal) => {
+  const { default: EthQuery } = await importOriginal();
+  class FakeEthQuery extends EthQuery {
+    sendAsync = vi.fn(({ method, params }, callback) => {
       switch (method) {
         case 'eth_getBalance': {
           return callback(null, '0x1000');
@@ -85,7 +82,8 @@ jest.mock('@metamask/eth-query', () => {
         }
       }
     });
-  };
+  }
+  return { default: FakeEthQuery };
 });
 
 const addressFrom = '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3';
@@ -317,11 +315,11 @@ const testHistory = [
 const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
 const sepoliaChainIdDec = parseInt(ChainId.sepolia, 16);
 
-const trackMetaMetricsEventSpy = jest.fn();
+const trackMetaMetricsEventSpy = vi.fn();
 
 describe('SmartTransactionsController', () => {
   afterEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // eslint-disable-next-line import-x/no-named-as-default-member
     nock.cleanAll();
   });
@@ -343,7 +341,7 @@ describe('SmartTransactionsController', () => {
 
   describe('feature flag validation error reporting', () => {
     it('reports error to ErrorReportingService when feature flags are invalid after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -351,33 +349,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             smartTransactionsNetworks: 'invalid-data',
           },
@@ -412,8 +410,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -445,7 +443,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not report error when feature flags are valid after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -453,33 +451,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             smartTransactionsNetworks: {
               default: { extensionActive: true },
@@ -516,8 +514,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -545,7 +543,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('reports error when smartTransactionsNetworks flag is missing after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -553,33 +551,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             // smartTransactionsNetworks is undefined (missing from remote config)
           },
@@ -614,8 +612,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -647,14 +645,14 @@ describe('SmartTransactionsController', () => {
     });
 
     it('reports error to ErrorReportingService when feature flags become invalid after state change', async () => {
-      const getStateMock = jest.fn().mockReturnValue({
+      const getStateMock = vi.fn().mockReturnValue({
         remoteFeatureFlags: {
           smartTransactionsNetworks: {
             default: { extensionActive: true },
           },
         },
       });
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -662,29 +660,29 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
@@ -719,8 +717,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // Should not be called initially (valid flags)
@@ -758,7 +756,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('reports multiple errors to ErrorReportingService when multiple chains are invalid after state change', async () => {
-      const captureExceptionSpy = jest.fn();
+      const captureExceptionSpy = vi.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
         captureException: captureExceptionSpy,
@@ -766,33 +764,33 @@ describe('SmartTransactionsController', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           configuration: { chainId: ChainId.mainnet },
           provider: getFakeProvider(),
         }),
       );
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           selectedNetworkClientId: NetworkType.mainnet,
           networkConfigurationsByChainId: {},
         }),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getNonceLock',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:getTransactions',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'TransactionController:failTransaction',
-        jest.fn(),
+        vi.fn(),
       );
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           remoteFeatureFlags: {
             smartTransactionsNetworks: {
               default: { extensionActive: true },
@@ -832,8 +830,8 @@ describe('SmartTransactionsController', () => {
       const controller = new SmartTransactionsController({
         messenger,
         clientId: ClientId.Mobile,
-        trackMetaMetricsEvent: jest.fn(),
-        getMetaMetricsProps: jest.fn(async () => ({})),
+        trackMetaMetricsEvent: vi.fn(),
+        getMetaMetricsProps: vi.fn(async () => ({})),
       });
 
       // No validation on construction
@@ -867,7 +865,7 @@ describe('SmartTransactionsController', () => {
   describe('onNetworkChange', () => {
     it('calls poll', async () => {
       await withController(({ controller, triggerNetworkStateChange }) => {
-        const checkPollSpy = jest.spyOn(controller, 'checkPoll');
+        const checkPollSpy = vi.spyOn(controller, 'checkPoll');
 
         triggerNetworkStateChange({
           selectedNetworkClientId: NetworkType.sepolia,
@@ -882,7 +880,7 @@ describe('SmartTransactionsController', () => {
 
   describe('checkPoll', () => {
     it('calls poll if there is no pending transaction and pending transactions', async () => {
-      const pollSpy = jest
+      const pollSpy = vi
         .spyOn(SmartTransactionsController.prototype, 'poll')
         .mockImplementation(async () => {
           return new Promise(() => ({}));
@@ -911,7 +909,7 @@ describe('SmartTransactionsController', () => {
 
     it('calls stop if there is a timeoutHandle and no pending transactions', async () => {
       await withController(({ controller }) => {
-        const stopSpy = jest.spyOn(controller, 'stop');
+        const stopSpy = vi.spyOn(controller, 'stop');
         controller.timeoutHandle = setTimeout(() => ({}));
 
         controller.checkPoll(controller.state);
@@ -932,7 +930,7 @@ describe('SmartTransactionsController', () => {
           },
         },
         ({ controller, triggerNetworkStateChange }) => {
-          const updateSmartTransactionsSpy = jest.spyOn(
+          const updateSmartTransactionsSpy = vi.spyOn(
             controller,
             'updateSmartTransactions',
           );
@@ -952,7 +950,7 @@ describe('SmartTransactionsController', () => {
 
     it('calls updateSmartTransactions if there is a timeoutHandle and pending transactions', async () => {
       await withController(({ controller }) => {
-        const updateSmartTransactionsSpy = jest.spyOn(
+        const updateSmartTransactionsSpy = vi.spyOn(
           controller,
           'updateSmartTransactions',
         );
@@ -971,7 +969,7 @@ describe('SmartTransactionsController', () => {
     // TODO rewrite this test... updateSmartTransactions is getting called via the checkPoll method which is called whenever state is updated.
     // this test should be more isolated to the updateSmartTransactions method.
     it('calls fetchSmartTransactionsStatus if there are pending transactions', async () => {
-      const fetchSmartTransactionsStatusSpy = jest
+      const fetchSmartTransactionsStatusSpy = vi
         .spyOn(
           SmartTransactionsController.prototype,
           'fetchSmartTransactionsStatus',
@@ -1214,9 +1212,10 @@ describe('SmartTransactionsController', () => {
 
   describe('submitSignedTransactions', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('submits a smart transaction with signed transactions', async () => {
@@ -1254,10 +1253,10 @@ describe('SmartTransactionsController', () => {
 
     it('should acquire nonce for Swap transactions only', async () => {
       // Create a mock for getNonceLock
-      const mockGetNonceLock = jest.fn().mockResolvedValue({
+      const mockGetNonceLock = vi.fn().mockResolvedValue({
         nextNonce: 42,
         nonceDetails: { test: 'details' },
-        releaseLock: jest.fn(),
+        releaseLock: vi.fn(),
       });
 
       await withController(
@@ -1321,10 +1320,10 @@ describe('SmartTransactionsController', () => {
 
     it('should properly set nonce on txParams and mark transaction as swap type', async () => {
       // Mock with a specific nextNonce value we can verify
-      const mockGetNonceLock = jest.fn().mockResolvedValue({
+      const mockGetNonceLock = vi.fn().mockResolvedValue({
         nextNonce: 42,
         nonceDetails: { test: 'nonce details' },
-        releaseLock: jest.fn(),
+        releaseLock: vi.fn(),
       });
 
       await withController(
@@ -1377,10 +1376,12 @@ describe('SmartTransactionsController', () => {
     it('should handle errors when acquiring nonce lock', async () => {
       // Mock getNonceLock to reject with an error
       const mockError = new Error('Failed to acquire nonce');
-      const mockGetNonceLock = jest.fn().mockRejectedValue(mockError);
+      const mockGetNonceLock = vi.fn().mockRejectedValue(mockError);
 
       // Spy on console.error to verify it's called
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       await withController(
         {
@@ -1594,9 +1595,10 @@ describe('SmartTransactionsController', () => {
 
   describe('fetchSmartTransactionsStatus', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('fetches a pending status for a single smart transaction via batchStatus API', async () => {
@@ -1812,9 +1814,10 @@ describe('SmartTransactionsController', () => {
 
   describe('updateSmartTransaction', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('updates smart transaction based on uuid', async () => {
@@ -1860,7 +1863,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('fails the regular transaction when smart transaction is cancelled and returnTxHashAsap is true', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
       const defaultState = getDefaultSmartTransactionsControllerState();
       const pendingStx = createStateAfterPending();
       await withController(
@@ -1921,7 +1924,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not fail the transaction when smart transaction is cancelled but returnTxHashAsap is false', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
       await withController(
         {
           remoteFeatureFlags: {
@@ -1960,7 +1963,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not fail the transaction when transaction is not found in regular transactions', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
 
       await withController(
         {
@@ -1989,7 +1992,7 @@ describe('SmartTransactionsController', () => {
     });
 
     it('does not fail the transaction for non-cancelled transactions', async () => {
-      const mockFailTransaction = jest.fn();
+      const mockFailTransaction = vi.fn();
       await withController(
         {
           remoteFeatureFlags: {
@@ -2223,9 +2226,10 @@ describe('SmartTransactionsController', () => {
 
   describe('getTransactions', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('retrieves smart transactions by addressFrom and status', async () => {
@@ -2335,9 +2339,10 @@ describe('SmartTransactionsController', () => {
 
   describe('isNewSmartTransaction', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('returns true if it is a new STX', async () => {
@@ -2374,18 +2379,19 @@ describe('SmartTransactionsController', () => {
 
   describe('startPolling', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('starts and stops calling smart transactions batch status api endpoint with the correct chainId at the polling interval', async () => {
       // mock this to a noop because it causes an extra fetch call to the API upon state changes
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => undefined);
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => undefined);
       await withController(
         {
           options: {
@@ -2417,7 +2423,7 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          const handleFetchSpy = jest
+          const handleFetchSpy = vi
             .spyOn(utils, 'handleFetch')
             .mockImplementation(async () => Promise.resolve({}));
 
@@ -2425,7 +2431,7 @@ describe('SmartTransactionsController', () => {
             chainIds: [ChainId.mainnet],
           });
 
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           const fetchHeaders = {
             headers: {
@@ -2442,7 +2448,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             2,
@@ -2453,7 +2459,7 @@ describe('SmartTransactionsController', () => {
           );
 
           controller.startPolling({ chainIds: [ChainId.sepolia] });
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             3,
@@ -2463,7 +2469,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             5,
@@ -2477,9 +2483,9 @@ describe('SmartTransactionsController', () => {
           controller.stopPollingByPollingToken(mainnetPollingToken);
 
           // cycle two polling intervals
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           // check that the mainnet polling has stopped while the sepolia polling continues
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
@@ -2503,9 +2509,10 @@ describe('SmartTransactionsController', () => {
 
     it('does not poll for chains that are not supported', async () => {
       // mock this to a noop because it causes an extra fetch call to the API upon state changes
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => undefined);
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => undefined);
       await withController(
         {
           options: {
@@ -2537,7 +2544,7 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          const handleFetchSpy = jest
+          const handleFetchSpy = vi
             .spyOn(utils, 'handleFetch')
             .mockImplementation(async () => Promise.resolve({}));
 
@@ -2545,7 +2552,7 @@ describe('SmartTransactionsController', () => {
             chainIds: ['notSupportedChainId' as Hex],
           });
 
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(handleFetchSpy).not.toHaveBeenCalled();
         },
@@ -2789,9 +2796,10 @@ describe('SmartTransactionsController', () => {
 
   describe('createOrUpdateSmartTransaction', () => {
     beforeEach(() => {
-      jest
-        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
-        .mockImplementation(() => ({}));
+      vi.spyOn(
+        SmartTransactionsController.prototype,
+        'checkPoll',
+      ).mockImplementation(() => ({}));
     });
 
     it('adds metaMetricsProps to new smart transactions', async () => {
@@ -2816,7 +2824,7 @@ describe('SmartTransactionsController', () => {
                 },
               },
             },
-            getMetaMetricsProps: jest.fn().mockResolvedValue({
+            getMetaMetricsProps: vi.fn().mockResolvedValue({
               accountHardwareType: 'Test Hardware',
               accountType: 'test-account',
               deviceModel: 'test-model',
@@ -2853,7 +2861,9 @@ describe('SmartTransactionsController', () => {
       };
 
       // Mock console.error to verify it's called
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       await withController(
         {
@@ -2867,7 +2877,7 @@ describe('SmartTransactionsController', () => {
               },
             },
             // Mock getting MetaMetricsProps to fail
-            getMetaMetricsProps: jest
+            getMetaMetricsProps: vi
               .fn()
               .mockRejectedValue(new Error('Test metrics error')),
           },
@@ -2905,7 +2915,7 @@ describe('SmartTransactionsController', () => {
 
   describe('Tracing', () => {
     const createTraceCallback = () =>
-      jest.fn().mockImplementation(async (_request, fn) => {
+      vi.fn().mockImplementation(async (_request, fn) => {
         return fn?.();
       });
 
@@ -3222,23 +3232,23 @@ async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const {
     options,
-    getNonceLock = jest.fn().mockResolvedValue({
+    getNonceLock = vi.fn().mockResolvedValue({
       nextNonce: 42,
-      releaseLock: jest.fn(),
+      releaseLock: vi.fn(),
     }),
-    getTransactions = jest.fn(),
-    failTransaction = jest.fn(),
+    getTransactions = vi.fn(),
+    failTransaction = vi.fn(),
     remoteFeatureFlags = {},
     bearerToken,
   } = rest;
 
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
-    captureException: jest.fn(),
+    captureException: vi.fn(),
   });
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    jest.fn().mockImplementation((networkClientId) => {
+    vi.fn().mockImplementation((networkClientId) => {
       switch (networkClientId) {
         case NetworkType.mainnet:
           return {
@@ -3261,7 +3271,7 @@ async function withController<ReturnValue>(
   );
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       selectedNetworkClientId: NetworkType.mainnet,
       networkConfigurationsByChainId: {
         '0x1': {
@@ -3311,14 +3321,14 @@ async function withController<ReturnValue>(
   );
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       remoteFeatureFlags,
     }),
   );
 
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
-    jest.fn().mockResolvedValue(bearerToken),
+    vi.fn().mockResolvedValue(bearerToken),
   );
 
   const messenger = new Messenger<
@@ -3351,7 +3361,7 @@ async function withController<ReturnValue>(
     messenger,
     clientId: ClientId.Mobile,
     trackMetaMetricsEvent: trackMetaMetricsEventSpy,
-    getMetaMetricsProps: jest.fn(async () => {
+    getMetaMetricsProps: vi.fn(async () => {
       return Promise.resolve({
         accountHardwareType: 'Ledger Hardware',
         accountType: 'hardware',

@@ -23,8 +23,9 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { POPULAR_NETWORKS } from './constants.js';
 import { NetworkEnablementController } from './NetworkEnablementController.js';
 import type {
@@ -153,13 +154,13 @@ const setupController = ({
   controller: NetworkEnablementController;
   rootMessenger: RootMessenger;
   messenger: NetworkEnablementControllerMessenger;
-  configRegistryControllerGetStateMock: jest.MockedFunction<
+  configRegistryControllerGetStateMock: MockedFunction<
     ConfigRegistryControllerGetStateAction['handler']
   >;
-  networkControllerGetStateMock: jest.MockedFunction<
+  networkControllerGetStateMock: MockedFunction<
     NetworkControllerGetStateAction['handler']
   >;
-  multichainNetworkControllerGetStateMock: jest.MockedFunction<
+  multichainNetworkControllerGetStateMock: MockedFunction<
     MultichainNetworkControllerGetStateAction['handler']
   >;
 } => {
@@ -190,9 +191,9 @@ const setupController = ({
     ],
   });
 
-  const networkControllerGetStateMock: jest.MockedFunction<
+  const networkControllerGetStateMock: MockedFunction<
     NetworkControllerGetStateAction['handler']
-  > = jest.fn().mockImplementation(() => ({
+  > = vi.fn().mockImplementation(() => ({
     networkConfigurationsByChainId: {
       '0x1': {
         defaultRpcEndpointIndex: 0,
@@ -214,9 +215,9 @@ const setupController = ({
     networkControllerGetStateMock,
   );
 
-  const multichainNetworkControllerGetStateMock: jest.MockedFunction<
+  const multichainNetworkControllerGetStateMock: MockedFunction<
     MultichainNetworkControllerGetStateAction['handler']
-  > = jest.fn().mockImplementation(() => ({
+  > = vi.fn().mockImplementation(() => ({
     multichainNetworkConfigurationsByChainId: {
       [BtcScope.Mainnet]: { chainId: BtcScope.Mainnet, name: 'Bitcoin' },
       [SolScope.Mainnet]: { chainId: SolScope.Mainnet, name: 'Solana' },
@@ -230,12 +231,12 @@ const setupController = ({
 
   rootMessenger.registerActionHandler(
     'MultichainNetworkController:getState',
-    jest.fn().mockImplementation(multichainNetworkControllerGetStateMock),
+    vi.fn().mockImplementation(multichainNetworkControllerGetStateMock),
   );
 
-  const configRegistryControllerGetStateMock: jest.MockedFunction<
+  const configRegistryControllerGetStateMock: MockedFunction<
     ConfigRegistryControllerGetStateAction['handler']
-  > = jest.fn().mockImplementation(() => ({
+  > = vi.fn().mockImplementation(() => ({
     configs: {
       networks: {
         'eip155:9999': {
@@ -273,18 +274,18 @@ const setupController = ({
 
 describe('NetworkEnablementController', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
     // Mock Slip44Service.getEvmSlip44 to avoid network calls
-    jest
-      .spyOn(Slip44Service, 'getEvmSlip44')
-      .mockImplementation(async (chainId) => {
+    vi.spyOn(Slip44Service, 'getEvmSlip44').mockImplementation(
+      async (chainId) => {
         return chainIdToSlip44[chainId] ?? 60;
-      });
+      },
+    );
   });
 
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('initializes with default state', () => {
@@ -348,7 +349,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
@@ -410,7 +411,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiers = {
@@ -477,7 +478,7 @@ describe('NetworkEnablementController', () => {
       } as TransactionMeta, // Simplified structure for testing
     });
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -494,7 +495,7 @@ describe('NetworkEnablementController', () => {
       // Missing transactionMeta entirely
     });
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -511,7 +512,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: null,
     });
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -522,7 +523,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: undefined,
     });
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should still remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -557,7 +558,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiersForFallback = {
@@ -607,8 +608,7 @@ describe('NetworkEnablementController', () => {
     it('initializes network enablement state from controller configurations', async () => {
       const { controller, messenger } = setupController();
 
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -727,7 +727,7 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      jest.spyOn(messenger, 'call').mockImplementation(
+      vi.spyOn(messenger, 'call').mockImplementation(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -795,8 +795,7 @@ describe('NetworkEnablementController', () => {
     it('handles missing MultichainNetworkController gracefully', async () => {
       const { controller, messenger } = setupController();
 
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -845,8 +844,7 @@ describe('NetworkEnablementController', () => {
     it('creates namespace buckets for all configured networks', async () => {
       const { controller, messenger } = setupController();
 
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -908,13 +906,11 @@ describe('NetworkEnablementController', () => {
       const { controller, messenger } = setupController();
 
       // Start with empty state to test namespace bucket creation
-      // eslint-disable-next-line dot-notation
       controller['update']((state) => {
         state.enabledNetworkMap = {};
       });
 
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: unknown[]): any => {
           const responses = {
@@ -964,8 +960,7 @@ describe('NetworkEnablementController', () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin testnet BEFORE calling init
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -1017,8 +1012,7 @@ describe('NetworkEnablementController', () => {
       const { controller, messenger } = setupController();
 
       // Mock MultichainNetworkController to include Bitcoin signet BEFORE calling init
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -1084,8 +1078,7 @@ describe('NetworkEnablementController', () => {
         },
       });
 
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -1133,8 +1126,7 @@ describe('NetworkEnablementController', () => {
     it('defaults to slip44:60 for EVM networks with unknown chainId and symbol', async () => {
       const { controller, messenger } = setupController();
 
-      jest
-        .spyOn(messenger, 'call')
+      vi.spyOn(messenger, 'call')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementation((actionType: string, ..._args: any[]): any => {
           if (actionType === 'NetworkController:getState') {
@@ -1707,7 +1699,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // The added network should be enabled (exclusive behavior of network addition)
       expect(controller.isNetworkEnabled('0x2')).toBe(true);
@@ -1869,7 +1861,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -2053,7 +2045,6 @@ describe('NetworkEnablementController', () => {
       const { controller } = setupController();
 
       // Remove the BIP122 namespace to test the early return
-      // eslint-disable-next-line dot-notation
       controller['update']((state) => {
         delete state.enabledNetworkMap[KnownCaipNamespace.Bip122];
       });
@@ -2115,7 +2106,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -2340,7 +2331,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x999')).toBe(true);
       expect(controller.isNetworkEnabled('0x1')).toBe(false);
@@ -2485,7 +2476,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Now it should be added but not enabled (keeps current selection in popular mode)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -2526,7 +2517,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Bitcoin should be enabled, all others should be disabled due to exclusive behavior
       expect(
@@ -2850,7 +2841,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Bitcoin testnet should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
@@ -3084,7 +3075,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Tron Nile should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
@@ -3460,7 +3451,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should switch to Avalanche (disable all others, enable Avalanche)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -3493,7 +3484,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should switch to the non-popular network (disable all others, enable new one)
       expect(controller.isNetworkEnabled('0x999')).toBe(true);
@@ -3526,7 +3517,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should keep current selection (add Polygon but don't enable it)
       expect(controller.isNetworkEnabled('0x89')).toBe(true); // Polygon enabled
@@ -3560,7 +3551,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should switch to Avalanche since we're not in popular networks mode (2 ≤ 2, not >2)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -3615,7 +3606,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x13b2')).toBe(false);
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -3674,7 +3665,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x13b2')).toBe(false);
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -3736,7 +3727,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await jestAdvanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x13b2')).toBe(true);
       expect(controller.isNetworkEnabled('0x1')).toBe(true);

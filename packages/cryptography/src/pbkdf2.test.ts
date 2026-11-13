@@ -1,4 +1,5 @@
 import { stringToBytes, bytesToHex, hexToBytes } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { pbkdf2Sha256, pbkdf2Sha384, pbkdf2Sha512 } from './pbkdf2.js';
 

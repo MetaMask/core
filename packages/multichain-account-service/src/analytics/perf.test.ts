@@ -1,4 +1,6 @@
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import { projectLogger } from '../logger.js';
 import {
@@ -9,15 +11,15 @@ import {
 } from './perf.js';
 import { now } from './timer.js';
 
-jest.mock('./timer', () => ({
-  now: jest.fn(),
+vi.mock('./timer', () => ({
+  now: vi.fn(),
 }));
 
-jest.mock('../logger', () => ({
+vi.mock('../logger', () => ({
   projectLogger: { enabled: false },
-  createModuleLogger: jest
+  createModuleLogger: vi
     .fn()
-    .mockReturnValue(Object.assign(jest.fn(), { enabled: false })),
+    .mockReturnValue(Object.assign(vi.fn(), { enabled: false })),
 }));
 
 const mockProjectLogger = projectLogger as { enabled: boolean };
@@ -48,7 +50,7 @@ describe('perf', () => {
     const request: TraceRequest = { name: 'test-operation' };
 
     beforeEach(() => {
-      jest.mocked(now).mockReset();
+      vi.mocked(now).mockReset();
     });
 
     afterEach(() => {
@@ -66,7 +68,7 @@ describe('perf', () => {
 
     it('captures start time when perf is enabled', () => {
       mockProjectLogger.enabled = true;
-      jest.mocked(now).mockReturnValueOnce(100);
+      vi.mocked(now).mockReturnValueOnce(100);
 
       tick(request);
 
@@ -75,7 +77,7 @@ describe('perf', () => {
 
     it('logs elapsed time when tock is called', () => {
       mockProjectLogger.enabled = true;
-      jest.mocked(now).mockReturnValueOnce(100).mockReturnValueOnce(250);
+      vi.mocked(now).mockReturnValueOnce(100).mockReturnValueOnce(250);
 
       const tock = tick(request);
       tock();
@@ -89,7 +91,7 @@ describe('perf', () => {
         name: 'test-operation',
         data: { foo: 'bar' },
       };
-      jest.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(42);
+      vi.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(42);
 
       // Should not throw regardless of data shape
       const tock = tick(requestWithData);
@@ -98,7 +100,7 @@ describe('perf', () => {
 
     it('omits context when request has no data', () => {
       mockProjectLogger.enabled = true;
-      jest.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(10);
+      vi.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(10);
 
       const tock = tick({ name: 'no-data' });
       expect(() => tock()).not.toThrow();
@@ -107,11 +109,11 @@ describe('perf', () => {
 
   describe('withLocalPerfTrace', () => {
     const request: TraceRequest = { name: 'wrapped-op' };
-    let mockTrace: jest.MockedFunction<TraceCallback>;
+    let mockTrace: MockedFunction<TraceCallback>;
 
     beforeEach(() => {
-      mockTrace = jest.fn();
-      jest.mocked(now).mockReset();
+      mockTrace = vi.fn<TraceCallback>() as MockedFunction<TraceCallback>;
+      vi.mocked(now).mockReset();
     });
 
     afterEach(() => {
@@ -123,7 +125,7 @@ describe('perf', () => {
       mockTrace.mockResolvedValue('result');
 
       const wrapped = withLocalPerfTrace(mockTrace);
-      const fn = jest.fn().mockReturnValue('result');
+      const fn = vi.fn().mockReturnValue('result');
       const result = await wrapped(request, fn);
 
       expect(mockTrace).toHaveBeenCalledTimes(1);
@@ -134,11 +136,11 @@ describe('perf', () => {
 
     it('calls trace and measures timing when perf is enabled', async () => {
       mockProjectLogger.enabled = true;
-      jest.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(100);
+      vi.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(100);
       mockTrace.mockResolvedValue('result');
 
       const wrapped = withLocalPerfTrace(mockTrace);
-      const fn = jest.fn().mockReturnValue('result');
+      const fn = vi.fn().mockReturnValue('result');
       const result = await wrapped(request, fn);
 
       expect(mockTrace).toHaveBeenCalledTimes(1);
@@ -149,13 +151,13 @@ describe('perf', () => {
 
     it('still calls tock when trace throws', async () => {
       mockProjectLogger.enabled = true;
-      jest.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(50);
+      vi.mocked(now).mockReturnValueOnce(0).mockReturnValueOnce(50);
       const error = new Error('trace failed');
       mockTrace.mockRejectedValue(error);
 
       const wrapped = withLocalPerfTrace(mockTrace);
 
-      await expect(wrapped(request, jest.fn())).rejects.toThrow(error);
+      await expect(wrapped(request, vi.fn())).rejects.toThrow(error);
       // now called once for tick (start) and once for tock (end)
       expect(now).toHaveBeenCalledTimes(2);
     });

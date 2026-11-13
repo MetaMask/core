@@ -1,12 +1,14 @@
 import type { Transaction } from '@metamask/core-backend';
 import type { BlockTracker } from '@metamask/network-controller';
+import type { Mocked } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { TransactionMeta } from '../types.js';
 import { TransactionPoller } from './TransactionPoller.js';
 
-jest.useFakeTimers();
+vi.useFakeTimers();
 
 const BLOCK_NUMBER_MOCK = '0x123';
 const CHAIN_ID_MOCK = '0x1';
@@ -14,21 +16,21 @@ const DEFAULT_ACCELERATED_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3000;
 
 const BLOCK_TRACKER_MOCK = {
-  getLatestBlock: jest.fn(),
-  on: jest.fn(),
-  removeListener: jest.fn(),
-} as unknown as jest.Mocked<BlockTracker>;
+  getLatestBlock: vi.fn(),
+  on: vi.fn(),
+  removeListener: vi.fn(),
+} as unknown as Mocked<BlockTracker>;
 
-const createMessengerMock = (): jest.Mocked<TransactionControllerMessenger> =>
+const createMessengerMock = (): Mocked<TransactionControllerMessenger> =>
   ({
-    call: jest.fn(),
-    subscribe: jest.fn(),
-    unsubscribe: jest.fn(),
-  }) as unknown as jest.Mocked<TransactionControllerMessenger>;
+    call: vi.fn(),
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+  }) as unknown as Mocked<TransactionControllerMessenger>;
 
-let MESSENGER_MOCK: jest.Mocked<TransactionControllerMessenger>;
+let MESSENGER_MOCK: Mocked<TransactionControllerMessenger>;
 
-jest.mock('../utils/feature-flags', () => ({
+vi.mock('../utils/feature-flags', () => ({
   getAcceleratedPollingParams: (): {
     countMax: number;
     intervalMs: number;
@@ -51,8 +53,8 @@ function createTransactionMetaMock(id: string, hash?: string): TransactionMeta {
 
 describe('TransactionPoller', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest.clearAllTimers();
+    vi.resetAllMocks();
+    vi.clearAllTimers();
     MESSENGER_MOCK = createMessengerMock();
   });
 
@@ -64,12 +66,12 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
-      expect(jest.getTimerCount()).toBe(1);
+      expect(vi.getTimerCount()).toBe(1);
 
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
       await flushPromises();
 
       expect(listener).toHaveBeenCalledTimes(1);
@@ -82,11 +84,11 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX * 3; i++) {
-        jest.runOnlyPendingTimers();
+        vi.runOnlyPendingTimers();
         await flushPromises();
       }
 
@@ -102,10 +104,10 @@ describe('TransactionPoller', () => {
 
       BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
       await flushPromises();
 
       expect(listener).toHaveBeenCalledWith(BLOCK_NUMBER_MOCK);
@@ -118,15 +120,15 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       listener.mockImplementation(() => poller.stop());
 
       poller.start(listener);
 
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
       await flushPromises();
 
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 
@@ -138,11 +140,11 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX; i++) {
-        jest.runOnlyPendingTimers();
+        vi.runOnlyPendingTimers();
         await flushPromises();
       }
 
@@ -162,11 +164,11 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX; i++) {
-        jest.runOnlyPendingTimers();
+        vi.runOnlyPendingTimers();
         await flushPromises();
       }
 
@@ -185,10 +187,10 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      poller.start(jest.fn());
-      poller.start(jest.fn());
+      poller.start(vi.fn());
+      poller.start(vi.fn());
 
-      expect(jest.getTimerCount()).toBe(1);
+      expect(vi.getTimerCount()).toBe(1);
     });
   });
 
@@ -200,11 +202,11 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
       poller.stop();
 
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
       expect(listener).not.toHaveBeenCalled();
     });
 
@@ -215,11 +217,11 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX; i++) {
-        jest.runOnlyPendingTimers();
+        vi.runOnlyPendingTimers();
         await flushPromises();
       }
 
@@ -238,7 +240,7 @@ describe('TransactionPoller', () => {
 
       poller.stop();
 
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
       expect(BLOCK_TRACKER_MOCK.removeListener).not.toHaveBeenCalled();
     });
   });
@@ -268,18 +270,18 @@ describe('TransactionPoller', () => {
           createTransactionMetaMock('2'),
         ]);
 
-        const listener = jest.fn();
+        const listener = vi.fn();
         poller.start(listener);
 
         for (let i = 0; i < 3; i++) {
-          jest.runOnlyPendingTimers();
+          vi.runOnlyPendingTimers();
           await flushPromises();
         }
 
         poller.setPendingTransactions(newPendingTransactions);
 
         for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX; i++) {
-          jest.runOnlyPendingTimers();
+          vi.runOnlyPendingTimers();
           await flushPromises();
         }
 
@@ -313,11 +315,11 @@ describe('TransactionPoller', () => {
           createTransactionMetaMock('2'),
         ]);
 
-        const listener = jest.fn();
+        const listener = vi.fn();
         poller.start(listener);
 
         for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX; i++) {
-          jest.runOnlyPendingTimers();
+          vi.runOnlyPendingTimers();
           await flushPromises();
         }
 
@@ -330,7 +332,7 @@ describe('TransactionPoller', () => {
         poller.setPendingTransactions(newPendingTransactions);
 
         for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX; i++) {
-          jest.runOnlyPendingTimers();
+          vi.runOnlyPendingTimers();
           await flushPromises();
         }
 
@@ -349,7 +351,7 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       expect(MESSENGER_MOCK.subscribe).toHaveBeenCalledWith(
@@ -365,7 +367,7 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
       poller.stop();
 
@@ -390,7 +392,7 @@ describe('TransactionPoller', () => {
           createTransactionMetaMock('tx1', '0xabc'),
         ]);
 
-        const listener = jest.fn();
+        const listener = vi.fn();
         poller.start(listener);
 
         const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
@@ -423,7 +425,7 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
@@ -455,7 +457,7 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
@@ -494,7 +496,7 @@ describe('TransactionPoller', () => {
         createTransactionMetaMock('tx2', '0xghi'),
       ]);
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
@@ -526,7 +528,7 @@ describe('TransactionPoller', () => {
         chainId: CHAIN_ID_MOCK,
       });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
@@ -564,7 +566,7 @@ describe('TransactionPoller', () => {
         createTransactionMetaMock('tx1', '0xABC'),
       ]);
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       poller.start(listener);
 
       const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(

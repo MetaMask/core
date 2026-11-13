@@ -85,16 +85,16 @@ Find the release commit SHA with `git log --oneline merged-packages/<package-nam
 ### **[PR#8]** 3. Remove files and directories that will be replaced by files in the monorepo root directory
 
 - **Remove**: `.github/`, `.git*`, `scripts/`, `knip.config.ts`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
-- **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `jest.config.cjs`, `tsconfig*.json`, `typedoc.json`
+- **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `vitest.config.ts`, `tsconfig*.json`, `typedoc.json`
 - [Example PR](https://github.com/MetaMask/core/pull/1764)
 
 ### **[PR#9]** 4. Replace config files
 
-- Update `tsconfig*.json`, `typedoc.json`, `jest.config.cjs` to extend from the corresponding files in the root directory by copying the contents of these files from other non-root packages.
+- Update `tsconfig*.json`, `typedoc.json`, `vitest.config.ts` to extend from the corresponding files in the root directory by copying the contents of these files from other non-root packages.
 - Preserve TypeScript compiler flags and its compilation target.
 - Add tsconfig reference paths for non-root packages that are upstream dependencies of the migration target.
-- Preserve Jest coverage threshold values.
-- Add `deepmerge` as a devDependency.
+- Preserve test coverage threshold values.
+- Use `mergeConfig` from `vitest/config` to extend the shared Vitest configuration.
 - [Example PR](https://github.com/MetaMask/core/pull/1765)
 
 ### **[PR#10]** 5. Align dependencies and build scripts with monorepo

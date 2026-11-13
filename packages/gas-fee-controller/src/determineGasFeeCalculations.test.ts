@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import determineGasFeeCalculations from './determineGasFeeCalculations.js';
 import {
   fetchGasEstimates,
@@ -13,24 +16,19 @@ import type {
   EstimatedGasFeeTimeBounds,
 } from './GasFeeController.js';
 
-jest.mock('./gas-util');
+vi.mock(import('./gas-util.js'));
 
-const mockedFetchGasEstimates = fetchGasEstimates as jest.Mock<
-  ReturnType<typeof fetchGasEstimates>,
-  Parameters<typeof fetchGasEstimates>
+const mockedFetchGasEstimates = fetchGasEstimates as Mock<
+  typeof fetchGasEstimates
 >;
-const mockedFetchLegacyGasPriceEstimates =
-  fetchLegacyGasPriceEstimates as jest.Mock<
-    ReturnType<typeof fetchLegacyGasPriceEstimates>,
-    Parameters<typeof fetchLegacyGasPriceEstimates>
-  >;
-const mockedFetchEthGasPriceEstimate = fetchEthGasPriceEstimate as jest.Mock<
-  ReturnType<typeof fetchEthGasPriceEstimate>,
-  Parameters<typeof fetchEthGasPriceEstimate>
+const mockedFetchLegacyGasPriceEstimates = fetchLegacyGasPriceEstimates as Mock<
+  typeof fetchLegacyGasPriceEstimates
 >;
-const mockedCalculateTimeEstimate = calculateTimeEstimate as jest.Mock<
-  ReturnType<typeof calculateTimeEstimate>,
-  Parameters<typeof calculateTimeEstimate>
+const mockedFetchEthGasPriceEstimate = fetchEthGasPriceEstimate as Mock<
+  typeof fetchEthGasPriceEstimate
+>;
+const mockedCalculateTimeEstimate = calculateTimeEstimate as Mock<
+  typeof calculateTimeEstimate
 >;
 
 /**

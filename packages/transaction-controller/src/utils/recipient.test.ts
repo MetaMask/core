@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
+import { describe, expect, it } from 'vitest';
 
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus, TransactionType } from '../types.js';
@@ -48,6 +49,10 @@ const ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA = new Interface(
   ['1'],
   '0x',
 ]);
+
+const PERMIT2_APPROVE_DATA = new Interface([
+  'function approve(address token, address spender, uint160 amount, uint48 expiration)',
+]).encodeFunctionData('approve', [TOKEN_CONTRACT, TOKEN_RECIPIENT, '1', 1]);
 
 /**
  * Builds a minimal transaction meta object for testing.
@@ -272,6 +277,20 @@ describe('getSendRecipients', () => {
       ),
       txParamsOriginal: {
         data: '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
+        from: FROM_ADDRESS,
+        to: TOKEN_CONTRACT,
+        value: '0x0',
+      },
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('does not infer a Permit2 approval recipient from original params', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.contractInteraction),
+      txParamsOriginal: {
+        data: PERMIT2_APPROVE_DATA,
         from: FROM_ADDRESS,
         to: TOKEN_CONTRACT,
         value: '0x0',

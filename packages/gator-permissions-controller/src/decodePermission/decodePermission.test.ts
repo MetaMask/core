@@ -1,4 +1,5 @@
 import type { Caveat, Hex } from '@metamask/delegation-core';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   findDecodersWithMatchingCaveatAddresses,
@@ -12,15 +13,15 @@ describe('decodePermission', () => {
     it('returns all decoders that match the given enforcers', () => {
       const matchingDecoder1 = {
         permissionType: 'matching-permission-1',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true),
+        caveatAddressesMatch: vi.fn().mockReturnValue(true),
       };
       const matchingDecoder2 = {
         permissionType: 'matching-permission-2',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true),
+        caveatAddressesMatch: vi.fn().mockReturnValue(true),
       };
       const nonMatchingDecoder = {
         permissionType: 'non-matching-permission',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false),
+        caveatAddressesMatch: vi.fn().mockReturnValue(false),
       };
       const decoders = [
         matchingDecoder1,
@@ -38,15 +39,15 @@ describe('decodePermission', () => {
     it('returns an empty array if no decoders match the given enforcers', () => {
       const nonMatchingDecoder1 = {
         permissionType: 'non-matching-permission-1',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false),
+        caveatAddressesMatch: vi.fn().mockReturnValue(false),
       };
       const nonMatchingDecoder2 = {
         permissionType: 'non-matching-permission-2',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false),
+        caveatAddressesMatch: vi.fn().mockReturnValue(false),
       };
       const nonMatchingDecoder3 = {
         permissionType: 'non-matching-permission-3',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false),
+        caveatAddressesMatch: vi.fn().mockReturnValue(false),
       };
       const decoders = [
         nonMatchingDecoder1,
@@ -72,11 +73,11 @@ describe('decodePermission', () => {
     it('calls caveatAddressesMatch with the given enforcers', () => {
       const matchingDecoder1 = {
         permissionType: 'matching-permission-1',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true),
+        caveatAddressesMatch: vi.fn().mockReturnValue(true),
       };
       const matchingDecoder2 = {
         permissionType: 'matching-permission-2',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true),
+        caveatAddressesMatch: vi.fn().mockReturnValue(true),
       };
       const enforcers: Hex[] = ['0x0000000000000000000000000000000000000000'];
 
@@ -201,8 +202,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
@@ -215,8 +216,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: false,
         }),
       };
@@ -239,8 +240,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: false,
           error: new Error('Failed to validate and decode permission'),
         }),
@@ -261,8 +262,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockImplementation(() => {
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockImplementation(() => {
           throw new Error('Failed to validate and decode permission');
         }),
       };
@@ -282,8 +283,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
@@ -316,8 +317,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: false,
           error: new Error('First decoder failed'),
         }),
@@ -328,8 +329,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: false,
           error: new Error('Second decoder failed'),
         }),
@@ -352,8 +353,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
@@ -365,8 +366,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: false,
           error: new Error('Failed to validate and decode permission'),
         }),
@@ -398,8 +399,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
@@ -423,8 +424,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: true,
           expiry,
           data,
@@ -446,8 +447,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockReturnValue({
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
@@ -459,8 +460,8 @@ describe('decodePermission', () => {
         optionalEnforcers: new Set([
           '0x0000000000000000000000000000000000000000' as Hex,
         ]),
-        caveatAddressesMatch: jest.fn(),
-        validateAndDecodePermission: jest.fn().mockImplementation(() => {
+        caveatAddressesMatch: vi.fn(),
+        validateAndDecodePermission: vi.fn().mockImplementation(() => {
           throw new Error('Failed to validate and decode permission');
         }),
       };

@@ -4,15 +4,19 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import { StorageService } from './StorageService.js';
 import type { StorageServiceMessenger, StorageAdapter } from './types.js';
 
 describe('StorageService', () => {
-  let consoleWarnSpy: jest.SpyInstance;
+  let consoleWarnSpy: MockInstance;
 
   beforeEach(() => {
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -22,11 +26,11 @@ describe('StorageService', () => {
   describe('constructor', () => {
     it('uses provided storage adapter', () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -55,11 +59,11 @@ describe('StorageService', () => {
   describe('setItem', () => {
     it('delegates to adapter with namespace and key', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -75,11 +79,11 @@ describe('StorageService', () => {
 
     it('passes complex objects to adapter', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
       const complexObject = { foo: 'bar', nested: { value: 123 } };
@@ -96,13 +100,11 @@ describe('StorageService', () => {
 
     it('handles storage errors gracefully', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn(),
-        setItem: jest
-          .fn()
-          .mockRejectedValue(new Error('Storage quota exceeded')),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn(),
+        setItem: vi.fn().mockRejectedValue(new Error('Storage quota exceeded')),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -113,7 +115,7 @@ describe('StorageService', () => {
 
     it('publishes itemSet event with key and value', async () => {
       const { service, rootMessenger } = getService();
-      const eventHandler = jest.fn();
+      const eventHandler = vi.fn();
 
       rootMessenger.subscribe(
         'StorageService:itemSet:TestController' as `StorageService:itemSet:${string}`,
@@ -128,7 +130,7 @@ describe('StorageService', () => {
 
     it('publishes itemSet event only for matching namespace', async () => {
       const { service, rootMessenger } = getService();
-      const controller1Handler = jest.fn();
+      const controller1Handler = vi.fn();
 
       rootMessenger.subscribe(
         'StorageService:itemSet:Controller1' as `StorageService:itemSet:${string}`,
@@ -163,11 +165,11 @@ describe('StorageService', () => {
 
     it('returns empty object {} when adapter returns not found', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue({}), // Adapter returns {} for not found
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn().mockResolvedValue({}), // Adapter returns {} for not found
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -183,11 +185,11 @@ describe('StorageService', () => {
     it('returns { error } when adapter returns error', async () => {
       const testError = new Error('Parse error');
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue({ error: testError }),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn().mockResolvedValue({ error: testError }),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -262,11 +264,11 @@ describe('StorageService', () => {
   describe('getAllKeys', () => {
     it('delegates to storage adapter with namespace', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue(['key1', 'key2']),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue(['key1', 'key2']),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -299,11 +301,11 @@ describe('StorageService', () => {
 
     it('delegates to adapter for namespace filtering', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -319,11 +321,11 @@ describe('StorageService', () => {
   describe('clear', () => {
     it('delegates to storage adapter', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn(),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockResolvedValue([]),
-        clear: jest.fn().mockResolvedValue(undefined),
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockResolvedValue([]),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -525,13 +527,13 @@ describe('StorageService', () => {
 
     it('delegates getAllKeys to adapter', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue({}),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest
+        getItem: vi.fn().mockResolvedValue({}),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi
           .fn()
           .mockResolvedValue(['snap1:sourceCode', 'snap2:sourceCode']),
-        clear: jest.fn().mockResolvedValue(undefined),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 
@@ -543,17 +545,17 @@ describe('StorageService', () => {
 
     it('adapter handles namespace filtering', async () => {
       const mockStorage: StorageAdapter = {
-        getItem: jest.fn().mockResolvedValue({}),
-        setItem: jest.fn(),
-        removeItem: jest.fn(),
-        getAllKeys: jest.fn().mockImplementation((namespace) => {
+        getItem: vi.fn().mockResolvedValue({}),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        getAllKeys: vi.fn().mockImplementation((namespace) => {
           // Adapter filters by namespace
           if (namespace === 'TestController') {
             return Promise.resolve(['key1', 'key2']);
           }
           return Promise.resolve([]);
         }),
-        clear: jest.fn().mockResolvedValue(undefined),
+        clear: vi.fn().mockResolvedValue(undefined),
       };
       const { service } = getService({ storage: mockStorage });
 

@@ -6,15 +6,16 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   TransactionPayStrategy,
 } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { QuoteRequest } from '../../types.js';
 import {
   getGasBuffer,
@@ -29,22 +30,22 @@ import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps.js';
 import * as acrossTransactions from './transactions.js';
 import type { AcrossSwapApprovalResponse } from './types.js';
 
-jest.mock('../../utils/token');
-jest.mock('../../utils/gas', () => ({
-  ...jest.requireActual('../../utils/gas'),
-  calculateGasCost: jest.fn(),
-  calculateGasFeeTokenCost: jest.fn(),
+vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/gas.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  calculateGasCost: vi.fn(),
+  calculateGasFeeTokenCost: vi.fn(),
 }));
-jest.mock('../../utils/feature-flags', () => ({
-  ...jest.requireActual('../../utils/feature-flags'),
-  getGasBuffer: jest.fn(),
-  isEIP7702Chain: jest.fn(),
-  getSlippage: jest.fn(),
+vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getGasBuffer: vi.fn(),
+  isEIP7702Chain: vi.fn(),
+  getSlippage: vi.fn(),
 }));
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  successfulFetch: vi.fn(),
 }));
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
@@ -115,6 +116,7 @@ const SAFE_INTERFACE = new Interface([
 ]);
 
 const TRANSFER_RECIPIENT = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+const HYPERLIQUID_BRIDGE_ADDRESS = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const FACTORY_ADDRESS = '0xfac7fac7fac7fac7fac7fac7fac7fac7fac7fac7' as Hex;
 const SAFE_ADDRESS = '0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe' as Hex;
@@ -163,7 +165,7 @@ function buildExecTransactionData(): Hex {
 }
 
 function getRequestBody(): { actions: unknown[] } {
-  const [, options] = jest.mocked(successfulFetch).mock.calls[0];
+  const [, options] = vi.mocked(successfulFetch).mock.calls[0];
 
   return JSON.parse((options?.body as string) ?? '{}') as {
     actions: unknown[];
@@ -171,14 +173,14 @@ function getRequestBody(): { actions: unknown[] } {
 }
 
 describe('Across Quotes', () => {
-  const successfulFetchMock = jest.mocked(successfulFetch);
-  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-  const getGasBufferMock = jest.mocked(getGasBuffer);
-  const getSlippageMock = jest.mocked(getSlippage);
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
-  const calculateGasCostMock = jest.mocked(calculateGasCost);
-  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const successfulFetchMock = vi.mocked(successfulFetch);
+  const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
+  const getGasBufferMock = vi.mocked(getGasBuffer);
+  const getSlippageMock = vi.mocked(getSlippage);
+  const isEIP7702ChainMock = vi.mocked(isEIP7702Chain);
+  const calculateGasCostMock = vi.mocked(calculateGasCost);
+  const calculateGasFeeTokenCostMock = vi.mocked(calculateGasFeeTokenCost);
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
 
   const {
     messenger,
@@ -203,7 +205,7 @@ describe('Across Quotes', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -373,6 +375,47 @@ describe('Across Quotes', () => {
       expect(params.get('refundAddress')).toBe(refundTo);
       expect(getRequestBody().actions).toStrictEqual([]);
     });
+
+    it.each([
+      ['no account override', undefined, FROM_MOCK],
+      [
+        'an account override',
+        '0xaa00000000000000000000000000000000000002',
+        '0xaa00000000000000000000000000000000000002',
+      ],
+    ])(
+      'quotes Predict Safe withdraws from the transaction account with %s',
+      async (_title, accountOverride, recipient) => {
+        const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as Response);
+
+        await getAcrossQuotes({
+          accountSupports7702: false,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              accountOverride: accountOverride as Hex | undefined,
+              isPostQuote: true,
+              refundTo,
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+        });
+
+        const [url] = successfulFetchMock.mock.calls[0];
+        const params = new URL(url as string).searchParams;
+
+        expect(params.get('depositor')).toBe(FROM_MOCK);
+        expect(params.get('recipient')).toBe(recipient);
+        expect(params.get('refundAddress')).toBe(refundTo);
+      },
+    );
 
     it('ignores invalid original transaction gas for post-quote predict withdraws', async () => {
       successfulFetchMock.mockResolvedValue({
@@ -1197,7 +1240,7 @@ describe('Across Quotes', () => {
       );
     });
 
-    it('uses relaxed per-transaction gas estimates for prefunded post-quote predict withdraws', async () => {
+    it('uses relaxed separate gas estimates for prefunded post-quote predict withdraws', async () => {
       const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
 
       estimateGasBatchMock.mockRejectedValueOnce(
@@ -1534,11 +1577,10 @@ describe('Across Quotes', () => {
         ],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
           txParams: {
             from: FROM_MOCK,
             to: ARBITRUM_USDC_ADDRESS,
-            data: buildTransferData(TRANSFER_RECIPIENT, 1),
+            data: buildTransferData(HYPERLIQUID_BRIDGE_ADDRESS, 1),
           },
         },
       });
@@ -1546,7 +1588,7 @@ describe('Across Quotes', () => {
       const [url] = successfulFetchMock.mock.calls[0];
       const params = new URL(url as string).searchParams;
 
-      expect(params.get('amount')).toBe('100000000');
+      expect(params.get('amount')).toBe('1000000');
       expect(params.get('destinationChainId')).toBe(
         String(parseInt(CHAIN_ID_HYPERCORE, 16)),
       );
@@ -1555,6 +1597,46 @@ describe('Across Quotes', () => {
       );
       expect(params.get('recipient')).toBe(FROM_MOCK);
       expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('throws if Across returns unexpected USDC-PERPS decimals for perps deposits', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          outputToken: {
+            ...QUOTE_MOCK.outputToken,
+            address: ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+            chainId: parseInt(CHAIN_ID_HYPERCORE, 16),
+            decimals: 8,
+          },
+        }),
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetAmountMinimum: '1000000',
+              targetChainId: CHAIN_ID_ARBITRUM,
+              targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: {
+              from: FROM_MOCK,
+              to: ARBITRUM_USDC_ADDRESS,
+              data: buildTransferData(HYPERLIQUID_BRIDGE_ADDRESS, 1),
+            },
+          },
+        }),
+      ).rejects.toThrow(
+        'Unexpected Across USDC-PERPS decimals - Expected: 6 | Received: 8',
+      );
     });
 
     it('uses transfer recipient for token transfer transactions', async () => {
@@ -2561,7 +2643,7 @@ describe('Across Quotes', () => {
       ).toBeUndefined();
     });
 
-    it('returns per-transaction gas limits when account does not support 7702', async () => {
+    it('returns separate gas limits when account does not support 7702', async () => {
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 42000,
         gasLimits: [21000, 21000],
@@ -2593,7 +2675,7 @@ describe('Across Quotes', () => {
     });
 
     it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {
-      const estimateQuoteGasLimitsSpy = jest.spyOn(
+      const estimateQuoteGasLimitsSpy = vi.spyOn(
         quoteGasUtils,
         'estimateQuoteGasLimits',
       );
@@ -2728,11 +2810,11 @@ describe('Across Quotes', () => {
     });
 
     it('falls back to the swap chain id when an approval transaction chain id is missing during cost calculation', async () => {
-      const estimateQuoteGasLimitsSpy = jest.spyOn(
+      const estimateQuoteGasLimitsSpy = vi.spyOn(
         quoteGasUtils,
         'estimateQuoteGasLimits',
       );
-      const orderedTransactionsSpy = jest.spyOn(
+      const orderedTransactionsSpy = vi.spyOn(
         acrossTransactions,
         'getAcrossOrderedTransactions',
       );

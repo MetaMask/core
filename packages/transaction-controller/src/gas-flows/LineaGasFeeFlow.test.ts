@@ -1,5 +1,6 @@
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CHAIN_IDS } from '../constants.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
@@ -18,8 +19,8 @@ import { rpcRequest } from '../utils/provider.js';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow.js';
 import { LineaGasFeeFlow } from './LineaGasFeeFlow.js';
 
-jest.mock('../utils/provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('../utils/provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
@@ -62,7 +63,7 @@ const DEFAULT_RESPONSE_MOCK: GasFeeFlowResponse = {
 };
 
 describe('LineaGasFeeFlow', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
 
   let request: GasFeeFlowRequest;
 
@@ -144,11 +145,11 @@ describe('LineaGasFeeFlow', () => {
     });
 
     it('uses default flow if error', async () => {
-      jest
-        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
-        .mockResolvedValue(DEFAULT_RESPONSE_MOCK);
+      vi.spyOn(DefaultGasFeeFlow.prototype, 'getGasFees').mockResolvedValue(
+        DEFAULT_RESPONSE_MOCK,
+      );
 
-      const defaultGasFeeFlowGetGasFeesMock = jest.mocked(
+      const defaultGasFeeFlowGetGasFeesMock = vi.mocked(
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 
@@ -164,11 +165,11 @@ describe('LineaGasFeeFlow', () => {
     });
 
     it('throws if default flow fallback fails', async () => {
-      jest
-        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
-        .mockRejectedValue(new Error('TestError'));
+      vi.spyOn(DefaultGasFeeFlow.prototype, 'getGasFees').mockRejectedValue(
+        new Error('TestError'),
+      );
 
-      const defaultGasFeeFlowGetGasFeesMock = jest.mocked(
+      const defaultGasFeeFlowGetGasFeesMock = vi.mocked(
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 

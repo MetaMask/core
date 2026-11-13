@@ -15,6 +15,24 @@ export type ChompIntentType =
   | 'cash-withdrawal-premium'
   | 'cash-subscription';
 
+/**
+ * The CHOMP intent types that complete the Money Account migration steps
+ * signed by the predecessor address. They can only be created through
+ * `POST /v2/intent`.
+ *
+ * - `cash-migration-root`: root delegation from the predecessor to the
+ * successor.
+ * - `cash-migration-transfer`: open delegation that lets any redeemer
+ * transfer one token (mUSD or vmUSD) from the predecessor only to the
+ * successor.
+ * - `cash-migration-premium-transfer`: delegation from the predecessor to
+ * CHOMP that moves the pvmUSD balance to the successor. Premium only.
+ */
+export type ChompMigrationIntentType =
+  | 'cash-migration-root'
+  | 'cash-migration-transfer'
+  | 'cash-migration-premium-transfer';
+
 export type DelegationCaveat = {
   enforcer: Hex;
   terms: Hex;
@@ -32,10 +50,35 @@ export type SignedDelegation = {
 
 // === PARAMS TYPES ===
 
-export type AssociateAddressParams = {
+/**
+ * Why an address is being associated through the v2 flow. `ASSOCIATE` creates
+ * a normal association, while `ASSOCIATE_SUCCESSOR` also links the address to
+ * its predecessor as the next address in the Money Account identity chain.
+ */
+export type AssociationPurpose = 'ASSOCIATE' | 'ASSOCIATE_SUCCESSOR';
+
+export type CreateAddressChallengeParams =
+  | {
+      address: Hex;
+      purpose: 'ASSOCIATE';
+    }
+  | {
+      address: Hex;
+      purpose: 'ASSOCIATE_SUCCESSOR';
+      /**
+       * The current address of the Money Account that `address` succeeds.
+       * Must be set before any intents exist on `address`.
+       */
+      predecessorAddress: Hex;
+    };
+
+export type AssociateAddressV2Params = {
+  challengeId: string;
+  /**
+   * The `personal_sign` signature of the challenge `message`, signed exactly
+   * as returned by CHOMP with the address being associated.
+   */
   signature: Hex;
-  timestamp: number;
-  address: Hex;
 };
 
 export type CreateUpgradeParams = {
@@ -67,6 +110,40 @@ export type SendIntentParams = {
   metadata: IntentMetadataParams;
 };
 
+export type IntentDataParams = {
+  allowance: Hex;
+  tokenSymbol: string;
+  tokenAddress: Hex;
+};
+
+export type SendIntentV2Params = {
+  account: Hex;
+  delegationHash: Hex;
+  chainId: Hex;
+  intent:
+    | {
+        type:
+          | ChompIntentType
+          | Exclude<
+              ChompMigrationIntentType,
+              'cash-migration-premium-transfer'
+            >;
+        data: IntentDataParams;
+      }
+    | {
+        type: 'cash-migration-premium-transfer';
+        data: IntentDataParams & {
+          /**
+           * The predecessor's `personal_sign` signature of the raw digest
+           * `keccak256(abi.encode(vaultMigrationHelper, chainId, predecessor,
+           * successor, delegationHash))`, which binds the successor as the
+           * destination of this delegation.
+           */
+          userSignature: Hex;
+        };
+      };
+};
+
 export type CreateWithdrawalParams = {
   chainId: Hex;
   /** Decimal integer or 0x-prefixed hex string representing the amount. */
@@ -77,18 +154,34 @@ export type CreateWithdrawalParams = {
 // === RESPONSE TYPES ===
 
 /**
- * Returned by POST /v1/auth/address.
+ * Returned by POST /v2/auth/address.
  *
  * `profileId` is only included when the address was newly associated
  * (`status: 'created'`). When the address was already associated with the
  * authenticated profile (`status: 'active'`), only `address` is returned.
- * Both cases respond with 201; an address associated with a different
- * profile responds with 409, which is surfaced as an error.
+ * An address associated with a different profile responds with 409, which is
+ * surfaced as an error.
  */
 export type AssociateAddressResponse = {
   profileId?: string;
   address: Hex;
   status: 'active' | 'created';
+};
+
+/**
+ * Returned by POST /v2/auth/address/challenge.
+ */
+export type CreateAddressChallengeResponse = {
+  challengeId: string;
+  /**
+   * The EIP-4361 (Sign-In with Ethereum) message to sign, bound to the
+   * profile, chain, purpose, address and predecessor.
+   */
+  message: string;
+  /**
+   * When the challenge expires, as an ISO 8601 timestamp.
+   */
+  expiresAt: string;
 };
 
 /**
@@ -159,6 +252,18 @@ export type SendIntentResponse = {
   createdAt: string;
 };
 
+export type SendIntentV2Response = {
+  delegationHash: Hex;
+  intent: {
+    type: ChompIntentType | ChompMigrationIntentType;
+    data: IntentDataParams & {
+      /** Only returned for `cash-migration-premium-transfer` intents. */
+      userSignature?: Hex;
+    };
+  };
+  createdAt: string;
+};
+
 /**
  * The shape returned by GET /v1/intent/account/:address for each intent.
  */
@@ -179,6 +284,108 @@ export type CreateWithdrawalResponse = {
   success: true;
 };
 
+// === DERIVED IDENTITY TYPES ===
+
+/**
+ * A step that must be completed before a migration link counts as complete.
+ * `SUCCESSOR_SUBSCRIPTION_INTENT` and `TRANSFER_INTENT_PVMUSD` are only
+ * required for premium subscribers.
+ */
+export type MigrationStep =
+  | 'SUCCESSOR_DEPOSIT_INTENT'
+  | 'SUCCESSOR_WITHDRAWAL_INTENT'
+  | 'SUCCESSOR_SUBSCRIPTION_INTENT'
+  | 'SUCCESSOR_MONITORED'
+  | 'ROOT_DELEGATION'
+  | 'TRANSFER_INTENT_MUSD'
+  | 'TRANSFER_INTENT_VMUSD'
+  | 'TRANSFER_INTENT_PVMUSD'
+  | 'FUNDS_TRANSFERRED';
+
+/**
+ * The settlement status of a Money Account identity chain. `NONE` is never
+ * returned as an entry: a profile with no Money Account has no identities.
+ */
+export type DerivedIdentityStatus = 'NONE' | 'MIGRATING' | 'DONE';
+
+export type MigrationStepState = {
+  step: MigrationStep;
+  completed: boolean;
+};
+
+/**
+ * A funds-transfer execution request that CHOMP creates once every other
+ * migration step is complete.
+ */
+export type MigrationTransfer = {
+  requestId: string;
+  status: string;
+};
+
+/**
+ * The latest link of an identity chain while it is migrating.
+ */
+export type DerivedIdentityMigration = {
+  from: Hex;
+  to: Hex;
+  /** The steps required for the link's tier, in canonical order. */
+  steps: MigrationStepState[];
+  transfer: MigrationTransfer | null;
+  /** Stays `null` for a standard link, which never needs one. */
+  premiumTransfer: MigrationTransfer | null;
+};
+
+/**
+ * One Money Account over time: a chain of addresses joined by links.
+ * Addresses are lowercased.
+ */
+export type DerivedIdentity = {
+  /** The tip of the chain. Stays on the old address while migrating. */
+  currentAddress: Hex;
+  /** Earlier addresses, from the immediate predecessor backwards. */
+  previousAddresses: Hex[];
+  status: DerivedIdentityStatus;
+  migration: DerivedIdentityMigration | null;
+};
+
+/**
+ * Returned by GET /v1/money-account/identities.
+ */
+export type DerivedIdentitiesResponse = {
+  identities: DerivedIdentity[];
+};
+
+export type DerivedIdentityAddressRole =
+  | 'CURRENT'
+  | 'PREVIOUS'
+  | 'PENDING_SUCCESSOR';
+
+/**
+ * Returned by GET /v1/money-account/identities/address/:address. Addresses
+ * are lowercased.
+ */
+export type AddressIdentityResponse = {
+  identity: DerivedIdentity;
+  address: {
+    address: Hex;
+    role: DerivedIdentityAddressRole;
+    predecessor: Hex | null;
+    successor: Hex | null;
+  };
+};
+
+/**
+ * Returned by POST /v1/money-account/identities/address/:address/funds-transfer.
+ * Addresses are lowercased.
+ */
+export type FundsTransferStart = {
+  from: Hex;
+  to: Hex;
+  transfer: MigrationTransfer | null;
+  /** Stays `null` for a standard link, and until CHOMP creates it. */
+  premiumTransfer: MigrationTransfer | null;
+};
+
 // === SERVICE DETAILS TYPES ===
 
 export type ServiceDetailsSupportedToken = {
@@ -194,6 +401,11 @@ export type ServiceDetailsProtocol = {
 
 export type ServiceDetailsChain = {
   autoDepositDelegate: Hex;
+  /**
+   * The VaultMigrationHelper contract, which redeems the premium migration
+   * transfer delegation. Not yet served on every environment.
+   */
+  vaultMigrationHelperAddress?: Hex;
   protocol: {
     vedaProtocol: ServiceDetailsProtocol;
     vedaPremiumProtocol?: ServiceDetailsProtocol;

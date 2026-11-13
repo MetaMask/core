@@ -1,5 +1,10 @@
+import { describe, expect, it } from 'vitest';
+
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
-import { assertExpectedPosition } from '../../../src/utils/positionProtection.js';
+import {
+  assertExpectedPosition,
+  toPositionTpslLegPrices,
+} from '../../../src/utils/positionProtection.js';
 
 describe('assertExpectedPosition', () => {
   it('allows absent opt-in and equivalent decimal representations', () => {
@@ -29,5 +34,16 @@ describe('assertExpectedPosition', () => {
     expect(() =>
       assertExpectedPosition({ size: '1', entryPrice: '3000' }, undefined),
     ).toThrow(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+  });
+});
+
+describe('toPositionTpslLegPrices', () => {
+  it.each([
+    ['tp', { takeProfitPrice: '61000' }],
+    ['sl', { stopLossPrice: '61000' }],
+  ] as const)('maps the %s leg to its price field only', (leg, expected) => {
+    expect(
+      toPositionTpslLegPrices({ leg, triggerPrice: '61000' }),
+    ).toStrictEqual(expected);
   });
 });

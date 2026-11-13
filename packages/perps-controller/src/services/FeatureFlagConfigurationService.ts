@@ -34,6 +34,12 @@ export class FeatureFlagConfigurationService {
   readonly #deps: PerpsPlatformDependencies;
 
   /**
+   * Invalid (fieldName, pattern) pairs already reported, so a malformed remote
+   * flag is logged once per service lifetime instead of on every state change.
+   */
+  readonly #reportedInvalidPatterns = new Set<string>();
+
+  /**
    * Create a new FeatureFlagConfigurationService instance
    *
    * @param deps - Platform dependencies for logging, metrics, etc.
@@ -129,7 +135,8 @@ export class FeatureFlagConfigurationService {
 
   /**
    * Filter out patterns that fail market pattern validation.
-   * Invalid patterns are logged and dropped instead of propagated downstream.
+   * Invalid patterns are dropped instead of propagated downstream, and each
+   * distinct (fieldName, pattern) pair is logged at most once.
    *
    * @param patterns - The array of market patterns to validate.
    * @param fieldName - The name of the field being validated (for logging).
@@ -141,19 +148,23 @@ export class FeatureFlagConfigurationService {
         validateMarketPattern(pattern);
         return true;
       } catch (error) {
-        this.#deps.logger.error(
-          ensureError(
-            error,
-            `FeatureFlagConfigurationService.filterValidPatterns`,
-          ),
-          {
-            tags: { feature: PERPS_CONSTANTS.FeatureName },
-            context: {
-              name: 'FeatureFlagConfigurationService.filterValidPatterns',
-              data: { fieldName, pattern },
+        const reportKey = JSON.stringify([fieldName, pattern]);
+        if (!this.#reportedInvalidPatterns.has(reportKey)) {
+          this.#reportedInvalidPatterns.add(reportKey);
+          this.#deps.logger.error(
+            ensureError(
+              error,
+              `FeatureFlagConfigurationService.filterValidPatterns`,
+            ),
+            {
+              tags: { feature: PERPS_CONSTANTS.FeatureName },
+              context: {
+                name: 'FeatureFlagConfigurationService.filterValidPatterns',
+                data: { fieldName, pattern },
+              },
             },
-          },
-        );
+          );
+        }
         return false;
       }
     });

@@ -1,3 +1,6 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import { BASE_URL } from '../constants.js';
 import type {
   ApiDataResponse,
@@ -10,8 +13,6 @@ import {
 } from '../remote-feature-flag-controller-types.js';
 import { ClientConfigApiService } from './client-config-api-service.js';
 
-import Mock = jest.Mock;
-
 const mockServerFeatureFlagsResponse: ApiDataResponse = [
   { feature1: false },
   { feature2: { chrome: '<109' } },
@@ -22,14 +23,14 @@ const mockFeatureFlags: FeatureFlags = {
   feature2: { chrome: '<109' },
 };
 
-jest.setTimeout(8000);
+vi.setConfig({ testTimeout: 8000 });
 
 describe('ClientConfigApiService', () => {
   const networkError = new Error('Network error');
 
   describe('onBreak', () => {
     it('should register a listener that is called when the circuit opens', async () => {
-      const onBreak = jest.fn();
+      const onBreak = vi.fn();
       const mockFetch = createMockFetch({ error: networkError });
 
       const clientConfigApiService = new ClientConfigApiService({
@@ -55,7 +56,7 @@ describe('ClientConfigApiService', () => {
 
   describe('onDegraded', () => {
     it('should register a listener that is called when the request is slow', async () => {
-      const onDegraded = jest.fn();
+      const onDegraded = vi.fn();
       const slowFetchTime = 5500; // Exceed the DEFAULT_DEGRADED_THRESHOLD (5000ms)
       // Mock fetch to take a long time
       const mockSlowFetch = createMockFetch({
@@ -195,7 +196,7 @@ describe('ClientConfigApiService', () => {
     });
 
     it('should call the onBreak callback when the circuit opens', async () => {
-      const onBreak = jest.fn();
+      const onBreak = vi.fn();
       const mockFetch = createMockFetch({ error: networkError });
 
       const clientConfigApiService = new ClientConfigApiService({
@@ -219,7 +220,7 @@ describe('ClientConfigApiService', () => {
     });
 
     it('should call the onDegraded callback when the request is slow', async () => {
-      const onDegraded = jest.fn();
+      const onDegraded = vi.fn();
       const slowFetchTime = 5500; // Exceed the DEFAULT_DEGRADED_THRESHOLD (5000ms)
       // Mock fetch to take a long time
       const mockSlowFetch = createMockFetch({
@@ -269,7 +270,7 @@ function createMockFetch({
   delay?: number;
 }): Mock {
   if (error) {
-    return jest
+    return vi
       .fn()
       .mockImplementation(
         () =>
@@ -279,7 +280,7 @@ function createMockFetch({
       );
   }
 
-  return jest
+  return vi
     .fn()
     .mockImplementation(
       () =>

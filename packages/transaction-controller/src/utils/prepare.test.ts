@@ -3,6 +3,7 @@ import {
   LegacyTransaction,
   EOACodeEIP7702Transaction,
 } from '@ethereumjs/tx';
+import { describe, expect, it } from 'vitest';
 
 import { TransactionEnvelopeType } from '../types.js';
 import type { Authorization, TransactionParams } from '../types.js';

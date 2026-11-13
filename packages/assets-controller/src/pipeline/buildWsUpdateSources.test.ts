@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import type { AssetsDataSource } from '../types.js';
 import { buildWsUpdateSources } from './buildWsUpdateSources.js';
 import type { WsUpdateSources } from './buildWsUpdateSources.js';
@@ -22,7 +24,6 @@ function buildSources(): WsUpdateSources {
       'CustomAssetGraduationMiddleware',
     ),
     rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
-    detectionMiddleware: stubSource('DetectionMiddleware'),
     tokenDataSource: stubTokenSource('TokenDataSource'),
     priceDataSource: stubSource('PriceDataSource'),
   };
@@ -31,39 +32,36 @@ function buildSources(): WsUpdateSources {
 describe('buildWsUpdateSources', () => {
   it.each([
     {
-      title: 'v5 lane: graduation → occurrence filter → detection → enrichment',
+      title: 'v5 lane: graduation → occurrence filter → enrichment',
       includeCustomAssetGraduation: true,
       isBasicFunctionality: true,
       expected: [
         'CustomAssetGraduationMiddleware',
         'OccurrenceFloorFilter',
-        'DetectionMiddleware',
         'ParallelMiddleware',
       ],
     },
     {
-      title: 'v5 lane: runs only the graduation and detection',
+      title: 'v5 lane: runs only graduation',
       includeCustomAssetGraduation: true,
       isBasicFunctionality: false,
-      expected: ['CustomAssetGraduationMiddleware', 'DetectionMiddleware'],
+      expected: ['CustomAssetGraduationMiddleware'],
     },
     {
-      title:
-        'v6 lane: occurrence filter → RPC fallback → detection → enrichment',
+      title: 'v6 lane: occurrence filter → RPC fallback → enrichment',
       includeCustomAssetGraduation: false,
       isBasicFunctionality: true,
       expected: [
         'OccurrenceFloorFilter',
         'RpcFallbackMiddleware',
-        'DetectionMiddleware',
         'ParallelMiddleware',
       ],
     },
     {
-      title: 'v6 lane: runs only the detection',
+      title: 'v6 lane: runs nothing when basic functionality is off',
       includeCustomAssetGraduation: false,
       isBasicFunctionality: false,
-      expected: ['DetectionMiddleware'],
+      expected: [],
     },
   ])(
     '$title',
@@ -79,7 +77,7 @@ describe('buildWsUpdateSources', () => {
 
   it('derives the occurrence filter from the token data source', () => {
     const tokenDataSource = stubTokenSource('TokenDataSource');
-    const middlewareSpy = jest.fn(tokenDataSource.occurrenceFilterMiddleware);
+    const middlewareSpy = vi.fn(tokenDataSource.occurrenceFilterMiddleware);
     tokenDataSource.occurrenceFilterMiddleware = middlewareSpy;
 
     const sources = buildWsUpdateSources(

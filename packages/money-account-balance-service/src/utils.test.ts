@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { convertAprToApy } from './utils.js';
 
 describe('convertAprToApy', () => {

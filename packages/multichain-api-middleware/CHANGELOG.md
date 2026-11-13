@@ -9,12 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [5.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^38.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@open-rpc/meta-schema` from `^1.14.6` to `^1.14.9` ([#10721](https://github.com/MetaMask/core/pull/10721))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
 - Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
-- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/chain-agnostic-permission` from `^2.0.0` to `^2.1.0` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+- Bump `@open-rpc/schema-utils-js` from `^2.0.5` to `^2.2.1` ([#10526](https://github.com/MetaMask/core/pull/10526))
 
 ## [5.0.0]
 
@@ -316,7 +330,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.0.0...@metamask/multichain-api-middleware@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.3...@metamask/multichain-api-middleware@5.0.0
 [4.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.2...@metamask/multichain-api-middleware@4.0.3
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.1...@metamask/multichain-api-middleware@4.0.2

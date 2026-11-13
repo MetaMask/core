@@ -9,10 +9,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [78.0.3]
+
+### Changed
+
+- `getReceivedERC20Amount` utility now adds up all transferred ERC20 amounts to a given wallet address ([#11402](https://github.com/MetaMask/core/pull/11402))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/bridge-controller` from `^83.1.4` to `^83.1.5` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [78.0.2]
+
+### Changed
+
+- Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/bridge-controller` from `^83.1.3` to `^83.1.4` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [78.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.1` to `^73.0.0` ([#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/bridge-controller` from `^83.1.1` to `^83.1.3` ([#11157](https://github.com/MetaMask/core/pull/11157), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
+## [78.0.0]
+
+### Changed
+
+- **BREAKING:** Change `submitTx` args to a single object ([#11140](https://github.com/MetaMask/core/pull/11140))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/bridge-controller` from `^83.1.0` to `^83.1.1` ([#11115](https://github.com/MetaMask/core/pull/11115))
+
+## [77.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/bridge-controller` from `^83.0.0` to `^83.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [77.0.0]
+
+### Added
+
+- Update `TraceName` to include both client-emitted and controller trace names ([#10893](https://github.com/MetaMask/core/pull/10893))
+- Populate the `tags` field with the active `feature` when tracing swap/bridge operations ([#10893](https://github.com/MetaMask/core/pull/10893))
+
+### Changed
+
+- **BREAKING:** Require `traceFn` when initializing the BridgeStatusController ([#10893](https://github.com/MetaMask/core/pull/10893))
+- Update batch-strategy and batch-sell-strategy history persistence ([#10814](https://github.com/MetaMask/core/pull/10814))
+  - add a history item before submitting transactions. This enables the `TransactionController:transactionStatusUpdated` listener to match the txMeta with history and determine whether to publish the Failed event
+  - include latest `TransactionStatus` when rekey-ing or adding to history
+- Update evm-strategy history persistence ([#10814](https://github.com/MetaMask/core/pull/10814))
+  - if an approval is required, key initial historyItem by `actionId`
+  - rekey to the trade's `actionId` if the approval succeeds
+  - rekey to the trade's `id` on confirmation
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/bridge-controller` from `^82.0.3` to `^83.0.0` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Fixed
+
+- Emit only one `Unified SwapBridge Failed` event when `addTransaction` or `addTransactionBatch` fails ([#10814](https://github.com/MetaMask/core/pull/10814))
+  - Pre-submit history: evm keyed by actionId, batch + batch-sell keyed by batchId
+  - After tx exists: listener publishes Failed; submitTx returns the txMeta
+  - Before tx exists: submitTx catch publishes Failed
 
 ## [76.4.0]
 
@@ -1664,7 +1743,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.3...HEAD
+[78.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.2...@metamask/bridge-status-controller@78.0.3
+[78.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.1...@metamask/bridge-status-controller@78.0.2
+[78.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.0...@metamask/bridge-status-controller@78.0.1
+[78.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@77.1.0...@metamask/bridge-status-controller@78.0.0
+[77.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@77.0.0...@metamask/bridge-status-controller@77.1.0
+[77.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.4.0...@metamask/bridge-status-controller@77.0.0
 [76.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.5...@metamask/bridge-status-controller@76.4.0
 [76.3.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.4...@metamask/bridge-status-controller@76.3.5
 [76.3.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.3...@metamask/bridge-status-controller@76.3.4

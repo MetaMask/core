@@ -1,4 +1,5 @@
 import { StatusTypes } from '@metamask/bridge-controller';
+import { describe, expect, it } from 'vitest';
 
 import { QuoteStatusFetchWithRetryOutcomeType } from './constants.js';
 import { QuoteStatusGetError } from './errors.js';

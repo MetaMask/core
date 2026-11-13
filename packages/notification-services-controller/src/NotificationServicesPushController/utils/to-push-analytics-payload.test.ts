@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { PushAnalyticsPayload } from '../types/index.js';
 import { toPushAnalyticsPayload } from './to-push-analytics-payload.js';
 

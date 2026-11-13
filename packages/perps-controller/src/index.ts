@@ -81,6 +81,7 @@ export type {
   PerpsControllerFetchHistoricalCandlesAction,
   PerpsControllerFlipPositionAction,
   PerpsControllerGetAccountStateAction,
+  PerpsControllerGetAccountSupportAction,
   PerpsControllerGetActiveProviderAction,
   PerpsControllerGetActiveProviderOrNullAction,
   PerpsControllerGetAttributionContextAction,
@@ -113,6 +114,7 @@ export type {
   PerpsControllerGetPendingManualRecoveriesAction,
   PerpsControllerGetPendingTradeConfigurationAction,
   PerpsControllerGetPositionsAction,
+  PerpsControllerGetPublicTradesAction,
   PerpsControllerGetSelectedOrderTypeAction,
   PerpsControllerGetRecoveredDispatchesAction,
   PerpsControllerGetAttachedOrderGroupsAction,
@@ -142,6 +144,7 @@ export type {
   PerpsControllerReconnectAction,
   PerpsControllerRecordMarketViewedAction,
   PerpsControllerRefreshEligibilityAction,
+  PerpsControllerReplacePositionTPSLLegAction,
   PerpsControllerResetFirstTimeUserStateAction,
   PerpsControllerResetSelectedPaymentTokenAction,
   PerpsControllerSaveMarginModeAction,
@@ -165,6 +168,7 @@ export type {
   PerpsControllerStopEligibilityMonitoringAction,
   PerpsControllerStopMarketDataPreloadAction,
   PerpsControllerSubscribeToAccountAction,
+  PerpsControllerSubscribeToAvailableToTradeAction,
   PerpsControllerSubscribeToCandlesAction,
   PerpsControllerSubscribeToConnectionStateAction,
   PerpsControllerSubscribeToOICapsAction,
@@ -174,7 +178,9 @@ export type {
   PerpsControllerSubscribeToTwapOrdersAction,
   PerpsControllerSubscribeToPositionsAction,
   PerpsControllerSubscribeToPricesAction,
+  PerpsControllerSubscribeToPublicTradesAction,
   PerpsControllerSwitchProviderAction,
+  PerpsControllerSetDefaultProviderAction,
   PerpsControllerToggleTestnetAction,
   PerpsControllerToggleWatchlistMarketAction,
   PerpsControllerUpdateMarginAction,
@@ -247,6 +253,7 @@ export type {
   PerpsRecoveryProtectionResult,
   Position,
   AccountState,
+  CrossMarginSummary,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -261,6 +268,10 @@ export type {
   ToggleTestnetResult,
   AssetRoute,
   SwitchProviderResult,
+  SetDefaultProviderResult,
+  PerpsPendingTradeConfiguration,
+  PerpsTradeConfiguration,
+  PerpsProviderTradeConfigurations,
   CancelOrderParams,
   CancelOrderResult,
   BatchCancelOrdersParams,
@@ -303,12 +314,17 @@ export type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
+  SubscribeAvailableToTradeParams,
+  PerpsAvailableToTrade,
   SubscribeAccountParams,
   SubscribeOICapsParams,
   SubscribeCandlesParams,
   OrderBookLevel,
   OrderBookData,
   SubscribeOrderBookParams,
+  PublicTrade,
+  GetPublicTradesParams,
+  SubscribePublicTradesParams,
   LiquidationPriceParams,
   MaintenanceMarginParams,
   PositionModifyPreviewParams,
@@ -323,6 +339,9 @@ export type {
   PositionModifyPreviewNone,
   FeeCalculationParams,
   FeeCalculationResult,
+  GetAccountSupportParams,
+  PerpsAccountSupport,
+  PerpsAccountUnsupportedReason,
   GetOrderCapabilitiesParams,
   GetMarginModeLockParams,
   MarginModeLockReason,
@@ -341,8 +360,12 @@ export type {
   PerpsSubscriptionUsage,
   PerpsSubscriptionFeeWaiverStatus,
   PerpsFeeSource,
+  PerpsFeeResolverScope,
   PerpsFeeResolution,
+  PerpsTradingFeeGrant,
   UpdatePositionTPSLParams,
+  PositionTPSLLeg,
+  ReplacePositionTPSLLegParams,
   Order,
   Funding,
   PerpsProvider,
@@ -560,9 +583,11 @@ export {
   MARGIN_ADJUSTMENT_CONFIG,
   DATA_LAKE_API_CONFIG,
   DECIMAL_PRECISION_CONFIG,
+  TP_SL_PRECISION_CONFIG,
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
   FUNDING_RATE_CONFIG,
+  PERPS_DISPLAY_PRECISION,
 } from './constants/index.js';
 export type { SortOptionId } from './constants/index.js';
 
@@ -573,8 +598,40 @@ export {
   getSelectedEvmAccount,
   calculateWeightedReturnOnEquity,
   aggregateAccountStates,
+  getCrossCollateral,
+  calculateAccountSummary,
 } from './utils/index.js';
-export type { ReturnOnEquityInput } from './utils/index.js';
+export type {
+  ReturnOnEquityInput,
+  CrossMarginSummaryInput,
+  PerpsAccountSummary,
+  CalculateAccountSummaryParams,
+} from './utils/index.js';
+export {
+  calculatePriceForRoE,
+  calculateSignedRoEForPrice,
+  calculateRoEForPrice,
+  calculatePriceForPercentage,
+  calculatePercentageForPrice,
+  getMaxStopLossPercentage,
+  isValidStopLossPercentage,
+  isPositiveTriggerPrice,
+  isValidTakeProfitPrice,
+  isValidStopLossPrice,
+  isStopLossSafeFromLiquidation,
+  validateTPSLPrices,
+  formatRoePercent,
+} from './utils/index.js';
+export type {
+  TpslCalculationParams,
+  TpslValidationResult,
+} from './utils/index.js';
+export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
+export type {
+  CloseReceiveEstimateParams,
+  CloseReceiveEstimate,
+  NetClosedPnlParams,
+} from './utils/index.js';
 export { ensureError, isAbortError } from './utils/index.js';
 export type {
   OrderBookCacheEntry,
@@ -716,10 +773,30 @@ export {
   buildMaintenanceSchedule,
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
+  estimateIsolatedLeverageChange,
 } from './utils/index.js';
-export type { HyperLiquidMarginTier } from './utils/index.js';
+export type {
+  HyperLiquidMarginTier,
+  IsolatedLeverageChangeParams,
+  IsolatedLeverageChange,
+} from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
-export type { FiatRangeConfig } from './utils/index.js';
+export type {
+  FiatRangeConfig,
+  PerpsCompactField,
+  PerpsCompactFormatOptions,
+  PerpsDisplayFormatOptions,
+  PerpsFiatFormatOptions,
+  PerpsFundingRateFormatOptions,
+  PerpsIntlFormatters,
+  PerpsOrderBookLadderOptions,
+  PerpsOrderBookPriceFormat,
+  PerpsOrderBookPriceFormatOptions,
+  PerpsPercentageFormatOptions,
+  PerpsSignDisplay,
+  PerpsUsdInput,
+  PerpsUsdInputFormatOptions,
+} from './utils/index.js';
 export {
   PRICE_THRESHOLD,
   formatWithSignificantDigits,
@@ -730,6 +807,12 @@ export {
   formatPnl,
   formatPercentage,
   formatFundingRate,
+  formatFeeBps,
+  formatLiquidationDistance,
+  formatPerpsCompact,
+  getPerpsOrderBookPriceFormat,
+  formatPerpsOrderBookPrice,
+  formatPerpsUsdInput,
 } from './utils/index.js';
 
 // Error codes (explicit named exports)

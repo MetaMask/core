@@ -1,6 +1,7 @@
 import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
+import { describe, expect, it } from 'vitest';
 
 import { getMockBridgeQuotesErc20Erc20V1 } from '../../../tests/mock-quotes-erc20-erc20.js';
 import { getMockBridgeQuotesNativeErc20V1 } from '../../../tests/mock-quotes-native-erc20.js';

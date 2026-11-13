@@ -7,9 +7,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TransakServiceInvalidateQueriesAction`, `TransakServiceCacheUpdatedEvent` and `TransakServiceGranularCacheUpdatedEvent` types, and include them in `TransakServiceActions` and `TransakServiceEvents` ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Add `RampsServiceInvalidateQueriesAction`, `RampsServiceCacheUpdatedEvent` and `RampsServiceGranularCacheUpdatedEvent`, also included in `RampsServiceActions` and `RampsServiceEvents` ([#11214](https://github.com/MetaMask/core/pull/11214))
+- Add `NeoBankServiceInvalidateQueriesAction`, `NeoBankServiceCacheUpdatedEvent` and `NeoBankServiceGranularCacheUpdatedEvent`, also included in `NeoBankServiceActions` and `NeoBankServiceEvents` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Added an optional `isNetworkAccessAllowed` constructor option to `RampsController`. Every method that can reach the network checks it before any state write or request, and throws an error carrying the new `RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED` code when it returns `false`. A denied call does not serve a non-expired request-cache entry either, so hosts render already-fetched data from controller state while access is denied. Omitting the option keeps the existing behavior. `addOrder`, `addPrecreatedOrder`, `removeOrder`, and `transakLogout` still apply their local change and skip only the remote call ([#11222](https://github.com/MetaMask/core/pull/11222))
+
+### Changed
+
+- **BREAKING:** `TransakService` now extends `BaseDataService` ([#11216](https://github.com/MetaMask/core/pull/11216))
+  - This is breaking because `TransakServiceMessenger` has new required actions and events, writes are no longer retried, and `verifyUserOtp` now shares the circuit breaker with every other request (see below).
+  - `TransakServiceActions` now includes `TransakService:invalidateQueries`, and `TransakServiceEvents` now includes the `TransakService:cacheUpdated` events. A host messenger built from `MessengerActions<TransakServiceMessenger>` and `MessengerEvents<TransakServiceMessenger>` picks these up automatically.
+- **BREAKING:** `RampsService` now extends `BaseDataService` from `@metamask/base-data-service` ([#11214](https://github.com/MetaMask/core/pull/11214))
+  - This is breaking because `RampsService` no longer has public `onRetry`, `onBreak` and `onDegraded` methods (see Removed), and `RampsServiceMessenger` has new required actions and events. Pass `policyOptions` to the constructor to configure retries and the circuit breaker.
+  - `RampsServiceMessenger` now includes the `RampsService:invalidateQueries` action and the `RampsService:cacheUpdated` events. Messengers built from `RampsServiceActions` and `RampsServiceEvents` pick these up automatically.
+- **BREAKING:** `NeoBankService` now extends `BaseDataService` from `@metamask/base-data-service`, so reads and writes share one circuit breaker (previously each had its own) and repeated read failures can now block writes ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - `NeoBankServiceMessenger` now includes the `NeoBankService:invalidateQueries` action and `NeoBankService:cacheUpdated` events. Messengers built from `NeoBankServiceActions` / `NeoBankServiceEvents` pick these up automatically.
+- Concurrent identical `TransakService` reads are now deduplicated: while one request is in flight, identical calls reuse it instead of sending another. Reads still always hit the API ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Responses are now validated, and a malformed response throws `Query function for "TransakService:<method>" returned an unexpected response: ...` for reads or `Mutation function for "TransakService:<method>" returned an unexpected response: ...` for writes. Previously the response was returned unchecked ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Writes (every POST, PATCH and DELETE request) are no longer retried. Previously only `verifyUserOtp` was exempt from retries ([#11216](https://github.com/MetaMask/core/pull/11216))
+- `verifyUserOtp` now shares the circuit breaker with every other `TransakService` request. Previously it had its own, so repeated failures on other requests can now block it ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Concurrent identical `RampsService` calls are now deduplicated: while one request is in flight, calls with the same method and arguments reuse it instead of sending another. Sequential calls still always hit the API ([#11214](https://github.com/MetaMask/core/pull/11214))
+- Responses that do not match the expected shape now throw `Query function for "RampsService:<method>" returned an unexpected response: ...`, instead of `Malformed response received from <api name>` ([#11214](https://github.com/MetaMask/core/pull/11214))
+- `NeoBankService.getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`, `registerPixAddress` and `attachAutorampQuote` now return `Promise<Json>` instead of `Promise<unknown>` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Concurrent identical NeoBank reads (`getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `getCustomerAbilities`, `listAutorampTransactions`, `getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`) are now deduplicated: while one request is in flight, identical calls reuse it instead of sending another. Sequential reads still always hit the API ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - `getAutoramps` fetches each cursor page as its own query, so a failed page is retried on its own and concurrent calls with the same `customerId` reuse each in flight page request.
+- Malformed NeoBank responses now throw `Query function for "NeoBankService:<method>" returned an unexpected response: …` (or `Mutation function for "NeoBankService:createAutoramp" …`) instead of `Malformed response received from neo-bank …` ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `getCustomerAbilities`, `listAutorampTransactions` and `createAutoramp`.
+- Add dependency `@metamask/base-data-service` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Add dependency `@metamask/superstruct` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `RampsService` ([#11214](https://github.com/MetaMask/core/pull/11214))
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `NeoBankService` ([#10882](https://github.com/MetaMask/core/pull/10882))
+
+## [29.0.0]
+
+### Added
+
+- Add `NeoBankService.getCustomerAbilities`, exposed on the messenger, which returns the customer's rail abilities from neobank-proxy unmodified, and the `NeoBankCustomerAbilities`, `NeoBankFiatAbilities`, `NeoBankAbilityStatus`, `NeoBankCurrencyAbility` and `NeoBankAbilityCurrency` types ([#11225](https://github.com/MetaMask/core/pull/11225))
+  - MoonPay rejects an autoramp create with a 422 when the rail it needs is not `Active`, so clients can check the rail first. Any non-2xx response throws an `HttpError`.
+  - It resolves the MoonPay customer through `AuthenticationController:getSessionProfile`, so hosts must delegate that action to the `NeoBankService` messenger as well as `AuthenticationController:getBearerToken`. `getMicrodeposits` needs it too.
+- Add `RampsController.refreshCustomerAbilities`, exposed on the messenger, which stores the result in the new `vbaCustomerAbilities` state ([#11225](https://github.com/MetaMask/core/pull/11225))
+  - The state is not persisted. A failed fetch throws and keeps the stored value. Discarding a VBA session owned by another profile clears it.
+- Add `getMusdAutorampDepositRailReadiness` and the `MusdAutorampDepositRailReadiness` type, which read from customer abilities whether the deposit rails a fiat → mUSD autoramp needs are `active`, `pending` or `blocked` ([#11225](https://github.com/MetaMask/core/pull/11225))
+  - BRL needs `pix` and `pix_thirdparty`, USD needs `ach` and `ach_thirdparty`. Other fiats report `active`.
+
+### Changed
+
+- **BREAKING:** `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` now includes `NeoBankService:getCustomerAbilities`. Hosts must delegate that action to `RampsController` ([#11225](https://github.com/MetaMask/core/pull/11225))
+
+### Fixed
+
+- Require provider-side `finalStatus` approval before `hydrateVbaOnboarding` reports KYC as approved; relay `kycStatus` approval alone remains pending and does not start account setup ([#11243](https://github.com/MetaMask/core/pull/11243))
+- `NeoBankService.getMicrodeposits` now looks the MoonPay customer up again when the session profile changes, instead of reusing the first profile's customer id for the life of the service ([#11225](https://github.com/MetaMask/core/pull/11225))
+
+## [28.1.0]
+
+### Added
+
+- Add `NeoBankService.getMicrodeposits`, exposed on the messenger, which returns the customer's bank-link microdeposits from neobank-proxy unmodified, and the `NeoBankMicrodeposit` type ([#11165](https://github.com/MetaMask/core/pull/11165))
+  - The MoonPay customer id is resolved once per service instance. A 404 resolves `[]`; any other non-2xx response throws an `HttpError`.
+
+## [28.0.0]
+
+### Added
+
+- Add persisted `autorampTransactionRecords` on `RampsController`. Each autoramp stores `syncedAt` and the last seen status string per transaction id. The first successful fetch seeds the record and calls nothing ([#11017](https://github.com/MetaMask/core/pull/11017))
+- Add `diffAutorampTransactions`, which reports a transaction id that is new or whose status string changed. A transaction missing from the fetch stays in the record ([#11017](https://github.com/MetaMask/core/pull/11017))
+- Add an optional `trackAutorampTransactionStatusChanged` constructor callback. `refreshAutorampTransactions` loads the newest autoramp transaction page (`page_size` 50) and calls it after the record is written, once per new transaction id or status change. `previousStatus` is omitted for a new id. Overlapping calls for one autoramp share one request. A failed fetch writes nothing. Removing an autoramp, replacing the autoramp cursor, or discarding a foreign VBA session clears the matching records. A fetch still in flight when that autoramp leaves the cursor does not write the record or call the callback. A callback that throws is ignored, so one failing change does not drop the rest of the batch ([#11017](https://github.com/MetaMask/core/pull/11017))
+
+### Changed
+
+- **BREAKING:** `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` now includes `NeoBankService:listAutorampTransactions`. Hosts must delegate that action to `RampsController` ([#11017](https://github.com/MetaMask/core/pull/11017))
+- `NeoBankService.listAutorampTransactions` accepts an optional `pageSize`, sent as `page_size`. Omitting it keeps the previous query ([#11017](https://github.com/MetaMask/core/pull/11017))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [27.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [27.1.0]
+
+### Added
+
+- Add `NeoBankService.getDepositInstructions`, exposed on the messenger, which returns an autoramp's PIX or US bank deposit details discriminated by `type` ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Add `extractUsBankDepositInstructions` and the `UsBankDepositInstructions`, `UsBankDepositRail`, and `AutorampDepositInstructions` types for `ACH`, `Wire`, `RTP`, and `FedNow` rails ([#10878](https://github.com/MetaMask/core/pull/10878))
+
+### Changed
+
+- `mapNeoBankAutorampToRemoteSnapshot` sets `depositRailsSummary.currency` from the first complete deposit rail: BRL for PIX, USD for US rails, and EUR for SEPA. An incomplete rail does not set it ([#10878](https://github.com/MetaMask/core/pull/10878))
+
+### Fixed
+
+- A PIX rail with an empty `instruction` is not treated as complete, so it cannot label the autoramp BRL or hide a complete US rail ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Applying an autoramp snapshot keeps a previously stored `depositRailsSummary.currency` when the new snapshot omits it ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Add missing `@metamask/utils` dependency ([#10926](https://github.com/MetaMask/core/pull/10926))
+
+## [27.0.2]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
 
 ## [27.0.1]
 
@@ -729,7 +839,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...@metamask/ramps-controller@29.0.0
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.0.0...@metamask/ramps-controller@28.1.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.2.0...@metamask/ramps-controller@28.0.0
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.1.0...@metamask/ramps-controller@27.2.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.2...@metamask/ramps-controller@27.1.0
+[27.0.2]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...@metamask/ramps-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...@metamask/ramps-controller@27.0.0
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0

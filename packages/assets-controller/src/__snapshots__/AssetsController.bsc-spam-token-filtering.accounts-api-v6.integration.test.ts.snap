@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) generates snapshot (source of truth) 1`] = `
+exports[`AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) > generates snapshot (source of truth) 1`] = `
 {
   "assetPreferences": {},
   "assetsBalance": {

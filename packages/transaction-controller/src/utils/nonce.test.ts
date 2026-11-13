@@ -3,6 +3,7 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { Authorization, TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';
@@ -52,10 +53,7 @@ describe('nonce', () => {
         customNonceValue: '123',
       };
 
-      const [nonce, releaseLock] = await getNextNonce(
-        transactionMeta,
-        jest.fn(),
-      );
+      const [nonce, releaseLock] = await getNextNonce(transactionMeta, vi.fn());
 
       expect(nonce).toBe('0x7b');
       expect(releaseLock).toBeUndefined();
@@ -70,10 +68,7 @@ describe('nonce', () => {
         },
       };
 
-      const [nonce, releaseLock] = await getNextNonce(
-        transactionMeta,
-        jest.fn(),
-      );
+      const [nonce, releaseLock] = await getNextNonce(transactionMeta, vi.fn());
 
       expect(nonce).toBe('0x123');
       expect(releaseLock).toBeUndefined();
@@ -87,7 +82,7 @@ describe('nonce', () => {
         },
       };
 
-      const releaseLock = jest.fn();
+      const releaseLock = vi.fn();
 
       const [nonce, resultReleaseLock] = await getNextNonce(
         transactionMeta,
@@ -111,10 +106,7 @@ describe('nonce', () => {
         isExternalSign: true,
       };
 
-      const [nonce, releaseLock] = await getNextNonce(
-        transactionMeta,
-        jest.fn(),
-      );
+      const [nonce, releaseLock] = await getNextNonce(transactionMeta, vi.fn());
 
       expect(nonce).toBeUndefined();
       expect(releaseLock).toBeUndefined();

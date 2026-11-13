@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { AnalyticsControllerState } from './AnalyticsController.js';
 import type { AnalyticsEventFragment } from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';

@@ -36,6 +36,10 @@ export type NotificationServicesControllerCheckAccountsPresenceAction = {
  *
  * **Action** - used in the notification settings to enable/disable feature announcements.
  *
+ * @deprecated Feature announcements follow marketing consent (the AUS
+ * `marketing.inAppNotificationsEnabled` preference). Nothing in this
+ * controller reads the flag this sets, and it will be removed.
+ *
  * @param featureAnnouncementsEnabled - A boolean value indicating the desired enabled state of the feature announcements.
  * @async
  * @throws {Error} If fails to update
@@ -55,11 +59,13 @@ export type NotificationServicesControllerSetFeatureAnnouncementsEnabledAction =
  * {@link AuthenticatedUserStorageService} has no stored preferences yet.
  * Existing preferences are left as-is.
  *
+ * When preferences are initialized, both marketing channels (push, and
+ * in-app feature announcements) follow `AnalyticsController` marketing
+ * consent.
+ *
  * @param opts - optional options to mutate this functionality
- * @param opts.hasMarketingConsent - The user's marketing-consent flag.
- * Used only during initialization to seed marketing push notifications.
- * @param opts.productAnnouncementEnabled - The user's product-announcement flag.
- * Used only during initialization to seed marketing in-app notifications.
+ * @param opts.hasMarketingConsent - Deprecated and ignored.
+ * @param opts.productAnnouncementEnabled - Deprecated and ignored.
  * @param opts.registerPushNotifications - Whether to attempt FCM/device push registration.
  * @returns The updated or newly created user storage.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
@@ -218,6 +224,35 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
   };
 
 /**
+ * Saves a change to the user's notification preferences in Authenticated
+ * User Storage. Sections and fields left out keep their stored value, so
+ * callers send only what they change.
+ *
+ * Marketing notifications require marketing consent, so an update that
+ * turns a marketing channel on while the user has not consented is
+ * rejected. Only the fields in the update are checked: a marketing channel
+ * already on in storage doesn't block updates to other preferences. Turning
+ * consent off turns marketing channels off on its own (see
+ * `MarketingConsentController`).
+ *
+ * Read preferences from `AuthenticatedUserStorageService:getNotificationPreferences`
+ * (e.g. through `@metamask/react-data-query`), whose cache keeps UIs up to
+ * date; write them through this method so the consent rule is enforced.
+ *
+ * @param update - The sections and fields to change.
+ * @returns The saved preferences.
+ * @throws {MarketingConsentRequiredError} If the update turns a marketing
+ * channel on without marketing consent.
+ * @throws If notification preferences have not been set up yet; they are
+ * created when notifications are first enabled.
+ */
+export type NotificationServicesControllerUpdateNotificationPreferencesAction =
+  {
+    type: `NotificationServicesController:updateNotificationPreferences`;
+    handler: NotificationServicesController['updateNotificationPreferences'];
+  };
+
+/**
  * Union of all NotificationServicesController action types.
  */
 export type NotificationServicesControllerMethodActions =
@@ -237,4 +272,5 @@ export type NotificationServicesControllerMethodActions =
   | NotificationServicesControllerDeleteNotificationsByIdAction
   | NotificationServicesControllerMarkMetamaskNotificationsAsReadAction
   | NotificationServicesControllerUpdateMetamaskNotificationsListAction
-  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction;
+  | NotificationServicesControllerSendPerpPlaceOrderNotificationAction
+  | NotificationServicesControllerUpdateNotificationPreferencesAction;

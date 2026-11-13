@@ -1,4 +1,6 @@
 import type { Eip1193Provider } from 'ethers';
+import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { Env, Platform } from '../../shared/env.js';
 import type {
@@ -17,7 +19,7 @@ export type MockVariable = any;
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const typedMockFn = <Fn extends (...args: any[]) => any>() =>
-  jest.fn<ReturnType<Fn>, Parameters<Fn>>();
+  vi.fn<Fn>();
 
 const mockAuthOptions = () => {
   const mockGetLoginResponse =
@@ -116,7 +118,7 @@ export function arrangeAuth(
  * @returns mock provider
  */
 export const arrangeMockProvider = () => {
-  const mockRequest = jest.fn().mockResolvedValue({ [SNAP_ORIGIN]: {} });
+  const mockRequest: Mock = vi.fn().mockResolvedValue({ [SNAP_ORIGIN]: {} });
   const mockProvider: Eip1193Provider = {
     request: mockRequest,
   };
