@@ -7,24 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test(assets-controller): replace shared harness flushPromises waits ([#11492](https://github.com/MetaMask/core/pull/11492))
-- test(assets-controller): remove nextTick waits in SnapDataSource zero-fill tests ([#11495](https://github.com/MetaMask/core/pull/11495))
-- test(assets-controller): replace SnapDataSource init nextTick waits ([#11493](https://github.com/MetaMask/core/pull/11493))
-- test(assets-controller): replace assets loading status wait hacks ([#11491](https://github.com/MetaMask/core/pull/11491))
-- test(assets-controller): replace account tree initialized sleeps ([#11490](https://github.com/MetaMask/core/pull/11490))
-- Release 1424.0.0 ([#11488](https://github.com/MetaMask/core/pull/11488))
-- test(assets-controller): replace selected-network flushPromises with wait helpers ([#11489](https://github.com/MetaMask/core/pull/11489))
-- test(assets-controller): remove wait hacks in account group changes ([#11486](https://github.com/MetaMask/core/pull/11486))
-- test(assets-controller): replace network-change nextTick waits ([#11485](https://github.com/MetaMask/core/pull/11485))
-- test(assets-controller): replace keyring lifecycle wait hacks ([#11484](https://github.com/MetaMask/core/pull/11484))
-- test(assets-controller): replace events flushPromises with wait helpers ([#11481](https://github.com/MetaMask/core/pull/11481))
-- test(assets-controller): replace chain and balance update wait hacks ([#11482](https://github.com/MetaMask/core/pull/11482))
-- test(assets-controller): replace getAssets flushPromises with waitUntilStable ([#11478](https://github.com/MetaMask/core/pull/11478))
-- test(assets-controller): replace pipeline splitting wait hacks ([#11480](https://github.com/MetaMask/core/pull/11480))
-- test(assets-controller): replace custom-asset wait hacks ([#11479](https://github.com/MetaMask/core/pull/11479))
-
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
