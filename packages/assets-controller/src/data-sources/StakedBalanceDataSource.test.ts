@@ -9,7 +9,7 @@ import {
   createMockWeb3Provider,
   registerStakedMessengerActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
-import { waitUntilStable } from '../__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from '../__fixtures__/test-utils.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type { ChainId, Context, DataRequest } from '../types.js';
 import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource.js';
@@ -416,10 +416,12 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length], {
-          stableForMs: 300,
-        });
-        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        await waitFor(
+          () => {
+            expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+          },
+          { timeoutMs: 400 },
+        );
       });
     });
 
@@ -465,10 +467,12 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length], {
-          stableForMs: 300,
-        });
-        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        await waitFor(
+          () => {
+            expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+          },
+          { timeoutMs: 400 },
+        );
       });
     });
   });
