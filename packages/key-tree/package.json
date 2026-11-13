@@ -1,6 +1,6 @@
 {
   "name": "@metamask/key-tree",
-  "version": "10.1.1",
+  "version": "11.0.0",
   "description": "An interface over BIP-32 and BIP-39 key derivation paths",
   "keywords": [
     "Ethereum",

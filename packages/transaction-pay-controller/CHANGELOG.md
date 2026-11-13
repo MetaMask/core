@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `AcrossStrategy`, `RelayStrategy`, `ServerStrategy` and `FiatStrategy` only support requests with an `eip155` source asset.
   - `PayStrategyGetRefreshIntervalRequest.chainId` is the CAIP-2 chain ID of the source asset.
 - Add dependency on `@metamask/account-tree-controller` `^11.2.0` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
 ## [31.2.1]
 
