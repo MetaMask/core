@@ -39,6 +39,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'listPopularEvmNetworks',
   'listPopularMultichainNetworks',
   'restoreEnabledNetworkMap',
+  'setNetworkAdditionMode',
 ] as const;
 
 /**
@@ -224,6 +225,12 @@ export class NetworkEnablementController extends BaseController<
   NetworkEnablementControllerState,
   NetworkEnablementControllerMessenger
 > {
+  /**
+   * Tracks chain IDs for networks being added without switching the active selection.
+   * When a chain is in this set, #onAddNetwork will preserve the current selection.
+   */
+  readonly #nonActiveAdditions = new Set<Hex>();
+
   /**
    * Creates a NetworkEnablementController instance.
    *
@@ -640,6 +647,41 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Sets the network addition mode for the next network that is added.
+   *
+   * Call this before adding a network (via NetworkController:addNetwork) to control
+   * how the controller handles the addition. When 'non-active' mode is set for a
+   * chain ID, the controller preserves the current enabled network selection instead
+   * of switching to the newly added network.
+   *
+   * In popular-networks mode (when multiple popular networks are enabled), a newly
+   * added popular network will be enabled alongside the existing selection. In
+   * single-network mode, the current selection is preserved unchanged.
+   *
+   * Returns a cleanup function that should be called in a finally block to remove
+   * the mode marker, ensuring it doesn't affect subsequent unrelated network additions.
+   *
+   * @param chainId - The chain ID that will be added.
+   * @param mode - The addition mode: 'non-active' to preserve current selection,
+   * or 'default' for normal behavior (switch to new network).
+   * @returns A cleanup function that removes the mode marker.
+   */
+  setNetworkAdditionMode(
+    chainId: Hex,
+    mode: 'non-active' | 'default',
+  ): () => void {
+    if (mode === 'non-active') {
+      this.#nonActiveAdditions.add(chainId);
+    } else {
+      this.#nonActiveAdditions.delete(chainId);
+    }
+
+    return () => {
+      this.#nonActiveAdditions.delete(chainId);
+    };
+  }
+
+  /**
    * Checks if a network is enabled.
    *
    * @param chainId - The chain ID of the network to check. Can be either:
@@ -742,11 +784,16 @@ export class NetworkEnablementController extends BaseController<
    * @param chainId - The chain ID to add (Hex format)
    *
    * @description
-   * - If in popular networks mode (>2 popular networks enabled) AND adding a popular network:
-   * - Keep current selection (add but don't enable the new network)
-   * - Otherwise:
-   * - Switch to the newly added network (disable all others, enable this one)
-   * - Also updates the nativeAssetIdentifiers with the CAIP-19-like identifier
+   * When the network was marked via setNetworkAdditionMode('non-active'):
+   * - In popular-networks mode AND adding a popular network: enable the new chain
+   *   alongside the existing selection
+   * - Otherwise: add the network as disabled, preserving current selection
+   *
+   * When not marked (default behavior):
+   * - If in popular networks mode AND adding a popular network: enable the new chain
+   * - Otherwise: switch to the newly added network (disable all others, enable this one)
+   *
+   * Also updates the nativeAssetIdentifiers with the CAIP-19-like identifier.
    */
   async #onAddNetwork(chainId: Hex): Promise<void> {
     const { namespace, storageKey, reference, caipChainId } =
@@ -762,14 +809,31 @@ export class NetworkEnablementController extends BaseController<
       this.messenger.call('ConfigRegistryController:getState'),
     ).includes(caipChainId);
 
+    const isNonActiveAddition = this.#nonActiveAdditions.has(chainId);
+
     this.update((state) => {
       // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(state, namespace);
 
       if (isRegistryAutoAdded) {
         state.enabledNetworkMap[namespace][storageKey] ??= false;
+      } else if (isNonActiveAddition) {
+        // Non-active addition: preserve current selection.
+        // In popular mode, add the new popular network to the selection.
+        // Otherwise, add as disabled.
+        const inPopularNetworksMode = this.#isInPopularNetworksMode();
+        const isAddedNetworkPopular =
+          this.#getPopularEvmChainIds().includes(chainId);
+
+        if (inPopularNetworksMode && isAddedNetworkPopular) {
+          // Popular mode: enable the new popular network alongside existing ones
+          state.enabledNetworkMap[namespace][storageKey] = true;
+        } else {
+          // Single-network mode or non-popular network: add as disabled
+          state.enabledNetworkMap[namespace][storageKey] = false;
+        }
       } else {
-        // Check if popular networks mode is active (>2 popular networks enabled)
+        // Default behavior: check if popular networks mode is active
         const inPopularNetworksMode = this.#isInPopularNetworksMode();
 
         // Check if the network being added is a popular network
@@ -781,7 +845,7 @@ export class NetworkEnablementController extends BaseController<
           inPopularNetworksMode && isAddedNetworkPopular;
 
         if (shouldKeepCurrentSelection) {
-          // Add the popular network but don't enable it (keep current selection)
+          // Add the popular network and enable it (keep current selection)
           state.enabledNetworkMap[namespace][storageKey] = true;
         } else {
           // Switch to the newly added network (disable all others, enable this one)

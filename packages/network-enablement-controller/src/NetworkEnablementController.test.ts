@@ -2345,6 +2345,275 @@ describe('NetworkEnablementController', () => {
     });
   });
 
+  describe('setNetworkAdditionMode', () => {
+    it('enables new popular network in popular mode when mode is non-active', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // Mark as non-active addition
+      const cleanup = controller.setNetworkAdditionMode('0xa86a', 'non-active');
+
+      try {
+        // Add Avalanche (a popular network) while in popular mode
+        rootMessenger.publish('NetworkController:networkAdded', {
+          chainId: '0xa86a',
+          blockExplorerUrls: [],
+          defaultRpcEndpointIndex: 0,
+          name: 'Avalanche',
+          nativeCurrency: 'AVAX',
+          rpcEndpoints: [
+            {
+              url: 'https://api.avax.network/ext/bc/C/rpc',
+              networkClientId: 'id',
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        // New popular network should be enabled, and all others stay enabled
+        expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+        expect(controller.isNetworkEnabled('0x1')).toBe(true);
+        expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+        expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+        expect(
+          controller.isNetworkEnabled(
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          ),
+        ).toBe(true);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('adds new non-popular network as disabled in single-network mode when mode is non-active', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // Switch to single-network mode
+      controller.enableNetwork('0x1');
+
+      const cleanup = controller.setNetworkAdditionMode('0x999', 'non-active');
+
+      try {
+        // Add a non-popular network
+        rootMessenger.publish('NetworkController:networkAdded', {
+          chainId: '0x999',
+          blockExplorerUrls: [],
+          defaultRpcEndpointIndex: 0,
+          name: 'Custom Network',
+          nativeCurrency: 'CUSTOM',
+          rpcEndpoints: [
+            {
+              url: 'https://custom.network/rpc',
+              networkClientId: 'id',
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        // New network should be disabled, mainnet stays enabled
+        expect(controller.isNetworkEnabled('0x999')).toBe(false);
+        expect(controller.isNetworkEnabled('0x1')).toBe(true);
+        // All other networks should be disabled
+        expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('adds non-popular network as disabled in popular mode when mode is non-active', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // Already in popular mode (default state)
+      const cleanup = controller.setNetworkAdditionMode('0x999', 'non-active');
+
+      try {
+        // Add a non-popular network
+        rootMessenger.publish('NetworkController:networkAdded', {
+          chainId: '0x999',
+          blockExplorerUrls: [],
+          defaultRpcEndpointIndex: 0,
+          name: 'Custom Network',
+          nativeCurrency: 'CUSTOM',
+          rpcEndpoints: [
+            {
+              url: 'https://custom.network/rpc',
+              networkClientId: 'id',
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        // New non-popular network should be disabled, popular networks stay enabled
+        expect(controller.isNetworkEnabled('0x999')).toBe(false);
+        expect(controller.isNetworkEnabled('0x1')).toBe(true);
+        expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+        expect(controller.isNetworkEnabled('0x2105')).toBe(true);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('preserves non-EVM networks when adding EVM network in popular mode with non-active', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // Already in popular mode with Solana enabled
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+
+      const cleanup = controller.setNetworkAdditionMode('0xa86a', 'non-active');
+
+      try {
+        // Add Avalanche (a popular network)
+        rootMessenger.publish('NetworkController:networkAdded', {
+          chainId: '0xa86a',
+          blockExplorerUrls: [],
+          defaultRpcEndpointIndex: 0,
+          name: 'Avalanche',
+          nativeCurrency: 'AVAX',
+          rpcEndpoints: [
+            {
+              url: 'https://api.avax.network/ext/bc/C/rpc',
+              networkClientId: 'id',
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        // New EVM network enabled, Solana and all EVM networks stay enabled
+        expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+        expect(controller.isNetworkEnabled('0x1')).toBe(true);
+        expect(
+          controller.isNetworkEnabled(
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          ),
+        ).toBe(true);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('adds network as disabled when only non-EVM network selected and mode is non-active', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // Switch to only Solana enabled (this disables all EVM and enables only Solana)
+      controller.enableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+
+      const cleanup = controller.setNetworkAdditionMode('0xa86a', 'non-active');
+
+      try {
+        // Add an EVM network
+        rootMessenger.publish('NetworkController:networkAdded', {
+          chainId: '0xa86a',
+          blockExplorerUrls: [],
+          defaultRpcEndpointIndex: 0,
+          name: 'Avalanche',
+          nativeCurrency: 'AVAX',
+          rpcEndpoints: [
+            {
+              url: 'https://api.avax.network/ext/bc/C/rpc',
+              networkClientId: 'id',
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        // New EVM network should be disabled, Solana stays enabled
+        expect(controller.isNetworkEnabled('0xa86a')).toBe(false);
+        expect(
+          controller.isNetworkEnabled(
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          ),
+        ).toBe(true);
+        expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('cleanup function removes the mode marker', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // Switch to single-network mode
+      controller.enableNetwork('0x1');
+
+      const cleanup = controller.setNetworkAdditionMode('0x999', 'non-active');
+      cleanup();
+
+      // Add network after cleanup - should behave as default (switch to new network)
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x999',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Custom Network',
+        nativeCurrency: 'CUSTOM',
+        rpcEndpoints: [
+          {
+            url: 'https://custom.network/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      // Should switch to new network (default behavior)
+      expect(controller.isNetworkEnabled('0x999')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+    });
+
+    it('sets mode to default explicitly', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      // First mark as non-active
+      controller.setNetworkAdditionMode('0x999', 'non-active');
+      // Then explicitly set to default
+      const cleanup = controller.setNetworkAdditionMode('0x999', 'default');
+
+      try {
+        controller.enableNetwork('0x1');
+
+        rootMessenger.publish('NetworkController:networkAdded', {
+          chainId: '0x999',
+          blockExplorerUrls: [],
+          defaultRpcEndpointIndex: 0,
+          name: 'Custom Network',
+          nativeCurrency: 'CUSTOM',
+          rpcEndpoints: [
+            {
+              url: 'https://custom.network/rpc',
+              networkClientId: 'id',
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        // Should switch to new network (default behavior)
+        expect(controller.isNetworkEnabled('0x999')).toBe(true);
+        expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      } finally {
+        cleanup();
+      }
+    });
+  });
+
   describe('isNetworkEnabled', () => {
     it('returns true for enabled networks using hex chain ID', () => {
       const { controller } = setupController();

@@ -141,6 +141,31 @@ export type NetworkEnablementControllerRestoreEnabledNetworkMapAction = {
 };
 
 /**
+ * Sets the network addition mode for the next network that is added.
+ *
+ * Call this before adding a network (via NetworkController:addNetwork) to control
+ * how the controller handles the addition. When 'non-active' mode is set for a
+ * chain ID, the controller preserves the current enabled network selection instead
+ * of switching to the newly added network.
+ *
+ * In popular-networks mode (when multiple popular networks are enabled), a newly
+ * added popular network will be enabled alongside the existing selection. In
+ * single-network mode, the current selection is preserved unchanged.
+ *
+ * Returns a cleanup function that should be called in a finally block to remove
+ * the mode marker, ensuring it doesn't affect subsequent unrelated network additions.
+ *
+ * @param chainId - The chain ID that will be added.
+ * @param mode - The addition mode: 'non-active' to preserve current selection,
+ * or 'default' for normal behavior (switch to new network).
+ * @returns A cleanup function that removes the mode marker.
+ */
+export type NetworkEnablementControllerSetNetworkAdditionModeAction = {
+  type: `NetworkEnablementController:setNetworkAdditionMode`;
+  handler: NetworkEnablementController['setNetworkAdditionMode'];
+};
+
+/**
  * Checks if a network is enabled.
  *
  * @param chainId - The chain ID of the network to check. Can be either:
@@ -202,6 +227,7 @@ export type NetworkEnablementControllerMethodActions =
   | NetworkEnablementControllerInitNativeAssetIdentifiersAction
   | NetworkEnablementControllerDisableNetworkAction
   | NetworkEnablementControllerRestoreEnabledNetworkMapAction
+  | NetworkEnablementControllerSetNetworkAdditionModeAction
   | NetworkEnablementControllerIsNetworkEnabledAction
   | NetworkEnablementControllerListPopularEvmNetworksAction
   | NetworkEnablementControllerListPopularMultichainNetworksAction
