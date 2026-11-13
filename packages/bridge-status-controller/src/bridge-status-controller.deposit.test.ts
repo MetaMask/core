@@ -4234,6 +4234,7 @@ describe('BridgeStatusController (deposit)', () => {
       walletAddress,
       gasSponsored,
       gasIncluded7702,
+      startTime = Date.now(),
     }: {
       srcChainId?: number;
       destChainId?: number;
@@ -4243,6 +4244,7 @@ describe('BridgeStatusController (deposit)', () => {
       walletAddress?: string | null;
       gasSponsored?: boolean;
       gasIncluded7702?: boolean;
+      startTime?: number;
     } = {}): Record<string, BridgeHistoryItem> => {
       const pending = MockTxHistory.getPendingSwap({
         txMetaId: SWAP_ID,
@@ -4252,7 +4254,7 @@ describe('BridgeStatusController (deposit)', () => {
       })[SWAP_ID];
       const historyItem: BridgeHistoryItem = {
         ...pending,
-        startTime: Date.now(),
+        startTime,
         quote: {
           ...pending.quote,
           destAsset: { ...pending.quote.destAsset, address: DEST_ASSET },
@@ -4538,6 +4540,41 @@ describe('BridgeStatusController (deposit)', () => {
           );
           expect(trackedEvents(messengerCall)).toContain(
             UnifiedSwapBridgeEventName.Completed,
+          );
+        },
+      );
+    });
+
+    it('deposits after an expired swap quote without refreshing it', async () => {
+      const messengerCall = queueDepositMessenger();
+      const addTransactionBatchFn = vi.fn().mockResolvedValue(undefined);
+
+      await withController(
+        {
+          mockMessengerCall: messengerCall,
+          options: {
+            addTransactionBatchFn,
+            state: { txHistory: swapHistory({ startTime: 0 }) },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          publishSwap(rootMessenger, TransactionStatus.confirmed);
+          await flushPromises();
+
+          expect(
+            messengerCall.mock.calls.filter(
+              ([action]) => action === 'BridgeController:fetchQuotes',
+            ),
+          ).toHaveLength(0);
+          expect(mockBuildMoneyAccountDepositBatch).toHaveBeenCalledTimes(1);
+          expect(
+            controller.state.txHistory[SWAP_ID].depositTxMeta,
+          ).toStrictEqual({
+            batchId: BATCH_ID_1,
+            id: DEPOSIT_TX_ID,
+          });
+          expect(controller.state.txHistory[SWAP_ID].status.status).not.toBe(
+            StatusTypes.FAILED,
           );
         },
       );

@@ -56,6 +56,7 @@ import { getAccountByAddress } from './utils/controllers/accounts.js';
 import { getNetworkClientByChainId } from './utils/controllers/network.js';
 import {
   getBridgeFeatureFlags,
+  getQuoteRefreshRate,
   hasMinimumRequiredVersion,
 } from './utils/feature-flags.js';
 import {
@@ -813,13 +814,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     // Assume that BatchSell quote requests all have the same source chain
     // Use the first one to determine refresh rate
     const { srcChainId } = state.quoteRequest[0];
-    const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
 
-    const refreshRateOverride = srcChainId
-      ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
-      : undefined;
-    const defaultRefreshRate = bridgeFeatureFlags.refreshRate;
-    this.setIntervalLength(refreshRateOverride ?? defaultRefreshRate);
+    this.setIntervalLength(getQuoteRefreshRate(this.messenger, srcChainId));
   };
 
   readonly #fetchBridgeQuotes = async ({

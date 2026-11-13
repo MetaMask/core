@@ -1027,6 +1027,10 @@ export class TransactionController extends BaseController<
       request.networkClientId,
     );
 
+    console.error(
+      '====ADD TRANSACTION BATCH',
+      JSON.stringify(request, null, 2),
+    );
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       estimateGas: this.estimateGas.bind(this),

@@ -81,6 +81,7 @@ import {
 } from './utils/bridge-status.js';
 import {
   getBatchSellTrades,
+  resolveValidQuotes,
   stopPollingForQuotes,
   trackMetricsEvent,
 } from './utils/bridge.js';
@@ -110,6 +111,7 @@ import {
   approvalUpdateHandler,
   depositUpdateHandler,
   tradeUpdateHandler,
+  withdrawUpdateHandler,
 } from './utils/subscriptions.js';
 import type {
   SubscriptionHandlerInputs,
@@ -133,6 +135,7 @@ import {
   hasNestedBridgeTransactions,
   isTradeTx,
   hasNestedDepositTransactions,
+  hasNestedWithdrawTransferTransactions,
 } from './utils/transaction.js';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -303,6 +306,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           case TransactionType.swap:
             handler = tradeUpdateHandler;
             break;
+          case TransactionType.moneyAccountWithdraw:
+            handler = withdrawUpdateHandler;
+            break;
           default:
             // Otherwise check for matching nested transactions
             if (
@@ -312,6 +318,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               handler = tradeUpdateHandler;
             } else if (hasNestedDepositTransactions(args.txMeta)) {
               handler = depositUpdateHandler;
+            } else if (hasNestedWithdrawTransferTransactions(args.txMeta)) {
+              handler = withdrawUpdateHandler;
             } else {
               // This handler only checks for failures, so it's safe to use
               // for unrecognized transactions
@@ -402,6 +410,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (isHistoryItemAlreadyFailed) {
       return;
     }
+
+    console.error('====[TRANSACTION FAILED]', txMeta);
 
     this.#updateHistoryItem({
       historyKey,
@@ -533,10 +543,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (updatedHistoryItem.next && updatedHistoryItem.next.length > 0) {
       this.#updateHistoryItem({
         historyKey,
-        ...((isSwap || isBridge) && { txHash }),
-        ...(updatedHistoryItem.depositTxMeta && {
-          depositTxMeta: { hash: txHash },
-        }),
+        historyItemOverrides: {
+          ...((isSwap || isBridge) && { txHash }),
+          ...(updatedHistoryItem.depositTxMeta && {
+            depositTxMeta: { hash: txHash },
+          }),
+          ...(updatedHistoryItem.withdrawTxMeta && {
+            withdrawTxMeta: { hash: txHash },
+          }),
+        },
       });
       await this.#nextTx(historyKey);
       return;
@@ -1267,6 +1282,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       throw new Error(`Deposit has already started, skipping: ${historyKey}`);
     }
 
+    // Return early if swap tx has already started
+    if (historyItem.batchId && pending.operation === Operation.SWAP) {
+      throw new Error(`Swap has already started, skipping: ${historyKey}`);
+    }
+
     const batchId = generateBatchId();
 
     this.#updateHistoryItem({
@@ -1276,6 +1296,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           depositTxMeta: {
             batchId,
           },
+        }),
+        ...(pending.operation === Operation.SWAP && {
+          batchId,
         }),
       },
     });
@@ -1295,15 +1318,25 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const historyItem = this.state.txHistory[historyKey];
 
+      console.warn('====[NEXT TX] HISTORY ITEM', historyItem);
       const isBridgeTx = isCrossChain(
         historyItem.quote.srcChainId,
         historyItem.quote.destChainId,
       );
-
       // Use tx hash that transferred funds to the user's wallet
-      const txHash = isBridgeTx
+      const preDepositTxHash = isBridgeTx
         ? historyItem.status.destChain?.txHash
         : historyItem.status.srcChain.txHash;
+      const txHash = historyItem.withdrawTxMeta
+        ? historyItem.withdrawTxMeta.hash
+        : preDepositTxHash;
+
+      const validQuotes = await resolveValidQuotes(
+        this.messenger,
+        historyItem,
+        quoteResponse,
+        operation,
+      );
 
       const selectedAccount = getAccountByAddress(
         this.messenger,
@@ -1314,6 +1347,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           `Account not found, skipping next action: ${historyItem.account}`,
         );
       }
+
       const isDelegatedAccount = isNonEvmChainId(quoteResponse.quote.srcChainId)
         ? false
         : await checkIsDelegatedAccount(
@@ -1335,7 +1369,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           clientId: this.#clientId,
           bridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
           batchSellTrades: historyItem.batchSellData ?? null,
-          quoteResponses: [quoteResponse],
+          quoteResponses: validQuotes,
           isDelegatedAccount,
           operation,
           batchId,
@@ -1365,6 +1399,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.messenger.captureException?.(
         error instanceof Error ? error : new Error(String(error)),
       );
+      console.error('====[NEXT TX] ERROR', error);
       this.#onTransactionFailed({
         historyKey,
       });
@@ -1440,6 +1475,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         | 'txMetaId'
         | 'approvalTxId'
         | 'originalTransactionId'
+        | 'withdrawTxMeta'
       >
     >;
   }): void => {
@@ -1460,6 +1496,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       txMetaId,
       approvalTxId,
       originalTransactionId,
+      withdrawTxMeta,
     } = historyItemOverrides;
 
     this.update((currentState) => {
@@ -1480,6 +1517,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         historyItem.depositTxMeta = {
           ...historyItem.depositTxMeta,
           ...depositTxMeta,
+        };
+      }
+      if (withdrawTxMeta) {
+        historyItem.withdrawTxMeta = {
+          ...historyItem.withdrawTxMeta,
+          ...withdrawTxMeta,
         };
       }
       if (next) {

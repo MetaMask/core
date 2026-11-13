@@ -134,6 +134,34 @@ export const depositUpdateHandler = ({
   }
 };
 
+export const withdrawUpdateHandler = ({
+  txMeta,
+  historyKey,
+  onTransactionConfirmed,
+  onTransactionFailed,
+}: SubscriptionHandlerParams) => {
+  if (!historyKey) {
+    return;
+  }
+
+  switch (txMeta.status) {
+    case TransactionStatus.confirmed:
+      historyKey &&
+        onTransactionConfirmed({
+          txMeta,
+          historyKey,
+        });
+      break;
+    case TransactionStatus.failed:
+    case TransactionStatus.dropped:
+    case TransactionStatus.rejected:
+      onTransactionFailed({ txMeta, historyKey });
+      break;
+    default:
+      break;
+  }
+};
+
 const waitForMmPayQuotesAndApprove = ({
   messenger,
   txMetaId,
