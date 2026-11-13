@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/network-enablement-controller` from `^7.1.1` to `^7.1.2` ([#11447](https://github.com/MetaMask/core/pull/11447))
 
+### Removed
+
+- Remove Blast Mainnet (`eip155:81457`) from the seeded native-asset map and the EVM RPC Multicall3 address map, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
+
 ## [20.3.1]
 
 ### Changed

@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/phishing-controller` from `^18.3.0` to `^18.3.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
 - Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the Multicall3 address map and `SPOT_PRICES_SUPPORT_INFO`, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
+
 ### Fixed
 
 - Stop passing `data:` NFT token URIs to `fetch`, which crashed clients whose `fetch` cannot decode `data:` URLs (e.g. MetaMask Mobile) ([#11308](https://github.com/MetaMask/core/pull/11308))

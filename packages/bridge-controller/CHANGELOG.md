@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^113.3.1` to `^113.3.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
 - Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 
+### Removed
+
+- Remove the `BLAST` (`0x13e31`) chain ID constant, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
+
 ## [83.1.4]
 
 ### Changed
