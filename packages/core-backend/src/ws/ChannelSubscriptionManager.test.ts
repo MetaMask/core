@@ -8,7 +8,6 @@ import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketSer
 import type {
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
-  WebSocketConnectionInfo,
 } from './BackendWebSocketService.js';
 import { WebSocketState } from './BackendWebSocketService.js';
 import { ChannelSubscriptionManager } from './ChannelSubscriptionManager.js';
@@ -196,7 +195,6 @@ describe('ChannelSubscriptionManager', () => {
       await manager.subscribe(CHANNEL);
 
       expect(mocks.connect).toHaveBeenCalledTimes(1);
-      expect(mocks.channelHasSubscription).toHaveBeenCalledWith(CHANNEL);
       expect(mocks.subscribe).toHaveBeenCalledWith({
         channels: [CHANNEL],
         channelType: CHANNEL_TYPE,
@@ -204,13 +202,23 @@ describe('ChannelSubscriptionManager', () => {
       });
     });
 
-    it('skips WS subscribe if the channel already has a subscription', async () => {
-      const { manager, mocks } = getManager();
-      mocks.channelHasSubscription.mockReturnValue(true);
+    it('reports channels with a live reference count', async () => {
+      const { manager } = getManager();
+
+      expect(manager.getActiveChannels()).toStrictEqual([]);
 
       await manager.subscribe(CHANNEL);
+      await manager.subscribe(CHANNEL);
 
-      expect(mocks.subscribe).not.toHaveBeenCalled();
+      expect(manager.getActiveChannels()).toStrictEqual([CHANNEL]);
+
+      await manager.unsubscribe(CHANNEL);
+
+      expect(manager.getActiveChannels()).toStrictEqual([CHANNEL]);
+
+      await manager.unsubscribe(CHANNEL);
+
+      expect(manager.getActiveChannels()).toStrictEqual([]);
     });
 
     it('increments refCount on duplicate subscribe without WS traffic', async () => {
@@ -223,6 +231,59 @@ describe('ChannelSubscriptionManager', () => {
 
       expect(mocks.connect).not.toHaveBeenCalled();
       expect(mocks.subscribe).not.toHaveBeenCalled();
+    });
+
+    it('sends a deferred subscribe once the socket connects', async () => {
+      const { manager, mocks, options, rootMessenger } = getManager();
+      mocks.subscribe.mockRejectedValueOnce(
+        new Error(
+          'Cannot create subscription(s) test.v1.chan-a: WebSocket is DISCONNECTED',
+        ),
+      );
+
+      await manager.subscribe(CHANNEL);
+
+      expect(options.onSubscriptionError).not.toHaveBeenCalled();
+      expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+
+      mocks.subscribe.mockResolvedValue(undefined);
+      mocks.subscribe.mockClear();
+      rootMessenger.publish('BackendWebSocketService:connectionStateChanged', {
+        ...BASE_CONNECTION_INFO,
+        state: WebSocketState.CONNECTED,
+      });
+      await completeAsyncOperations();
+
+      expect(mocks.subscribe).toHaveBeenCalledWith({
+        channels: [CHANNEL],
+        channelType: CHANNEL_TYPE,
+        callback: expect.any(Function),
+      });
+    });
+
+    it('sends a subscribe that failed before sign-in once the socket connects', async () => {
+      const { manager, mocks, options, rootMessenger } = getManager();
+      mocks.subscribe.mockRejectedValueOnce(
+        new Error('Authentication required: user not signed in'),
+      );
+
+      await manager.subscribe(CHANNEL);
+
+      expect(options.onSubscriptionError).not.toHaveBeenCalled();
+
+      mocks.subscribe.mockResolvedValue(undefined);
+      mocks.subscribe.mockClear();
+      rootMessenger.publish('BackendWebSocketService:connectionStateChanged', {
+        ...BASE_CONNECTION_INFO,
+        state: WebSocketState.CONNECTED,
+      });
+      await completeAsyncOperations();
+
+      expect(mocks.subscribe).toHaveBeenCalledWith({
+        channels: [CHANNEL],
+        channelType: CHANNEL_TYPE,
+        callback: expect.any(Function),
+      });
     });
 
     it('invokes onSubscriptionError when subscribe fails', async () => {
@@ -258,6 +319,32 @@ describe('ChannelSubscriptionManager', () => {
   });
 
   describe('unsubscribe', () => {
+    it('unsubscribes every channel in one frame', async () => {
+      const { manager, mocks } = getManager();
+      const mockUnsub = vi.fn().mockResolvedValue(undefined);
+      mocks.getSubscriptionsByChannel.mockReturnValue([
+        {
+          subscriptionId: 'sub-1',
+          channels: [CHANNEL, OTHER_CHANNEL],
+          unsubscribe: mockUnsub,
+        },
+      ]);
+
+      await manager.subscribe([CHANNEL, OTHER_CHANNEL]);
+      await manager.unsubscribe([CHANNEL, OTHER_CHANNEL]);
+
+      expect(mockUnsub).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      expect(mockUnsub).toHaveBeenCalledTimes(1);
+      expect(mockUnsub).toHaveBeenCalledWith(undefined, [
+        CHANNEL,
+        OTHER_CHANNEL,
+      ]);
+    });
+
     it('unsubscribes on the server after the grace period', async () => {
       const { manager, mocks } = getManager();
       const mockUnsub = vi.fn().mockResolvedValue(undefined);
@@ -315,6 +402,108 @@ describe('ChannelSubscriptionManager', () => {
 
       expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
     });
+
+    it('returns when unsubscribe is given no channels', async () => {
+      const { manager, mocks } = getManager();
+
+      await manager.unsubscribe([]);
+
+      expect(mocks.getSubscriptionsByChannel).not.toHaveBeenCalled();
+    });
+
+    it('drops a channel after the grace period when the server has no subscription', async () => {
+      const { manager, mocks, options } = getManager();
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(CHANNEL);
+      expect(options.onSubscriptionError).not.toHaveBeenCalled();
+      expect(manager.getActiveChannels()).toStrictEqual([]);
+    });
+
+    it('reports a channel whose subscription was already handled in the batch', async () => {
+      const { manager, mocks, options } = getManager();
+      const mockUnsub = vi.fn().mockResolvedValue(undefined);
+      mocks.getSubscriptionsByChannel.mockImplementation((channel: string) => [
+        {
+          subscriptionId: 'sub-1',
+          channels: [channel],
+          unsubscribe: mockUnsub,
+        },
+      ]);
+
+      await manager.subscribe([CHANNEL, OTHER_CHANNEL]);
+      await manager.unsubscribe([CHANNEL, OTHER_CHANNEL]);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      expect(mockUnsub).toHaveBeenCalledTimes(1);
+      expect(options.onSubscriptionError).toHaveBeenCalledWith(
+        OTHER_CHANNEL,
+        'channel was not on a returned subscription',
+        'unsubscribe',
+      );
+    });
+
+    it('reports a channel missing from the returned subscription', async () => {
+      const { manager, mocks, options } = getManager();
+      const mockUnsub = vi.fn().mockResolvedValue(undefined);
+      mocks.getSubscriptionsByChannel.mockReturnValue([
+        {
+          subscriptionId: 'sub-other',
+          channels: ['test.v1.not-pending'],
+          unsubscribe: mockUnsub,
+        },
+      ]);
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      expect(mockUnsub).not.toHaveBeenCalled();
+      expect(options.onSubscriptionError).toHaveBeenCalledWith(
+        CHANNEL,
+        'channel was not on a returned subscription',
+        'unsubscribe',
+      );
+    });
+
+    it('leaves a channel up when its old grace timer fires after it was opened again', async () => {
+      const { manager, mocks } = getManager();
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      mocks.connect.mockRejectedValueOnce(
+        new Error('WebSocket is DISCONNECTED'),
+      );
+      await manager.ensureSubscribed(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      expect(manager.getActiveChannels()).toStrictEqual([CHANNEL]);
+      expect(mocks.getSubscriptionsByChannel).not.toHaveBeenCalled();
+    });
+
+    it('ignores an error thrown while reporting an unsubscribe failure', async () => {
+      const { manager, mocks, options } = getManager();
+      mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        throw new Error('unsubscribe failed');
+      });
+      options.onSubscriptionError.mockImplementation(() => {
+        throw new Error('listener failed');
+      });
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      expect(mocks.forceReconnection).not.toHaveBeenCalled();
+    });
   });
 
   describe('reconnect', () => {
@@ -327,7 +516,7 @@ describe('ChannelSubscriptionManager', () => {
       rootMessenger.publish('BackendWebSocketService:connectionStateChanged', {
         ...BASE_CONNECTION_INFO,
         state: WebSocketState.CONNECTED,
-      } as WebSocketConnectionInfo);
+      });
       await completeAsyncOperations();
 
       expect(mocks.subscribe).toHaveBeenCalledWith({
@@ -343,7 +532,7 @@ describe('ChannelSubscriptionManager', () => {
       rootMessenger.publish('BackendWebSocketService:connectionStateChanged', {
         ...BASE_CONNECTION_INFO,
         state: WebSocketState.DISCONNECTED,
-      } as WebSocketConnectionInfo);
+      });
       await completeAsyncOperations();
 
       expect(options.onConnectionStateChange).toHaveBeenCalledWith(
@@ -414,6 +603,273 @@ describe('ChannelSubscriptionManager', () => {
 
       expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(CHANNEL);
       expect(mockUnsub).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('ensureSubscribed', () => {
+    it('does nothing when given no channels', async () => {
+      const { manager, mocks } = getManager();
+
+      await manager.subscribe([]);
+      await manager.ensureSubscribedChannels([]);
+
+      expect(mocks.connect).not.toHaveBeenCalled();
+    });
+
+    it('returns when the server already has the channel', async () => {
+      const { manager, mocks } = getManager();
+      mocks.channelHasSubscription.mockReturnValue(true);
+
+      await manager.ensureSubscribed(CHANNEL);
+
+      expect(mocks.connect).not.toHaveBeenCalled();
+      expect(mocks.subscribe).not.toHaveBeenCalled();
+    });
+
+    it('stops when the server gains the channel during connect', async () => {
+      const { manager, mocks } = getManager();
+      const gainOnConnect = async (): Promise<void> => {
+        mocks.channelHasSubscription.mockReturnValue(true);
+      };
+
+      mocks.channelHasSubscription.mockReturnValue(false);
+      mocks.connect.mockImplementation(gainOnConnect);
+      await manager.ensureSubscribed(CHANNEL);
+
+      mocks.channelHasSubscription.mockReturnValue(false);
+      mocks.connect.mockImplementation(gainOnConnect);
+      await manager.ensureSubscribedChannels([CHANNEL, CHANNEL]);
+
+      expect(mocks.subscribe).not.toHaveBeenCalled();
+    });
+
+    it('opens a tracked channel and keeps one that is waiting for the socket', async () => {
+      const { manager, mocks, options } = getManager();
+      mocks.channelHasSubscription.mockReturnValue(false);
+
+      await manager.ensureSubscribed(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      await manager.ensureSubscribed(CHANNEL);
+
+      mocks.connect.mockRejectedValueOnce(
+        new Error('WebSocket is DISCONNECTED'),
+      );
+      await manager.ensureSubscribed(OTHER_CHANNEL);
+
+      mocks.connect.mockRejectedValueOnce(new Error('not signed in'));
+      await manager.ensureSubscribed(CHANNEL);
+
+      mocks.connect.mockRejectedValueOnce(new Error('nope'));
+      await expect(manager.ensureSubscribed('test.v1.chan-c')).rejects.toThrow(
+        'nope',
+      );
+
+      expect(options.onSubscriptionError).toHaveBeenCalledWith(
+        'test.v1.chan-c',
+        expect.stringContaining('nope'),
+        'subscribe',
+      );
+      expect(mocks.subscribe).toHaveBeenCalledWith({
+        channels: [CHANNEL],
+        channelType: CHANNEL_TYPE,
+        callback: expect.any(Function),
+      });
+    });
+
+    it('keeps the reference count when the channel is already tracked', async () => {
+      const { manager, mocks } = getManager();
+      await manager.subscribe(CHANNEL);
+      mocks.subscribe.mockClear();
+      mocks.channelHasSubscription.mockReturnValue(false);
+
+      await manager.ensureSubscribed(CHANNEL);
+
+      expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+      expect(manager.getActiveChannels()).toStrictEqual([CHANNEL]);
+    });
+
+    it('clears a pending unsubscribe retry when the channel is opened again', async () => {
+      const { manager, mocks } = getManager({ unsubRetryDelaysMs: [60_000] });
+      mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        throw new Error('unsubscribe failed');
+      });
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      mocks.channelHasSubscription.mockReturnValue(false);
+      await manager.ensureSubscribed(CHANNEL);
+      vi.advanceTimersByTime(60_000);
+      await completeAsyncOperations();
+
+      expect(mocks.forceReconnection).not.toHaveBeenCalled();
+      expect(manager.getActiveChannels()).toStrictEqual([CHANNEL]);
+    });
+  });
+
+  describe('batch subscribe results', () => {
+    it('drops a channel the gateway rejects and routes each notification', async () => {
+      const { manager, mocks, options } = getManager();
+      mocks.subscribe.mockResolvedValueOnce({
+        failedChannels: [OTHER_CHANNEL],
+      });
+
+      await manager.subscribe([CHANNEL, OTHER_CHANNEL]);
+
+      expect(options.onSubscriptionError).toHaveBeenCalledWith(
+        OTHER_CHANNEL,
+        `Request failed: ${OTHER_CHANNEL}`,
+        'subscribe',
+      );
+
+      const notification = {
+        event: 'data',
+        channel: CHANNEL,
+        data: { price: 1 },
+        timestamp: 4,
+      } as ServerNotificationMessage;
+      getSubscribeCallback(mocks)(notification);
+
+      expect(options.onMessage).toHaveBeenCalledWith(CHANNEL, notification);
+    });
+
+    it('resubscribes active channels when asked', async () => {
+      const { manager, mocks } = getManager();
+      await manager.subscribe(CHANNEL);
+      mocks.subscribe.mockClear();
+      mocks.channelHasSubscription.mockReturnValue(false);
+
+      await manager.resubscribe();
+
+      expect(mocks.subscribe).toHaveBeenCalledWith({
+        channels: [CHANNEL],
+        channelType: CHANNEL_TYPE,
+        callback: expect.any(Function),
+      });
+    });
+
+    it('keeps a channel when connect fails with a non-Error socket message', async () => {
+      const { manager, mocks, options } = getManager();
+      mocks.connect.mockRejectedValueOnce('WebSocket is DISCONNECTED');
+
+      await manager.subscribe(CHANNEL);
+
+      expect(options.onSubscriptionError).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unsubscribe retry', () => {
+    it('leaves the socket up when retries are exhausted and reconnect is disabled', async () => {
+      const { manager, mocks } = getManager({
+        forceReconnectOnUnsubscribeFailure: false,
+      });
+      mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        throw new Error('unsubscribe failed');
+      });
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+      vi.advanceTimersByTime(1000);
+      await completeAsyncOperations();
+      vi.advanceTimersByTime(2000);
+      await completeAsyncOperations();
+      vi.advanceTimersByTime(4000);
+      await completeAsyncOperations();
+
+      expect(mocks.forceReconnection).not.toHaveBeenCalled();
+    });
+
+    it('does not force a reconnection when teardown aborts the retry', async () => {
+      const { manager, mocks } = getManager();
+      mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        throw new Error('unsubscribe failed');
+      });
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      manager.destroy();
+      vi.advanceTimersByTime(10000);
+      await completeAsyncOperations();
+
+      expect(mocks.forceReconnection).not.toHaveBeenCalled();
+    });
+
+    it('skips an unsubscribe retry when the channel is subscribed again', async () => {
+      const { manager, mocks } = getManager({ unsubRetryDelaysMs: [5_000] });
+      mocks.getSubscriptionsByChannel.mockImplementation(() => {
+        throw new Error('unsubscribe failed');
+      });
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+
+      let releaseConnect: () => void = () => undefined;
+      mocks.connect.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseConnect = resolve;
+          }),
+      );
+
+      const ensureOther = manager.ensureSubscribed(OTHER_CHANNEL);
+      await completeAsyncOperations();
+      const resubscribe = manager.subscribe(CHANNEL);
+      await completeAsyncOperations();
+      vi.advanceTimersByTime(5_000);
+      await completeAsyncOperations();
+      releaseConnect();
+      await ensureOther;
+      await resubscribe;
+      await completeAsyncOperations();
+
+      expect(manager.getActiveChannels()).toStrictEqual([
+        CHANNEL,
+        OTHER_CHANNEL,
+      ]);
+      expect(mocks.forceReconnection).not.toHaveBeenCalled();
+    });
+
+    it('stops an in-flight unsubscribe retry when the manager is destroyed', async () => {
+      const { manager, mocks } = getManager({ unsubRetryDelaysMs: [0] });
+      let rejectUnsub: (error: Error) => void = () => undefined;
+      mocks.getSubscriptionsByChannel
+        .mockImplementationOnce((): never => {
+          throw new Error('unsubscribe failed');
+        })
+        .mockImplementation(() => [
+          {
+            channels: [CHANNEL],
+            unsubscribe: (): Promise<void> =>
+              new Promise((_resolve, reject) => {
+                rejectUnsub = reject;
+              }),
+          },
+        ]);
+
+      await manager.subscribe(CHANNEL);
+      await manager.unsubscribe(CHANNEL);
+      vi.advanceTimersByTime(3000);
+      await completeAsyncOperations();
+      vi.advanceTimersByTime(0);
+      await completeAsyncOperations();
+
+      expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(2);
+
+      manager.destroy();
+      rejectUnsub(new Error('closed'));
+      await completeAsyncOperations();
+
+      expect(mocks.forceReconnection).not.toHaveBeenCalled();
     });
   });
 });

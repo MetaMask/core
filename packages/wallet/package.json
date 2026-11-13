@@ -63,6 +63,7 @@
     "@metamask/config-registry-controller": "^6.0.0",
     "@metamask/connectivity-controller": "^1.0.0",
     "@metamask/controller-utils": "^13.0.0",
+    "@metamask/core-backend": "^14.1.0",
     "@metamask/gas-fee-controller": "^27.1.1",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/keyring-controller": "^28.2.1",

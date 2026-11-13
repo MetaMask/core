@@ -35,7 +35,6 @@ export type {
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
   AssetsControllerBalanceChangedEvent,
-  AssetsControllerPriceChangedEvent,
   AssetsControllerEvents,
 } from './AssetsController.js';
 export type {
@@ -162,6 +161,7 @@ export type {
   TokenDataSourceOptions,
   PriceDataSourceConfig,
   PriceDataSourceOptions,
+  MarketStatsPriceStreamMessenger,
 } from './data-sources/index.js';
 
 // Middlewares
@@ -173,6 +173,14 @@ export type {
   CustomAssetGraduationMiddlewareOptions,
   RpcFallbackMiddlewareOptions,
 } from './middlewares/index.js';
+
+// Market-stats quote cache. The UI holds this. AssetsController state does not.
+export {
+  MarketStatsStore,
+  marketStatsAssetKey,
+  readLiveQuote,
+} from './store/MarketStatsStore.js';
+export type { LiveQuote, LivePriceMap } from './store/MarketStatsStore.js';
 
 // Utilities
 export {

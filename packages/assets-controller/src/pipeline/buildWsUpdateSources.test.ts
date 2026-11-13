@@ -78,10 +78,13 @@ describe('buildWsUpdateSources', () => {
   it('derives the occurrence filter from the token data source', () => {
     const tokenDataSource = stubTokenSource('TokenDataSource');
     const middlewareSpy = vi.fn(tokenDataSource.occurrenceFilterMiddleware);
-    tokenDataSource.occurrenceFilterMiddleware = middlewareSpy;
+    const spiedTokenDataSource = {
+      ...tokenDataSource,
+      occurrenceFilterMiddleware: middlewareSpy,
+    };
 
     const sources = buildWsUpdateSources(
-      { ...buildSources(), tokenDataSource },
+      { ...buildSources(), tokenDataSource: spiedTokenDataSource },
       { isBasicFunctionality: true, includeCustomAssetGraduation: true },
     );
 

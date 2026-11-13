@@ -12,6 +12,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
@@ -44,6 +45,7 @@ import type {
   DataRequest,
   DataResponse,
   FungibleAssetMetadata,
+  FungibleAssetPrice,
   Middleware,
 } from './types.js';
 import {
@@ -207,6 +209,10 @@ const MOCK_ASSET_ID =
 const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
+const MOCK_EVM_TX = {
+  chainId: '0xa4b1',
+  txParams: { from: '0x1234567890123456789012345678901234567890' },
+} as unknown as TransactionMeta;
 /** mUSD on mainnet — a controller-managed default tracked asset. */
 const [MOCK_DEFAULT_TRACKED_ASSET_ID] =
   getDefaultTrackedAssetsForChain('eip155:1');
@@ -221,7 +227,20 @@ const OTHER_ASSET_ID =
  *
  * @param messenger - The root messenger used to publish lifecycle events.
  */
-type LifecyclePublish = (topic: string, payload?: unknown) => void;
+type LifecyclePublish = (
+  topic: string,
+  payload?: unknown,
+  patches?: unknown,
+) => void;
+
+function fungiblePrice(price: number, lastUpdated: number): FungibleAssetPrice {
+  return {
+    assetPriceType: 'fungible',
+    price,
+    usdPrice: price,
+    lastUpdated,
+  };
+}
 
 async function activateTracking(messenger: RootMessenger): Promise<void> {
   (messenger as unknown as { publish: LifecyclePublish }).publish(
@@ -475,7 +494,15 @@ async function withController<ReturnValue>(
     'ClientController:getState',
     () => clientControllerState,
   );
-  messenger.subscribe(
+  (
+    messenger as unknown as {
+      subscribe: (
+        eventName: string,
+        handler: (isUiOpen: boolean) => void,
+        selector: typeof clientControllerSelectors.selectIsUiOpen,
+      ) => void;
+    }
+  ).subscribe(
     'ClientController:stateChanged',
     (open: boolean) => {
       clientControllerState = { isUiOpen: open };
@@ -1456,7 +1483,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -1470,7 +1497,7 @@ describe('AssetsController', () => {
           chainId: 'eip155:1',
           balance: { amount: '100' },
           metadata,
-          price: { price: 2, lastUpdated: 123 },
+          price: fungiblePrice(2, 123),
           fiatValue: 200,
         });
       });
@@ -1482,7 +1509,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 1, lastUpdated: 1 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(1, 1) },
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -1535,7 +1562,7 @@ describe('AssetsController', () => {
           MOCK_ASSET_ID,
         );
 
-        expect(asset?.price).toStrictEqual({ price: 0, lastUpdated: 0 });
+        expect(asset?.price).toStrictEqual(fungiblePrice(0, 0));
         expect(asset?.fiatValue).toBe(0);
       });
     });
@@ -1581,7 +1608,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ messenger }) => {
@@ -1623,8 +1650,8 @@ describe('AssetsController', () => {
           },
         },
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
-          [MOCK_NATIVE_ASSET_ID]: { price: 3000, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
+          [MOCK_NATIVE_ASSET_ID]: fungiblePrice(3000, 123),
         },
       };
 
@@ -1643,7 +1670,7 @@ describe('AssetsController', () => {
           chainId: 'eip155:1',
           balance: { amount: '100' },
           metadata,
-          price: { price: 2, lastUpdated: 123 },
+          price: fungiblePrice(2, 123),
           fiatValue: 200,
         });
         expect(assets[MOCK_NATIVE_ASSET_ID]?.fiatValue).toBe(6000);
@@ -1719,7 +1746,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ messenger }) => {
@@ -1762,8 +1789,8 @@ describe('AssetsController', () => {
           },
         },
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
-          [polygonNativeAssetId]: { price: 0.5, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
+          [polygonNativeAssetId]: fungiblePrice(0.5, 123),
         },
       };
 
@@ -1779,7 +1806,7 @@ describe('AssetsController', () => {
           chainId: 'eip155:1',
           balance: { amount: '100' },
           metadata,
-          price: { price: 2, lastUpdated: 123 },
+          price: fungiblePrice(2, 123),
           fiatValue: 200,
         });
       });
@@ -1847,7 +1874,7 @@ describe('AssetsController', () => {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '100' } },
         },
-        assetsPrice: { [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 } },
+        assetsPrice: { [MOCK_ASSET_ID]: fungiblePrice(2, 123) },
       };
 
       await withController({ state: initialState }, ({ messenger }) => {
@@ -2775,7 +2802,7 @@ describe('AssetsController', () => {
         );
 
         expect(rpcMiddleware).toHaveBeenCalledTimes(1);
-        const [rpcCtx] = rpcMiddleware.mock.calls[0] as [
+        const [rpcCtx] = rpcMiddleware.mock.calls[0] as unknown as [
           { request: DataRequest },
         ];
         expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
@@ -3249,7 +3276,7 @@ describe('AssetsController', () => {
         async ({ controller }) => {
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
-          const wsRequest = wsSubscribeSpy.mock.calls.at(-1)?.[0].request;
+          const wsRequest = wsSubscribeSpy.mock.calls.at(-1)?.[0]?.request;
           expect(wsRequest?.chainIds).toStrictEqual(['eip155:1']);
           expect(wsRequest?.customAssets).toBeUndefined();
 
@@ -4528,10 +4555,10 @@ describe('AssetsController', () => {
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
-        messenger.publish('TransactionController:transactionConfirmed', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_EVM_TX,
+        );
 
         await flushPromises();
 
@@ -4554,10 +4581,10 @@ describe('AssetsController', () => {
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
-        messenger.publish('TransactionController:unapprovedTransactionAdded', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          MOCK_EVM_TX,
+        );
 
         await flushPromises();
 
@@ -4712,14 +4739,14 @@ describe('AssetsController', () => {
 
         await flushPromises();
 
-        messenger.publish('TransactionController:unapprovedTransactionAdded', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
-        messenger.publish('TransactionController:transactionConfirmed', {
-          chainId: '0xa4b1',
-          txParams: { from: '0x1234567890123456789012345678901234567890' },
-        });
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          MOCK_EVM_TX,
+        );
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_EVM_TX,
+        );
 
         await flushPromises();
 
@@ -4950,7 +4977,7 @@ describe('AssetsController', () => {
     it('does not emit stateChange when a data source re-reports the same price', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
         },
       };
 
@@ -4966,7 +4993,7 @@ describe('AssetsController', () => {
           await controller.handleAssetsUpdate(
             {
               assetsPrice: {
-                [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+                [MOCK_ASSET_ID]: fungiblePrice(2, 123),
               },
             },
             'TestSource',
@@ -4980,7 +5007,7 @@ describe('AssetsController', () => {
     it('emits stateChange when a price genuinely changes', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
-          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+          [MOCK_ASSET_ID]: fungiblePrice(2, 123),
         },
       };
 
@@ -4996,7 +5023,7 @@ describe('AssetsController', () => {
           await controller.handleAssetsUpdate(
             {
               assetsPrice: {
-                [MOCK_ASSET_ID]: { price: 3, lastUpdated: 456 },
+                [MOCK_ASSET_ID]: fungiblePrice(3, 456),
               },
             },
             'TestSource',
@@ -5528,38 +5555,38 @@ describe('AssetsController', () => {
         `${solanaChainId}/slip44:501` as Caip19AssetId;
       const solanaAccountId = 'mock-solana-account-id';
 
-      await withController(async ({ controller, getSelectedAccountsMock }) => {
-        getSelectedAccountsMock.mockReturnValue([
-          createMockInternalAccount({
-            id: solanaAccountId,
-            address: 'FhRuTg4d2vbVbY1AhPWFGaJgMxNWUxUJUcNhjT5rFQZg',
-            type: 'solana:data-account',
-            scopes: [solanaChainId],
-          }),
-        ]);
+      await withController(
+        async ({ controller, messenger, getSelectedAccountsMock }) => {
+          getSelectedAccountsMock.mockReturnValue([
+            createMockInternalAccount({
+              id: solanaAccountId,
+              address: 'FhRuTg4d2vbVbY1AhPWFGaJgMxNWUxUJUcNhjT5rFQZg',
+              type: 'solana:data-account',
+              scopes: [solanaChainId],
+            }),
+          ]);
 
-        (
-          controller.messenger as unknown as { publish: LifecyclePublish }
-        ).publish(
-          'NetworkEnablementController:stateChange',
-          {
-            enabledNetworkMap: {
-              eip155: { '1': true },
-              solana: { [solanaChainId]: true },
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: {
+                eip155: { '1': true },
+                solana: { [solanaChainId]: true },
+              },
+              nativeAssetIdentifiers: {},
             },
-            nativeAssetIdentifiers: {},
-          },
-          [],
-        );
+            [],
+          );
 
-        await new Promise(process.nextTick);
+          await new Promise(process.nextTick);
 
-        expect(
-          controller.state.assetsBalance[solanaAccountId]?.[
-            solanaNativeAssetId
-          ],
-        ).toStrictEqual({ amount: '0' });
-      });
+          expect(
+            controller.state.assetsBalance[solanaAccountId]?.[
+              solanaNativeAssetId
+            ],
+          ).toStrictEqual({ amount: '0' });
+        },
+      );
     });
 
     it('seeds a Stellar native with zero spendable and reserve metadata when the account has no assets', async () => {
@@ -5568,44 +5595,45 @@ describe('AssetsController', () => {
         `${stellarChainId}/slip44:148` as Caip19AssetId;
       const stellarAccountId = 'mock-stellar-account-id';
 
-      await withController(async ({ controller, getSelectedAccountsMock }) => {
-        getSelectedAccountsMock.mockReturnValue([
-          createMockInternalAccount({
-            id: stellarAccountId,
-            address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-            type: 'stellar:data-account',
-            scopes: [stellarChainId],
-          }),
-        ]);
+      await withController(
+        async ({ controller, messenger, getSelectedAccountsMock }) => {
+          getSelectedAccountsMock.mockReturnValue([
+            createMockInternalAccount({
+              id: stellarAccountId,
+              address:
+                'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+              type: 'stellar:account',
+              scopes: [stellarChainId],
+            }),
+          ]);
 
-        (
-          controller.messenger as unknown as { publish: LifecyclePublish }
-        ).publish(
-          'NetworkEnablementController:stateChange',
-          {
-            enabledNetworkMap: {
-              eip155: { '1': true },
-              stellar: { [stellarChainId]: true },
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: {
+                eip155: { '1': true },
+                stellar: { [stellarChainId]: true },
+              },
+              nativeAssetIdentifiers: {},
             },
-            nativeAssetIdentifiers: {},
-          },
-          [],
-        );
+            [],
+          );
 
-        await new Promise(process.nextTick);
+          await new Promise(process.nextTick);
 
-        expect(
-          controller.state.assetsBalance[stellarAccountId]?.[
-            stellarNativeAssetId
-          ],
-        ).toStrictEqual({
-          amount: '0',
-          metadata: {
-            minimumReserveBalance: '0',
-            spendableBalance: '0',
-          },
-        });
-      });
+          expect(
+            controller.state.assetsBalance[stellarAccountId]?.[
+              stellarNativeAssetId
+            ],
+          ).toStrictEqual({
+            amount: '0',
+            metadata: {
+              minimumReserveBalance: '0',
+              spendableBalance: '0',
+            },
+          });
+        },
+      );
     });
 
     it('handles network being disabled', async () => {
@@ -5677,7 +5705,7 @@ describe('AssetsController', () => {
         networkConfigurationsByChainId: {
           [sepoliaHex]: { chainId: sepoliaHex },
           [mainnetHex]: { chainId: mainnetHex },
-        } as NetworkState['networkConfigurationsByChainId'],
+        } as unknown as NetworkState['networkConfigurationsByChainId'],
         networksMetadata: {},
         selectedNetworkClientId,
       });
@@ -5708,7 +5736,7 @@ describe('AssetsController', () => {
         () => ({
           enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
           nativeAssetIdentifiers: {
-            'eip155:1': MOCK_NATIVE_ASSET_ID,
+            'eip155:1': 'eip155:1/slip44:60',
             'eip155:11155111': 'eip155:11155111/slip44:60',
           },
         }),

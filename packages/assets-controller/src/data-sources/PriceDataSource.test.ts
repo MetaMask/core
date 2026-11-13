@@ -1,17 +1,37 @@
-import type { SupportedCurrency } from '@metamask/core-backend';
+import type {
+  MarketStatsServicePricesUpdatedEvent,
+  SupportedCurrency,
+} from '@metamask/core-backend';
+import { MarketStatsSubscribeError } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type {
   ChainId,
   DataRequest,
+  DataResponse,
   Context,
   Caip19AssetId,
   AssetsControllerState,
 } from '../types.js';
 import { normalizeAssetId } from '../utils/index.js';
+import type { MarketStatsPriceStreamMessenger } from './MarketStatsPriceStream.js';
 import type { PriceDataSourceOptions } from './PriceDataSource.js';
 import { PriceDataSource } from './PriceDataSource.js';
 
@@ -23,6 +43,10 @@ const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_TOKEN_ASSET =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
+const METADATA_ONLY_ASSET =
+  'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+const CUSTOM_ONLY_ASSET =
+  'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
 
 type MockApiClient = {
   prices: {
@@ -137,6 +161,18 @@ function createMockPriceData(price: number = 100): MockPriceData {
   };
 }
 
+function createUnavailableMarketStatsMessenger(): MarketStatsPriceStreamMessenger {
+  return {
+    call: () => {
+      throw new Error(
+        'A handler for MarketStatsService:getSubscriptions has not been registered',
+      );
+    },
+    subscribe: () => undefined,
+    unsubscribe: () => undefined,
+  } as unknown as MarketStatsPriceStreamMessenger;
+}
+
 function setupController(
   options: {
     priceResponse?: Record<string, unknown>;
@@ -146,6 +182,8 @@ function setupController(
     supportedNetworks?: string[];
     partialSupportNetworks?: string[];
     getAssetsState?: () => AssetsControllerState;
+    messenger?: MarketStatsPriceStreamMessenger;
+    priceFreshnessTtlMs?: number;
   } = {},
 ): SetupResult {
   const {
@@ -156,6 +194,8 @@ function setupController(
     supportedNetworks = ['eip155:1'],
     partialSupportNetworks = [],
     getAssetsState: getAssetsStateOverride,
+    messenger = createUnavailableMarketStatsMessenger(),
+    priceFreshnessTtlMs,
   } = options;
 
   const apiClient = createMockApiClient(
@@ -164,17 +204,25 @@ function setupController(
     partialSupportNetworks,
   );
 
+  const assetsState = {
+    assetsBalance: balanceState,
+    assetsPrice: {},
+  } as AssetsControllerState;
+
   const getAssetsState =
-    getAssetsStateOverride ??
-    ((): AssetsControllerState =>
-      ({ assetsBalance: balanceState }) as AssetsControllerState);
+    getAssetsStateOverride ?? ((): AssetsControllerState => assetsState);
 
   const controllerOptions: PriceDataSourceOptions = {
     queryApiClient:
       apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
     getSelectedCurrency,
     getAssetsState,
+    messenger,
   };
+
+  if (priceFreshnessTtlMs !== undefined) {
+    controllerOptions.priceFreshnessTtlMs = priceFreshnessTtlMs;
+  }
 
   if (pollInterval) {
     controllerOptions.pollInterval = pollInterval;
@@ -182,7 +230,18 @@ function setupController(
 
   const controller = new PriceDataSource(controllerOptions);
 
-  const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
+  const assetsUpdateHandler = vi.fn(async (response: DataResponse) => {
+    if (getAssetsStateOverride || !response.assetsPrice) {
+      return;
+    }
+    const next = { ...assetsState.assetsPrice };
+    for (const [assetId, price] of Object.entries(response.assetsPrice)) {
+      if (price) {
+        next[normalizeAssetId(assetId as Caip19AssetId)] = price;
+      }
+    }
+    assetsState.assetsPrice = next;
+  });
 
   return {
     controller,
@@ -241,7 +300,11 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
-      { currency: 'usd', includeMarketData: true },
+      {
+        currency: 'usd',
+        includeMarketData: true,
+        includeWssSupportField: true,
+      },
     );
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
       assetPriceType: 'fungible',
@@ -356,46 +419,38 @@ describe('PriceDataSource', () => {
     {
       source: 'balance',
       assetId: MOCK_NATIVE_ASSET,
+      state: {
+        assetsBalance: {
+          'mock-account-id': { [MOCK_NATIVE_ASSET]: { amount: '1' } },
+        },
+      },
     },
     {
       source: 'metadata',
-      assetId:
-        'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId,
+      assetId: METADATA_ONLY_ASSET,
+      state: {
+        assetsInfo: {
+          [METADATA_ONLY_ASSET]: {
+            type: 'erc20' as const,
+            symbol: 'TOK',
+            name: 'Token',
+            decimals: 18,
+          },
+        },
+      },
     },
     {
       source: 'custom',
-      assetId:
-        'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId,
+      assetId: CUSTOM_ONLY_ASSET,
+      state: {
+        customAssets: { 'mock-account-id': [CUSTOM_ONLY_ASSET] },
+      },
     },
   ])(
     'middleware does not price a state-only $source asset',
-    async ({ source, assetId }) => {
+    async ({ assetId, state }) => {
       const { controller, apiClient } = setupController({
-        getAssetsState: () =>
-          createTestAssetsState({
-            ...(source === 'balance'
-              ? {
-                  assetsBalance: {
-                    'mock-account-id': { [assetId]: { amount: '1' } },
-                  },
-                }
-              : {}),
-            ...(source === 'metadata'
-              ? {
-                  assetsInfo: {
-                    [assetId]: {
-                      type: 'erc20',
-                      symbol: 'TOK',
-                      name: 'Token',
-                      decimals: 18,
-                    },
-                  },
-                }
-              : {}),
-            ...(source === 'custom'
-              ? { customAssets: { 'mock-account-id': [assetId] } }
-              : {}),
-          }),
+        getAssetsState: () => createTestAssetsState(state),
         priceResponse: {
           [assetId]: createMockPriceData(1),
         },
@@ -429,7 +484,11 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
-      { currency: 'usd', includeMarketData: true },
+      {
+        currency: 'usd',
+        includeMarketData: true,
+        includeWssSupportField: true,
+      },
     );
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
       assetPriceType: 'fungible',
@@ -478,7 +537,8 @@ describe('PriceDataSource', () => {
       20,
     );
     // All 120 prices should be merged into the response.
-    expect(Object.keys(response.assetsPrice ?? {})).toHaveLength(120);
+    const { assetsPrice } = response;
+    expect(Object.keys({ ...assetsPrice })).toHaveLength(120);
 
     controller.destroy();
   });
@@ -1039,7 +1099,11 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_TOKEN_ASSET],
-      { currency: 'usd', includeMarketData: true },
+      {
+        currency: 'usd',
+        includeMarketData: true,
+        includeWssSupportField: true,
+      },
     );
     expect(prices[MOCK_TOKEN_ASSET]).toMatchObject({
       assetPriceType: 'fungible',
@@ -1071,7 +1135,11 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [normalizeAssetId(MOCK_TOKEN_ASSET)],
-      { currency: 'usd', includeMarketData: true },
+      {
+        currency: 'usd',
+        includeMarketData: true,
+        includeWssSupportField: true,
+      },
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
       assetPriceType: 'fungible',
@@ -1128,7 +1196,11 @@ describe('PriceDataSource', () => {
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [MOCK_NATIVE_ASSET],
-      { currency: 'usd', includeMarketData: true },
+      {
+        currency: 'usd',
+        includeMarketData: true,
+        includeWssSupportField: true,
+      },
     );
 
     controller.destroy();
@@ -1161,7 +1233,11 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
       [normalizeAssetId(MOCK_TOKEN_ASSET)],
-      { currency: 'usd', includeMarketData: true },
+      {
+        currency: 'usd',
+        includeMarketData: true,
+        includeWssSupportField: true,
+      },
     );
 
     controller.destroy();
@@ -1390,7 +1466,7 @@ describe('PriceDataSource', () => {
   });
 
   it('coalesces parallel fetches for the same asset into a single API call', async () => {
-    let resolveApi: ((value: Record<string, unknown>) => void) | undefined;
+    let resolveApi!: (value: Record<string, unknown>) => void;
     const apiPromise = new Promise<Record<string, unknown>>((resolve) => {
       resolveApi = resolve;
     });
@@ -1428,11 +1504,7 @@ describe('PriceDataSource', () => {
     await vi.advanceTimersByTimeAsync(10000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    // Resolve the API
-    expect(resolveApi).toBeDefined();
-    if (resolveApi) {
-      resolveApi({ [MOCK_TOKEN_ASSET]: createMockPriceData(1.0) });
-    }
+    resolveApi({ [MOCK_TOKEN_ASSET]: createMockPriceData(1.0) });
     await Promise.all([promise1, promise2]);
 
     // Still only one API call total
@@ -1511,6 +1583,7 @@ describe('PriceDataSource', () => {
     const controller2 = new PriceDataSource({
       queryApiClient:
         apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
+      messenger: createUnavailableMarketStatsMessenger(),
       getSelectedCurrency: (): SupportedCurrency => 'usd',
       getAssetsState: (): AssetsControllerState =>
         createTestAssetsState({
@@ -1710,5 +1783,560 @@ describe('PriceDataSource', () => {
         setup.controller.destroy();
       },
     );
+  });
+});
+
+type MarketStatsActions = MessengerActions<MarketStatsPriceStreamMessenger>;
+type MarketStatsEvents = MessengerEvents<MarketStatsPriceStreamMessenger>;
+type MarketStatsRootMessenger = Messenger<
+  MockAnyNamespace,
+  MarketStatsActions,
+  MarketStatsEvents | MarketStatsServicePricesUpdatedEvent
+>;
+
+function createMarketStatsMessenger(): {
+  root: MarketStatsRootMessenger;
+  messenger: MarketStatsPriceStreamMessenger;
+  subscribe: Mock;
+  unsubscribe: Mock;
+  open: Map<string, { assetId: string; currency: string }>;
+} {
+  const root: MarketStatsRootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger = new Messenger<
+    'AssetsController',
+    MarketStatsActions,
+    MarketStatsEvents,
+    MarketStatsRootMessenger
+  >({
+    namespace: 'AssetsController',
+    parent: root,
+  });
+  root.delegate({
+    messenger,
+    actions: [
+      'MarketStatsService:subscribe',
+      'MarketStatsService:unsubscribe',
+      'MarketStatsService:getSubscriptions',
+      'MarketStatsService:getChainStatuses',
+    ],
+    events: ['MarketStatsService:chainStatusChanged'],
+  });
+
+  const open = new Map<string, { assetId: string; currency: string }>();
+  const keyOf = (entry: { assetId: string; currency: string }): string =>
+    `${entry.assetId}::${entry.currency.toLowerCase()}`;
+  const asList = (
+    requested:
+      | { assetId: string; currency: string }
+      | readonly { assetId: string; currency: string }[],
+  ): readonly { assetId: string; currency: string }[] =>
+    'assetId' in requested ? [requested] : requested;
+
+  const subscribe = vi.fn(
+    async (
+      requested:
+        | { assetId: string; currency: string }
+        | readonly { assetId: string; currency: string }[],
+    ) => {
+      for (const entry of asList(requested)) {
+        open.set(keyOf(entry), entry);
+      }
+    },
+  );
+  const unsubscribe = vi.fn(
+    async (
+      requested:
+        | { assetId: string; currency: string }
+        | readonly { assetId: string; currency: string }[],
+    ) => {
+      for (const entry of asList(requested)) {
+        open.delete(keyOf(entry));
+      }
+    },
+  );
+  root.registerActionHandler('MarketStatsService:subscribe', subscribe);
+  root.registerActionHandler('MarketStatsService:unsubscribe', unsubscribe);
+  root.registerActionHandler('MarketStatsService:getSubscriptions', () => [
+    ...open.values(),
+  ]);
+
+  const chainStatus = new Map<string, 'up' | 'down'>();
+  root.subscribe('MarketStatsService:chainStatusChanged', (payload) => {
+    for (const chainId of payload.chainIds) {
+      chainStatus.set(chainId, payload.status);
+    }
+  });
+  root.registerActionHandler('MarketStatsService:getChainStatuses', () =>
+    [...chainStatus.entries()].map(([chainId, status]) => ({
+      chainId,
+      status,
+    })),
+  );
+
+  return { root, messenger, subscribe, unsubscribe, open };
+}
+
+describe('PriceDataSource market-stats', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const balanceState = {
+    'mock-account-id': {
+      [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+      [MOCK_TOKEN_ASSET]: { amount: '10' },
+    },
+  };
+
+  it('streams assets with wssSupport and keeps polling the rest', async () => {
+    const { messenger, subscribe } = createMarketStatsMessenger();
+    const { controller, apiClient, assetsUpdateHandler } = setupController({
+      pollInterval: 5000,
+      messenger,
+      balanceState,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+        [MOCK_TOKEN_ASSET]: {
+          ...createMockPriceData(1),
+          wssSupport: false,
+          totalVolume: 10,
+        },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(subscribe).toHaveBeenCalledWith([
+      {
+        assetId: MOCK_NATIVE_ASSET,
+        currency: 'usd',
+      },
+    ]);
+    expect(subscribe).toHaveBeenCalledTimes(1);
+
+    const callsAfterSubscribe =
+      apiClient.prices.fetchV3SpotPrices.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const laterCalls =
+      apiClient.prices.fetchV3SpotPrices.mock.calls.slice(callsAfterSubscribe);
+    expect(laterCalls[0]?.[0]).toStrictEqual([
+      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    ]);
+
+    controller.destroy();
+  });
+
+  it('subscribes a streamable asset added to balances on the next poll', async () => {
+    const { messenger, subscribe } = createMarketStatsMessenger();
+    const balances = {
+      'mock-account-id': {
+        [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+      },
+    };
+    const { controller, assetsUpdateHandler } = setupController({
+      pollInterval: 180_000,
+      messenger,
+      balanceState: balances,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+        [MOCK_TOKEN_ASSET]: { ...createMockPriceData(1), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(subscribe).toHaveBeenCalledTimes(1);
+
+    balances['mock-account-id'][MOCK_TOKEN_ASSET] = { amount: '10' };
+
+    expect(subscribe).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(180_000);
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenLastCalledWith([
+      {
+        assetId: MOCK_NATIVE_ASSET,
+        currency: 'usd',
+      },
+      {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        currency: 'usd',
+      },
+    ]);
+
+    controller.destroy();
+  });
+
+  it('keeps polling when MarketStatsService is not registered', async () => {
+    const messenger = {
+      call: vi.fn(() => {
+        throw new Error(
+          'A handler for MarketStatsService:subscribe has not been delegated to AssetsController',
+        );
+      }),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+    } as unknown as MarketStatsPriceStreamMessenger;
+
+    const { controller, apiClient, assetsUpdateHandler } = setupController({
+      pollInterval: 5000,
+      messenger,
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('polls an asset when the market-stats subscribe is rejected', async () => {
+    const { messenger, subscribe } = createMarketStatsMessenger();
+    subscribe.mockRejectedValue(
+      new Error(`Request failed: market-stats.v1.${MOCK_NATIVE_ASSET}.usd`),
+    );
+    const { controller, apiClient, assetsUpdateHandler } = setupController({
+      pollInterval: 5000,
+      messenger,
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    const callsAfterSubscribe =
+      apiClient.prices.fetchV3SpotPrices.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    const laterCalls =
+      apiClient.prices.fetchV3SpotPrices.mock.calls.slice(callsAfterSubscribe);
+    expect(laterCalls[0]?.[0]).toStrictEqual([MOCK_NATIVE_ASSET]);
+
+    controller.destroy();
+  });
+
+  it('retries a rejected subscribe on the next reconcile', async () => {
+    const { messenger, subscribe } = createMarketStatsMessenger();
+    subscribe.mockRejectedValueOnce(
+      new Error(`Request failed: market-stats.v1.${MOCK_NATIVE_ASSET}.usd`),
+    );
+    const { controller, assetsUpdateHandler } = setupController({
+      pollInterval: 5000,
+      messenger,
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    expect(subscribe).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('unsubscribes an asset that leaves the price-fetch set', async () => {
+    const balances = {
+      'mock-account-id': {
+        [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+        [MOCK_TOKEN_ASSET]: { amount: '10' },
+      },
+    };
+    const { messenger, subscribe, unsubscribe } = createMarketStatsMessenger();
+    const { controller, assetsUpdateHandler } = setupController({
+      pollInterval: 5000,
+      messenger,
+      balanceState: balances,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+        [MOCK_TOKEN_ASSET]: { ...createMockPriceData(1), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(subscribe).toHaveBeenCalledWith([
+      {
+        assetId: MOCK_NATIVE_ASSET,
+        currency: 'usd',
+      },
+      {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        currency: 'usd',
+      },
+    ]);
+
+    delete balances['mock-account-id'][MOCK_TOKEN_ASSET];
+    await controller.reconcileMarketStreams();
+
+    expect(unsubscribe).toHaveBeenCalledWith([
+      {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        currency: 'usd',
+      },
+    ]);
+
+    controller.destroy();
+  });
+
+  it('polls an asset the service rejects for the channel cap', async () => {
+    const { messenger, subscribe, open } = createMarketStatsMessenger();
+    subscribe.mockImplementation(
+      (requested: { assetId: string; currency: string }[]) => {
+        const capped = requested.filter((asset) =>
+          asset.assetId.toLowerCase().includes('erc20'),
+        );
+        const accepted = requested.filter((asset) => !capped.includes(asset));
+        for (const asset of accepted) {
+          open.set(`${asset.assetId}::${asset.currency.toLowerCase()}`, asset);
+        }
+        return Promise.reject(
+          new MarketStatsSubscribeError(
+            capped.map((asset) => ({
+              assetId: asset.assetId,
+              currency: asset.currency,
+              message: 'channel cap',
+            })),
+          ),
+        );
+      },
+    );
+    const { controller, apiClient, assetsUpdateHandler } = setupController({
+      pollInterval: 5000,
+      messenger,
+      balanceState,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+        [MOCK_TOKEN_ASSET]: { ...createMockPriceData(1), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    const callsAfterSubscribe =
+      apiClient.prices.fetchV3SpotPrices.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenLastCalledWith([
+      {
+        assetId: MOCK_NATIVE_ASSET,
+        currency: 'usd',
+      },
+      {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        currency: 'usd',
+      },
+    ]);
+    const laterCalls =
+      apiClient.prices.fetchV3SpotPrices.mock.calls.slice(callsAfterSubscribe);
+    expect(laterCalls[0]?.[0]).toStrictEqual([
+      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    ]);
+
+    controller.destroy();
+  });
+
+  it('does not write controller state for a market-stats batch', async () => {
+    const { messenger, root } = createMarketStatsMessenger();
+    let currency: SupportedCurrency = 'eur';
+    const { controller, assetsUpdateHandler } = setupController({
+      messenger,
+      getSelectedCurrency: () => currency,
+      getAssetsState: () =>
+        ({
+          assetsBalance: {
+            'mock-account-id': {
+              [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+            },
+          },
+        }) as unknown as AssetsControllerState,
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(1800), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+    assetsUpdateHandler.mockClear();
+
+    root.publish('MarketStatsService:pricesUpdated', {
+      updates: [
+        {
+          assetId: MOCK_NATIVE_ASSET,
+          currency: 'eur',
+          price: 1810,
+          pricePercentChange1d: 1.2,
+        },
+      ],
+      timestamp: 50,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+
+    currency = 'usd';
+    controller.destroy();
+  });
+
+  it('polls a down chain after jitter and stops when the chain recovers', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { messenger, root } = createMarketStatsMessenger();
+    const { controller, apiClient, assetsUpdateHandler } = setupController({
+      pollInterval: 60_000,
+      priceFreshnessTtlMs: 0,
+      messenger,
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    root.publish('MarketStatsService:chainStatusChanged', {
+      chainIds: ['eip155:1'],
+      status: 'down',
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+    root.publish('MarketStatsService:chainStatusChanged', {
+      chainIds: ['eip155:1'],
+      status: 'up',
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+    random.mockRestore();
+    controller.destroy();
+  });
+
+  it('resubscribes channels when the selected currency changes', async () => {
+    const { messenger, subscribe, unsubscribe } = createMarketStatsMessenger();
+    let currency: SupportedCurrency = 'usd';
+    const { controller, assetsUpdateHandler } = setupController({
+      messenger,
+      getSelectedCurrency: () => currency,
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: { ...createMockPriceData(2500), wssSupport: true },
+      },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    currency = 'eur';
+    await controller.resubscribeForCurrencyChange();
+
+    expect(unsubscribe).toHaveBeenCalledWith([
+      {
+        assetId: MOCK_NATIVE_ASSET,
+        currency: 'usd',
+      },
+    ]);
+    expect(subscribe).toHaveBeenCalledWith([
+      {
+        assetId: MOCK_NATIVE_ASSET,
+        currency: 'eur',
+      },
+    ]);
+
+    controller.destroy();
   });
 });
