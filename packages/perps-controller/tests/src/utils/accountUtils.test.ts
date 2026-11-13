@@ -648,6 +648,119 @@ describe('getCrossMarginSpotCollateral', () => {
     ).toBe('0');
   });
 
+  describe('malformed USDC amounts', () => {
+    it.each([
+      ['invalid total', { coin: 'USDC', total: 'invalid', hold: '0' }],
+      ['invalid hold', { coin: 'USDC', total: '900', hold: 'invalid' }],
+      ['non-finite total', { coin: 'USDC', total: 'Infinity', hold: '0' }],
+      ['non-finite hold', { coin: 'USDC', total: '900', hold: 'NaN' }],
+      ['missing total', { coin: 'USDC', hold: '0' }],
+      ['missing hold', { coin: 'USDC', total: '900' }],
+      ['empty total', { coin: 'USDC', total: '', hold: '0' }],
+      ['null hold', { coin: 'USDC', total: '900', hold: null }],
+    ])('returns undefined for Unified with %s', (_label, balance) => {
+      const spotState = { balances: [balance] } as never;
+
+      expect(
+        getCrossMarginSpotCollateral(spotState, 'unifiedAccount'),
+      ).toBeUndefined();
+      expect(
+        getCrossMarginSpotCollateral(spotState, 'portfolioMargin'),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when one of several USDC balances is malformed', () => {
+      const spotState = {
+        balances: [
+          { coin: 'USDC', total: '900', hold: '0' },
+          { coin: 'USDC', total: '50', hold: 'invalid' },
+        ],
+      } as never;
+
+      expect(
+        getCrossMarginSpotCollateral(spotState, 'unifiedAccount'),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when balances is not a list', () => {
+      expect(
+        getCrossMarginSpotCollateral({} as never, 'unifiedAccount'),
+      ).toBeUndefined();
+      expect(
+        getCrossMarginSpotCollateral(
+          { balances: 'nope' } as never,
+          'unifiedAccount',
+        ),
+      ).toBeUndefined();
+    });
+
+    it('ignores a malformed non-USDC balance', () => {
+      const spotState = {
+        balances: [
+          { coin: 'USDC', total: '900', hold: '0' },
+          { coin: 'HYPE', total: 'invalid', hold: 'invalid' },
+        ],
+      } as never;
+
+      expect(getCrossMarginSpotCollateral(spotState, 'unifiedAccount')).toBe(
+        '900',
+      );
+    });
+
+    it('keeps a genuine zero for a valid empty or fully held balance', () => {
+      expect(
+        getCrossMarginSpotCollateral(
+          { balances: [] } as never,
+          'unifiedAccount',
+        ),
+      ).toBe('0');
+      expect(
+        getCrossMarginSpotCollateral(
+          { balances: [{ coin: 'USDC', total: '0', hold: '0' }] } as never,
+          'unifiedAccount',
+        ),
+      ).toBe('0');
+      expect(
+        getCrossMarginSpotCollateral(
+          { balances: [{ coin: 'USDC', total: '25', hold: '25' }] } as never,
+          'unifiedAccount',
+        ),
+      ).toBe('0');
+    });
+
+    it('does not read the amounts for Standard, which is always 0', () => {
+      expect(
+        getCrossMarginSpotCollateral(
+          {
+            balances: [{ coin: 'USDC', total: '900', hold: 'invalid' }],
+          } as never,
+          'disabled',
+        ),
+      ).toBe('0');
+    });
+
+    it('keeps the ratio unknown rather than computing it from a guess', () => {
+      const summary = calculateAccountSummary({
+        totalEquity: '1000',
+        crossMarginSummary: {
+          accountValue: '100',
+          maintenanceMargin: '60',
+          marginUsed: '60',
+          notional: '0',
+        },
+        spotCollateral: getCrossMarginSpotCollateral(
+          {
+            balances: [{ coin: 'USDC', total: '900', hold: 'invalid' }],
+          } as never,
+          'unifiedAccount',
+        ),
+      });
+
+      expect(summary.accountRatio).toBeUndefined();
+      expect(summary.crossMarginUsage).toBeUndefined();
+    });
+  });
+
   it('makes the venue ratio 6% when 900 of free spot backs a 100 perps account', () => {
     const crossMarginSummary = {
       accountValue: '100',

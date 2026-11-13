@@ -180,6 +180,47 @@ function getSpotCollateralAmount(
   }, new BigNumber(0));
 }
 
+/**
+ * Sums one field of the USDC spot balances, or returns `undefined` when the
+ * response cannot be trusted.
+ *
+ * Unlike {@link getSpotCollateralAmount}, which fails soft so the displayed
+ * balances still render, this does not substitute zero for a missing or
+ * malformed amount. Collateral is the denominator of the account ratio, so a
+ * guess would show a ratio the venue never reported.
+ *
+ * @param spotState - Spot clearinghouse state.
+ * @param field - The USDC amount to sum.
+ * @returns The USDC sum. `0` when the response lists no USDC balance, and
+ * `undefined` when `balances` is not a list or a USDC balance has a missing
+ * or non-finite amount.
+ */
+function getValidatedSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse,
+  field: 'hold' | 'total',
+): BigNumber | undefined {
+  if (!Array.isArray(spotState.balances)) {
+    return undefined;
+  }
+
+  let sum = new BigNumber(0);
+  for (const balance of spotState.balances) {
+    if (!balance?.coin || !SPOT_COLLATERAL_COINS.has(balance.coin)) {
+      continue;
+    }
+    const raw: unknown = balance[field];
+    if (raw === undefined || raw === null || raw === '') {
+      return undefined;
+    }
+    const value = new BigNumber(raw as BigNumber.Value);
+    if (!value.isFinite()) {
+      return undefined;
+    }
+    sum = sum.plus(value);
+  }
+  return sum;
+}
+
 export function getSpotBalance(
   spotState?: SpotClearinghouseStateResponse | null,
 ): number {
@@ -208,7 +249,9 @@ export function getSpotHold(
  * @returns Canonical USDC decimal string: `'0'` when spot is not collateral
  * (Standard / `default`), or free spot USDC (`max(0, total − hold)`, USDC
  * only) for Unified and portfolio margin. `undefined` until both inputs
- * are known.
+ * are known, and for Unified or portfolio margin when a USDC `total` or
+ * `hold` is missing or not a finite number. A response that lists no USDC
+ * balance is a genuine `'0'`.
  */
 export function getCrossMarginSpotCollateral(
   spotState: SpotClearinghouseStateResponse | null | undefined,
@@ -225,13 +268,12 @@ export function getCrossMarginSpotCollateral(
   if (!hyperLiquidModeFoldsSpot(abstractionMode)) {
     return '0';
   }
-  const freeSpot = BigNumber.max(
-    0,
-    getSpotCollateralAmount(spotState, 'total').minus(
-      getSpotCollateralAmount(spotState, 'hold'),
-    ),
-  );
-  return canonicalizeUsdc(freeSpot);
+  const total = getValidatedSpotCollateralAmount(spotState, 'total');
+  const hold = getValidatedSpotCollateralAmount(spotState, 'hold');
+  if (total === undefined || hold === undefined) {
+    return undefined;
+  }
+  return canonicalizeUsdc(BigNumber.max(0, total.minus(hold)));
 }
 
 /**
