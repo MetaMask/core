@@ -164,7 +164,7 @@ sequenceDiagram
   opt some escrow off expectedVersion
     M->>E: getMutationReceipt(mutation) on those escrows
     M->>M: any receipt missing or not ours → clear, mutation_superseded
-    M->>M: persist the receipts, then reread the rest
+    M->>M: keep the receipts, then reread the rest
   end
   M->>M: no receipts and exp + 5 min <= now() → clear, MutationRejectedError
   M->>M: update identifier missing at expectedVersion → identifier_not_enrolled
