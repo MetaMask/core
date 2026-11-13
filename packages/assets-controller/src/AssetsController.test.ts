@@ -3222,7 +3222,6 @@ describe('AssetsController', () => {
 
         // Lock the keyring so the controller stops and clears subscriptions.
         messenger.publish('KeyringController:lock');
-        await flushPromises();
 
         const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
 
@@ -3230,6 +3229,7 @@ describe('AssetsController', () => {
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
+        await waitUntilStable(() => [subscribeSpy.mock.calls.length]);
         expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
@@ -4374,8 +4374,6 @@ describe('AssetsController', () => {
             {},
           );
 
-          await flushPromises();
-
           messenger.publish('AccountActivityService:balanceUpdated', {
             address: '0x1234567890123456789012345678901234567890',
             chain: 'eip155:42161',
@@ -4393,11 +4391,11 @@ describe('AssetsController', () => {
             ],
           });
 
-          await flushPromises();
-
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbNative],
-          ).toStrictEqual({ amount: '0.00000114526056' });
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbNative],
+            ).toStrictEqual({ amount: '0.00000114526056' });
+          });
         },
       );
     });
