@@ -917,25 +917,6 @@ export const formatPercentage = (
 };
 
 /**
- * Percentage points of a ratio, from its shortest decimal form.
- *
- * `1.2345 * 100` is `123.44999999999999` in binary and would round to
- * `123.4%`. Shifting that decimal form gives `123.45`, which rounds to
- * `123.5%`, the same as `Intl` percent formatting.
- *
- * @param ratio - A finite ratio, such as `0.174`.
- * @returns The ratio in percentage points, such as `17.4`.
- */
-function _ratioToPercent(ratio: number): number {
-  const [mantissa, exponentText = '0'] = String(Math.abs(ratio)).split('e');
-  const [integerPart, fractionPart = ''] = mantissa.split('.');
-  const digits = `${integerPart}${fractionPart}`.replace(/^0+/u, '') || '0';
-  const exponent = Number(exponentText) - fractionPart.length + 2;
-  const percent = Number(`${digits}e${exponent}`);
-  return ratio < 0 ? -percent : percent;
-}
-
-/**
  * Formats a 0..1 cross margin ratio (account ratio or cross margin usage)
  * as an unsigned percentage with at most one decimal. A positive value has
  * no `+` prefix and a whole number has no trailing zero.
@@ -948,13 +929,16 @@ function _ratioToPercent(ratio: number): number {
  * default `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent`, 1; trailing
  * zeros are dropped) and `sign` (default `auto`: a minus for a negative
  * ratio, no plus).
- * @returns Format: "X%" or "X.X%", or
+ * The locale's percent style renders the number and the `%` symbol, so a
+ * locale that spaces or prefixes the symbol (`17,4 %`, `%17,4`) does.
+ * @returns Format: "X%" or "X.X%" in `en-US`, or
  * `PERPS_CONSTANTS.FallbackPercentageDisplay` (`--%`) for a missing ratio.
  * @example formatCrossMarginRatio(0.174) => "17.4%"
  * @example formatCrossMarginRatio(0.63) => "63%"
  * @example formatCrossMarginRatio(0) => "0%"
  * @example formatCrossMarginRatio(-0.174) => "-17.4%"
- * @example formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) }) => "17,4%"
+ * @example formatCrossMarginRatio(0.0255) => "2.6%"
+ * @example formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) }) => "17,4 %"
  * @example formatCrossMarginRatio(undefined) => "--%"
  */
 export const formatCrossMarginRatio = (
@@ -971,12 +955,31 @@ export const formatCrossMarginRatio = (
     return PERPS_CONSTANTS.FallbackPercentageDisplay;
   }
 
-  return `${_formatSignedDecimal(formatters, _ratioToPercent(parsed), {
+  // The locale's percent style owns the rounding, the `%` symbol and its
+  // placement (`17.4%`, `17,4 %`, `%17,4`), so the ratio is passed as is.
+  // Shifting it by 100 and rounding with `toFixed` first would round binary
+  // ties differently (`0.0255` is `2.6%`, not `2.5%`).
+  const percentOptions: Intl.NumberFormatOptions = {
+    style: 'percent',
     minimumFractionDigits: 0,
     maximumFractionDigits: decimals,
-    useGrouping: true,
-    sign,
-  })}%`;
+  };
+  const magnitude = Math.abs(parsed);
+  // A ratio that rounds to 0 at the shown precision has no sign, so a tiny
+  // negative ratio is `0%`, not `-0%`. The threshold is half of the last
+  // shown digit, with the half rounded away from zero as `Intl` does.
+  if (magnitude < Number(`5e-${decimals + 3}`)) {
+    return `${sign === 'always' ? '+' : ''}${formatters.formatNumber(
+      0,
+      percentOptions,
+    )}`;
+  }
+  if (parsed < 0 && sign !== 'never') {
+    // `Intl` prefixes the locale's own minus sign
+    return formatters.formatNumber(parsed, percentOptions);
+  }
+  const plus = parsed > 0 && (sign === 'always' || sign === 'exceptZero');
+  return `${plus ? '+' : ''}${formatters.formatNumber(magnitude, percentOptions)}`;
 };
 
 /**
