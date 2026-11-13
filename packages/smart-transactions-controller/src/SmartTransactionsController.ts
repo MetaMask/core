@@ -26,7 +26,7 @@ import type {
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import type {
-  SentinelApiServiceBatchStatusAction,
+  SentinelApiServiceGetBatchStatusAction,
   SentinelApiServiceCancelAction,
   SentinelApiServiceGetFeesAction,
   SentinelApiServiceGetNetworkAction,
@@ -195,7 +195,7 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
-  | SentinelApiServiceBatchStatusAction
+  | SentinelApiServiceGetBatchStatusAction
   | SentinelApiServiceCancelAction
   | SentinelApiServiceGetFeesAction
   | SentinelApiServiceGetNetworkAction
@@ -791,7 +791,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
 
     let data: Record<string, SmartTransactionsStatus>;
     try {
-      data = await this.messenger.call('SentinelApiService:batchStatus', {
+      data = await this.messenger.call('SentinelApiService:getBatchStatus', {
         chainId,
         uuids,
       });

@@ -14,7 +14,7 @@ import {
   SentinelOriginalTransactionStatus,
 } from '@metamask/sentinel-api-service';
 import type {
-  SentinelApiServiceBatchStatusAction,
+  SentinelApiServiceGetBatchStatusAction,
   SentinelApiServiceCancelAction,
   SentinelApiServiceGetFeesAction,
   SentinelApiServiceGetNetworkAction,
@@ -1615,7 +1615,7 @@ describe('SmartTransactionsController', () => {
       await withController(
         {
           batchStatus: vi
-            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
             .mockRejectedValue(httpError),
         },
         async ({ controller }) => {
@@ -1637,7 +1637,7 @@ describe('SmartTransactionsController', () => {
       await withController(
         {
           batchStatus: vi
-            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
             .mockRejectedValue(networkError),
         },
         async ({ controller }) => {
@@ -1654,7 +1654,7 @@ describe('SmartTransactionsController', () => {
       await withController(
         {
           batchStatus: vi
-            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
             .mockRejectedValue(
               new HttpError(500, 'Sentinel API: Batch status request failed'),
             ),
@@ -1677,7 +1677,7 @@ describe('SmartTransactionsController', () => {
       await withController(
         {
           batchStatus: vi
-            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
             .mockResolvedValue(createPendingBatchStatusApiResponse()),
         },
         async ({ controller }) => {
@@ -3214,7 +3214,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
-  batchStatus: Mock<SentinelApiServiceBatchStatusAction['handler']>;
+  batchStatus: Mock<SentinelApiServiceGetBatchStatusAction['handler']>;
   cancel: Mock<SentinelApiServiceCancelAction['handler']>;
   getFees: Mock<SentinelApiServiceGetFeesAction['handler']>;
   getNetwork: Mock<SentinelApiServiceGetNetworkAction['handler']>;
@@ -3231,7 +3231,7 @@ type WithControllerOptions = {
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
   failTransaction?: TransactionControllerFailTransactionAction['handler'];
-  batchStatus?: Mock<SentinelApiServiceBatchStatusAction['handler']>;
+  batchStatus?: Mock<SentinelApiServiceGetBatchStatusAction['handler']>;
   cancel?: Mock<SentinelApiServiceCancelAction['handler']>;
   getFees?: Mock<SentinelApiServiceGetFeesAction['handler']>;
   getNetwork?: Mock<SentinelApiServiceGetNetworkAction['handler']>;
@@ -3269,7 +3269,7 @@ async function withController<ReturnValue>(
     getTransactions = vi.fn(),
     failTransaction = vi.fn(),
     batchStatus = vi
-      .fn<SentinelApiServiceBatchStatusAction['handler']>()
+      .fn<SentinelApiServiceGetBatchStatusAction['handler']>()
       .mockResolvedValue({}),
     cancel = vi
       .fn<SentinelApiServiceCancelAction['handler']>()
@@ -3378,7 +3378,7 @@ async function withController<ReturnValue>(
   );
 
   rootMessenger.registerActionHandler(
-    'SentinelApiService:batchStatus',
+    'SentinelApiService:getBatchStatus',
     batchStatus,
   );
   rootMessenger.registerActionHandler('SentinelApiService:cancel', cancel);
@@ -3410,7 +3410,7 @@ async function withController<ReturnValue>(
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:failTransaction',
-      'SentinelApiService:batchStatus',
+      'SentinelApiService:getBatchStatus',
       'SentinelApiService:cancel',
       'SentinelApiService:getFees',
       'SentinelApiService:getNetwork',
