@@ -21,16 +21,6 @@ const SET_USER_ASSETS = 'AuthenticatedUserStorageService:setUserAssets';
 const IMPORT_TOKENS = 'AuthenticatedUserStorageService:importTokens';
 const HIDE_TOKENS = 'AuthenticatedUserStorageService:hideTokens';
 
-/**
- * Flush pending microtasks and timers so fire-and-forget AUS syncs settle
- * before Vitest tears down the test.
- */
-async function flushPromises(): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-}
-
 type AusFixtureMessenger = { call: Mock; captureException: Mock };
 
 type AusMockOptions = {
@@ -452,7 +442,7 @@ describe('syncAusUserAssets', () => {
         fixture.addCustomAsset(MOCK_ACCOUNT_ID, MALFORMED_ASSET_ID),
       ).rejects.toThrow('Invalid CAIP asset type.');
 
-      await flushPromises();
+      await waitUntilStable(() => [fixture.messenger.call.mock.calls.length]);
 
       expect(fixture.messenger.call).not.toHaveBeenCalled();
       expect(fixture.localCalls).not.toContain('addCustomAsset');
@@ -466,11 +456,11 @@ describe('syncAusUserAssets', () => {
       await expect(
         fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
       ).rejects.toThrow('post-mutation fetch failed');
-      await flushPromises();
 
       // The local mutation was applied before the failure, so the mirror
       // still fires — local state and AUS stay in sync.
       expect(fixture.localCalls).toContain('addCustomAsset');
+      await waitUntilStable(() => [fixture.messenger.call.mock.calls.length]);
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
         MOCK_ASSET_ID,
@@ -494,7 +484,11 @@ describe('syncAusUserAssets', () => {
         expect(
           await fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
         ).toBeUndefined();
-        await flushPromises();
+        await waitUntilStable(() => [
+          fixture.messenger.call.mock.calls.length,
+          fixture.messenger.captureException.mock.calls.length,
+          unhandledRejections.length,
+        ]);
       } finally {
         process.off('unhandledRejection', recordUnhandledRejection);
       }
@@ -522,7 +516,9 @@ describe('syncAusUserAssets', () => {
       });
 
       fixture.hideAsset(MOCK_ASSET_ID);
-      await flushPromises();
+      await waitUntilStable(() => [
+        fixture.messenger.captureException.mock.calls.length,
+      ]);
 
       expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
     });
