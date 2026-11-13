@@ -122,6 +122,7 @@ export function createMockAssetsControllerMessenger(
       'KeyringController:unlock',
       'PreferencesController:stateChange',
       'TransactionController:unapprovedTransactionAdded',
+      'MultichainTransactionsController:transactionConfirmed',
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
