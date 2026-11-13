@@ -35,7 +35,7 @@ import {
   buildAssetsInfo,
   buildSpamWalletState,
 } from './__fixtures__/spamWalletState.js';
-import { waitFor } from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 
@@ -225,7 +225,11 @@ describe('AssetsController spam cleanup', () => {
     const { scope: assetsScope } = mockV3Assets();
 
     await withController({}, async ({ controller }) => {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await waitUntilStable(() => [
+        floorsScope.isDone(),
+        assetsScope.isDone(),
+        controller.state.assetsInfo,
+      ]);
 
       expect(floorsScope.isDone()).toBe(false);
       expect(assetsScope.isDone()).toBe(false);
@@ -243,7 +247,10 @@ describe('AssetsController spam cleanup', () => {
       { isBasicFunctionality: () => false },
       async ({ controller, messenger }) => {
         messenger.publish('KeyringController:unlock');
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await waitUntilStable(() => [
+          floorsScope.isDone(),
+          controller.state.assetsInfo,
+        ]);
 
         expect(floorsScope.isDone()).toBe(false);
         expect(controller.state.assetsInfo).toStrictEqual(
@@ -265,7 +272,11 @@ describe('AssetsController spam cleanup', () => {
       },
       async ({ controller, messenger }) => {
         messenger.publish('KeyringController:unlock');
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await waitUntilStable(() => [
+          floorsScope.isDone(),
+          assetsScope.isDone(),
+          controller.state.assetsInfo,
+        ]);
 
         expect(floorsScope.isDone()).toBe(false);
         expect(assetsScope.isDone()).toBe(false);
@@ -284,7 +295,11 @@ describe('AssetsController spam cleanup', () => {
       { remoteFeatureFlags: {} },
       async ({ controller, messenger }) => {
         messenger.publish('KeyringController:unlock');
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await waitUntilStable(() => [
+          floorsScope.isDone(),
+          assetsScope.isDone(),
+          controller.state.assetsInfo,
+        ]);
 
         expect(floorsScope.isDone()).toBe(false);
         expect(assetsScope.isDone()).toBe(false);
