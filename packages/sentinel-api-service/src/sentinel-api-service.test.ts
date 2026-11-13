@@ -30,7 +30,6 @@ import {
 import { SentinelApiService } from './sentinel-api-service.js';
 import { SentinelBatchStatusResponseStruct } from './structs.js';
 import {
-  SentinelCancellationReason,
   SentinelFeature,
   SentinelKind,
   SentinelProductFeature,
