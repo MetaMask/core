@@ -466,8 +466,34 @@ describe('max-quote', () => {
           messenger,
           TRANSACTION_MOCK.txParams.from,
         );
+        expect(getQuotesMock).toHaveBeenCalledWith(
+          NON_ATOMIC_REQUEST_MOCK,
+          TRANSACTION_MOCK,
+        );
         expect(requoteMock).not.toHaveBeenCalled();
       });
+
+      it.each([true, undefined])(
+        'quotes non-atomically when account requires MFA and atomic is %s',
+        async (atomic) => {
+          accountRequiresMfaMock.mockReturnValue(true);
+          getQuotesMock.mockResolvedValue([
+            makeQuote('a', { isSubsidized: true }),
+          ]);
+
+          const result = await run({ ...REQUEST_MOCK, atomic });
+
+          expect(result.map((quote) => quote.original.id)).toStrictEqual([
+            'a-gas-station',
+          ]);
+          expect(getQuotesMock).toHaveBeenCalledWith(
+            { ...REQUEST_MOCK, atomic: false },
+            TRANSACTION_MOCK,
+          );
+          expect(requoteMock).not.toHaveBeenCalled();
+          expect(validateAtomicQuoteMock).not.toHaveBeenCalled();
+        },
+      );
 
       it('validates promoted quote', async () => {
         const promotedQuote = makeQuote('promoted', { isSubsidized: true });
