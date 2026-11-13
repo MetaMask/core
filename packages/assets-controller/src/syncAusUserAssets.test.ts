@@ -359,21 +359,39 @@ describe('syncAusUserAssets', () => {
   });
 
   describe('timing', () => {
+    /**
+     * Returns the AUS handlers registered on the fixture.
+     *
+     * @param fixture - The fixture whose handlers to read.
+     * @returns The four recorded AUS handlers.
+     */
+    function registeredHandlers(fixture: AusSyncFixture): AusActionHandlers {
+      if (!fixture.ausHandlers) {
+        throw new Error('AUS handlers were not registered');
+      }
+      return fixture.ausHandlers;
+    }
+
     it('fires immediately when a sync method returns', () => {
       const fixture = new AusSyncFixture();
       registerAusHandlers(fixture);
+      const { hideTokens, importTokens, getUserAssets, setUserAssets } =
+        registeredHandlers(fixture);
 
       fixture.hideAsset(MOCK_ASSET_ID);
 
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.call).toHaveBeenCalledWith(HIDE_TOKENS, [
-        MOCK_ASSET_ID,
-      ]);
+      expect(hideTokens).toHaveBeenCalledTimes(1);
+      expect(hideTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+      expect(importTokens).not.toHaveBeenCalled();
+      expect(getUserAssets).not.toHaveBeenCalled();
+      expect(setUserAssets).not.toHaveBeenCalled();
     });
 
     it('fires when an async method is invoked, before its post-mutation work settles', async () => {
       const fixture = new AusSyncFixture();
       registerAusHandlers(fixture);
+      const { importTokens, hideTokens, getUserAssets, setUserAssets } =
+        registeredHandlers(fixture);
       let resolvePending: () => void = () => undefined;
       fixture.pending = new Promise<void>((resolve) => {
         resolvePending = resolve;
@@ -384,10 +402,11 @@ describe('syncAusUserAssets', () => {
       // The local mutation is applied before the method returns control, so
       // the mirror fires without waiting for the method to settle — a later
       // failure in the post-mutation work can no longer skip it.
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
-        MOCK_ASSET_ID,
-      ]);
+      expect(importTokens).toHaveBeenCalledTimes(1);
+      expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+      expect(hideTokens).not.toHaveBeenCalled();
+      expect(getUserAssets).not.toHaveBeenCalled();
+      expect(setUserAssets).not.toHaveBeenCalled();
 
       resolvePending();
       await pendingAdd;
@@ -395,13 +414,19 @@ describe('syncAusUserAssets', () => {
 
     it('does not write back over a later remove when a pending add settles', async () => {
       const fixture = new AusSyncFixture();
-      registerAusHandlers(fixture, {
-        blob: {
-          version: 1,
-          importedAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
-          hiddenAssets: [],
-        },
-      });
+      const storedBlob: UserAssetsBlob = {
+        version: 1,
+        importedAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
+        hiddenAssets: [],
+      };
+      const strippedBlob: UserAssetsBlob = {
+        version: 1,
+        importedAssets: [OTHER_ASSET_ID],
+        hiddenAssets: [],
+      };
+      registerAusHandlers(fixture, { blob: storedBlob });
+      const { importTokens, getUserAssets, setUserAssets, hideTokens } =
+        registeredHandlers(fixture);
       let resolvePending: () => void = () => undefined;
       fixture.pending = new Promise<void>((resolve) => {
         resolvePending = resolve;
@@ -415,34 +440,36 @@ describe('syncAusUserAssets', () => {
       // The import fired at add time and the strip applied after it; the
       // final blob reflects the removal.
       await waitFor(() => {
-        expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
-        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-          1,
-          IMPORT_TOKENS,
-          [MOCK_ASSET_ID],
+        expect(importTokens).toHaveBeenCalledTimes(1);
+        expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        expect(getUserAssets).toHaveBeenCalledTimes(1);
+        expect(setUserAssets).toHaveBeenCalledTimes(1);
+        expect(setUserAssets).toHaveBeenCalledWith(strippedBlob);
+        expect(importTokens.mock.invocationCallOrder[0]).toBeLessThan(
+          getUserAssets.mock.invocationCallOrder[0],
         );
-        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-          2,
-          GET_USER_ASSETS,
-        );
-        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-          3,
-          SET_USER_ASSETS,
-          {
-            version: 1,
-            importedAssets: [OTHER_ASSET_ID],
-            hiddenAssets: [],
-          },
+        expect(getUserAssets.mock.invocationCallOrder[0]).toBeLessThan(
+          setUserAssets.mock.invocationCallOrder[0],
         );
       });
 
       resolvePending();
       await pendingAdd;
-      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
+      await waitUntilStable(() => [
+        importTokens.mock.calls.length,
+        getUserAssets.mock.calls.length,
+        setUserAssets.mock.calls.length,
+        hideTokens.mock.calls.length,
+      ]);
 
       // The add settling late fires no further AUS write.
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
+      expect(importTokens).toHaveBeenCalledTimes(1);
+      expect(getUserAssets).toHaveBeenCalledTimes(1);
+      expect(setUserAssets).toHaveBeenCalledTimes(1);
+      expect(setUserAssets).toHaveBeenLastCalledWith(strippedBlob);
+      expect(hideTokens).not.toHaveBeenCalled();
     });
+
     it('does not let an in-flight import undo a later strip', async () => {
       const fixture = new AusSyncFixture();
       // A stateful AUS: the import only lands when released, like a slow PUT.
@@ -451,69 +478,111 @@ describe('syncAusUserAssets', () => {
         importedAssets: [OTHER_ASSET_ID],
         hiddenAssets: [],
       };
+      const strippedBlob: UserAssetsBlob = {
+        version: 1,
+        importedAssets: [OTHER_ASSET_ID],
+        hiddenAssets: [],
+      };
       let releaseImport: () => void = () => undefined;
+      const importTokens = vi.fn<
+        AuthenticatedUserStorageServiceImportTokensAction['handler']
+      >(async (ids) => {
+        await new Promise<void>((resolve) => {
+          releaseImport = resolve;
+        });
+        blob = {
+          ...blob,
+          importedAssets: [...blob.importedAssets, ...ids],
+        };
+        return blob;
+      });
+      const getUserAssets = vi.fn<
+        AuthenticatedUserStorageServiceGetUserAssetsAction['handler']
+      >(async () => blob);
+      const setUserAssets = vi.fn<
+        AuthenticatedUserStorageServiceSetUserAssetsAction['handler']
+      >(async (nextBlob) => {
+        blob = nextBlob;
+      });
       fixture.rootMessenger.registerActionHandler(
         'AuthenticatedUserStorageService:importTokens',
-        async (ids): Promise<UserAssetsBlob> => {
-          await new Promise<void>((resolve) => {
-            releaseImport = resolve;
-          });
-          blob = {
-            ...blob,
-            importedAssets: [...blob.importedAssets, ...ids],
-          };
-          return blob;
-        },
+        importTokens,
       );
       fixture.rootMessenger.registerActionHandler(
         'AuthenticatedUserStorageService:getUserAssets',
-        async (): Promise<UserAssetsBlob | null> => blob,
+        getUserAssets,
       );
       fixture.rootMessenger.registerActionHandler(
         'AuthenticatedUserStorageService:setUserAssets',
-        async (nextBlob): Promise<void> => {
-          blob = nextBlob;
-        },
+        setUserAssets,
       );
 
       await fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
+      await waitUntilStable(() => [
+        importTokens.mock.calls.length,
+        getUserAssets.mock.calls.length,
+        setUserAssets.mock.calls.length,
+      ]);
 
       // The strip waits for the in-flight import instead of reading the
       // stale blob and skipping its write.
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
+      expect(importTokens).toHaveBeenCalledTimes(1);
+      expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+      expect(getUserAssets).not.toHaveBeenCalled();
+      expect(setUserAssets).not.toHaveBeenCalled();
 
       releaseImport();
       await waitFor(() => {
-        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-          2,
-          GET_USER_ASSETS,
+        expect(getUserAssets).toHaveBeenCalledTimes(1);
+        expect(setUserAssets).toHaveBeenCalledTimes(1);
+        expect(setUserAssets).toHaveBeenCalledWith(strippedBlob);
+        expect(importTokens.mock.invocationCallOrder[0]).toBeLessThan(
+          getUserAssets.mock.invocationCallOrder[0],
         );
-        expect(blob.importedAssets).toStrictEqual([OTHER_ASSET_ID]);
+        expect(getUserAssets.mock.invocationCallOrder[0]).toBeLessThan(
+          setUserAssets.mock.invocationCallOrder[0],
+        );
+        expect(blob).toStrictEqual(strippedBlob);
       });
     });
 
     it('keeps serializing syncs after one of them fails', async () => {
       const fixture = new AusSyncFixture();
+      const hideTokens = vi.fn<
+        AuthenticatedUserStorageServiceHideTokensAction['handler']
+      >(async () => {
+        throw new Error('AUS unavailable');
+      });
+      const getUserAssets = vi.fn<
+        AuthenticatedUserStorageServiceGetUserAssetsAction['handler']
+      >(async () => null);
+      const setUserAssets = vi.fn<
+        AuthenticatedUserStorageServiceSetUserAssetsAction['handler']
+      >(async () => undefined);
       fixture.rootMessenger.registerActionHandler(
         'AuthenticatedUserStorageService:hideTokens',
-        async (): Promise<UserAssetsBlob> => {
-          throw new Error('AUS unavailable');
-        },
+        hideTokens,
       );
       fixture.rootMessenger.registerActionHandler(
         'AuthenticatedUserStorageService:getUserAssets',
-        async (): Promise<UserAssetsBlob | null> => null,
+        getUserAssets,
+      );
+      fixture.rootMessenger.registerActionHandler(
+        'AuthenticatedUserStorageService:setUserAssets',
+        setUserAssets,
       );
 
       fixture.hideAsset(MOCK_ASSET_ID);
       fixture.unhideAsset(MOCK_ASSET_ID);
       await waitFor(() => {
         expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
-        expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-          2,
-          GET_USER_ASSETS,
+        expect(hideTokens).toHaveBeenCalledTimes(1);
+        expect(hideTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        expect(getUserAssets).toHaveBeenCalledTimes(1);
+        expect(setUserAssets).not.toHaveBeenCalled();
+        expect(hideTokens.mock.invocationCallOrder[0]).toBeLessThan(
+          getUserAssets.mock.invocationCallOrder[0],
         );
       });
     });
