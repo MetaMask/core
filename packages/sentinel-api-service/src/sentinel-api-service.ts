@@ -758,7 +758,7 @@ export class SentinelApiService extends BaseDataService<
    */
   async #resolveUrl(
     chainId: Hex,
-    capability: 'confirmations' | 'relayTransactions' | 'smartTransactions',
+    capability: 'confirmations' | 'relayTransactions',
   ): Promise<string> {
     const network = await this.#getRegistryEntry(chainId);
 

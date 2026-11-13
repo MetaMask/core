@@ -63,7 +63,6 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^38.0.1",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/sentinel-api-service": "^2.1.0",
     "@metamask/superstruct": "^3.4.1",

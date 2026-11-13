@@ -357,7 +357,7 @@ describe('SentinelApiService', () => {
       expect(SentinelSmartTransactionStatus.Failed).toBe('FAILED');
     });
 
-    it('exposes feature values', () => {
+    it('exposes feature and kind values', () => {
       expect(SentinelFeature.Sponsored).toBe('sponsored');
       expect(SentinelKind.GaslessEIP7702).toBe('gaslessEIP7702');
       expect(SentinelProductFeature.Swap).toBe('Swap');

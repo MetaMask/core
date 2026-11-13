@@ -8515,7 +8515,6 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/polling-controller": "npm:^17.0.0"
-    "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/sentinel-api-service": "npm:^2.1.0"
     "@metamask/superstruct": "npm:^3.4.1"
