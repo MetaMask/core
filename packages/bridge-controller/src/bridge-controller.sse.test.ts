@@ -273,10 +273,12 @@ describe('BridgeController SSE', function () {
       response,
       request = quoteRequest,
       abort = false,
+      getQuoteFetchTraceContext,
     }: {
       response: () => unknown;
       request?: typeof quoteRequest;
       abort?: boolean;
+      getQuoteFetchTraceContext?: () => unknown;
     }): Promise<TraceRequest[]> => {
       const traceRequests: TraceRequest[] = [];
 
@@ -284,6 +286,7 @@ describe('BridgeController SSE', function () {
         {
           options: {
             traceFn: createTraceCallback(traceRequests),
+            getQuoteFetchTraceContext,
           },
         },
         async ({ controller, rootMessenger }) => {
@@ -392,6 +395,23 @@ describe('BridgeController SSE', function () {
           (request) => request.name === TraceName.QuoteProviderFirstResult,
         ),
       ).toHaveLength(scenario.providerCount);
+    });
+
+    it('nests quote traces under the client-provided parent context', async () => {
+      const parentContext = { name: 'Swap Quote Fetch' };
+      const getQuoteFetchTraceContext = vi.fn(() => parentContext);
+
+      const requests = await runTraceScenario({
+        response: (): unknown =>
+          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]]),
+        getQuoteFetchTraceContext,
+      });
+
+      expect(getQuoteFetchTraceContext).toHaveBeenCalledTimes(1);
+      expect(requests.map((request) => request.parentContext)).toStrictEqual([
+        parentContext,
+        parentContext,
+      ]);
     });
 
     it('records cancellation for an expected abort', async () => {

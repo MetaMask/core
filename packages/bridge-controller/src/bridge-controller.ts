@@ -3,6 +3,7 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
+import type { TraceContext } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -283,6 +284,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #trace: SwapTraceFunction<TraceName>;
 
+  readonly #getQuoteFetchTraceContext: (() => TraceContext) | undefined;
+
   readonly #config: {
     customBridgeApiBaseUrl?: string;
   };
@@ -305,6 +308,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     config,
     trackMetaMetricsFn,
     traceFn,
+    getQuoteFetchTraceContext,
     getUseAssetsControllerForRates,
   }: {
     messenger: BridgeControllerMessenger;
@@ -321,6 +325,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
     traceFn: SwapTraceFunction<TraceName>;
+    /**
+     * When provided, called once at the start of each quote fetch. The returned
+     * context is passed as `parentContext` to that fetch's traces.
+     */
+    getQuoteFetchTraceContext?: () => TraceContext;
     /**
      * When provided, called to determine whether to use AssetsController for exchange rates.
      * When true, rates are read from AssetsController:getExchangeRatesForBridge instead of
@@ -348,6 +357,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
     this.#trace = traceFn;
+    this.#getQuoteFetchTraceContext = getQuoteFetchTraceContext;
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
 
@@ -872,6 +882,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : TraceName.SwapQuotesFetched;
     }
     const tracedProviders = new Set<string>();
+    const parentContext = this.#getQuoteFetchTraceContext?.();
     const traceWithoutImpact = (
       request: Omit<SwapTraceRequest<TraceName>, 'tags'>,
     ) => {
@@ -879,6 +890,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         this.#trace(
           {
             ...request,
+            parentContext,
             tags: {
               feature: BRIDGE_FEATURE_ID_TO_FEATURE_TAG[context.feature_id],
             },

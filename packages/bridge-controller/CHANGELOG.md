@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `getQuoteFetchTraceContext` constructor option; its return value is passed as `parentContext` to each quote fetch's traces, so they can nest under a client span ([#11467](https://github.com/MetaMask/core/pull/11467))
+  - `SwapTraceRequest` now accepts `parentContext`
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
