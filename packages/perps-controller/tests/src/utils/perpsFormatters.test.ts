@@ -8,6 +8,7 @@ import {
 } from '../../../src/constants/perpsConfig.js';
 import * as PackageEntry from '../../../src/index.js';
 import {
+  formatCrossMarginRatio,
   formatFeeBps,
   formatFundingRate,
   formatLiquidationDistance,
@@ -393,6 +394,7 @@ describe('display formatter options', () => {
     it('is exported from the package entry with the shared display precisions', () => {
       expect(PackageEntry.PERPS_DISPLAY_PRECISION).toStrictEqual({
         Percentage: 2,
+        CrossMarginRatioPercent: 1,
         RoePercent: 1,
         Pnl: 2,
         Fee: 2,
@@ -414,6 +416,7 @@ describe('display formatter options', () => {
 
     it('exports the formatters from the package entry', () => {
       expect(PackageEntry.formatPercentage).toBe(formatPercentage);
+      expect(PackageEntry.formatCrossMarginRatio).toBe(formatCrossMarginRatio);
       expect(PackageEntry.formatPnl).toBe(formatPnl);
       expect(PackageEntry.formatPerpsFiat).toBe(formatPerpsFiat);
       expect(PackageEntry.formatPositionSize).toBe(formatPositionSize);
@@ -1092,6 +1095,125 @@ describe('TAT-4574 display formatters', () => {
     });
   });
 
+  describe('formatCrossMarginRatio', () => {
+    it.each([
+      [0.174, '17.4%'],
+      [0.634, '63.4%'],
+      [0.63, '63%'],
+      [0.30004, '30%'],
+      [0, '0%'],
+      [1.2345, '123.5%'],
+      ['0.63', '63%'],
+    ])('formats %s as %s', (ratio, expected) => {
+      expect(formatCrossMarginRatio(ratio)).toBe(expected);
+    });
+
+    it('keeps a minus on a negative ratio and drops it when the ratio rounds to zero', () => {
+      expect(formatCrossMarginRatio(-0.174)).toBe('-17.4%');
+      expect(formatCrossMarginRatio(-0.0004)).toBe('0%');
+      expect(formatCrossMarginRatio(-0.00049)).toBe('0%');
+      expect(formatCrossMarginRatio(-0.0005)).toBe('-0.1%');
+      expect(formatCrossMarginRatio(0.0004)).toBe('0%');
+      expect(formatCrossMarginRatio(0.0005)).toBe('0.1%');
+    });
+
+    it('honors the sign option', () => {
+      expect(formatCrossMarginRatio(0.174, { sign: 'always' })).toBe('+17.4%');
+      expect(formatCrossMarginRatio(0.174, { sign: 'exceptZero' })).toBe(
+        '+17.4%',
+      );
+      expect(formatCrossMarginRatio(0, { sign: 'always' })).toBe('+0%');
+      expect(formatCrossMarginRatio(0, { sign: 'exceptZero' })).toBe('0%');
+      expect(formatCrossMarginRatio(-0.174, { sign: 'never' })).toBe('17.4%');
+    });
+
+    // Mobile formats these with Intl percent style, so a decimal tie rounds
+    // the way the shortest decimal form of the ratio reads, not the way the
+    // binary value of `ratio * 100` rounds with `toFixed`.
+    it.each([
+      [0.0255, '2.6%'],
+      [-0.0255, '-2.6%'],
+      [0.0265, '2.7%'],
+      [-0.0265, '-2.7%'],
+      [0.1235, '12.4%'],
+      [-0.1235, '-12.4%'],
+      [0.1245, '12.5%'],
+      [-0.1245, '-12.5%'],
+      [1.0005, '100.1%'],
+    ])('rounds the decimal tie %s to %s', (ratio, expected) => {
+      expect(formatCrossMarginRatio(ratio)).toBe(expected);
+    });
+
+    it('matches Intl percent formatting for ratios across the range', () => {
+      const percent = new Intl.NumberFormat('en-US', {
+        style: 'percent',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1,
+      });
+      for (let thousandths = -1500; thousandths <= 1500; thousandths += 1) {
+        const ratio = thousandths / 1000;
+        const expected = percent.format(ratio).replace('-0%', '0%');
+        expect(formatCrossMarginRatio(ratio)).toBe(expected);
+      }
+      for (
+        let tenThousandths = -300;
+        tenThousandths <= 300;
+        tenThousandths += 1
+      ) {
+        const ratio = tenThousandths / 10000;
+        const expected = percent.format(ratio).replace('-0%', '0%');
+        expect(formatCrossMarginRatio(ratio)).toBe(expected);
+      }
+    });
+
+    it.each([undefined, null, '', '  ', 'abc', NaN, Infinity])(
+      'returns the percentage placeholder for %p',
+      (ratio) => {
+        expect(formatCrossMarginRatio(ratio)).toBe(
+          PERPS_CONSTANTS.FallbackPercentageDisplay,
+        );
+      },
+    );
+
+    it('uses the locale separators', () => {
+      expect(formatCrossMarginRatio(0.174, { formatters: de })).toBe(
+        `17,4${NBSP}%`,
+      );
+      expect(formatCrossMarginRatio(12.345, { formatters: de })).toBe(
+        `1.234,5${NBSP}%`,
+      );
+    });
+
+    it('lets the locale place the percent symbol', () => {
+      // The space before the symbol (no-break or narrow no-break) depends
+      // on the ICU version, so the expected value comes from Intl itself
+      const percent = (locale: string): string =>
+        new Intl.NumberFormat(locale, {
+          style: 'percent',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 1,
+        }).format(0.174);
+      expect(formatCrossMarginRatio(0.174, { formatters: intl('tr') })).toBe(
+        '%17,4',
+      );
+      expect(formatCrossMarginRatio(0.174, { formatters: intl('fr') })).toBe(
+        percent('fr'),
+      );
+      expect(formatCrossMarginRatio(0.174, { formatters: ar })).toBe(
+        percent('ar-EG'),
+      );
+    });
+
+    it('keeps the locale minus sign on a negative ratio', () => {
+      expect(formatCrossMarginRatio(-0.174, { formatters: intl('tr') })).toBe(
+        '-%17,4',
+      );
+      expect(formatCrossMarginRatio(-0.174, { formatters: de })).toBe(
+        `-17,4${NBSP}%`,
+      );
+    });
+  });
+
   describe('formatPercentage stripTrailingZeros (TWAP progress)', () => {
     const twap = {
       decimals: PERPS_DISPLAY_PRECISION.TwapProgressPercent,
@@ -1528,6 +1650,7 @@ describe('TAT-4574 display formatters', () => {
       const formatAll = (): void => {
         formatFeeBps(0.00045, { formatters: recording });
         formatLiquidationDistance(100, 70, { formatters: recording });
+        formatCrossMarginRatio(0.174, { formatters: recording });
         formatPerpsCompact(1234567, { field: 'volume', formatters: recording });
         formatPerpsOrderBookPrice(87000, null, { formatters: recording });
         formatPerpsUsdInput('1234.5', { formatters: recording });
@@ -1545,6 +1668,7 @@ describe('TAT-4574 display formatters', () => {
       const constructor = vi.spyOn(Intl, 'NumberFormat');
       const formatAll = (index: number): void => {
         formatFeeBps(0.00045 + index / 1e7);
+        formatCrossMarginRatio(0.174 + index / 1e5);
         formatPerpsCompact(1234567 + index, { field: 'volume' });
         formatPerpsUsdInput(`${1234 + index}.5`);
         formatPerpsOrderBookPrice(87000 + index, {

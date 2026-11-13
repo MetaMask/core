@@ -917,6 +917,72 @@ export const formatPercentage = (
 };
 
 /**
+ * Formats a 0..1 cross margin ratio (account ratio or cross margin usage)
+ * as an unsigned percentage with at most one decimal. A positive value has
+ * no `+` prefix and a whole number has no trailing zero.
+ *
+ * The input is a ratio, not a percentage: `0.174` is `17.4%`. A ratio
+ * outside 0..1 still formats, so usage above 100% shows `150%`.
+ *
+ * @param ratio - The ratio (`0.174` for 17.4%).
+ * @param options - `formatters` (default `en-US`), `decimals` (at most,
+ * default `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent`, 1; trailing
+ * zeros are dropped) and `sign` (default `auto`: a minus for a negative
+ * ratio, no plus).
+ * The locale's percent style renders the number and the `%` symbol, so a
+ * locale that spaces or prefixes the symbol (`17,4 %`, `%17,4`) does.
+ * @returns Format: "X%" or "X.X%" in `en-US`, or
+ * `PERPS_CONSTANTS.FallbackPercentageDisplay` (`--%`) for a missing ratio.
+ * @example formatCrossMarginRatio(0.174) => "17.4%"
+ * @example formatCrossMarginRatio(0.63) => "63%"
+ * @example formatCrossMarginRatio(0) => "0%"
+ * @example formatCrossMarginRatio(-0.174) => "-17.4%"
+ * @example formatCrossMarginRatio(0.0255) => "2.6%"
+ * @example formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) }) => "17,4 %"
+ * @example formatCrossMarginRatio(undefined) => "--%"
+ */
+export const formatCrossMarginRatio = (
+  ratio: string | number | null | undefined,
+  options: PerpsDisplayFormatOptions = {},
+): string => {
+  const {
+    formatters = _fallbackFormatters,
+    decimals = PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent,
+    sign = 'auto',
+  } = options;
+  const parsed = _parseDisplayNumber(ratio);
+  if (parsed === undefined) {
+    return PERPS_CONSTANTS.FallbackPercentageDisplay;
+  }
+
+  // The locale's percent style owns the rounding, the `%` symbol and its
+  // placement (`17.4%`, `17,4 %`, `%17,4`), so the ratio is passed as is.
+  // Shifting it by 100 and rounding with `toFixed` first would round binary
+  // ties differently (`0.0255` is `2.6%`, not `2.5%`).
+  const percentOptions: Intl.NumberFormatOptions = {
+    style: 'percent',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  };
+  const magnitude = Math.abs(parsed);
+  // A ratio that rounds to 0 at the shown precision has no sign, so a tiny
+  // negative ratio is `0%`, not `-0%`. The threshold is half of the last
+  // shown digit, with the half rounded away from zero as `Intl` does.
+  if (magnitude < Number(`5e-${decimals + 3}`)) {
+    return `${sign === 'always' ? '+' : ''}${formatters.formatNumber(
+      0,
+      percentOptions,
+    )}`;
+  }
+  if (parsed < 0 && sign !== 'never') {
+    // `Intl` prefixes the locale's own minus sign
+    return formatters.formatNumber(parsed, percentOptions);
+  }
+  const plus = parsed > 0 && (sign === 'always' || sign === 'exceptZero');
+  return `${plus ? '+' : ''}${formatters.formatNumber(magnitude, percentOptions)}`;
+};
+
+/**
  * Options for `formatFundingRate`.
  */
 export type PerpsFundingRateFormatOptions = PerpsDisplayFormatOptions & {

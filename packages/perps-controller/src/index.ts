@@ -806,6 +806,7 @@ export {
   formatPositionSize,
   formatPnl,
   formatPercentage,
+  formatCrossMarginRatio,
   formatFundingRate,
   formatFeeBps,
   formatLiquidationDistance,

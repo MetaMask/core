@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `formatCrossMarginRatio` so Mobile and Extension can render a 0..1 cross margin ratio as an unsigned percentage with at most one decimal ([#11456](https://github.com/MetaMask/core/pull/11456))
+  - `formatCrossMarginRatio(0.174)` returns `17.4%`, `formatCrossMarginRatio(0.63)` returns `63%` and `formatCrossMarginRatio(0)` returns `0%`. A negative ratio keeps its minus: `formatCrossMarginRatio(-0.174)` returns `-17.4%`. A missing ratio returns `--%`
+  - Pass `createFormatters({ locale })` as `formatters` and the locale's percent style renders the value, so separators, rounding and the `%` placement follow the locale: `formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) })` returns `17,4 %` (no-break space) and Turkish returns `%17,4`. The ratio is passed to the formatter as is, so decimal ties round as `Intl` percent formatting does (`0.0255` returns `2.6%`, `-0.0255` returns `-2.6%`). A ratio that rounds to zero is `0%`, never `-0%`
+  - `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent` is 1, the most decimals shown
 - Add `PerpsController.setDefaultProvider` (messenger action `PerpsController:setDefaultProvider`) to save the default venue for aggregated-mode routing, and a persisted `defaultProvider` state field separate from `activeProvider` ([#11421](https://github.com/MetaMask/core/pull/11421))
   - Unlike `switchProvider`, changing the default never re-initializes the controller or reconnects provider transports: the live aggregated provider's routing default is updated in place and both venues stay connected
   - Default-routed streams (account, available to trade, candles, order book, open-interest caps, TWAP and connection-state listeners) move to the new venue, and the cached `accountState` snapshot is cleared until the new venue delivers matching data
