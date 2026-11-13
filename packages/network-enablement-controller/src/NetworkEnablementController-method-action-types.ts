@@ -141,24 +141,12 @@ export type NetworkEnablementControllerRestoreEnabledNetworkMapAction = {
 };
 
 /**
- * Sets the network addition mode for the next network that is added.
+ * Marks a chain ID so that adding it does not switch the user's network selection.
+ * In popular-networks mode, a popular network is enabled alongside the others.
  *
- * Call this before adding a network (via NetworkController:addNetwork) to control
- * how the controller handles the addition. When 'non-active' mode is set for a
- * chain ID, the controller preserves the current enabled network selection instead
- * of switching to the newly added network.
- *
- * In popular-networks mode (when multiple popular networks are enabled), a newly
- * added popular network will be enabled alongside the existing selection. In
- * single-network mode, the current selection is preserved unchanged.
- *
- * Returns a cleanup function that should be called in a finally block to remove
- * the mode marker, ensuring it doesn't affect subsequent unrelated network additions.
- *
- * @param chainId - The chain ID that will be added.
- * @param mode - The addition mode: 'non-active' to preserve current selection,
- * or 'default' for normal behavior (switch to new network).
- * @returns A cleanup function that removes the mode marker.
+ * @param chainId - The chain ID being added.
+ * @param mode - 'non-active' to keep the current selection, 'default' to clear it.
+ * @returns A function that removes the mark.
  */
 export type NetworkEnablementControllerSetNetworkAdditionModeAction = {
   type: `NetworkEnablementController:setNetworkAdditionMode`;
@@ -166,12 +154,9 @@ export type NetworkEnablementControllerSetNetworkAdditionModeAction = {
 };
 
 /**
- * Checks if a network addition is currently marked as non-active.
- * This is used by extension subscribers to skip snapshot restores for
- * user-initiated network additions.
- *
+ * Checks if a chain ID is marked to not switch the user's selection when added.
  * @param chainId - The chain ID to check.
- * @returns True if the chain is marked as a non-active addition.
+ * @returns True if marked.
  */
 export type NetworkEnablementControllerIsNonActiveAdditionAction = {
   type: `NetworkEnablementController:isNonActiveAddition`;

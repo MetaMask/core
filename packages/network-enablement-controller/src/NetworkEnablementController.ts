@@ -644,11 +644,12 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Controls how the next network addition is handled.
+   * Marks a chain ID so that adding it does not switch the user's network selection.
+   * In popular-networks mode, a popular network is enabled alongside the others.
    *
-   * @param chainId - The chain ID that will be added.
-   * @param mode - 'non-active' preserves current selection, 'default' switches to new network.
-   * @returns Cleanup function to call in finally block.
+   * @param chainId - The chain ID being added.
+   * @param mode - 'non-active' to keep the current selection, 'default' to clear it.
+   * @returns A function that removes the mark.
    */
   setNetworkAdditionMode(
     chainId: Hex,
@@ -666,10 +667,9 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Checks if a network addition is marked as non-active.
-   *
+   * Checks if a chain ID is marked to not switch the user's selection when added.
    * @param chainId - The chain ID to check.
-   * @returns True if marked as non-active addition.
+   * @returns True if marked.
    */
   isNonActiveAddition(chainId: Hex): boolean {
     return this.#nonActiveAdditions.has(chainId);
@@ -772,6 +772,19 @@ export class NetworkEnablementController extends BaseController<
     });
   }
 
+  /**
+   * Handles the addition of a new EVM network to the controller.
+   *
+   * @param chainId - The chain ID to add (Hex format)
+   *
+   * @description
+   * - If setNetworkAdditionMode('non-active') was called: preserves current selection per popular/non-popular rules
+   * - If in popular networks mode (>2 popular networks enabled) AND adding a popular network:
+   * - Keep current selection (add but don't enable the new network)
+   * - Otherwise:
+   * - Switch to the newly added network (disable all others, enable this one)
+   * - Also updates the nativeAssetIdentifiers with the CAIP-19-like identifier
+   */
   async #onAddNetwork(chainId: Hex): Promise<void> {
     const { namespace, storageKey, reference, caipChainId } =
       deriveKeys(chainId);
