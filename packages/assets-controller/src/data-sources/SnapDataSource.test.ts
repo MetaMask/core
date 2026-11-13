@@ -672,7 +672,6 @@ describe('SnapDataSource', () => {
         hiddenAssetIds: [],
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -708,7 +707,6 @@ describe('SnapDataSource', () => {
         hiddenAssetIds: [],
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       createDataRequest({
@@ -759,7 +757,6 @@ describe('SnapDataSource', () => {
         hiddenAssetIds: [],
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -798,7 +795,6 @@ describe('SnapDataSource', () => {
         return Promise.resolve(null);
       },
     );
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -834,7 +830,6 @@ describe('SnapDataSource', () => {
         },
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -878,7 +873,6 @@ describe('SnapDataSource', () => {
         },
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -914,7 +908,6 @@ describe('SnapDataSource', () => {
         },
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -953,7 +946,6 @@ describe('SnapDataSource', () => {
         },
       },
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       createDataRequest({
@@ -993,7 +985,6 @@ describe('SnapDataSource', () => {
       },
       accountAssets: [],
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -1020,7 +1011,6 @@ describe('SnapDataSource', () => {
         [MOCK_BTC_ASSET]: { amount: '100000000', unit: 'BTC' },
       },
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       createDataRequest({
