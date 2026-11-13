@@ -358,11 +358,12 @@ sequenceDiagram
 
 ### Connection Requirements
 
-The WebSocket connects when **ALL 3 conditions are true**:
+The WebSocket connects when **ALL 4 conditions are true**:
 
 1. ✅ **Feature enabled** - `isEnabled()` callback returns `true` (feature flag)
-2. ✅ **User signed in** - `AuthenticationController.isSignedIn = true`
-3. ✅ **Wallet unlocked** - `KeyringController.isUnlocked = true`
+2. ✅ **Basic functionality enabled** - `isBasicFunctionality()` callback returns `true` (defaults to true when omitted)
+3. ✅ **User signed in** - `AuthenticationController.isSignedIn = true`
+4. ✅ **Wallet unlocked** - `KeyringController.isUnlocked = true`
 
 **Plus:** Platform code must call `connect()` when app opens/foregrounds and `disconnect()` when app closes/backgrounds.
 
@@ -620,7 +621,11 @@ interface BackendWebSocketServiceOptions {
   maxReconnectDelay?: number;
   requestTimeout?: number;
   enableAuthentication?: boolean;
-  enabledCallback?: () => boolean;
+  isEnabled?: () => boolean;
+  isBasicFunctionality?: () => boolean;
+  subscribeToBasicFunctionalityChange?: (
+    onChange: () => void,
+  ) => void | (() => void);
 }
 ```
 

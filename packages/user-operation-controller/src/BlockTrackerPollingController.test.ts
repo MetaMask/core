@@ -2,18 +2,20 @@ import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { NetworkClient } from '@metamask/network-controller';
 import EventEmitter from 'events';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { BlockTrackerPollingInput } from './BlockTrackerPollingController.js';
 import { BlockTrackerPollingController } from './BlockTrackerPollingController.js';
 
 const createExecutePollMock = () => {
-  const executePollMock = jest.fn().mockImplementation(async () => {
+  const executePollMock = vi.fn().mockImplementation(async () => {
     return true;
   });
   return executePollMock;
 };
 
-let getNetworkClientByIdStub: jest.Mock;
+let getNetworkClientByIdStub: Mock;
 class ChildBlockTrackerPollingController extends BlockTrackerPollingController<BlockTrackerPollingInput>()<
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,7 +50,7 @@ describe('BlockTrackerPollingController', () => {
   let goerliBlockTracker: TestBlockTracker;
   let sepoliaBlockTracker: TestBlockTracker;
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
     mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
     controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
@@ -61,7 +63,7 @@ describe('BlockTrackerPollingController', () => {
     goerliBlockTracker = new TestBlockTracker();
     sepoliaBlockTracker = new TestBlockTracker();
 
-    getNetworkClientByIdStub = jest
+    getNetworkClientByIdStub = vi
       .fn()
       .mockImplementation((networkClientId: string) => {
         switch (networkClientId) {
@@ -83,7 +85,7 @@ describe('BlockTrackerPollingController', () => {
       });
   });
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('startPolling', () => {
@@ -276,7 +278,7 @@ describe('BlockTrackerPollingController', () => {
     it('should publish "pollingComplete" callback function set by "onPollingCompleteByNetworkClientId" when polling stops', async () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pollingComplete: any = jest.fn();
+      const pollingComplete: any = vi.fn();
       controller.onPollingComplete(
         { networkClientId: 'mainnet' },
         pollingComplete,

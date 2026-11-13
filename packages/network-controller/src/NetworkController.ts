@@ -37,6 +37,20 @@ import {
 } from '@metamask/remote-feature-flag-controller';
 import { errorCodes } from '@metamask/rpc-errors';
 import {
+  array,
+  boolean,
+  define,
+  enums,
+  literal,
+  number,
+  object as superstructObject,
+  optional,
+  record,
+  string,
+  union,
+} from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
+import {
   createEventEmitterProxy,
   createSwappableProxy,
 } from '@metamask/swappable-obj-proxy';
@@ -48,6 +62,7 @@ import {
   isStrictHexString,
   numberToHex,
   parseCaipChainId,
+  StrictHexStruct,
 } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
@@ -104,23 +119,6 @@ export type Block = {
 };
 
 /**
- * Information about a network not held by any other part of state.
- */
-export type NetworkMetadata = {
-  /**
-   * EIPs supported by the network.
-   */
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  EIPS: {
-    [eipNumber: number]: boolean;
-  };
-  /**
-   * Indicates the availability of the network
-   */
-  status: NetworkStatus;
-};
-
-/**
  * The type of an RPC endpoint.
  *
  * @see {@link CustomRpcEndpoint}
@@ -130,6 +128,61 @@ export enum RpcEndpointType {
   Custom = 'custom',
   Infura = 'infura',
 }
+
+const NetworkClientIdStruct = string();
+
+/**
+ * The string that uniquely identifies a network client.
+ */
+export type NetworkClientId = Infer<typeof NetworkClientIdStruct>;
+
+const BuiltInNetworkClientIdStruct = NetworkClientIdStruct;
+
+/**
+ * The string that uniquely identifies an Infura network client.
+ */
+export type BuiltInNetworkClientId = Infer<typeof BuiltInNetworkClientIdStruct>;
+
+const CustomNetworkClientIdStruct = NetworkClientIdStruct;
+
+/**
+ * The string that uniquely identifies a custom network client.
+ */
+export type CustomNetworkClientId = Infer<typeof CustomNetworkClientIdStruct>;
+
+const InfuraRpcEndpointUrlStruct =
+  define<`https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`>(
+    'infuraRpcEndpointUrl',
+    string().validator,
+  );
+
+const InfuraRpcEndpointStruct = superstructObject({
+  /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: optional(array(string())),
+  /**
+   * The optional user-facing nickname of the endpoint.
+   */
+  name: optional(string()),
+  /**
+   * The identifier for the network client that has been created for this RPC
+   * endpoint. This is also used to uniquely identify the RPC endpoint in a
+   * set of RPC endpoints as well: once assigned, it is used to determine
+   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
+   */
+  networkClientId: BuiltInNetworkClientIdStruct,
+  /**
+   * The type of this endpoint, always "default".
+   */
+  type: literal(RpcEndpointType.Infura),
+  /**
+   * The URL of the endpoint. Expected to be a template with the string
+   * `{infuraProjectId}`, which will get replaced with the Infura project ID
+   * when the network client is created.
+   */
+  url: InfuraRpcEndpointUrlStruct,
+});
 
 /**
  * An Infura RPC endpoint is a reference to a specific network that Infura
@@ -143,63 +196,44 @@ export enum RpcEndpointType {
  * this replacement for Infura endpoints and not custom endpoints — hence the
  * separate type.
  */
-export type InfuraRpcEndpoint = {
+export type InfuraRpcEndpoint = Infer<typeof InfuraRpcEndpointStruct>;
+
+const CustomRpcEndpointStruct = superstructObject({
   /**
    * Alternate RPC endpoints to use when this endpoint is down.
    */
-  failoverUrls?: string[];
+  failoverUrls: optional(array(string())),
   /**
    * The optional user-facing nickname of the endpoint.
    */
-  name?: string;
+  name: optional(string()),
   /**
    * The identifier for the network client that has been created for this RPC
    * endpoint. This is also used to uniquely identify the RPC endpoint in a
    * set of RPC endpoints as well: once assigned, it is used to determine
    * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
    */
-  networkClientId: BuiltInNetworkClientId;
+  networkClientId: CustomNetworkClientIdStruct,
   /**
-   * The type of this endpoint, always "default".
+   * The type of this endpoint, always "custom".
    */
-  type: RpcEndpointType.Infura;
+  type: literal(RpcEndpointType.Custom),
   /**
-   * The URL of the endpoint. Expected to be a template with the string
-   * `{infuraProjectId}`, which will get replaced with the Infura project ID
-   * when the network client is created.
+   * The URL of the endpoint.
    */
-  url: `https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`;
-};
+  url: string(),
+});
 
 /**
  * A custom RPC endpoint is a reference to a user-defined server which fronts an
  * EVM chain. It may refer to an Infura network, but only by coincidence.
  */
-export type CustomRpcEndpoint = {
-  /**
-   * Alternate RPC endpoints to use when this endpoint is down.
-   */
-  failoverUrls?: string[];
-  /**
-   * The optional user-facing nickname of the endpoint.
-   */
-  name?: string;
-  /**
-   * The identifier for the network client that has been created for this RPC
-   * endpoint. This is also used to uniquely identify the RPC endpoint in a
-   * set of RPC endpoints as well: once assigned, it is used to determine
-   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
-   */
-  networkClientId: CustomNetworkClientId;
-  /**
-   * The type of this endpoint, always "custom".
-   */
-  type: RpcEndpointType.Custom;
-  /**
-   * The URL of the endpoint.
-   */
-  url: string;
-};
+export type CustomRpcEndpoint = Infer<typeof CustomRpcEndpointStruct>;
+
+const RpcEndpointStruct = union([
+  InfuraRpcEndpointStruct,
+  CustomRpcEndpointStruct,
+]);
 
 /**
  * An RPC endpoint is a reference to a server which fronts an EVM chain. There
@@ -208,7 +242,51 @@ export type CustomRpcEndpoint = {
  * @see {@link CustomRpcEndpoint}
  * @see {@link InfuraRpcEndpoint}
  */
-export type RpcEndpoint = InfuraRpcEndpoint | CustomRpcEndpoint;
+export type RpcEndpoint = Infer<typeof RpcEndpointStruct>;
+
+const NetworkConfigurationStruct = superstructObject({
+  /**
+   * A set of URLs that allows the user to view activity that has occurred on
+   * the chain.
+   */
+  blockExplorerUrls: array(string()),
+  /**
+   * The ID of the chain. Represented in hexadecimal format with a leading "0x"
+   * instead of decimal format so that when viewed out of context it can be
+   * unambiguously interpreted.
+   */
+  chainId: StrictHexStruct,
+  /**
+   * A reference to a URL that the client will use by default to allow the user
+   * to view activity that has occurred on the chain. This index must refer to
+   * an item in `blockExplorerUrls`.
+   */
+  defaultBlockExplorerUrlIndex: optional(number()),
+  /**
+   * A reference to an RPC endpoint that all requests will use by default in order to
+   * interact with the chain. This index must refer to an item in
+   * `rpcEndpoints`.
+   */
+  defaultRpcEndpointIndex: number(),
+  /**
+   * The user-facing nickname assigned to the chain.
+   */
+  name: string(),
+  /**
+   * The name of the currency to use for the chain.
+   */
+  nativeCurrency: string(),
+  /**
+   * The collection of possible RPC endpoints that the client can use to
+   * interact with the chain.
+   */
+  rpcEndpoints: array(RpcEndpointStruct),
+  /**
+   * Profile Sync - Network Sync field.
+   * Allows comparison of local network state with state to sync.
+   */
+  lastUpdatedAt: optional(number()),
+});
 
 /**
  * From a user perspective, a network configuration holds information about a
@@ -223,49 +301,40 @@ export type RpcEndpoint = InfuraRpcEndpoint | CustomRpcEndpoint;
  * something for which a network client object is created automatically or
  * created on demand when it is added to the client.
  */
-export type NetworkConfiguration = {
+export type NetworkConfiguration = Infer<typeof NetworkConfigurationStruct>;
+
+const NetworkMetadataStruct = superstructObject({
   /**
-   * A set of URLs that allows the user to view activity that has occurred on
-   * the chain.
+   * EIPs supported by the network.
    */
-  blockExplorerUrls: string[];
+  EIPS: record(string(), boolean()),
   /**
-   * The ID of the chain. Represented in hexadecimal format with a leading "0x"
-   * instead of decimal format so that when viewed out of context it can be
-   * unambiguously interpreted.
+   * Indicates the availability of the network
    */
-  chainId: Hex;
-  /**
-   * A reference to a URL that the client will use by default to allow the user
-   * to view activity that has occurred on the chain. This index must refer to
-   * an item in `blockExplorerUrls`.
-   */
-  defaultBlockExplorerUrlIndex?: number;
-  /**
-   * A reference to an RPC endpoint that all requests will use by default in order to
-   * interact with the chain. This index must refer to an item in
-   * `rpcEndpoints`.
-   */
-  defaultRpcEndpointIndex: number;
-  /**
-   * The user-facing nickname assigned to the chain.
-   */
-  name: string;
-  /**
-   * The name of the currency to use for the chain.
-   */
-  nativeCurrency: string;
-  /**
-   * The collection of possible RPC endpoints that the client can use to
-   * interact with the chain.
-   */
-  rpcEndpoints: RpcEndpoint[];
-  /**
-   * Profile Sync - Network Sync field.
-   * Allows comparison of local network state with state to sync.
-   */
-  lastUpdatedAt?: number;
-};
+  status: enums([
+    NetworkStatus.Unknown,
+    NetworkStatus.Available,
+    NetworkStatus.Degraded,
+    NetworkStatus.Unavailable,
+    NetworkStatus.Blocked,
+  ]),
+});
+
+/**
+ * Information about a network not held by any other part of state.
+ */
+export type NetworkMetadata = Infer<typeof NetworkMetadataStruct>;
+
+const NetworksMetadataStruct = record(
+  NetworkClientIdStruct,
+  NetworkMetadataStruct,
+);
+
+/**
+ * Extra information about each network, such as whether it is accessible or
+ * blocked and whether it supports EIP-1559, keyed by network client ID.
+ */
+export type NetworksMetadata = Infer<typeof NetworksMetadataStruct>;
 
 /**
  * A custom RPC endpoint in a new network configuration, meant to be used in
@@ -350,49 +419,33 @@ function isErrorWithCode(error: unknown): error is { code: string | number } {
   return typeof error === 'object' && error !== null && 'code' in error;
 }
 
-/**
- * The string that uniquely identifies an Infura network client.
- */
-export type BuiltInNetworkClientId = string;
-
-/**
- * The string that uniquely identifies a custom network client.
- */
-export type CustomNetworkClientId = string;
-
-/**
- * The string that uniquely identifies a network client.
- */
-export type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
-
-/**
- * Extra information about each network, such as whether it is accessible or
- * blocked and whether it supports EIP-1559, keyed by network client ID.
- */
-export type NetworksMetadata = Record<NetworkClientId, NetworkMetadata>;
-
-/**
- * The state that NetworkController stores.
- */
-export type NetworkState = {
+const NetworkStateStruct = superstructObject({
   /**
    * The ID of the network client that the proxies returned by
    * `getSelectedNetworkClient` currently point to.
    */
-  selectedNetworkClientId: NetworkClientId;
+  selectedNetworkClientId: NetworkClientIdStruct,
   /**
    * The registry of networks and corresponding RPC endpoints that the
    * controller can use to make requests for various chains.
    *
    * @see {@link NetworkConfiguration}
    */
-  networkConfigurationsByChainId: Record<Hex, NetworkConfiguration>;
+  networkConfigurationsByChainId: record(
+    StrictHexStruct,
+    NetworkConfigurationStruct,
+  ),
   /**
    * Extra information about each network, such as whether it is accessible or
    * blocked and whether it supports EIP-1559, keyed by network client ID.
    */
-  networksMetadata: NetworksMetadata;
-};
+  networksMetadata: NetworksMetadataStruct,
+});
+
+/**
+ * The state that NetworkController stores.
+ */
+export type NetworkState = Infer<typeof NetworkStateStruct>;
 
 const controllerName = 'NetworkController';
 
@@ -1281,6 +1334,8 @@ export class NetworkController extends BaseController<
   NetworkState,
   NetworkControllerMessenger
 > {
+  static readonly struct = NetworkStateStruct;
+
   #ethQuery?: EthQuery;
 
   readonly #infuraProjectId: string;

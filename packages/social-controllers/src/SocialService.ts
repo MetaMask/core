@@ -151,6 +151,7 @@ const TraderProfileStruct = structType({
   allAddresses: array(string()),
   name: string(),
   imageUrl: optional(nullable(string())),
+  createdAt: optional(nullable(string())),
 });
 
 const TraderStatsStruct = structType({
@@ -287,6 +288,9 @@ const FeedItemStruct = assign(
     firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
+    eventId: optional(string()),
+    revision: optional(number()),
+    occurredAt: optional(string()),
   }),
 );
 
@@ -550,6 +554,9 @@ export class SocialService extends BaseDataService<
    * Fetches a trader's profile by address or profile ID.
    *
    * Calls `GET ${baseUrl}/traders/${addressOrId}/profile`.
+   *
+   * `profile.createdAt` is optional. When present it is an ISO-8601 timestamp
+   * for when the social-api profile row was inserted.
    *
    * @param options - Options bag.
    * @param options.addressOrId - Wallet address or Clicker profile ID.

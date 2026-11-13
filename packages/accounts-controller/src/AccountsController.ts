@@ -694,7 +694,7 @@ export class AccountsController extends BaseController<
     for (const keyring of keyrings) {
       const { type } = keyring;
 
-      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // Skipped accounts (Money or MPC Money) are not treated as real accounts, they are owned by their
       // respective controllers, so we need to filter them out here.
       if (isSkippedKeyringType(type)) {
         continue;
@@ -1099,7 +1099,7 @@ export class AccountsController extends BaseController<
     // Go over all keyring changes and create patches out of it.
     const addresses = new Set<string>();
     for (const keyring of keyrings) {
-      // Skipped accounts (Money or MPC) are not treated as real accounts, they are owned by their
+      // Skipped accounts (Money or MPC Money) are not treated as real accounts, they are owned by their
       // respective controllers, so we need to filter them out here.
       if (isSkippedKeyringType(keyring.type)) {
         continue;

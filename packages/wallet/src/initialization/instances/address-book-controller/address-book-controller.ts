@@ -11,6 +11,7 @@ export const addressBookController: InitializationConfiguration<
   AddressBookControllerMessenger
 > = {
   name: 'AddressBookController',
+  reference: AddressBookController,
   init: ({ state, messenger }) =>
     new AddressBookController({
       state,

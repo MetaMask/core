@@ -23,6 +23,9 @@ export type SocialServiceFetchLeaderboardAction = {
  *
  * Calls `GET ${baseUrl}/traders/${addressOrId}/profile`.
  *
+ * `profile.createdAt` is optional. When present it is an ISO-8601 timestamp
+ * for when the social-api profile row was inserted.
+ *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
  * @returns The trader profile response.

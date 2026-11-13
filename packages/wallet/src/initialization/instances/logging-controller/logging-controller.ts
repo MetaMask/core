@@ -11,6 +11,7 @@ export const loggingController: InitializationConfiguration<
   LoggingControllerMessenger
 > = {
   name: 'LoggingController',
+  reference: LoggingController,
   init: ({ state, messenger }) =>
     new LoggingController({
       state,

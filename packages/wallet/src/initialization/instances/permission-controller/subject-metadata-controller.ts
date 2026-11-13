@@ -11,6 +11,7 @@ export const subjectMetadataController: InitializationConfiguration<
   SubjectMetadataControllerMessenger
 > = {
   name: 'SubjectMetadataController',
+  reference: SubjectMetadataController,
   init: ({ state, messenger }) =>
     new SubjectMetadataController({
       state,

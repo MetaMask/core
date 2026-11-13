@@ -1,4 +1,6 @@
 import type { KeyringController } from '@metamask/keyring-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked, MockedFunction } from 'vitest';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from '../constants.js';
 import type {
@@ -79,21 +81,21 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: Awaited<
  */
 function createMessengerMock() {
   return {
-    call: jest.fn(),
-  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
+    call: vi.fn(),
+  } as unknown as Mocked<UserOperationControllerMessenger>;
 }
 
 describe('SnapSmartContractAccount', () => {
-  let messengerMock: jest.Mocked<UserOperationControllerMessenger>;
-  let prepareMock: jest.MockedFn<KeyringController['prepareUserOperation']>;
-  let patchMock: jest.MockedFn<KeyringController['patchUserOperation']>;
-  let signMock: jest.MockedFn<KeyringController['signUserOperation']>;
+  let messengerMock: Mocked<UserOperationControllerMessenger>;
+  let prepareMock: MockedFunction<KeyringController['prepareUserOperation']>;
+  let patchMock: MockedFunction<KeyringController['patchUserOperation']>;
+  let signMock: MockedFunction<KeyringController['signUserOperation']>;
 
   beforeEach(() => {
     messengerMock = createMessengerMock();
-    prepareMock = jest.fn();
-    patchMock = jest.fn();
-    signMock = jest.fn();
+    prepareMock = vi.fn();
+    patchMock = vi.fn();
+    signMock = vi.fn();
 
     messengerMock.call.mockImplementation(async (method: string, ...args) => {
       switch (method) {

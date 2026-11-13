@@ -391,7 +391,7 @@ export class SubscriptionDelegationService {
       periodAmount,
       periodDuration,
       nowSeconds,
-      isTrialDeferred: startDate > nowSeconds,
+      expectedStartDate: startDate,
       enforcers: config.enforcers,
     });
     const reusable = pickLatestMatchingSubscriptionDelegation(
@@ -663,7 +663,6 @@ export class SubscriptionDelegationService {
         ? price.trialPeriodDays
         : undefined,
     });
-    const isTrialDeferred = startDate > nowSeconds;
 
     const reusable = forceNew
       ? undefined
@@ -676,7 +675,7 @@ export class SubscriptionDelegationService {
           periodAmount,
           periodDuration,
           nowSeconds,
-          isTrialDeferred,
+          expectedStartDate: startDate,
           enforcers,
         });
     if (reusable) {
@@ -792,7 +791,7 @@ export class SubscriptionDelegationService {
     periodAmount,
     periodDuration,
     nowSeconds,
-    isTrialDeferred,
+    expectedStartDate,
     enforcers,
   }: {
     request: PrepareSubscriptionDelegationRequest;
@@ -803,7 +802,7 @@ export class SubscriptionDelegationService {
     periodAmount: bigint;
     periodDuration: number;
     nowSeconds: number;
-    isTrialDeferred: boolean;
+    expectedStartDate: number;
     enforcers: SubscriptionDelegationEnforcers;
   }): Promise<DelegationResponse | undefined> {
     const matches = makeMatchesSubscriptionDelegation({
@@ -815,7 +814,7 @@ export class SubscriptionDelegationService {
       periodAmount,
       periodDuration,
       nowSeconds,
-      isTrialDeferred,
+      expectedStartDate,
       enforcers,
     });
 

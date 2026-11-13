@@ -16,6 +16,7 @@
     "noEmit": true,
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
+    "types": ["jest"],
     "paths": {
       "@metamask/utils/node": ["./packages/utils/src/node.ts"],
       "@metamask/utils": ["./packages/utils/src/index.ts"]

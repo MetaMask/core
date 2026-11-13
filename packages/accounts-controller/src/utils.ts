@@ -56,6 +56,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.money: {
       return 'Money';
     }
+    case KeyringTypes.mpcMoney: {
+      return 'MPC Money';
+    }
     case KeyringTypes.mpc: {
       return 'MPC';
     }
@@ -176,17 +179,19 @@ export function isMoneyKeyringType(
 }
 
 /**
- * Check if a keyring type is a MPC keyring.
+ * Check if a keyring type is a MPC Money keyring.
  *
  * @param keyringType - The account's keyring type.
- * @returns True if the keyring type is a MPC keyring, false otherwise.
+ * @returns True if the keyring type is a MPC Money keyring, false otherwise.
  */
-export function isMpcKeyringType(keyringType: KeyringTypes | string): boolean {
-  return keyringType === (KeyringTypes.mpc as string);
+export function isMpcMoneyKeyringType(
+  keyringType: KeyringTypes | string,
+): boolean {
+  return keyringType === (KeyringTypes.mpcMoney as string);
 }
 
 /**
- * Check if a keyring type is a skipped keyring (Money or MPC keyring).
+ * Check if a keyring type is a skipped keyring (Money or MPC Money keyring).
  *
  * A skipped keyring is one that should be ignored during account
  * re-synchronization with the `KeyringController` (through `:stateChange` events
@@ -198,7 +203,7 @@ export function isMpcKeyringType(keyringType: KeyringTypes | string): boolean {
 export function isSkippedKeyringType(
   keyringType: KeyringTypes | string,
 ): boolean {
-  return isMoneyKeyringType(keyringType) || isMpcKeyringType(keyringType);
+  return isMoneyKeyringType(keyringType) || isMpcMoneyKeyringType(keyringType);
 }
 
 /**

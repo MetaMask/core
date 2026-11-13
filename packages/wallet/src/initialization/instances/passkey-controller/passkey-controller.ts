@@ -16,6 +16,7 @@ export const passkeyController: InitializationConfiguration<
   PasskeyControllerMessenger
 > = {
   name: 'PasskeyController',
+  reference: PasskeyController,
   init: ({ state, messenger, options }) =>
     new PasskeyController({
       ...options,

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-mfa-whitelist",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Determines which Money Account signature requests can be signed without MFA approval",
   "keywords": [
     "Ethereum",

@@ -1,4 +1,5 @@
 import type { Hex, Json } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   CRYPTO_AUTH_METHODS,

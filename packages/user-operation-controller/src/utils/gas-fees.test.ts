@@ -4,13 +4,17 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { UserFeeLevel } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { cloneDeep } from 'lodash-es';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import type { UpdateGasFeesRequest } from './gas-fees.js';
 import { updateGasFees } from './gas-fees.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+vi.mock('@metamask/controller-utils', async () => ({
+  ...(await vi.importActual<typeof import('@metamask/controller-utils')>(
+    '@metamask/controller-utils',
+  )),
+  query: vi.fn(),
 }));
 
 const GAS_FEE_VALUE_HEX = '0x1ca35f0e00';
@@ -25,18 +29,18 @@ const UPDATE_GAS_FEES_REQUEST_MOCK = {
   },
   originalRequest: {},
   provider: {},
-} as unknown as jest.Mocked<UpdateGasFeesRequest>;
+} as unknown as Mocked<UpdateGasFeesRequest>;
 
 describe('gas-fees', () => {
-  const queryMock = jest.mocked(query);
-  let request: jest.Mocked<UpdateGasFeesRequest>;
+  const queryMock = vi.mocked(query);
+  let request: Mocked<UpdateGasFeesRequest>;
 
   beforeEach(() => {
     request = cloneDeep(UPDATE_GAS_FEES_REQUEST_MOCK);
 
-    jest
-      .spyOn(request, 'getGasFeeEstimates')
-      .mockResolvedValue({} as GasFeeState);
+    vi.spyOn(request, 'getGasFeeEstimates').mockResolvedValue(
+      {} as GasFeeState,
+    );
 
     queryMock.mockResolvedValue({});
   });

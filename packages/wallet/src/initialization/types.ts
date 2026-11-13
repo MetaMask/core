@@ -1,3 +1,8 @@
+import type {
+  StateConstraint,
+  ValidatableController,
+} from '@metamask/base-controller';
+
 import type { InstanceSpecificOptions } from '../types.js';
 import type {
   DefaultActions,
@@ -47,10 +52,42 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
   options: InstanceOptions<Instance>;
 };
 
+/**
+ * The class of a stateful instance, which may define a static `struct`
+ * describing its state.
+ *
+ * Every stateful instance's initialization configuration has a reference to
+ * its class, but only some classes define a `struct`. When one is present,
+ * `initialize` uses it to validate the instance's state before passing the
+ * state to `init`.
+ */
+export type InstanceReference<Instance, State extends StateConstraint> = (new (
+  ...args: never[]
+) => Instance) & {
+  struct?: ValidatableController<Instance, State>['struct'];
+};
+
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: InstanceName<Instance>;
   init(args: InitFunctionArguments<Instance, InstanceMessenger>): Instance;
   getMessenger(
     parent: RootMessenger<DefaultActions, DefaultEvents>,
   ): InstanceMessenger;
-};
+} & (InstanceState<Instance> extends StateConstraint
+  ? {
+      reference: InstanceReference<Instance, InstanceState<Instance>>;
+    }
+  : { reference?: never });
+
+/**
+ * An initialization configuration for an instance of any kind.
+ *
+ * `InitializationConfiguration` requires a `reference` for instances that
+ * have state and forbids one for instances that do not, so no single
+ * instantiation of it describes both kinds. This union covers both, so that
+ * lists mixing them, such as the configurations given to the wallet, can be
+ * typed without resorting to `any`.
+ */
+export type AnyInitializationConfiguration =
+  | InitializationConfiguration<unknown, unknown>
+  | InitializationConfiguration<{ state: StateConstraint }, unknown>;

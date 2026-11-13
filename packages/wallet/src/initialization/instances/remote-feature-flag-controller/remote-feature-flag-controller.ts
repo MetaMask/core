@@ -11,6 +11,7 @@ export const remoteFeatureFlagController: InitializationConfiguration<
   RemoteFeatureFlagControllerMessenger
 > = {
   name: 'RemoteFeatureFlagController',
+  reference: RemoteFeatureFlagController,
   init: ({ state, messenger, options }) =>
     new RemoteFeatureFlagController({
       state,

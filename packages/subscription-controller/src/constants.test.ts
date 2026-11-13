@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { Env } from './constants.js';
 import { getEnvUrls, controllerName } from './constants.js';
 

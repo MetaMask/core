@@ -142,8 +142,13 @@ The requests differ as well:
   in full from state. RPC always stamps `full`: resolved tokens get a fresh
   amount, unread tokens keep the amount already in state, and a chain that
   resolved nothing is listed in `errors` instead of writing an empty slice.
-  Snap `#fetchV6` requests visible assets with listed holdings, stamps `full`,
-  and fills omitted visible assets from current state (`0` if none). An empty
+  Snap `#fetchV6` requests listed holdings and visible assets, stamps `full`,
+  and fills omitted visible assets from current state (`0` if none). A separate
+  temporary block also requests every token already in balance state for those
+  chains. A token the snap omits stays out of the snapshot. Accounts API and
+  the websocket already cover more tokens than the snap lists, so a chain that
+  rolls back to the snap still refreshes them. Delete that block once balance
+  reads fully move to Accounts API. An empty
   `getAccountBalances` map (or a thrown fetch) contributes nothing, so last-
   known amounts are kept. Background Snap and
   RPC both stamp `full`. `mergeDataResponses` promotes `full` if any source did.
@@ -184,7 +189,7 @@ flowchart TB
     V6A["Subscribe each source with accounts + assigned chains only"]
     V6WS["Account Activity · event deltas · merge"]
     V6API["Accounts API · visibility from state · full"]
-    V6SNAP["Snap · visible assets from state · full snapshot<br/>balance events stay merge"]
+    V6SNAP["Snap · visible assets · full snapshot<br/>temporary balance-state tokens<br/>balance events stay merge"]
     V6RPC["RPC · visible assets from state · full"]
     V6A --> V6WS
     V6A --> V6API

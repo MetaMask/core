@@ -16,6 +16,7 @@ export const accountsController: InitializationConfiguration<
   AccountsControllerMessenger
 > = {
   name: 'AccountsController',
+  reference: AccountsController,
   init: ({ state, messenger }) =>
     new AccountsController({
       state,

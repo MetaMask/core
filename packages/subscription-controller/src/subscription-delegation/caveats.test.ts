@@ -4,6 +4,7 @@ import {
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
 import {
