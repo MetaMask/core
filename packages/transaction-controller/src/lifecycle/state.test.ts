@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   buildLifecycleMocks,
   buildTransactionMeta,
@@ -165,7 +167,7 @@ describe('startTransactionApproval', () => {
 
 describe('releaseTransactionExecution', () => {
   it('calls releaseApproval when present', () => {
-    const releaseApproval = jest.fn();
+    const releaseApproval = vi.fn();
     const lifecycle: TransactionLifecycleState = {
       execution: {
         networkClientId: 'mainnet',
@@ -179,7 +181,7 @@ describe('releaseTransactionExecution', () => {
   });
 
   it('calls releaseNonce when present', () => {
-    const releaseNonce = jest.fn();
+    const releaseNonce = vi.fn();
     const lifecycle: TransactionLifecycleState = {
       execution: {
         networkClientId: 'mainnet',
@@ -193,8 +195,8 @@ describe('releaseTransactionExecution', () => {
   });
 
   it('calls both releaseApproval and releaseNonce when both are present', () => {
-    const releaseApproval = jest.fn();
-    const releaseNonce = jest.fn();
+    const releaseApproval = vi.fn();
+    const releaseNonce = vi.fn();
     const lifecycle: TransactionLifecycleState = {
       execution: {
         networkClientId: 'mainnet',
@@ -228,7 +230,7 @@ describe('releaseTransactionExecution', () => {
   });
 
   it('does not throw when releaseApproval is absent but releaseNonce is present', () => {
-    const releaseNonce = jest.fn();
+    const releaseNonce = vi.fn();
     const lifecycle: TransactionLifecycleState = {
       execution: {
         networkClientId: 'mainnet',
@@ -241,7 +243,7 @@ describe('releaseTransactionExecution', () => {
   });
 
   it('does not throw when releaseNonce is absent but releaseApproval is present', () => {
-    const releaseApproval = jest.fn();
+    const releaseApproval = vi.fn();
     const lifecycle: TransactionLifecycleState = {
       execution: {
         networkClientId: 'mainnet',
@@ -260,8 +262,8 @@ describe('releaseTransactionExecution', () => {
 
 describe('cleanupTransaction', () => {
   it('releases execution resources', () => {
-    const releaseApproval = jest.fn();
-    const releaseNonce = jest.fn();
+    const releaseApproval = vi.fn();
+    const releaseNonce = vi.fn();
     const { request } = buildLifecycleMocks();
 
     request.lifecycle.execution = {

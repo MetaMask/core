@@ -1,3 +1,6 @@
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   buildLifecycleMocks,
   buildTransactionMeta,
@@ -10,10 +13,10 @@ import { updateSwapsTransaction } from '../utils/swaps.js';
 import { addTransactionData } from './data.js';
 import { getEIP1559Compatibility } from './init.js';
 
-jest.mock('../utils/gas-fees.js');
-jest.mock('../utils/layer1-gas-fee-flow.js');
-jest.mock('../utils/swaps.js');
-jest.mock('./init.js');
+vi.mock('../utils/gas-fees.js');
+vi.mock('../utils/layer1-gas-fee-flow.js');
+vi.mock('../utils/swaps.js');
+vi.mock('./init.js');
 
 /** Flush all pending microtasks (Promise resolution queues). */
 async function flushMicrotasks(): Promise<void> {
@@ -27,10 +30,10 @@ async function flushMicrotasks(): Promise<void> {
 
 describe('addTransactionData', () => {
   beforeEach(() => {
-    jest.mocked(getEIP1559Compatibility).mockResolvedValue(true);
-    jest.mocked(updateGasFees).mockResolvedValue(undefined);
-    jest.mocked(updateTransactionLayer1GasFee).mockResolvedValue(undefined);
-    jest.mocked(updateSwapsTransaction).mockImplementation((txMeta) => txMeta);
+    vi.mocked(getEIP1559Compatibility).mockResolvedValue(true);
+    vi.mocked(updateGasFees).mockResolvedValue(undefined);
+    vi.mocked(updateTransactionLayer1GasFee).mockResolvedValue(undefined);
+    vi.mocked(updateSwapsTransaction).mockImplementation((txMeta) => txMeta);
   });
 
   // ---------------------------------------------------------------------------
@@ -42,8 +45,8 @@ describe('addTransactionData', () => {
       const { request } = buildLifecycleMocks();
       // afterAdd is always set by buildLifecycleMocks; cast through unknown to satisfy strict
       // lint (no-non-null-assertion). The cast is safe because we control the fixture.
-      const afterAdd = jest.mocked(
-        request.constructorOptions.hooks.afterAdd as jest.Mock,
+      const afterAdd = vi.mocked(
+        request.constructorOptions.hooks.afterAdd as Mock,
       );
 
       await addTransactionData(request);
@@ -55,9 +58,9 @@ describe('addTransactionData', () => {
 
     it('does not set txParamsOriginal when afterAdd returns no updateTransaction', async () => {
       const { request } = buildLifecycleMocks();
-      jest
-        .mocked(request.constructorOptions.hooks.afterAdd as jest.Mock)
-        .mockResolvedValue({});
+      vi.mocked(
+        request.constructorOptions.hooks.afterAdd as Mock,
+      ).mockResolvedValue({});
 
       await addTransactionData(request);
 
@@ -68,13 +71,13 @@ describe('addTransactionData', () => {
       const { request } = buildLifecycleMocks();
       const originalGas = request.transactionMeta.txParams.gas;
 
-      jest
-        .mocked(request.constructorOptions.hooks.afterAdd as jest.Mock)
-        .mockResolvedValue({
-          updateTransaction: (tx: { txParams: { gas: string } }) => {
-            tx.txParams.gas = '0x9999';
-          },
-        });
+      vi.mocked(
+        request.constructorOptions.hooks.afterAdd as Mock,
+      ).mockResolvedValue({
+        updateTransaction: (tx: { txParams: { gas: string } }) => {
+          tx.txParams.gas = '0x9999';
+        },
+      });
 
       await addTransactionData(request);
 
@@ -105,7 +108,7 @@ describe('addTransactionData', () => {
       await addTransactionData(request);
 
       expect(
-        jest.mocked(request.dependencies.updateGasEstimate),
+        vi.mocked(request.dependencies.updateGasEstimate),
       ).toHaveBeenCalledWith(request.transactionMeta);
     });
 
@@ -114,36 +117,36 @@ describe('addTransactionData', () => {
 
       await addTransactionData(request);
 
-      expect(jest.mocked(getEIP1559Compatibility)).toHaveBeenCalledWith(
+      expect(vi.mocked(getEIP1559Compatibility)).toHaveBeenCalledWith(
         request.dependencies,
         request.transactionMeta.networkClientId,
       );
     });
 
     it('calls updateGasFees with eip1559 = true when network is EIP-1559 compatible', async () => {
-      jest.mocked(getEIP1559Compatibility).mockResolvedValue(true);
+      vi.mocked(getEIP1559Compatibility).mockResolvedValue(true);
       const { request } = buildLifecycleMocks();
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateGasFees)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateGasFees)).toHaveBeenCalledWith(
         expect.objectContaining({ eip1559: true }),
       );
     });
 
     it('calls updateGasFees with eip1559 = false when network is not EIP-1559 compatible', async () => {
-      jest.mocked(getEIP1559Compatibility).mockResolvedValue(false);
+      vi.mocked(getEIP1559Compatibility).mockResolvedValue(false);
       const { request } = buildLifecycleMocks();
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateGasFees)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateGasFees)).toHaveBeenCalledWith(
         expect.objectContaining({ eip1559: false }),
       );
     });
 
     it('treats a legacy envelope type as not EIP-1559 regardless of network support', async () => {
-      jest.mocked(getEIP1559Compatibility).mockResolvedValue(true);
+      vi.mocked(getEIP1559Compatibility).mockResolvedValue(true);
       const txMeta = buildTransactionMeta({
         txParams: {
           from: '0x1234567890123456789012345678901234567890',
@@ -156,9 +159,9 @@ describe('addTransactionData', () => {
       await addTransactionData(request);
 
       // getEIP1559Compatibility should NOT be called for legacy envelope types.
-      expect(jest.mocked(getEIP1559Compatibility)).not.toHaveBeenCalled();
+      expect(vi.mocked(getEIP1559Compatibility)).not.toHaveBeenCalled();
 
-      expect(jest.mocked(updateGasFees)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateGasFees)).toHaveBeenCalledWith(
         expect.objectContaining({ eip1559: false }),
       );
     });
@@ -168,7 +171,7 @@ describe('addTransactionData', () => {
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateTransactionLayer1GasFee)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateTransactionLayer1GasFee)).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionMeta: request.transactionMeta,
         }),
@@ -176,13 +179,13 @@ describe('addTransactionData', () => {
     });
 
     it('passes getSavedGasFees to updateGasFees', async () => {
-      const getSavedGasFees = jest.fn().mockReturnValue(undefined);
+      const getSavedGasFees = vi.fn().mockReturnValue(undefined);
       const { request } = buildLifecycleMocks();
       request.constructorOptions.getSavedGasFees = getSavedGasFees;
 
       await addTransactionData(request);
 
-      const firstCall = jest.mocked(updateGasFees).mock.calls[0];
+      const firstCall = vi.mocked(updateGasFees).mock.calls[0];
       expect(firstCall).toBeDefined();
       expect(typeof firstCall?.[0].getSavedGasFees).toBe('function');
     });
@@ -194,7 +197,7 @@ describe('addTransactionData', () => {
       await addTransactionData(request);
 
       // Retrieve the first positional arg passed to updateGasFees.
-      const firstCall = jest.mocked(updateGasFees).mock.calls[0];
+      const firstCall = vi.mocked(updateGasFees).mock.calls[0];
       expect(firstCall).toBeDefined();
 
       const callArg = firstCall?.[0];
@@ -229,17 +232,17 @@ describe('addTransactionData', () => {
       request.addTransactionRequest.options.skipInitialGasEstimate = true;
 
       // Make updateGasEstimate populate gas on the clone.
-      jest
-        .mocked(request.dependencies.updateGasEstimate)
-        .mockImplementation(async (tx) => {
+      vi.mocked(request.dependencies.updateGasEstimate).mockImplementation(
+        async (tx) => {
           tx.txParams.gas = '0xbeef';
-        });
+        },
+      );
 
       await addTransactionData(request);
       await flushMicrotasks();
 
       expect(
-        jest.mocked(request.dependencies.updateTransactionInternal),
+        vi.mocked(request.dependencies.updateTransactionInternal),
       ).toHaveBeenCalledWith(
         expect.objectContaining({
           transactionId: TRANSACTION_ID_MOCK,
@@ -257,9 +260,9 @@ describe('addTransactionData', () => {
       const { request } = buildLifecycleMocks();
       request.addTransactionRequest.options.skipInitialGasEstimate = true;
 
-      jest
-        .mocked(request.dependencies.updateGasEstimate)
-        .mockRejectedValue(new Error('Network timeout'));
+      vi.mocked(request.dependencies.updateGasEstimate).mockRejectedValue(
+        new Error('Network timeout'),
+      );
 
       await addTransactionData(request);
 
@@ -279,7 +282,7 @@ describe('addTransactionData', () => {
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
         request.transactionMeta,
         request.transactionMeta.type,
         { hasApproveTx: true },
@@ -295,7 +298,7 @@ describe('addTransactionData', () => {
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         {},
@@ -309,7 +312,7 @@ describe('addTransactionData', () => {
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         expect.anything(),
@@ -323,7 +326,7 @@ describe('addTransactionData', () => {
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         expect.anything(),
@@ -340,7 +343,7 @@ describe('addTransactionData', () => {
 
       await addTransactionData(request);
 
-      expect(jest.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
+      expect(vi.mocked(updateSwapsTransaction)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         expect.anything(),
@@ -352,7 +355,7 @@ describe('addTransactionData', () => {
       const updatedMeta = buildTransactionMeta({
         type: TransactionType.swap,
       });
-      jest.mocked(updateSwapsTransaction).mockReturnValue(updatedMeta);
+      vi.mocked(updateSwapsTransaction).mockReturnValue(updatedMeta);
 
       const { request } = buildLifecycleMocks();
 

@@ -1,3 +1,6 @@
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   buildLifecycleMocks,
   buildTransactionMeta,
@@ -13,15 +16,15 @@ import { TransactionEnvelopeType, TransactionStatus } from '../types.js';
 import { approveTransaction } from './approve.js';
 import { isTransactionApproving, startTransactionApproval } from './state.js';
 
-jest.mock('./state.js', () => ({
-  isTransactionApproving: jest.fn().mockReturnValue(false),
-  startTransactionApproval: jest.fn().mockReturnValue(jest.fn()),
+vi.mock('./state.js', () => ({
+  isTransactionApproving: vi.fn().mockReturnValue(false),
+  startTransactionApproval: vi.fn().mockReturnValue(vi.fn()),
 }));
 
 describe('approveTransaction', () => {
   beforeEach(() => {
-    jest.mocked(isTransactionApproving).mockReturnValue(false);
-    jest.mocked(startTransactionApproval).mockReturnValue(jest.fn());
+    vi.mocked(isTransactionApproving).mockReturnValue(false);
+    vi.mocked(startTransactionApproval).mockReturnValue(vi.fn());
   });
 
   describe('early-exit: no onError handler', () => {
@@ -52,7 +55,7 @@ describe('approveTransaction', () => {
   describe('early-exit: approval already in progress', () => {
     it('skips approval and removes execution context when another invocation is approving', async () => {
       const mocks = buildLifecycleMocksWithOnError();
-      jest.mocked(isTransactionApproving).mockReturnValue(true);
+      vi.mocked(isTransactionApproving).mockReturnValue(true);
 
       await approveTransaction(mocks.request);
 
@@ -143,8 +146,8 @@ describe('approveTransaction', () => {
     });
 
     it('stores the releaseApproval callback returned by startTransactionApproval', async () => {
-      const releaseApproval = jest.fn();
-      jest.mocked(startTransactionApproval).mockReturnValue(releaseApproval);
+      const releaseApproval = vi.fn();
+      vi.mocked(startTransactionApproval).mockReturnValue(releaseApproval);
 
       const mocks = buildLifecycleMocksWithOnError();
 
@@ -270,13 +273,13 @@ describe('approveTransaction', () => {
  *
  * @param options - Options forwarded to `buildLifecycleMocks`.
  * @param options.transactionMeta - Optional transaction metadata override.
- * @returns The mocks with lifecycle.onError pre-set to a jest.fn().
+ * @returns The mocks with lifecycle.onError pre-set to a vi.fn().
  */
 function buildLifecycleMocksWithOnError(
   options: Parameters<typeof buildLifecycleMocks>[0] = {},
-): LifecycleMocks & { onError: jest.Mock } {
+): LifecycleMocks & { onError: Mock } {
   const mocks = buildLifecycleMocks(options);
-  const onError = jest.fn();
+  const onError = vi.fn();
   mocks.request.lifecycle = { ...mocks.request.lifecycle, onError };
   return { ...mocks, onError };
 }

@@ -1,3 +1,6 @@
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   buildLifecycleMocks,
   buildTransactionMeta,
@@ -9,7 +12,7 @@ import { TransactionStatus, TransactionType } from '../types.js';
 import { rpcRequest } from '../utils/provider.js';
 import { submitTransaction } from './submit.js';
 
-jest.mock('../utils/provider.js');
+vi.mock('../utils/provider.js');
 
 /**
  * Return a lifecycle execution object pre-populated with the given networkClientId.
@@ -20,17 +23,17 @@ jest.mock('../utils/provider.js');
  */
 function buildExecution(
   networkClientId = NETWORK_CLIENT_ID_MOCK,
-  releaseNonce?: jest.Mock,
+  releaseNonce?: Mock,
 ): {
   networkClientId: string;
-  releaseNonce?: jest.Mock;
+  releaseNonce?: Mock;
 } {
   return { networkClientId, releaseNonce };
 }
 
 describe('submitTransaction', () => {
   beforeEach(() => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xabc');
+    vi.mocked(rpcRequest).mockResolvedValue('0xabc');
   });
 
   // ---------------------------------------------------------------------------
@@ -102,9 +105,10 @@ describe('submitTransaction', () => {
       );
       request.transactionMeta.rawTx = '0xsigned';
 
-      jest
-        .spyOn(request.constructorOptions.hooks, 'beforePublish')
-        .mockResolvedValue(false);
+      vi.spyOn(
+        request.constructorOptions.hooks,
+        'beforePublish',
+      ).mockResolvedValue(false);
 
       await submitTransaction(request);
 
@@ -122,33 +126,35 @@ describe('submitTransaction', () => {
       );
       request.transactionMeta.rawTx = '0xsigned';
 
-      jest
-        .spyOn(request.constructorOptions.hooks, 'beforePublish')
-        .mockResolvedValue(false);
+      vi.spyOn(
+        request.constructorOptions.hooks,
+        'beforePublish',
+      ).mockResolvedValue(false);
 
       await submitTransaction(request);
 
       expect(
-        jest.mocked(request.dependencies.publishTransaction),
+        vi.mocked(request.dependencies.publishTransaction),
       ).not.toHaveBeenCalled();
     });
 
     it('calls resultCallbacks.success when beforePublish returns false', async () => {
       const { request, releaseNonce } = buildLifecycleMocks();
-      const successCallback = jest.fn();
+      const successCallback = vi.fn();
       request.lifecycle.execution = buildExecution(
         NETWORK_CLIENT_ID_MOCK,
         releaseNonce,
       );
       request.lifecycle.resultCallbacks = {
-        error: jest.fn(),
+        error: vi.fn(),
         success: successCallback,
       };
       request.transactionMeta.rawTx = '0xsigned';
 
-      jest
-        .spyOn(request.constructorOptions.hooks, 'beforePublish')
-        .mockResolvedValue(false);
+      vi.spyOn(
+        request.constructorOptions.hooks,
+        'beforePublish',
+      ).mockResolvedValue(false);
 
       await submitTransaction(request);
 
@@ -156,7 +162,7 @@ describe('submitTransaction', () => {
     });
 
     it('releases execution when beforePublish returns false', async () => {
-      const releaseNonce = jest.fn();
+      const releaseNonce = vi.fn();
       const { request } = buildLifecycleMocks();
       request.lifecycle.execution = buildExecution(
         NETWORK_CLIENT_ID_MOCK,
@@ -164,9 +170,10 @@ describe('submitTransaction', () => {
       );
       request.transactionMeta.rawTx = '0xsigned';
 
-      jest
-        .spyOn(request.constructorOptions.hooks, 'beforePublish')
-        .mockResolvedValue(false);
+      vi.spyOn(
+        request.constructorOptions.hooks,
+        'beforePublish',
+      ).mockResolvedValue(false);
 
       await submitTransaction(request);
 
@@ -227,10 +234,10 @@ describe('submitTransaction', () => {
   describe('normal publish', () => {
     it('calls the constructor publish hook with the transaction meta and rawTx', async () => {
       const { request, releaseNonce } = buildLifecycleMocks();
-      // hooks.publish is always set by the fixture; cast through jest.Mock to avoid
+      // hooks.publish is always set by the fixture; cast through Mock to avoid
       // non-null assertion (no-non-null-assertion lint rule).
-      const publishHook = jest.mocked(
-        request.constructorOptions.hooks.publish as jest.Mock,
+      const publishHook = vi.mocked(
+        request.constructorOptions.hooks.publish as Mock,
       );
       request.lifecycle.execution = buildExecution(
         NETWORK_CLIENT_ID_MOCK,
@@ -248,11 +255,11 @@ describe('submitTransaction', () => {
 
     it('prefers the per-transaction publishHook option over the constructor hook', async () => {
       const { request, releaseNonce } = buildLifecycleMocks();
-      const perTxHook = jest
+      const perTxHook = vi
         .fn()
         .mockResolvedValue({ transactionHash: '0xper-tx' });
-      const constructorPublishHook = jest.mocked(
-        request.constructorOptions.hooks.publish as jest.Mock,
+      const constructorPublishHook = vi.mocked(
+        request.constructorOptions.hooks.publish as Mock,
       );
       request.lifecycle.execution = buildExecution(
         NETWORK_CLIENT_ID_MOCK,
@@ -278,15 +285,15 @@ describe('submitTransaction', () => {
       request.constructorOptions.hooks = {};
       request.addTransactionRequest.options.publishHook = undefined;
 
-      jest
-        .mocked(request.dependencies.publishTransaction)
-        .mockResolvedValue('0xfallback');
+      vi.mocked(request.dependencies.publishTransaction).mockResolvedValue(
+        '0xfallback',
+      );
 
       // constructor publish hook returns undefined -> falls back to publishTransaction.
       await submitTransaction(request);
 
       expect(
-        jest.mocked(request.dependencies.publishTransaction),
+        vi.mocked(request.dependencies.publishTransaction),
       ).toHaveBeenCalledWith(
         expect.objectContaining({ networkClientId: NETWORK_CLIENT_ID_MOCK }),
       );
@@ -364,7 +371,7 @@ describe('submitTransaction', () => {
     });
 
     it('releases the execution (deletes lifecycle.execution) after successful publish', async () => {
-      const releaseNonce = jest.fn();
+      const releaseNonce = vi.fn();
       const { request } = buildLifecycleMocks();
       request.lifecycle.execution = buildExecution(
         NETWORK_CLIENT_ID_MOCK,
@@ -378,7 +385,7 @@ describe('submitTransaction', () => {
     });
 
     it('calls releaseNonce before publishing', async () => {
-      const releaseNonce = jest.fn();
+      const releaseNonce = vi.fn();
       const publishOrder: string[] = [];
 
       const { request } = buildLifecycleMocks();
@@ -389,12 +396,12 @@ describe('submitTransaction', () => {
       request.transactionMeta.rawTx = '0xsigned';
 
       releaseNonce.mockImplementation(() => publishOrder.push('release'));
-      jest
-        .mocked(request.constructorOptions.hooks.publish as jest.Mock)
-        .mockImplementation(async () => {
+      vi.spyOn(request.constructorOptions.hooks, 'publish').mockImplementation(
+        async () => {
           publishOrder.push('publish');
           return { transactionHash: TRANSACTION_HASH_MOCK };
-        });
+        },
+      );
 
       await submitTransaction(request);
 
@@ -411,7 +418,7 @@ describe('submitTransaction', () => {
       );
       request.transactionMeta.rawTx = '0xsigned';
 
-      const finishedHandler = jest.fn();
+      const finishedHandler = vi.fn();
       request.dependencies.internalEvents.on(
         `${TRANSACTION_ID_MOCK}:finished`,
         finishedHandler,
@@ -441,8 +448,8 @@ describe('submitTransaction', () => {
       // rawTx should be ignored for external sign.
       request.transactionMeta.rawTx = '0xshould-be-ignored';
 
-      const publishHook = jest.mocked(
-        request.constructorOptions.hooks.publish as jest.Mock,
+      const publishHook = vi.mocked(
+        request.constructorOptions.hooks.publish as Mock,
       );
 
       await submitTransaction(request);
@@ -469,11 +476,11 @@ describe('submitTransaction', () => {
         releaseNonce,
       );
 
-      jest.mocked(rpcRequest).mockResolvedValue('0xbalance');
+      vi.mocked(rpcRequest).mockResolvedValue('0xbalance');
 
       await submitTransaction(request);
 
-      expect(jest.mocked(rpcRequest)).toHaveBeenCalledWith(
+      expect(vi.mocked(rpcRequest)).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'eth_getBalance',
           networkClientId: NETWORK_CLIENT_ID_MOCK,
@@ -497,7 +504,7 @@ describe('submitTransaction', () => {
 
       await submitTransaction(request);
 
-      expect(jest.mocked(rpcRequest)).not.toHaveBeenCalled();
+      expect(vi.mocked(rpcRequest)).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   buildLifecycleMocks,
   buildTransactionMeta,
@@ -8,8 +10,8 @@ import { trimTransactionsForState } from '../utils/state.js';
 import { validateTxParams } from '../utils/validation.js';
 import { addTransactionToState } from './add.js';
 
-jest.mock('../utils/state.js');
-jest.mock('../utils/validation.js');
+vi.mock('../utils/state.js');
+vi.mock('../utils/validation.js');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,7 +42,7 @@ function buildState(
 
 describe('addTransactionToState', () => {
   beforeEach(() => {
-    jest.mocked(trimTransactionsForState).mockImplementation((txs) => txs);
+    vi.mocked(trimTransactionsForState).mockImplementation((txs) => txs);
   });
 
   it('calls validateTxParams with the transaction params', () => {
@@ -49,7 +51,7 @@ describe('addTransactionToState', () => {
 
     addTransactionToState(request.dependencies, transactionMeta);
 
-    expect(jest.mocked(validateTxParams)).toHaveBeenCalledWith(
+    expect(vi.mocked(validateTxParams)).toHaveBeenCalledWith(
       transactionMeta.txParams,
     );
   });
@@ -57,7 +59,7 @@ describe('addTransactionToState', () => {
   it('calls updateState to append the transaction', () => {
     const { request } = buildLifecycleMocks();
     const transactionMeta = buildTransactionMeta();
-    const updateState = jest.mocked(request.dependencies.updateState);
+    const updateState = vi.mocked(request.dependencies.updateState);
 
     addTransactionToState(request.dependencies, transactionMeta);
 
@@ -69,15 +71,15 @@ describe('addTransactionToState', () => {
     const { request } = buildLifecycleMocks({ transactionMeta: existingMeta });
     const newMeta = buildTransactionMeta({ id: 'new-tx' });
 
-    jest
-      .mocked(request.dependencies.updateState)
-      .mockImplementation((callback) => {
+    vi.mocked(request.dependencies.updateState).mockImplementation(
+      (callback) => {
         return callback(buildState([existingMeta]));
-      });
+      },
+    );
 
     addTransactionToState(request.dependencies, newMeta);
 
-    expect(jest.mocked(trimTransactionsForState)).toHaveBeenCalledWith(
+    expect(vi.mocked(trimTransactionsForState)).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ id: 'existing-tx' }),
         expect.objectContaining({ id: 'new-tx' }),
@@ -92,14 +94,14 @@ describe('addTransactionToState', () => {
     const newMeta = buildTransactionMeta({ id: 'new-tx' });
 
     const trimmedList = [existingMeta, newMeta];
-    jest.mocked(trimTransactionsForState).mockReturnValue(trimmedList);
+    vi.mocked(trimTransactionsForState).mockReturnValue(trimmedList);
 
     const capturedState = buildState([existingMeta]);
-    jest
-      .mocked(request.dependencies.updateState)
-      .mockImplementation((callback) => {
+    vi.mocked(request.dependencies.updateState).mockImplementation(
+      (callback) => {
         return callback(capturedState);
-      });
+      },
+    );
 
     addTransactionToState(request.dependencies, newMeta);
 
@@ -110,15 +112,15 @@ describe('addTransactionToState', () => {
     const { request } = buildLifecycleMocks();
     const transactionMeta = buildTransactionMeta();
 
-    jest
-      .mocked(request.dependencies.updateState)
-      .mockImplementation((callback) => {
+    vi.mocked(request.dependencies.updateState).mockImplementation(
+      (callback) => {
         callback(buildState());
-      });
+      },
+    );
 
     addTransactionToState(request.dependencies, transactionMeta);
 
-    expect(jest.mocked(trimTransactionsForState)).toHaveBeenCalledWith(
+    expect(vi.mocked(trimTransactionsForState)).toHaveBeenCalledWith(
       expect.any(Array),
       request.dependencies.messenger,
     );
@@ -128,7 +130,7 @@ describe('addTransactionToState', () => {
     const { request } = buildLifecycleMocks();
     const transactionMeta = buildTransactionMeta();
 
-    jest.mocked(validateTxParams).mockImplementation(() => {
+    vi.mocked(validateTxParams).mockImplementation(() => {
       throw new Error('Invalid txParams');
     });
 
@@ -140,9 +142,9 @@ describe('addTransactionToState', () => {
   it('does not call updateState when validateTxParams throws', () => {
     const { request } = buildLifecycleMocks();
     const transactionMeta = buildTransactionMeta();
-    const updateState = jest.mocked(request.dependencies.updateState);
+    const updateState = vi.mocked(request.dependencies.updateState);
 
-    jest.mocked(validateTxParams).mockImplementation(() => {
+    vi.mocked(validateTxParams).mockImplementation(() => {
       throw new Error('Invalid txParams');
     });
 
@@ -158,15 +160,15 @@ describe('addTransactionToState', () => {
       status: TransactionStatus.approved,
     });
 
-    jest
-      .mocked(request.dependencies.updateState)
-      .mockImplementation((callback) => {
+    vi.mocked(request.dependencies.updateState).mockImplementation(
+      (callback) => {
         return callback(buildState());
-      });
+      },
+    );
 
     addTransactionToState(request.dependencies, transactionMeta);
 
-    expect(jest.mocked(trimTransactionsForState)).toHaveBeenCalledWith(
+    expect(vi.mocked(trimTransactionsForState)).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ status: TransactionStatus.approved }),
       ]),

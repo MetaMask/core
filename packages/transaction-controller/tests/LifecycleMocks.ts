@@ -4,8 +4,13 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
 import { cloneDeep } from 'lodash-es';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
 
-import type { TransactionLifecycleRequest } from '../src/lifecycle/types.js';
+import type {
+  TransactionLifecycleRequest,
+  UpdateTransactionInternal,
+} from '../src/lifecycle/types.js';
 import type {
   TransactionControllerMessenger,
   TransactionControllerState,
@@ -34,11 +39,11 @@ export type LifecycleMocks = {
    * Exposed as a handle so tests do not reference it off the messenger, which
    * would trip the `unbound-method` lint rule.
    */
-  messengerCall: jest.Mock;
+  messengerCall: Mock;
   /** The messenger `publish` mock. */
-  messengerPublish: jest.Mock;
+  messengerPublish: Mock;
   /** Release lock returned by `getNonceLock`. */
-  releaseNonce: jest.Mock;
+  releaseNonce: Mock;
   /** The request passed to lifecycle stage functions. */
   request: TransactionLifecycleRequest;
   /** Overwrite the transaction held by the mocked controller state. */
@@ -89,9 +94,9 @@ export function buildLifecycleMocks({
   let current = transactionMeta;
 
   const internalEvents = new EventEmitter();
-  const messengerCall = jest.fn();
-  const messengerPublish = jest.fn();
-  const releaseNonce = jest.fn();
+  const messengerCall = vi.fn();
+  const messengerPublish = vi.fn();
+  const releaseNonce = vi.fn();
 
   const getTransaction = (): TransactionMeta => current;
 
@@ -110,10 +115,10 @@ export function buildLifecycleMocks({
     constructorOptions: {
       disableSwaps: false,
       hooks: {
-        afterAdd: jest.fn().mockResolvedValue({}),
-        beforePublish: jest.fn().mockResolvedValue(true),
-        beforeSign: jest.fn().mockResolvedValue(true),
-        publish: jest
+        afterAdd: vi.fn().mockResolvedValue({}),
+        beforePublish: vi.fn().mockResolvedValue(true),
+        beforeSign: vi.fn().mockResolvedValue(true),
+        publish: vi
           .fn()
           .mockResolvedValue({ transactionHash: TRANSACTION_HASH_MOCK }),
       },
@@ -122,46 +127,46 @@ export function buildLifecycleMocks({
     },
     delegationAddressPromise: Promise.resolve(undefined),
     dependencies: {
-      addTransactionBatch: jest.fn(),
-      failTransaction: jest.fn(),
-      fetchGasFeeTokens: jest.fn().mockResolvedValue([]),
+      addTransactionBatch: vi.fn(),
+      failTransaction: vi.fn(),
+      fetchGasFeeTokens: vi.fn().mockResolvedValue([]),
       gasFeeFlows: [],
-      getNonceLock: jest.fn().mockResolvedValue({
+      getNonceLock: vi.fn().mockResolvedValue({
         nextNonce: NONCE_MOCK,
         releaseLock: releaseNonce,
       }),
-      getState: jest.fn(
-        (): TransactionControllerState => ({
-          batchTransactionCounts: {},
-          lastFetchedBlockNumbers: {},
-          methodData: {},
-          submitHistory: [],
-          transactionBatches: [],
-          transactions: [current],
-        }),
-      ),
-      hasNetworkClient: jest.fn().mockReturnValue(true),
+      getState: vi.fn((): TransactionControllerState => ({
+        batchTransactionCounts: {},
+        lastFetchedBlockNumbers: {},
+        methodData: {},
+        submitHistory: [],
+        transactionBatches: [],
+        transactions: [current],
+      })),
+      hasNetworkClient: vi.fn().mockReturnValue(true),
       internalEvents,
       layer1GasFeeFlows: [],
       messenger: {
         call: messengerCall,
         publish: messengerPublish,
-        subscribe: jest.fn(),
-        unsubscribe: jest.fn(),
+        subscribe: vi.fn(),
+        unsubscribe: vi.fn(),
       } as unknown as TransactionControllerMessenger,
-      publishTransaction: jest.fn().mockResolvedValue(TRANSACTION_HASH_MOCK),
+      publishTransaction: vi.fn().mockResolvedValue(TRANSACTION_HASH_MOCK),
       skipSimulationTransactionIds: new Set<string>(),
-      updateGasEstimate: jest.fn().mockResolvedValue(undefined),
-      updateSimulationData: jest.fn().mockResolvedValue(undefined),
-      updateState: jest.fn(),
-      updateTransaction: jest.fn((newTransactionMeta: TransactionMeta) => {
+      updateGasEstimate: vi.fn().mockResolvedValue(undefined),
+      updateSimulationData: vi.fn().mockResolvedValue(undefined),
+      updateState: vi.fn(),
+      updateTransaction: vi.fn((newTransactionMeta: TransactionMeta) => {
         current = cloneDeep(newTransactionMeta);
       }),
-      updateTransactionInternal: jest.fn((_options, update) => {
-        const draft = cloneDeep(current);
-        current = update(draft) ?? draft;
-        return current;
-      }),
+      updateTransactionInternal: vi.fn<UpdateTransactionInternal>(
+        (_options, update) => {
+          const draft = cloneDeep(current);
+          current = update(draft) ?? draft;
+          return current;
+        },
+      ),
     },
     lifecycle: {},
     transactionMeta,

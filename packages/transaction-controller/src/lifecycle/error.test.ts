@@ -1,5 +1,7 @@
 import { errorCodes } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildLifecycleMocks,
@@ -17,8 +19,8 @@ import {
 } from './error.js';
 import { releaseTransactionExecution } from './state.js';
 
-jest.mock('./state.js', () => ({
-  releaseTransactionExecution: jest.fn(),
+vi.mock('./state.js', () => ({
+  releaseTransactionExecution: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -46,7 +48,7 @@ describe('rejectTransaction', () => {
   });
 
   it('emits the finished internal event with the rejected metadata', () => {
-    const listener = jest.fn();
+    const listener = vi.fn();
     const { request } = buildLifecycleMocks();
     request.dependencies.internalEvents.on(
       `${TRANSACTION_ID_MOCK}:finished`,
@@ -344,11 +346,9 @@ describe('handleTransactionError', () => {
       const { request } = buildLifecycleMocks();
       request.lifecycle.execution = { networkClientId: 'mainnet' };
       const secondaryError = new Error('fail-in-fail');
-      jest
-        .mocked(request.dependencies.failTransaction)
-        .mockImplementation(() => {
-          throw secondaryError;
-        });
+      vi.mocked(request.dependencies.failTransaction).mockImplementation(() => {
+        throw secondaryError;
+      });
 
       handleTransactionError(request, new Error('original'));
 
@@ -361,11 +361,11 @@ describe('handleTransactionError', () => {
       const mocks = buildLifecycleMocksWithOnError();
       mocks.request.lifecycle.execution = { networkClientId: 'mainnet' };
       const secondaryError = new Error('fail-in-fail');
-      jest
-        .mocked(mocks.request.dependencies.failTransaction)
-        .mockImplementation(() => {
+      vi.mocked(mocks.request.dependencies.failTransaction).mockImplementation(
+        () => {
           throw secondaryError;
-        });
+        },
+      );
 
       handleTransactionError(mocks.request, new Error('original'));
 
@@ -375,11 +375,9 @@ describe('handleTransactionError', () => {
     it('does not throw when it is not set and failTransaction throws', () => {
       const { request } = buildLifecycleMocks();
       request.lifecycle.execution = { networkClientId: 'mainnet' };
-      jest
-        .mocked(request.dependencies.failTransaction)
-        .mockImplementation(() => {
-          throw new Error('fail-in-fail');
-        });
+      vi.mocked(request.dependencies.failTransaction).mockImplementation(() => {
+        throw new Error('fail-in-fail');
+      });
 
       // Should not throw — onError is optional and guarded by ?.
       expect(() =>
@@ -398,13 +396,13 @@ describe('handleTransactionError', () => {
  * lifecycle object so tests do not need to mutate the property directly (which
  * trips the prefer-spy-on lint rule).
  *
- * @returns The mocks with lifecycle.onError pre-set to a jest.fn().
+ * @returns The mocks with lifecycle.onError pre-set to a vi.fn().
  */
 function buildLifecycleMocksWithOnError(): ReturnType<
   typeof buildLifecycleMocks
-> & { onError: jest.Mock } {
+> & { onError: Mock } {
   const mocks = buildLifecycleMocks();
-  const onError = jest.fn();
+  const onError = vi.fn();
   mocks.request.lifecycle = { ...mocks.request.lifecycle, onError };
   return { ...mocks, onError };
 }

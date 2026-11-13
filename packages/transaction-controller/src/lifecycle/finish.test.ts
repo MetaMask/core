@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   buildLifecycleMocks,
   buildTransactionMeta,
@@ -46,7 +48,7 @@ describe('finishTransaction – isStateOnly guard', () => {
   });
 
   it('does not invoke resultCallbacks when isStateOnly is true', async () => {
-    const resultCallbacks = { error: jest.fn(), success: jest.fn() };
+    const resultCallbacks = { error: vi.fn(), success: vi.fn() };
     const { request } = buildLifecycleMocks({
       transactionMeta: buildTransactionMeta({ isStateOnly: true }),
     });
@@ -80,7 +82,7 @@ describe('finishTransaction – submitted', () => {
   });
 
   it('calls resultCallbacks.success when the final status is submitted', async () => {
-    const resultCallbacks = { error: jest.fn(), success: jest.fn() };
+    const resultCallbacks = { error: vi.fn(), success: vi.fn() };
     const { request } = buildLifecycleMocks();
     const { promise, resolve } = buildFinishedPromise();
     request.lifecycle.finishedPromise = promise;
@@ -145,7 +147,7 @@ describe('finishTransaction – failed', () => {
   });
 
   it('calls resultCallbacks.error with the transaction error when status is failed', async () => {
-    const resultCallbacks = { error: jest.fn(), success: jest.fn() };
+    const resultCallbacks = { error: vi.fn(), success: vi.fn() };
     const { request } = buildLifecycleMocks();
     const { promise, resolve } = buildFinishedPromise();
     request.lifecycle.finishedPromise = promise;
@@ -230,7 +232,7 @@ describe('finishTransaction – unexpected state', () => {
   });
 
   it('calls resultCallbacks.error on unexpected state', async () => {
-    const resultCallbacks = { error: jest.fn(), success: jest.fn() };
+    const resultCallbacks = { error: vi.fn(), success: vi.fn() };
     const { request } = buildLifecycleMocks();
     const { promise, resolve } = buildFinishedPromise();
     request.lifecycle.finishedPromise = promise;

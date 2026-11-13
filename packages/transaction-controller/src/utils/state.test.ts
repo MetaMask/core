@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionStageDependencies } from '../lifecycle/types.js';
 import type {
@@ -17,7 +18,7 @@ import {
   trimTransactionsForState,
 } from './state.js';
 
-jest.mock('./feature-flags.js');
+vi.mock('./feature-flags.js');
 
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const CHAIN_ID_2_MOCK = '0x5' as Hex;
@@ -40,9 +41,7 @@ const NON_FINAL_STATUSES = [
 ];
 
 describe('state utils', () => {
-  const getTransactionHistoryLimitMock = jest.mocked(
-    getTransactionHistoryLimit,
-  );
+  const getTransactionHistoryLimitMock = vi.mocked(getTransactionHistoryLimit);
 
   beforeEach(() => {
     getTransactionHistoryLimitMock.mockReturnValue(undefined);

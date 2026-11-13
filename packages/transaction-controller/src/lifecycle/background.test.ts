@@ -1,4 +1,5 @@
 import type { TraceContext } from '@metamask/controller-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildLifecycleMocks,
@@ -8,7 +9,7 @@ import {
 import { updateFirstTimeInteraction } from '../utils/first-time-interaction.js';
 import { startBackgroundUpdates } from './background.js';
 
-jest.mock('../utils/first-time-interaction.js');
+vi.mock('../utils/first-time-interaction.js');
 
 /**
  * Retrieve the first call arg to updateFirstTimeInteraction mock call.
@@ -18,13 +19,13 @@ jest.mock('../utils/first-time-interaction.js');
 function getFirstTimeInteractionArg():
   | Parameters<typeof updateFirstTimeInteraction>[0]
   | undefined {
-  const { calls } = jest.mocked(updateFirstTimeInteraction).mock;
+  const { calls } = vi.mocked(updateFirstTimeInteraction).mock;
   return calls[0]?.[0];
 }
 
 describe('startBackgroundUpdates', () => {
   beforeEach(() => {
-    jest.mocked(updateFirstTimeInteraction).mockResolvedValue(undefined);
+    vi.mocked(updateFirstTimeInteraction).mockResolvedValue(undefined);
   });
 
   describe('unapprovedTransactionAdded event', () => {
@@ -172,7 +173,7 @@ describe('startBackgroundUpdates', () => {
     });
 
     it('forwards the provided isFirstTimeInteractionEnabled function unchanged', async () => {
-      const isFirstTimeInteractionEnabled = jest.fn().mockReturnValue(false);
+      const isFirstTimeInteractionEnabled = vi.fn().mockReturnValue(false);
       const { request } = buildLifecycleMocks();
       request.addTransactionRequest.options.requireApproval = true;
       request.constructorOptions.isFirstTimeInteractionEnabled =
@@ -195,9 +196,9 @@ describe('startBackgroundUpdates', () => {
       const { messengerPublish, request } = buildLifecycleMocks();
       request.addTransactionRequest.options.requireApproval = true;
       // updateSimulationData returns a promise that never settles in this test
-      jest
-        .mocked(request.dependencies.updateSimulationData)
-        .mockReturnValue(new Promise(() => undefined));
+      vi.mocked(request.dependencies.updateSimulationData).mockReturnValue(
+        new Promise(() => undefined),
+      );
 
       startBackgroundUpdates(request);
 
@@ -211,9 +212,9 @@ describe('startBackgroundUpdates', () => {
     it('does not throw when updateFirstTimeInteraction rejects (silently swallowed)', async () => {
       const { messengerPublish, request } = buildLifecycleMocks();
       request.addTransactionRequest.options.requireApproval = true;
-      jest
-        .mocked(updateFirstTimeInteraction)
-        .mockRejectedValue(new Error('first-time error'));
+      vi.mocked(updateFirstTimeInteraction).mockRejectedValue(
+        new Error('first-time error'),
+      );
 
       startBackgroundUpdates(request);
       await new Promise((resolve) => setTimeout(resolve, 0));

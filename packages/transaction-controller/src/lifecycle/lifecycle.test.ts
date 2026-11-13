@@ -2,6 +2,8 @@ import { createDeferredPromise } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 import { EventEmitter } from 'events';
 import { cloneDeep } from 'lodash-es';
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus, TransactionType } from '../types.js';
@@ -21,18 +23,18 @@ import {
 import { submitTransaction } from './submit.js';
 import type { TransactionLifecycleRequest } from './types.js';
 
-jest.mock('../utils/prepare.js');
-jest.mock('../utils/provider.js');
+vi.mock('../utils/prepare.js');
+vi.mock('../utils/provider.js');
 
 describe('Transaction lifecycle coordination', () => {
   beforeEach(() => {
-    jest.mocked(serializeTransaction).mockReturnValue('0xsigned');
+    vi.mocked(serializeTransaction).mockReturnValue('0xsigned');
   });
 
   it('blocks external calldata to an internal EVM account using the current accounts state', async () => {
     const { request, messengerCall } = createRequest();
     const { to } = request.addTransactionRequest.txParams;
-    jest.mocked(getChainId).mockReturnValue('0x1');
+    vi.mocked(getChainId).mockReturnValue('0x1');
 
     messengerCall.mockReturnValue({
       internalAccounts: {
@@ -67,7 +69,7 @@ describe('Transaction lifecycle coordination', () => {
     const { request, releaseNonce, publish, events } = createRequest();
     request.transactionMeta.type = TransactionType.swap;
     const balance = createDeferredPromise<string>();
-    jest.mocked(rpcRequest).mockReturnValue(balance.promise);
+    vi.mocked(rpcRequest).mockReturnValue(balance.promise);
 
     await awaitApproval(request);
     await approveTransaction(request);
@@ -137,7 +139,7 @@ describe('Transaction lifecycle coordination', () => {
       messengerPublish,
     } = createRequest();
 
-    const success = jest.fn(() => {
+    const success = vi.fn(() => {
       expect(releaseNonce).toHaveBeenCalledTimes(1);
 
       expect(
@@ -151,12 +153,13 @@ describe('Transaction lifecycle coordination', () => {
     request.addTransactionRequest.options.requireApproval = true;
 
     messengerCall.mockResolvedValueOnce({
-      resultCallbacks: { success, error: jest.fn() },
+      resultCallbacks: { success, error: vi.fn() },
     });
 
-    jest
-      .spyOn(request.constructorOptions.hooks, 'beforePublish')
-      .mockResolvedValue(false);
+    vi.spyOn(
+      request.constructorOptions.hooks,
+      'beforePublish',
+    ).mockResolvedValue(false);
 
     await awaitApproval(request);
     await approveTransaction(request);
@@ -317,7 +320,7 @@ describe('Transaction lifecycle coordination', () => {
     approvedMeta.txParams.gasPrice = '0x9';
 
     messengerCall.mockResolvedValueOnce({
-      resultCallbacks: { error: jest.fn(), success: jest.fn() },
+      resultCallbacks: { error: vi.fn(), success: vi.fn() },
       value: { txMeta: approvedMeta },
     });
 
@@ -341,9 +344,9 @@ describe('Transaction lifecycle coordination', () => {
     const { request, publish } = createRequest();
     request.constructorOptions.hooks = {};
 
-    jest
-      .mocked(request.dependencies.publishTransaction)
-      .mockResolvedValue('0xfallback');
+    vi.mocked(request.dependencies.publishTransaction).mockResolvedValue(
+      '0xfallback',
+    );
 
     await awaitApproval(request);
     await approveTransaction(request);
@@ -366,7 +369,7 @@ describe('Transaction lifecycle coordination', () => {
   it('prefers the per-transaction publish hook over the constructor hook', async () => {
     const { request, publish } = createRequest();
 
-    const publishOverride = jest
+    const publishOverride = vi
       .fn()
       .mockResolvedValue({ transactionHash: '0xoverride' });
 
@@ -392,12 +395,12 @@ describe('Transaction lifecycle coordination', () => {
  */
 function createRequest(): {
   events: string[];
-  fail: jest.Mock;
+  fail: Mock;
   finish: { resolve: (meta: TransactionMeta) => void };
-  messengerCall: jest.Mock;
-  messengerPublish: jest.Mock;
-  publish: jest.Mock;
-  releaseNonce: jest.Mock;
+  messengerCall: Mock;
+  messengerPublish: Mock;
+  publish: Mock;
+  releaseNonce: Mock;
   request: TransactionLifecycleRequest;
 } {
   const transactionMeta: TransactionMeta = {
@@ -428,22 +431,22 @@ function createRequest(): {
 
   const events: string[] = [];
 
-  const messengerCall = jest.fn();
+  const messengerCall = vi.fn();
 
-  const messengerPublish = jest.fn((event: string) => {
+  const messengerPublish = vi.fn((event: string) => {
     if (event === 'TransactionController:transactionApproved') {
       events.push('approved');
     }
   });
 
-  const releaseNonce = jest.fn(() => events.push('release'));
+  const releaseNonce = vi.fn(() => events.push('release'));
 
-  const publish = jest.fn(async () => {
+  const publish = vi.fn(async () => {
     events.push('publish');
     return { transactionHash: '0xhash' };
   });
 
-  const fail = jest.fn(
+  const fail = vi.fn(
     (meta: TransactionMeta, error: Error, _actionId?: string) => {
       current = {
         ...meta,
@@ -462,17 +465,17 @@ function createRequest(): {
     },
     constructorOptions: {
       disableSwaps: false,
-      hooks: { beforePublish: jest.fn().mockResolvedValue(true), publish },
+      hooks: { beforePublish: vi.fn().mockResolvedValue(true), publish },
       trace: ((_options, callback) =>
         callback?.()) as TransactionLifecycleRequest['constructorOptions']['trace'],
     },
     delegationAddressPromise: Promise.resolve(undefined),
     dependencies: {
-      addTransactionBatch: jest.fn(),
+      addTransactionBatch: vi.fn(),
       failTransaction: fail,
-      fetchGasFeeTokens: jest.fn(),
+      fetchGasFeeTokens: vi.fn(),
       gasFeeFlows: [],
-      getNonceLock: jest
+      getNonceLock: vi
         .fn()
         .mockResolvedValue({ nextNonce: 1, releaseLock: releaseNonce }),
       getState: () => ({
@@ -490,11 +493,11 @@ function createRequest(): {
         call: messengerCall.mockResolvedValue({ r: 1n, s: 2n, v: 27n }),
         publish: messengerPublish,
       } as unknown as TransactionLifecycleRequest['dependencies']['messenger'],
-      publishTransaction: jest.fn(),
+      publishTransaction: vi.fn(),
       skipSimulationTransactionIds: new Set([transactionMeta.id]),
-      updateGasEstimate: jest.fn(),
-      updateSimulationData: jest.fn(),
-      updateState: jest.fn(),
+      updateGasEstimate: vi.fn(),
+      updateSimulationData: vi.fn(),
+      updateState: vi.fn(),
       updateTransaction: (meta) => {
         current = cloneDeep(meta);
       },

@@ -1,4 +1,6 @@
 import type { TypedTxData } from '@ethereumjs/tx';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildLifecycleMocks,
@@ -18,10 +20,10 @@ import {
   updateTransactionMetaRSV,
 } from './sign.js';
 
-jest.mock('../utils/prepare.js');
-jest.mock('../utils/provider.js');
-jest.mock('../utils/eip7702.js');
-jest.mock('../utils/gas-fee-tokens.js');
+vi.mock('../utils/prepare.js');
+vi.mock('../utils/provider.js');
+vi.mock('../utils/eip7702.js');
+vi.mock('../utils/gas-fee-tokens.js');
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -61,7 +63,7 @@ async function flushMicrotasks(): Promise<void> {
  * @returns Handles returned by `buildLifecycleMocks`, plus the keyring sign mock.
  */
 function buildSignMocks(): ReturnType<typeof buildLifecycleMocks> & {
-  keyringSign: jest.Mock;
+  keyringSign: Mock;
 } {
   const mocks = buildLifecycleMocks();
 
@@ -70,14 +72,14 @@ function buildSignMocks(): ReturnType<typeof buildLifecycleMocks> & {
     networkClientId: mocks.request.transactionMeta.networkClientId ?? 'mainnet',
   };
 
-  jest
-    .mocked(prepareTransaction)
-    .mockReturnValue({} as ReturnType<typeof prepareTransaction>);
-  jest.mocked(serializeTransaction).mockReturnValue(RAW_TX_MOCK);
-  jest.mocked(signAuthorizationList).mockResolvedValue(undefined);
-  jest.mocked(checkGasFeeTokenBeforePublish).mockResolvedValue(undefined);
+  vi.mocked(prepareTransaction).mockReturnValue(
+    {} as ReturnType<typeof prepareTransaction>,
+  );
+  vi.mocked(serializeTransaction).mockReturnValue(RAW_TX_MOCK);
+  vi.mocked(signAuthorizationList).mockResolvedValue(undefined);
+  vi.mocked(checkGasFeeTokenBeforePublish).mockResolvedValue(undefined);
 
-  const keyringSign = jest.fn().mockResolvedValue(SIGNED_TX_MOCK);
+  const keyringSign = vi.fn().mockResolvedValue(SIGNED_TX_MOCK);
   mocks.messengerCall.mockImplementation(keyringSign);
 
   return { ...mocks, keyringSign };
@@ -127,7 +129,7 @@ describe('signTransaction', () => {
 
   it('wraps the inner sign call inside the trace function', async () => {
     const { request } = buildSignMocks();
-    const traceSpy = jest.spyOn(request.constructorOptions, 'trace');
+    const traceSpy = vi.spyOn(request.constructorOptions, 'trace');
 
     await signTransaction(request);
 
@@ -145,7 +147,7 @@ describe('signTransaction', () => {
 describe('signTransactionMeta', () => {
   it('calls the beforeSign hook with the transaction metadata', async () => {
     const { request } = buildSignMocks();
-    const beforeSignHook = jest.mocked(
+    const beforeSignHook = vi.mocked(
       request.constructorOptions.hooks.beforeSign,
     );
     beforeSignHook?.mockResolvedValue({});
@@ -157,23 +159,20 @@ describe('signTransactionMeta', () => {
     );
 
     expect(beforeSignHook).toHaveBeenCalledTimes(1);
-    const [callArg] = beforeSignHook?.mock.calls[0] ?? [];
-    expect(
-      (callArg as { transactionMeta: { id: string } }).transactionMeta.id,
-    ).toBe(TRANSACTION_ID_MOCK);
+    expect(beforeSignHook).toHaveBeenCalledWith({
+      transactionMeta: expect.objectContaining({ id: TRANSACTION_ID_MOCK }),
+    });
   });
 
   it('applies updateTransaction from the beforeSign hook when provided', async () => {
     const { request } = buildSignMocks();
     const updatedGasPrice = '0x99';
 
-    jest
-      .mocked(request.constructorOptions.hooks.beforeSign)
-      ?.mockResolvedValue({
-        updateTransaction: (txMeta) => {
-          txMeta.txParams.gasPrice = updatedGasPrice;
-        },
-      });
+    vi.mocked(request.constructorOptions.hooks.beforeSign)?.mockResolvedValue({
+      updateTransaction: (txMeta) => {
+        txMeta.txParams.gasPrice = updatedGasPrice;
+      },
+    });
 
     await signTransactionMeta(
       request.constructorOptions,
@@ -182,7 +181,7 @@ describe('signTransactionMeta', () => {
     );
 
     expect(
-      jest.mocked(request.dependencies.updateTransactionInternal),
+      vi.mocked(request.dependencies.updateTransactionInternal),
     ).toHaveBeenCalledWith(
       expect.objectContaining({
         transactionId: TRANSACTION_ID_MOCK,
@@ -196,11 +195,11 @@ describe('signTransactionMeta', () => {
     const { request } = buildSignMocks();
 
     // beforeSign returns an object without updateTransaction
-    jest
-      .mocked(request.constructorOptions.hooks.beforeSign)
-      ?.mockResolvedValue({});
+    vi.mocked(request.constructorOptions.hooks.beforeSign)?.mockResolvedValue(
+      {},
+    );
 
-    const updateTransactionInternalMock = jest.mocked(
+    const updateTransactionInternalMock = vi.mocked(
       request.dependencies.updateTransactionInternal,
     );
     updateTransactionInternalMock.mockClear();
@@ -223,7 +222,7 @@ describe('signTransactionMeta', () => {
     const externalMeta = buildTransactionMeta({ isExternalSign: true });
     const { request } = buildLifecycleMocks({ transactionMeta: externalMeta });
 
-    jest.mocked(checkGasFeeTokenBeforePublish).mockResolvedValue(undefined);
+    vi.mocked(checkGasFeeTokenBeforePublish).mockResolvedValue(undefined);
 
     const result = await signTransactionMeta(
       request.constructorOptions,
@@ -232,7 +231,7 @@ describe('signTransactionMeta', () => {
     );
 
     expect(result).toBeUndefined();
-    expect(jest.mocked(prepareTransaction)).not.toHaveBeenCalled();
+    expect(vi.mocked(prepareTransaction)).not.toHaveBeenCalled();
   });
 
   it('calls checkGasFeeTokenBeforePublish with the current transaction', async () => {
@@ -244,9 +243,8 @@ describe('signTransactionMeta', () => {
       request.transactionMeta,
     );
 
-    expect(jest.mocked(checkGasFeeTokenBeforePublish)).toHaveBeenCalledTimes(1);
-    const [gasFeeArg] = jest.mocked(checkGasFeeTokenBeforePublish).mock
-      .calls[0];
+    expect(vi.mocked(checkGasFeeTokenBeforePublish)).toHaveBeenCalledTimes(1);
+    const [gasFeeArg] = vi.mocked(checkGasFeeTokenBeforePublish).mock.calls[0];
     expect((gasFeeArg as { transaction: { id: string } }).transaction.id).toBe(
       TRANSACTION_ID_MOCK,
     );
@@ -261,7 +259,7 @@ describe('signTransactionMeta', () => {
       request.transactionMeta,
     );
 
-    expect(jest.mocked(prepareTransaction)).toHaveBeenCalledWith(
+    expect(vi.mocked(prepareTransaction)).toHaveBeenCalledWith(
       CHAIN_ID_MOCK,
       expect.objectContaining({ from: FROM_MOCK }),
     );
@@ -293,7 +291,7 @@ describe('signTransactionMeta', () => {
     );
 
     expect(
-      jest.mocked(request.dependencies.updateTransaction),
+      vi.mocked(request.dependencies.updateTransaction),
     ).toHaveBeenCalledWith(
       expect.objectContaining({ status: TransactionStatus.signed }),
       expect.stringContaining('Transaction signed'),
@@ -309,16 +307,14 @@ describe('signTransactionMeta', () => {
       request.transactionMeta,
     );
 
-    const publishedCalls = messengerPublish.mock.calls.filter(
-      ([event]: [string]) =>
-        event === 'TransactionController:transactionStatusUpdated',
+    expect(messengerPublish).toHaveBeenCalledWith(
+      'TransactionController:transactionStatusUpdated',
+      {
+        transactionMeta: expect.objectContaining({
+          status: TransactionStatus.signed,
+        }),
+      },
     );
-    expect(publishedCalls.length).toBeGreaterThanOrEqual(1);
-    const [, publishedArg] = publishedCalls[0] as [
-      string,
-      { transactionMeta: { status: string } },
-    ];
-    expect(publishedArg.transactionMeta.status).toBe(TransactionStatus.signed);
   });
 
   it('persists rawTx after serialization', async () => {
@@ -331,7 +327,7 @@ describe('signTransactionMeta', () => {
     );
 
     expect(
-      jest.mocked(request.dependencies.updateTransaction),
+      vi.mocked(request.dependencies.updateTransaction),
     ).toHaveBeenCalledWith(
       expect.objectContaining({ rawTx: RAW_TX_MOCK }),
       expect.stringContaining('RawTransaction added'),
@@ -363,11 +359,9 @@ describe('signTransactionMeta', () => {
       },
     ];
 
-    jest
-      .mocked(signAuthorizationList)
-      .mockResolvedValue(
-        signedList as Awaited<ReturnType<typeof signAuthorizationList>>,
-      );
+    vi.mocked(signAuthorizationList).mockResolvedValue(
+      signedList as Awaited<ReturnType<typeof signAuthorizationList>>,
+    );
 
     await signTransactionMeta(
       request.constructorOptions,
@@ -377,7 +371,7 @@ describe('signTransactionMeta', () => {
 
     // updateTransactionInternal is called to write the signed list.
     expect(
-      jest.mocked(request.dependencies.updateTransactionInternal),
+      vi.mocked(request.dependencies.updateTransactionInternal),
     ).toHaveBeenCalledWith(
       expect.objectContaining({ transactionId: TRANSACTION_ID_MOCK }),
       expect.any(Function),
@@ -386,12 +380,12 @@ describe('signTransactionMeta', () => {
 
   it('does NOT call updateTransactionInternal for auth list when signAuthorizationList returns undefined', async () => {
     const { request } = buildSignMocks();
-    jest.mocked(signAuthorizationList).mockResolvedValue(undefined);
+    vi.mocked(signAuthorizationList).mockResolvedValue(undefined);
 
-    jest
-      .mocked(request.constructorOptions.hooks.beforeSign)
-      ?.mockResolvedValue({});
-    const updateTransactionInternalMock = jest.mocked(
+    vi.mocked(request.constructorOptions.hooks.beforeSign)?.mockResolvedValue(
+      {},
+    );
+    const updateTransactionInternalMock = vi.mocked(
       request.dependencies.updateTransactionInternal,
     );
     updateTransactionInternalMock.mockClear();
@@ -527,9 +521,9 @@ describe('abortTransactionSigning', () => {
 
     // Start a sign that will not resolve until we abort it.
     const neverResolve = new Promise<TypedTxData>(() => undefined);
-    jest
-      .spyOn(request.dependencies.messenger, 'call')
-      .mockReturnValue(neverResolve);
+    vi.spyOn(request.dependencies.messenger, 'call').mockReturnValue(
+      neverResolve,
+    );
 
     const signing = signTransactionMeta(
       request.constructorOptions,
@@ -552,9 +546,9 @@ describe('abortTransactionSigning', () => {
     const { request } = buildSignMocks();
 
     const neverResolve = new Promise<TypedTxData>(() => undefined);
-    jest
-      .spyOn(request.dependencies.messenger, 'call')
-      .mockReturnValue(neverResolve);
+    vi.spyOn(request.dependencies.messenger, 'call').mockReturnValue(
+      neverResolve,
+    );
 
     const signing = signTransactionMeta(
       request.constructorOptions,
@@ -582,9 +576,9 @@ describe('abortTransactionSigning', () => {
     const { request } = buildSignMocks();
 
     const neverResolve = new Promise<TypedTxData>(() => undefined);
-    jest
-      .spyOn(request.dependencies.messenger, 'call')
-      .mockReturnValue(neverResolve);
+    vi.spyOn(request.dependencies.messenger, 'call').mockReturnValue(
+      neverResolve,
+    );
 
     const signing = signTransactionMeta(
       request.constructorOptions,

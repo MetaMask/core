@@ -1,4 +1,6 @@
 import type { Hex } from '@metamask/utils';
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ACTION_ID_MOCK,
@@ -25,11 +27,11 @@ import {
 import { getEIP1559Compatibility, initTransaction } from './init.js';
 import type { AddTransactionRequest } from './types.js';
 
-jest.mock('../utils/eip7702.js');
-jest.mock('../utils/provider.js');
-jest.mock('../utils/transaction-type.js');
-jest.mock('../utils/utils.js');
-jest.mock('../utils/validation.js');
+vi.mock('../utils/eip7702.js');
+vi.mock('../utils/provider.js');
+vi.mock('../utils/transaction-type.js');
+vi.mock('../utils/utils.js');
+vi.mock('../utils/validation.js');
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -57,21 +59,25 @@ function buildMocksWithDefaultMessenger(): ReturnType<
  * makes: AccountsController:getState, NetworkController:getNetworkClientById,
  * and NetworkController:getEIP1559Compatibility.
  *
- * @param messengerCall - The jest mock to configure.
+ * @param messengerCall - The mock to configure.
+ * @param overrides - Responses to use instead of the defaults, keyed by action.
  */
-function setupDefaultMessengerMock(messengerCall: jest.Mock): void {
-  messengerCall.mockImplementation((action: string) => {
-    if (action === 'AccountsController:getState') {
-      return { internalAccounts: { accounts: {} } };
-    }
-    if (action === 'NetworkController:getNetworkClientById') {
-      return { configuration: { chainId: CHAIN_ID_MOCK } };
-    }
-    if (action === 'NetworkController:getEIP1559Compatibility') {
-      return true;
-    }
-    return null;
-  });
+function setupDefaultMessengerMock(
+  messengerCall: Mock,
+  overrides: Record<string, unknown> = {},
+): void {
+  const responses: Record<string, unknown> = {
+    'AccountsController:getState': { internalAccounts: { accounts: {} } },
+    'NetworkController:getEIP1559Compatibility': true,
+    'NetworkController:getNetworkClientById': {
+      configuration: { chainId: CHAIN_ID_MOCK },
+    },
+    ...overrides,
+  };
+
+  messengerCall.mockImplementation(
+    (action: string) => responses[action] ?? null,
+  );
 }
 
 /**
@@ -108,14 +114,14 @@ function buildRequest(
 
 describe('initTransaction', () => {
   beforeEach(() => {
-    jest.mocked(getChainId).mockReturnValue(CHAIN_ID_MOCK);
-    jest
-      .mocked(normalizeTransactionParams)
-      .mockImplementation((txParams) => txParams);
-    jest.mocked(validateTransactionOrigin).mockResolvedValue(undefined);
-    jest.mocked(validateTxParams).mockReturnValue(undefined);
-    jest.mocked(getDelegationAddress).mockResolvedValue(undefined);
-    jest.mocked(determineTransactionType).mockResolvedValue({
+    vi.mocked(getChainId).mockReturnValue(CHAIN_ID_MOCK);
+    vi.mocked(normalizeTransactionParams).mockImplementation(
+      (txParams) => txParams,
+    );
+    vi.mocked(validateTransactionOrigin).mockResolvedValue(undefined);
+    vi.mocked(validateTxParams).mockReturnValue(undefined);
+    vi.mocked(getDelegationAddress).mockResolvedValue(undefined);
+    vi.mocked(determineTransactionType).mockResolvedValue({
       getCodeResponse: undefined,
       type: TransactionType.simpleSend,
     });
@@ -124,9 +130,9 @@ describe('initTransaction', () => {
   describe('network client validation', () => {
     it('throws if the network client does not exist', async () => {
       const { request, mocks } = buildRequest();
-      jest
-        .mocked(mocks.request.dependencies.hasNetworkClient)
-        .mockReturnValue(false);
+      vi.mocked(mocks.request.dependencies.hasNetworkClient).mockReturnValue(
+        false,
+      );
 
       await expect(initTransaction(request)).rejects.toThrow(
         `Network client not found - ${NETWORK_CLIENT_ID_MOCK}`,
@@ -143,7 +149,7 @@ describe('initTransaction', () => {
 
     it('checks hasNetworkClient with the correct networkClientId', async () => {
       const { request, mocks } = buildRequest();
-      const hasNetworkClient = jest.mocked(
+      const hasNetworkClient = vi.mocked(
         mocks.request.dependencies.hasNetworkClient,
       );
 
@@ -159,7 +165,7 @@ describe('initTransaction', () => {
 
       await initTransaction(request);
 
-      expect(jest.mocked(getChainId)).toHaveBeenCalledWith({
+      expect(vi.mocked(getChainId)).toHaveBeenCalledWith({
         messenger: request.dependencies.messenger,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
       });
@@ -167,7 +173,7 @@ describe('initTransaction', () => {
 
     it('sets chainId on the resulting transactionMeta', async () => {
       const customChainId = '0xa' as Hex;
-      jest.mocked(getChainId).mockReturnValue(customChainId);
+      vi.mocked(getChainId).mockReturnValue(customChainId);
       const { request } = buildRequest();
 
       const result = await initTransaction(request);
@@ -190,7 +196,7 @@ describe('initTransaction', () => {
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
         expect.objectContaining({
           from: FROM_MOCK.toLowerCase(),
           origin: EXTERNAL_ORIGIN_MOCK,
@@ -209,13 +215,11 @@ describe('initTransaction', () => {
         },
       });
 
-      jest
-        .mocked(validateTransactionOrigin)
-        .mockRejectedValue(
-          new Error(
-            'External transactions to internal accounts cannot include data',
-          ),
-        );
+      vi.mocked(validateTransactionOrigin).mockRejectedValue(
+        new Error(
+          'External transactions to internal accounts cannot include data',
+        ),
+      );
 
       await expect(initTransaction(request)).rejects.toThrow(
         'External transactions to internal accounts cannot include data',
@@ -226,32 +230,23 @@ describe('initTransaction', () => {
       const internalAddress = '0xeoa' as Hex;
       const { request, mocks } = buildRequest();
 
-      mocks.messengerCall.mockImplementation((action: string) => {
-        if (action === 'AccountsController:getState') {
-          return {
-            internalAccounts: {
-              accounts: {
-                evm: { address: internalAddress, type: 'eip155:eoa' },
-                solana: {
-                  address: 'solana-account',
-                  type: 'solana:data-account',
-                },
+      setupDefaultMessengerMock(mocks.messengerCall, {
+        'AccountsController:getState': {
+          internalAccounts: {
+            accounts: {
+              evm: { address: internalAddress, type: 'eip155:eoa' },
+              solana: {
+                address: 'solana-account',
+                type: 'solana:data-account',
               },
             },
-          };
-        }
-        if (action === 'NetworkController:getNetworkClientById') {
-          return { configuration: { chainId: CHAIN_ID_MOCK } };
-        }
-        if (action === 'NetworkController:getEIP1559Compatibility') {
-          return true;
-        }
-        return null;
+          },
+        },
       });
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
         expect.objectContaining({
           internalAccounts: [internalAddress],
         }),
@@ -261,32 +256,23 @@ describe('initTransaction', () => {
     it('excludes non-EOA accounts from internalAccounts', async () => {
       const { request, mocks } = buildRequest();
 
-      mocks.messengerCall.mockImplementation((action: string) => {
-        if (action === 'AccountsController:getState') {
-          return {
-            internalAccounts: {
-              accounts: {
-                evm: { address: '0xeoa', type: 'eip155:eoa' },
-                solana: {
-                  address: 'solana-account',
-                  type: 'solana:data-account',
-                },
+      setupDefaultMessengerMock(mocks.messengerCall, {
+        'AccountsController:getState': {
+          internalAccounts: {
+            accounts: {
+              evm: { address: '0xeoa', type: 'eip155:eoa' },
+              solana: {
+                address: 'solana-account',
+                type: 'solana:data-account',
               },
             },
-          };
-        }
-        if (action === 'NetworkController:getNetworkClientById') {
-          return { configuration: { chainId: CHAIN_ID_MOCK } };
-        }
-        if (action === 'NetworkController:getEIP1559Compatibility') {
-          return true;
-        }
-        return null;
+          },
+        },
       });
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
         expect.objectContaining({
           internalAccounts: ['0xeoa'],
         }),
@@ -295,9 +281,7 @@ describe('initTransaction', () => {
 
     it('passes permittedAddresses when origin is set and getPermittedAccounts is configured', async () => {
       const permittedAccounts = [FROM_MOCK];
-      const getPermittedAccounts = jest
-        .fn()
-        .mockResolvedValue(permittedAccounts);
+      const getPermittedAccounts = vi.fn().mockResolvedValue(permittedAccounts);
 
       const { request } = buildRequest({
         addTransactionRequest: {
@@ -311,18 +295,18 @@ describe('initTransaction', () => {
           disableSwaps: false,
           getPermittedAccounts,
           hooks: {
-            afterAdd: jest.fn().mockResolvedValue({}),
-            beforePublish: jest.fn().mockResolvedValue(true),
-            beforeSign: jest.fn().mockResolvedValue(true),
-            publish: jest.fn().mockResolvedValue({ transactionHash: '0xhash' }),
+            afterAdd: vi.fn().mockResolvedValue({}),
+            beforePublish: vi.fn().mockResolvedValue(true),
+            beforeSign: vi.fn().mockResolvedValue(true),
+            publish: vi.fn().mockResolvedValue({ transactionHash: '0xhash' }),
           },
-          trace: jest.fn(),
+          trace: vi.fn(),
         },
       });
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
         expect.objectContaining({
           permittedAddresses: permittedAccounts,
         }),
@@ -339,7 +323,7 @@ describe('initTransaction', () => {
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
         expect.objectContaining({
           permittedAddresses: undefined,
         }),
@@ -359,7 +343,7 @@ describe('initTransaction', () => {
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTransactionOrigin)).toHaveBeenCalledWith(
         expect.objectContaining({ isInternal: true }),
       );
     });
@@ -369,22 +353,13 @@ describe('initTransaction', () => {
     it('calls validateTxParams with isEIP1559Compatible=true when network supports it', async () => {
       const { request, mocks } = buildRequest();
 
-      mocks.messengerCall.mockImplementation((action: string) => {
-        if (action === 'AccountsController:getState') {
-          return { internalAccounts: { accounts: {} } };
-        }
-        if (action === 'NetworkController:getNetworkClientById') {
-          return { configuration: { chainId: CHAIN_ID_MOCK } };
-        }
-        if (action === 'NetworkController:getEIP1559Compatibility') {
-          return true;
-        }
-        return null;
+      setupDefaultMessengerMock(mocks.messengerCall, {
+        'NetworkController:getEIP1559Compatibility': true,
       });
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTxParams)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTxParams)).toHaveBeenCalledWith(
         expect.any(Object),
         true,
         CHAIN_ID_MOCK,
@@ -394,22 +369,13 @@ describe('initTransaction', () => {
     it('calls validateTxParams with isEIP1559Compatible=false when network does not support it', async () => {
       const { request, mocks } = buildRequest();
 
-      mocks.messengerCall.mockImplementation((action: string) => {
-        if (action === 'AccountsController:getState') {
-          return { internalAccounts: { accounts: {} } };
-        }
-        if (action === 'NetworkController:getNetworkClientById') {
-          return { configuration: { chainId: CHAIN_ID_MOCK } };
-        }
-        if (action === 'NetworkController:getEIP1559Compatibility') {
-          return false;
-        }
-        return null;
+      setupDefaultMessengerMock(mocks.messengerCall, {
+        'NetworkController:getEIP1559Compatibility': false,
       });
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTxParams)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTxParams)).toHaveBeenCalledWith(
         expect.any(Object),
         false,
         CHAIN_ID_MOCK,
@@ -426,7 +392,7 @@ describe('initTransaction', () => {
 
       await initTransaction(request);
 
-      expect(jest.mocked(setEnvelopeType)).toHaveBeenCalled();
+      expect(vi.mocked(setEnvelopeType)).toHaveBeenCalled();
     });
 
     it('does not call setEnvelopeType when txParams already has a type', async () => {
@@ -443,14 +409,14 @@ describe('initTransaction', () => {
 
       await initTransaction(request);
 
-      expect(jest.mocked(setEnvelopeType)).not.toHaveBeenCalled();
+      expect(vi.mocked(setEnvelopeType)).not.toHaveBeenCalled();
     });
   });
 
   describe('tx params validation', () => {
     it('throws when validateTxParams throws', async () => {
       const { request } = buildRequest();
-      jest.mocked(validateTxParams).mockImplementation(() => {
+      vi.mocked(validateTxParams).mockImplementation(() => {
         throw new Error('Invalid gas params');
       });
 
@@ -461,12 +427,12 @@ describe('initTransaction', () => {
 
     it('passes the chainId to validateTxParams', async () => {
       const customChainId = '0x89' as Hex;
-      jest.mocked(getChainId).mockReturnValue(customChainId);
+      vi.mocked(getChainId).mockReturnValue(customChainId);
       const { request } = buildRequest();
 
       await initTransaction(request);
 
-      expect(jest.mocked(validateTxParams)).toHaveBeenCalledWith(
+      expect(vi.mocked(validateTxParams)).toHaveBeenCalledWith(
         expect.any(Object),
         expect.any(Boolean),
         customChainId,
@@ -700,11 +666,11 @@ describe('initTransaction', () => {
       const result = await initTransaction(request);
 
       expect(result.transactionMeta.type).toBe(TransactionType.cancel);
-      expect(jest.mocked(determineTransactionType)).not.toHaveBeenCalled();
+      expect(vi.mocked(determineTransactionType)).not.toHaveBeenCalled();
     });
 
     it('calls determineTransactionType when type is not in options', async () => {
-      jest.mocked(determineTransactionType).mockResolvedValue({
+      vi.mocked(determineTransactionType).mockResolvedValue({
         getCodeResponse: undefined,
         type: TransactionType.contractInteraction,
       });
@@ -712,7 +678,7 @@ describe('initTransaction', () => {
 
       const result = await initTransaction(request);
 
-      expect(jest.mocked(determineTransactionType)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(determineTransactionType)).toHaveBeenCalledTimes(1);
       expect(result.transactionMeta.type).toBe(
         TransactionType.contractInteraction,
       );
@@ -723,7 +689,7 @@ describe('initTransaction', () => {
 
       await initTransaction(request);
 
-      expect(jest.mocked(determineTransactionType)).toHaveBeenCalledWith(
+      expect(vi.mocked(determineTransactionType)).toHaveBeenCalledWith(
         expect.any(Object),
         {
           messenger: request.dependencies.messenger,
@@ -937,11 +903,11 @@ describe('initTransaction', () => {
   describe('delegation address resolution', () => {
     it('starts resolving the delegation address from the normalised from address', async () => {
       const { request } = buildRequest();
-      jest.mocked(getDelegationAddress).mockResolvedValue('0xdelegate');
+      vi.mocked(getDelegationAddress).mockResolvedValue('0xdelegate');
 
       await initTransaction(request);
 
-      expect(jest.mocked(getDelegationAddress)).toHaveBeenCalledWith(
+      expect(vi.mocked(getDelegationAddress)).toHaveBeenCalledWith(
         FROM_MOCK.toLowerCase(),
         request.dependencies.messenger,
         NETWORK_CLIENT_ID_MOCK,
@@ -959,7 +925,7 @@ describe('initTransaction', () => {
     it('resolves the delegation address promise when successful', async () => {
       const delegateAddress = '0xdelegate' as Hex;
       const { request } = buildRequest();
-      jest.mocked(getDelegationAddress).mockResolvedValue(delegateAddress);
+      vi.mocked(getDelegationAddress).mockResolvedValue(delegateAddress);
 
       const result = await initTransaction(request);
 
@@ -968,9 +934,9 @@ describe('initTransaction', () => {
 
     it('resolves delegationAddressPromise to undefined when getDelegationAddress rejects', async () => {
       const { request } = buildRequest();
-      jest
-        .mocked(getDelegationAddress)
-        .mockRejectedValue(new Error('Network error'));
+      vi.mocked(getDelegationAddress).mockRejectedValue(
+        new Error('Network error'),
+      );
 
       const result = await initTransaction(request);
 

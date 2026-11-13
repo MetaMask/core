@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   ACTION_ID_MOCK,
   buildLifecycleMocks,
@@ -94,7 +96,7 @@ describe('awaitApproval', () => {
       const { request } = buildLifecycleMocks();
       // Override getState to return an empty transaction list so that
       // isTransactionCompleted returns { isCompleted: false, meta: undefined }.
-      jest.mocked(request.dependencies.getState).mockReturnValue({
+      vi.mocked(request.dependencies.getState).mockReturnValue({
         batchTransactionCounts: {},
         lastFetchedBlockNumbers: {},
         methodData: {},
@@ -110,7 +112,7 @@ describe('awaitApproval', () => {
 
     it('sets finishedPromise to a pending promise', async () => {
       const { request } = buildLifecycleMocks();
-      jest.mocked(request.dependencies.getState).mockReturnValue({
+      vi.mocked(request.dependencies.getState).mockReturnValue({
         batchTransactionCounts: {},
         lastFetchedBlockNumbers: {},
         methodData: {},
@@ -150,7 +152,7 @@ describe('awaitApproval', () => {
         buildMocksWithApproval();
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
       });
 
       const approval = awaitApproval(request);
@@ -170,7 +172,7 @@ describe('awaitApproval', () => {
     });
 
     it('stores the resultCallbacks on lifecycle after approval', async () => {
-      const resultCallbacks = { error: jest.fn(), success: jest.fn() };
+      const resultCallbacks = { error: vi.fn(), success: vi.fn() };
       const { request, messengerCall, finishTransaction } =
         buildMocksWithApproval();
 
@@ -191,7 +193,7 @@ describe('awaitApproval', () => {
       request.addTransactionRequest.options.requireApproval = true;
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
       });
 
       const approval = awaitApproval(request);
@@ -210,7 +212,7 @@ describe('awaitApproval', () => {
         buildMocksWithApproval();
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
       });
 
       const approval = awaitApproval(request);
@@ -227,10 +229,10 @@ describe('awaitApproval', () => {
     it('calls the trace function with the Await Approval name', async () => {
       const { request, messengerCall, finishTransaction } =
         buildMocksWithApproval();
-      const traceSpy = jest.spyOn(request.constructorOptions, 'trace');
+      const traceSpy = vi.spyOn(request.constructorOptions, 'trace');
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
       });
 
       const approval = awaitApproval(request);
@@ -248,10 +250,10 @@ describe('awaitApproval', () => {
         buildMocksWithApproval();
       request.addTransactionRequest.options.traceContext = TRACE_CONTEXT_MOCK;
 
-      const traceSpy = jest.spyOn(request.constructorOptions, 'trace');
+      const traceSpy = vi.spyOn(request.constructorOptions, 'trace');
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
       });
 
       const approval = awaitApproval(request);
@@ -290,7 +292,7 @@ describe('awaitApproval', () => {
       });
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
         value: { txMeta: approvedTxMeta },
       });
 
@@ -299,7 +301,7 @@ describe('awaitApproval', () => {
       await approval;
 
       expect(
-        jest.mocked(request.dependencies.updateTransaction),
+        vi.mocked(request.dependencies.updateTransaction),
       ).toHaveBeenCalledWith(
         expect.objectContaining({ id: TRANSACTION_ID_MOCK }),
         'TransactionController#processApproval - Updated with approval data',
@@ -311,7 +313,7 @@ describe('awaitApproval', () => {
         buildMocksWithApproval();
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
         value: {},
       });
 
@@ -320,7 +322,7 @@ describe('awaitApproval', () => {
       await approval;
 
       expect(
-        jest.mocked(request.dependencies.updateTransaction),
+        vi.mocked(request.dependencies.updateTransaction),
       ).not.toHaveBeenCalled();
     });
 
@@ -329,7 +331,7 @@ describe('awaitApproval', () => {
         buildMocksWithApproval();
 
       messengerCall.mockResolvedValue({
-        resultCallbacks: { error: jest.fn(), success: jest.fn() },
+        resultCallbacks: { error: vi.fn(), success: vi.fn() },
         value: undefined,
       });
 
@@ -338,7 +340,7 @@ describe('awaitApproval', () => {
       await approval;
 
       expect(
-        jest.mocked(request.dependencies.updateTransaction),
+        vi.mocked(request.dependencies.updateTransaction),
       ).not.toHaveBeenCalled();
     });
   });
@@ -378,7 +380,7 @@ describe('awaitApproval', () => {
       request.lifecycle.onError?.(testError);
 
       expect(
-        jest.mocked(request.dependencies.failTransaction),
+        vi.mocked(request.dependencies.failTransaction),
       ).toHaveBeenCalledWith(
         expect.objectContaining({ id: TRANSACTION_ID_MOCK }),
         testError,
@@ -397,7 +399,7 @@ describe('awaitApproval', () => {
       request.lifecycle.onError?.(testError);
 
       expect(
-        jest.mocked(request.dependencies.failTransaction),
+        vi.mocked(request.dependencies.failTransaction),
       ).toHaveBeenCalledWith(expect.anything(), testError, ACTION_ID_MOCK);
     });
   });
