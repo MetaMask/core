@@ -106,7 +106,7 @@ describe('ServerStrategy', () => {
       expect(
         new ServerStrategy().supports({
           ...SUPPORTS_REQUEST_MOCK,
-          requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+          requests: [{ ...QUOTE_REQUEST_MOCK, isDirectMusdMoneyAccount: true }],
         }),
       ).toBe(false);
     });
