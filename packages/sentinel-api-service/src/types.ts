@@ -136,15 +136,15 @@ export enum SentinelKind {
 }
 
 export enum SentinelProductFeature {
-  Swap = 'Swap',
-  Staking = 'Staking',
-  Ramp = 'Ramp',
-  Prediction = 'Prediction',
-  Perp = 'Perp',
-  Earn = 'Earn',
-  Card = 'Card',
   Bridge = 'Bridge',
+  Card = 'Card',
   dAppTransaction = 'dAppTransaction',
+  Earn = 'Earn',
+  Perp = 'Perp',
+  Prediction = 'Prediction',
+  Ramp = 'Ramp',
+  Staking = 'Staking',
+  Swap = 'Swap',
 }
 
 /**
@@ -723,12 +723,12 @@ export type SentinelCancelResponse = {
  * Compliant with the Transaction API (SCP).
  */
 export enum SentinelCancellationReason {
+  DeadlineMissed = 'deadline_missed',
+  InvalidNonce = 'invalid_nonce',
   NotCancelled = 'not_cancelled',
+  TooCheap = 'too_cheap',
   UserCancelled = 'user_cancelled',
   WouldRevert = 'would_revert',
-  InvalidNonce = 'invalid_nonce',
-  DeadlineMissed = 'deadline_missed',
-  TooCheap = 'too_cheap',
 }
 
 /**
@@ -736,10 +736,10 @@ export enum SentinelCancellationReason {
  * Compliant with the Transaction API (SCP).
  */
 export enum SentinelMinedTxStatus {
+  Cancelled = 'cancelled',
   NotMined = 'not_mined',
   Reverted = 'reverted',
   Success = 'success',
-  Cancelled = 'cancelled',
 }
 
 /**
@@ -748,28 +748,28 @@ export enum SentinelMinedTxStatus {
  * status loaded from the database.
  */
 export enum SentinelOriginalTransactionStatus {
+  Cancelled = 'CANCELLED',
+  CancelledLeakedReverted = 'CANCELLED_LEAKED_REVERTED',
+  CancelledLeakedValidated = 'CANCELLED_LEAKED_VALIDATED',
+  Failed = 'FAILED',
+  FailedAuth = 'FAILED_AUTH',
+  FailedGaslessConfig = 'FAILED_GASLESS_CONFIG',
+  FailedGasTooLow = 'FAILED_GAS_TOO_LOW',
+  FailedInsufficientFee = 'FAILED_INSUFFICIENT_FEE',
+  FailedInsufficientFunds = 'FAILED_INSUFFICIENT_FUNDS',
+  FailedNonceTooHigh = 'FAILED_NONCE_TOO_HIGH',
+  FailedSpam = 'FAILED_SPAM',
+  FailedSponsorshipRule = 'FAILED_SPONSORSHIP_RULE',
+  FailedTimeout = 'FAILED_TIMEOUT',
+  FailedUnknown = 'FAILED_UNKNOWN',
+  FailedWouldRevert = 'FAILED_WOULD_REVERT',
+  LeakedReverted = 'LEAKED_REVERTED',
+  LeakedValidated = 'LEAKED_VALIDATED',
+  NonceTooLow = 'NONCE_TOO_LOW',
   Pending = 'PENDING',
   PendingCancelled = 'PENDING_CANCELLED',
-  Validated = 'VALIDATED',
   Reverted = 'REVERTED',
-  NonceTooLow = 'NONCE_TOO_LOW',
-  Cancelled = 'CANCELLED',
-  Failed = 'FAILED',
-  FailedWouldRevert = 'FAILED_WOULD_REVERT',
-  FailedInsufficientFunds = 'FAILED_INSUFFICIENT_FUNDS',
-  FailedUnknown = 'FAILED_UNKNOWN',
-  FailedTimeout = 'FAILED_TIMEOUT',
-  FailedGasTooLow = 'FAILED_GAS_TOO_LOW',
-  FailedNonceTooHigh = 'FAILED_NONCE_TOO_HIGH',
-  FailedGaslessConfig = 'FAILED_GASLESS_CONFIG',
-  FailedSponsorshipRule = 'FAILED_SPONSORSHIP_RULE',
-  FailedSpam = 'FAILED_SPAM',
-  FailedAuth = 'FAILED_AUTH',
-  FailedInsufficientFee = 'FAILED_INSUFFICIENT_FEE',
-  LeakedValidated = 'LEAKED_VALIDATED',
-  LeakedReverted = 'LEAKED_REVERTED',
-  CancelledLeakedValidated = 'CANCELLED_LEAKED_VALIDATED',
-  CancelledLeakedReverted = 'CANCELLED_LEAKED_REVERTED',
+  Validated = 'VALIDATED',
 }
 
 /**
