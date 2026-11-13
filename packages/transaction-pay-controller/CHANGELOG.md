@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Always request non-atomic quotes for an MFA signing keyring, for every quote request ([#11476](https://github.com/MetaMask/core/pull/11476))
   - Cleared once when quotes are dispatched, so Relay, Server, Across, and Fiat all receive non-atomic requests.
-  - Relay applies the same rule to requests built later, such as fiat estimation. Max quotes also skip atomic promotion, which would otherwise set `atomic` back to `true`.
+  - Relay applies the same rule to requests built later, such as fiat estimation.
   - The signing account is `transaction.txParams.from`, the account that signs the embedded delegation.
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
