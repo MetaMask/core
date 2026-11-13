@@ -5,6 +5,7 @@ import type { Hex } from '@metamask/utils';
 import { DEPOSIT_CONFIG } from '../constants/hyperLiquidConfig.js';
 import type {
   PerpsProvider,
+  PerpsProviderType,
   PerpsPlatformDependencies,
   PerpsTransactionParams,
 } from '../types/index.js';
@@ -57,6 +58,8 @@ export class DepositService {
     transaction: PerpsTransactionParams;
     assetChainId: Hex;
     currentDepositId: string;
+    /** Venue whose route was selected; the deposit settles on that venue. */
+    providerId?: PerpsProviderType;
   }> {
     const { provider } = options;
 
@@ -118,6 +121,7 @@ export class DepositService {
       transaction,
       assetChainId,
       currentDepositId,
+      providerId: route.providerId,
     };
   }
 }
