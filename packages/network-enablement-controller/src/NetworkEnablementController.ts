@@ -619,6 +619,7 @@ export class NetworkEnablementController extends BaseController<
    * map. Missing snapshot values default to `false`. Intended for callers with
    * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
    * switches when adding a network without changing the active selection.
+   * Networks not in the snapshot are preserved if the snapshot had all networks enabled (popular mode).
    *
    * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
    */
@@ -626,13 +627,37 @@ export class NetworkEnablementController extends BaseController<
     enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
   ): void {
     this.update((state) => {
+      // Check if current state still has all networks that were enabled in snapshot
+      const hasEnabledNetworks = Object.values(enabledNetworkMap).some(
+        (networks) => Object.values(networks).some((enabled) => enabled),
+      );
+      const previousSelectionKept =
+        hasEnabledNetworks &&
+        Object.entries(enabledNetworkMap).every(([namespace, networks]) =>
+          Object.entries(networks).every(([chainId, wasEnabled]) => {
+            const storageKey = chainId as CaipChainId | Hex;
+            return (
+              !wasEnabled || state.enabledNetworkMap[namespace]?.[storageKey]
+            );
+          }),
+        );
+
       Object.entries(state.enabledNetworkMap).forEach(
         ([namespace, currentNetworks]) => {
           Object.keys(currentNetworks).forEach((chainId) => {
             const storageKey = chainId as CaipChainId | Hex;
             const previousValue = enabledNetworkMap[namespace]?.[storageKey];
-            state.enabledNetworkMap[namespace][storageKey] =
-              previousValue ?? false;
+
+            if (previousValue !== undefined) {
+              // Key existed in snapshot: restore its value
+              state.enabledNetworkMap[namespace][storageKey] = previousValue;
+            } else if (previousSelectionKept) {
+              // Key not in snapshot, but snapshot was popular mode: keep current value
+              // (do nothing, preserve state.enabledNetworkMap[namespace][storageKey])
+            } else {
+              // Key not in snapshot and snapshot was single-network mode: disable it
+              state.enabledNetworkMap[namespace][storageKey] = false;
+            }
           });
         },
       );
