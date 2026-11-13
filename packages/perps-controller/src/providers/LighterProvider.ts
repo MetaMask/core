@@ -10160,7 +10160,6 @@ export class LighterProvider implements PerpsProvider {
       const crossMarginSummary = await this.#readCrossMarginSummary(
         account,
         accountState,
-        throwOnUnavailable,
       );
       this.#assertSession(generation);
       return crossMarginSummary
@@ -10199,24 +10198,24 @@ export class LighterProvider implements PerpsProvider {
 
   /**
    * Cross-margin summary for an account read. Without positions or
-   * market-margin metadata, default callers keep the account state without
-   * a summary; opted-in callers get the failure.
+   * market-margin metadata, the account state is kept without a summary:
+   * the summary decorates real balances, and dropping it must never drop
+   * the balances themselves. Capability gates and venue-data integrity
+   * failures still surface.
    *
    * @param account - Validated sub-account payload.
    * @param accountState - The account's adapted state.
-   * @param throwOnUnavailable - Whether the caller opted in to failures.
    * @returns The summary, or undefined when its inputs are unavailable.
    */
   readonly #readCrossMarginSummary = async (
     account: LighterSubAccount,
     accountState: AccountState,
-    throwOnUnavailable: boolean,
   ): Promise<CrossMarginSummary | undefined> => {
     if (account.positions?.length) {
       try {
         await this.#ensureMarketMargins();
       } catch (error) {
-        if (throwOnUnavailable || this.#mustSurfaceReadError(error)) {
+        if (this.#mustSurfaceReadError(error)) {
           throw error;
         }
         this.#deps.debugLogger.log(
@@ -10234,11 +10233,6 @@ export class LighterProvider implements PerpsProvider {
       accountState.totalBalance,
       this.#maintenanceFractionFor,
     );
-    if (!summary && throwOnUnavailable) {
-      throw new Error(
-        `${LIGHTER_DATA_INTEGRITY_PREFIX} cross margin summary unavailable: positions or maintenance margin metadata missing`,
-      );
-    }
     return summary;
   };
 

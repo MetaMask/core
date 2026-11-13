@@ -1796,9 +1796,13 @@ export type GetAccountStateParams = {
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
   /**
-   * Optional: throw instead of returning zero-valued state when the read
-   * fails. Lighter throws `ACCOUNT_STATE_FAILED` (with the cause attached);
-   * a wallet without a Lighter account still reads as empty.
+   * Optional: throw instead of returning zero-valued state when the core
+   * read fails (session, account payload, malformed venue numbers). Lighter
+   * throws `ACCOUNT_STATE_FAILED` (with the cause attached); a wallet
+   * without a Lighter account still reads as empty. The optional
+   * venue-local `crossMarginSummary` stays best-effort: a read whose
+   * balances are valid is never failed because its margin metadata could
+   * not be loaded.
    */
   throwOnUnavailable?: boolean;
 };
