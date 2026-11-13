@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.4.1]
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+- Bump `@metamask/assets-controllers` from `^113.3.1` to `^113.3.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/network-enablement-controller` from `^7.1.2` to `^7.1.3` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/phishing-controller` from `^18.3.0` to `^18.3.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 
 ## [20.4.0]
 
@@ -1301,7 +1307,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.1...HEAD
+[20.4.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.0...@metamask/assets-controller@20.4.1
 [20.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...@metamask/assets-controller@20.4.0
 [20.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...@metamask/assets-controller@20.3.1
 [20.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.3...@metamask/assets-controller@20.3.0

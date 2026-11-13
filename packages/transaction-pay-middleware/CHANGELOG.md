@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4]
+
 ### Changed
 
 - Bump `@metamask/perps-controller` from `^23.1.0` to `^24.0.0` ([#11464](https://github.com/MetaMask/core/pull/11464))
 - Bump `@metamask/perps-controller` from `^23.0.0` to `^23.1.0` ([#11426](https://github.com/MetaMask/core/pull/11426))
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 
 ## [2.0.3]
 
@@ -67,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/perps-controller` from `^20.1.0` to `^21.0.0` ([#10988](https://github.com/MetaMask/core/pull/10988))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.4...HEAD
+[2.0.4]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.3...@metamask/transaction-pay-middleware@2.0.4
 [2.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.2...@metamask/transaction-pay-middleware@2.0.3
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.1...@metamask/transaction-pay-middleware@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.0...@metamask/transaction-pay-middleware@2.0.1

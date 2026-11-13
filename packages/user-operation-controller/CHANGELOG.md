@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.1.2]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 
 ## [42.1.1]
 
@@ -723,7 +726,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.2...HEAD
+[42.1.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.1...@metamask/user-operation-controller@42.1.2
 [42.1.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.0...@metamask/user-operation-controller@42.1.1
 [42.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.1...@metamask/user-operation-controller@42.1.0
 [42.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.0...@metamask/user-operation-controller@42.0.1
