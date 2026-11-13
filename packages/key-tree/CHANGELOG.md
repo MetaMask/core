@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.0]
 
-### Uncategorized
-
-- chore(key-tree): move to `packages` ([#11367](https://github.com/MetaMask/core/pull/11367))
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#11361](https://github.com/MetaMask/core/pull/11361))
@@ -30,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Uint8Array`s backed by a `SharedArrayBuffer` were never properly supported, so this only makes the types reflect the existing runtime behaviour.
 - Replace the `@metamask/utils` dependency with `@metamask/byte-utils` and `@metamask/type-utils` ([#11361](https://github.com/MetaMask/core/pull/11361))
 - Bump `@noble/curves` from `^1.8.1` to `^1.9.7`, `@noble/hashes` from `^1.3.2` to `^1.8.0`, and `@scure/base` from `^1.0.0` to `^1.2.6` ([#11361](https://github.com/MetaMask/core/pull/11361))
-- This package was migrated from `MetaMask/key-tree` to the `MetaMask/core` monorepo ([#11354](https://github.com/MetaMask/core/pull/11354))
+- This package was migrated from `MetaMask/key-tree` to the `MetaMask/core` monorepo ([#11354](https://github.com/MetaMask/core/pull/11354), [#11367](https://github.com/MetaMask/core/pull/11367))
   - See [`MetaMask/key-tree`](https://github.com/MetaMask/key-tree/blob/742c995fa27144d038941df5bddbc7351ee0e8ff/CHANGELOG.md) for the original changelog.
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/key-tree@11.0.0...HEAD
