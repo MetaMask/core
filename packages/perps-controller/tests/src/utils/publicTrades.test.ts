@@ -137,8 +137,9 @@ describe('adaptPublicTradesFromHyperLiquid', () => {
         [
           sdkTrade({ coin: 'ETH' }),
           sdkTrade({ px: 'abc' }),
-          sdkTrade({ side: 'X' as HyperLiquidPublicTrade['side'] }),
-          sdkTrade({ tid: undefined as unknown as number }),
+          // @ts-expect-error -- malformed venue payload: side outside 'A' | 'B'
+          sdkTrade({ side: 'X' }),
+          sdkTrade({ tid: undefined }),
         ],
         'BTC',
       ),
