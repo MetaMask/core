@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-simple-keyring` from `^13.0.0` to `^13.0.2` ([#11494](https://github.com/MetaMask/core/pull/11494))
+
 ## [28.2.1]
 
 ### Added
