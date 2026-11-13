@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `getQuoteFetchTraceContext` constructor option; its return value is passed as `parentContext` to each quote fetch's traces, so they can nest under a client span ([#11460](https://github.com/MetaMask/core/pull/11460))
+- Add optional `getQuoteFetchTraceContext` constructor option; its return value is passed as `parentContext` to each quote fetch's traces, so they can nest under a client span ([#11467](https://github.com/MetaMask/core/pull/11467))
   - `SwapTraceRequest` now accepts `parentContext`
 
 ### Changed
