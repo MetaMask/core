@@ -589,20 +589,20 @@
 /packages/network-connection-banner-controller/vitest.config.*    @MetaMask/core-platform
 
 ### network-controller
-/packages/network-controller                    @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/network-controller/CHANGELOG.md       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/network-controller/package.json       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/network-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/network-controller/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/network-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/network-controller                    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks
+/packages/network-controller/CHANGELOG.md       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks
+/packages/network-controller/package.json       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks
+/packages/network-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks
+/packages/network-controller/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks
+/packages/network-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks
 
 ### network-enablement-controller
-/packages/network-enablement-controller                    @MetaMask/metamask-assets
-/packages/network-enablement-controller/CHANGELOG.md       @MetaMask/core-platform @MetaMask/metamask-assets    # maintenance-owner: @MetaMask/core-platform
-/packages/network-enablement-controller/package.json       @MetaMask/core-platform @MetaMask/metamask-assets    # maintenance-owner: @MetaMask/core-platform
-/packages/network-enablement-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets    # maintenance-owner: @MetaMask/core-platform
-/packages/network-enablement-controller/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets    # maintenance-owner: @MetaMask/core-platform
-/packages/network-enablement-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets    # maintenance-owner: @MetaMask/core-platform
+/packages/network-enablement-controller                    @MetaMask/metamask-assets @MetaMask/networks
+/packages/network-enablement-controller/CHANGELOG.md       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks    # maintenance-owner: @MetaMask/core-platform
+/packages/network-enablement-controller/package.json       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks    # maintenance-owner: @MetaMask/core-platform
+/packages/network-enablement-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks    # maintenance-owner: @MetaMask/core-platform
+/packages/network-enablement-controller/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks    # maintenance-owner: @MetaMask/core-platform
+/packages/network-enablement-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks    # maintenance-owner: @MetaMask/core-platform
 
 ### node-utils
 /packages/node-utils                    @MetaMask/core-platform
@@ -920,8 +920,8 @@
 /packages/wallet/src/initialization/instances/gas-fee-controller/                @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/logging-controller/                @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/network-controller/                @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/wallet/src/initialization/instances/network-enablement-controller/     @MetaMask/metamask-assets
+/packages/wallet/src/initialization/instances/network-controller/                @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/networks
+/packages/wallet/src/initialization/instances/network-enablement-controller/     @MetaMask/metamask-assets @MetaMask/networks
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/permission-controller/             @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
