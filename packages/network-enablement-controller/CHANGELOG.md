@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Fixed
+
+- `restoreEnabledNetworkMap` keeps a newly added network enabled when every network enabled in the snapshot is still enabled ([#11477](https://github.com/MetaMask/core/pull/11477))
+
+## [7.1.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [7.1.2]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/multichain-network-controller` from `^4.0.0` to `^4.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
 ## [7.1.0]
 
 ### Added
@@ -466,7 +495,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.1.3...HEAD
+[7.1.3]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.1.2...@metamask/network-enablement-controller@7.1.3
+[7.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.1.1...@metamask/network-enablement-controller@7.1.2
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.1.0...@metamask/network-enablement-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.2...@metamask/network-enablement-controller@7.1.0
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.1...@metamask/network-enablement-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.0...@metamask/network-enablement-controller@7.0.1

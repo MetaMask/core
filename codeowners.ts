@@ -151,6 +151,9 @@ const config = {
     'eth-json-rpc-provider': {
       teams: ['@MetaMask/core-platform'],
     },
+    'eth-sig-util': {
+      teams: ['@MetaMask/core-platform'],
+    },
     foundryup: {
       teams: ['@MetaMask/mobile-platform', '@MetaMask/extension-platform'],
     },
@@ -176,6 +179,9 @@ const config = {
       teams: ['@MetaMask/core-platform'],
     },
     'json-rpc-middleware-stream': {
+      teams: ['@MetaMask/core-platform'],
+    },
+    'key-tree': {
       teams: ['@MetaMask/core-platform'],
     },
     'keyring-controller': {
@@ -417,14 +423,14 @@ const config = {
     },
   },
   overrides: [
-    { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
+    { pattern: '/.github/', primaryOwners: ['@MetaMask/core-platform'] },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/methods',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/wallet.*',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
   ],
 } satisfies CodeownersConfig;

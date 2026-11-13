@@ -57,24 +57,9 @@ import type {
 
 const log = createModuleLogger(projectLogger, serviceName);
 
-/**
- * Reads a response body as JSON. Returns undefined when the body is empty or
- * not JSON, so a failed request can still surface its HTTP status.
- *
- * @param response - The response to read.
- * @returns The parsed JSON body, or undefined.
- */
-async function readJsonBody(response: Response): Promise<Json | undefined> {
-  try {
-    return (await response.json()) as Json;
-  } catch {
-    return undefined;
-  }
-}
-
 const MESSENGER_EXPOSED_METHODS = [
-  'batchStatus',
   'cancel',
+  'getBatchStatus',
   'getFees',
   'getNetwork',
   'getNetworks',
@@ -106,7 +91,7 @@ const MESSENGER_EXPOSED_METHODS = [
  * submission (`POST /v1/networks/{chainId}/submitTransactions`). Not cached.
  * - {@link SentinelApiService.cancel} — smart-transaction cancellation
  * (`POST /v1/networks/{chainId}/cancel`). Not cached.
- * - {@link SentinelApiService.batchStatus} — smart-transaction status lookup
+ * - {@link SentinelApiService.getBatchStatus} — smart-transaction status lookup
  * for several UUIDs (`GET /v1/networks/{chainId}/batchStatus`). Not cached.
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
@@ -433,7 +418,7 @@ export class SentinelApiService extends BaseDataService<
     request: SentinelGetFeesRequest,
   ): Promise<SentinelGetFeesResponse> {
     const { chainId, transactions } = request;
-    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
     const chainIdDecimal = BigInt(chainId).toString(10);
     const url = `${baseUrl}v1/networks/${chainIdDecimal}/getFees`;
 
@@ -458,7 +443,7 @@ export class SentinelApiService extends BaseDataService<
           const data = await readJsonBody(response);
           const error = new HttpError(
             response.status,
-            `Sentinel API: Fees request failed with status '${response.status}'`,
+            `Sentinel API: getFees request failed with status '${response.status}'`,
           );
           if (data !== undefined) {
             Object.assign(error, { data });
@@ -471,7 +456,7 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(json, SentinelGetFeesResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: Malformed response from fees endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from /getFees endpoint: ${error.message}`,
           );
         }
 
@@ -495,7 +480,7 @@ export class SentinelApiService extends BaseDataService<
     request: SentinelSubmitTransactionsRequest,
   ): Promise<SentinelSubmitTransactionsResponse> {
     const { chainId, rawTxs, rawCancelTxs, rawTxsWithMetadata } = request;
-    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
     const chainIdDecimal = BigInt(chainId).toString(10);
     const url = `${baseUrl}v1/networks/${chainIdDecimal}/submitTransactions`;
 
@@ -524,7 +509,7 @@ export class SentinelApiService extends BaseDataService<
           const data = await readJsonBody(response);
           const error = new HttpError(
             response.status,
-            `Sentinel API: Submit transactions request failed with status '${response.status}'`,
+            `Sentinel API: submitTransactions request failed with status '${response.status}'`,
           );
           if (data !== undefined) {
             Object.assign(error, { data });
@@ -540,7 +525,7 @@ export class SentinelApiService extends BaseDataService<
         );
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: Malformed response from submit-transactions endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from /submitTransactions endpoint: ${error.message}`,
           );
         }
 
@@ -564,7 +549,7 @@ export class SentinelApiService extends BaseDataService<
     request: SentinelCancelRequest,
   ): Promise<SentinelCancelResponse> {
     const { chainId, uuid } = request;
-    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
     const chainIdDecimal = BigInt(chainId).toString(10);
     const url = `${baseUrl}v1/networks/${chainIdDecimal}/cancel`;
 
@@ -602,7 +587,7 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(json, SentinelCancelResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: Malformed response from cancel endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from /cancel endpoint: ${error.message}`,
           );
         }
 
@@ -623,22 +608,22 @@ export class SentinelApiService extends BaseDataService<
    * @param request - The batch status request.
    * @returns The status of each requested transaction, keyed by UUID.
    */
-  async batchStatus(
+  async getBatchStatus(
     request: SentinelBatchStatusRequest,
   ): Promise<SentinelBatchStatusResponse> {
     const { chainId, uuids } = request;
-    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
     const chainIdDecimal = BigInt(chainId).toString(10);
     const query = new URLSearchParams({ uuids: uuids.join(',') });
     const url = `${baseUrl}v1/networks/${chainIdDecimal}/batchStatus?${query.toString()}`;
 
     const result = await this.fetchQuery({
-      queryKey: [`${this.name}:batchStatus`, request],
+      queryKey: [`${this.name}:getBatchStatus`, request],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         const headers = await this.#getHeaders();
 
-        log('batchStatus', 'Request', url, request);
+        log('getBatchStatus', 'Request', url, request);
 
         const response = await this.#fetch(url, { headers });
 
@@ -659,11 +644,11 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(json, SentinelBatchStatusResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: Malformed response from batch status endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from /batchStatus endpoint: ${error.message}`,
           );
         }
 
-        log('batchStatus', 'Response', json);
+        log('getBatchStatus', 'Response', json);
 
         return json;
       },
@@ -808,5 +793,20 @@ export class SentinelApiService extends BaseDataService<
       '{1}',
       this.#environmentDomain,
     );
+  }
+}
+
+/**
+ * Reads a response body as JSON. Returns undefined when the body is empty or
+ * not JSON, so a failed request can still surface its HTTP status.
+ *
+ * @param response - The response to read.
+ * @returns The parsed JSON body, or undefined.
+ */
+async function readJsonBody(response: Response): Promise<Json | undefined> {
+  try {
+    return (await response.json()) as Json;
+  } catch {
+    return undefined;
   }
 }

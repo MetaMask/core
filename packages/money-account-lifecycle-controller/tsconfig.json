@@ -24,6 +24,9 @@
     },
     {
       "path": "../money-account-upgrade-controller"
+    },
+    {
+      "path": "../subscription-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

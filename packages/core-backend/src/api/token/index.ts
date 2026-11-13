@@ -15,6 +15,8 @@ export type {
   TopGainersSortOption,
   TrendingSortOption,
   V1SuggestedOccurrenceFloorsResponse,
+  V2AssetResponse,
+  V2AssetsQueryOptions,
   TokenSecurityData,
   TokenSecurityFeature,
   TokenSecurityHolder,

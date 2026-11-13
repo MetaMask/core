@@ -19,6 +19,7 @@ This package exports a `MoneyAccountApiDataService` class that exposes the follo
 - **`fetchHistory`** — Fetch cursor-paginated cash-flow history.
 - **`fetchRateHistory`** — Fetch vault exchange-rate time series.
 - **`fetchVaultRate`** — Fetch a vault's current exchange rate.
+- **`fetchVaultShareValuations`** — Batch-value vault share movements in past transactions, up to 50 hashes per request.
 
 See the [main `MoneyAccountApiDataService` source](./src/money-account-api-data-service.ts) for full API details.
 

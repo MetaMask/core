@@ -6,6 +6,23 @@
 import type { MfaRecoveryController } from './MfaRecoveryController.js';
 
 /**
+ * Acquires or extends the per-profile recovery lease. Hold it from the first
+ * read through any Auth identifier changes and mutations.
+ */
+export type MfaRecoveryControllerAcquireLockAction = {
+  type: `MfaRecoveryController:acquireLock`;
+  handler: MfaRecoveryController['acquireLock'];
+};
+
+/**
+ * Releases the lease. A pending mutation must finish first.
+ */
+export type MfaRecoveryControllerReleaseLockAction = {
+  type: `MfaRecoveryController:releaseLock`;
+  handler: MfaRecoveryController['releaseLock'];
+};
+
+/**
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
@@ -43,10 +60,16 @@ export type MfaRecoveryControllerUpdateIdentifiersAction = {
 };
 
 /**
- * Authenticates an identifier for a subsequent recovery-secret read.
+ * Authenticates an identifier with a single login. Returns an ephemeral
+ * {@link IdentifierSession} for {@link getRecoverySecret}. For seedless
+ * social logins, the session also carries `seedlessAuthData` for
+ * `SeedlessOnboardingController.authenticate`. Callers decide whether they
+ * need `seedlessAuthData` (and its `revokeToken`), drop it after seedless
+ * authenticate, and keep the key-bound session fields for recovery reads.
  *
  * @param identifier - Identifier to authenticate.
- * @returns Ephemeral session data required by {@link getRecoverySecret}.
+ * @returns Session for recovery reads, with seedless auth data when the
+ * login returned it.
  */
 export type MfaRecoveryControllerAuthenticateIdentifierAction = {
   type: `MfaRecoveryController:authenticateIdentifier`;
@@ -68,7 +91,21 @@ export type MfaRecoveryControllerGetRecoverySecretAction = {
 };
 
 /**
- * Completes a persisted pending mutation, if any.
+ * Reads the enrolled identifiers from available escrows at the highest
+ * consistent version, with Auth's current identifiers. Needs no recent MFA,
+ * so a new device can build an {@link updateIdentifiers} call from it.
+ *
+ * @returns Enrolled identifiers, `epoch`, and Auth's identifiers.
+ */
+export type MfaRecoveryControllerGetIdentifiersAction = {
+  type: `MfaRecoveryController:getIdentifiers`;
+  handler: MfaRecoveryController['getIdentifiers'];
+};
+
+/**
+ * Completes a persisted pending mutation, if any. Clears a `writing` one,
+ * throwing `MutationRejectedError`, once its approval has expired and no
+ * escrow applied it.
  */
 export type MfaRecoveryControllerResumeAction = {
   type: `MfaRecoveryController:resume`;
@@ -76,7 +113,9 @@ export type MfaRecoveryControllerResumeAction = {
 };
 
 /**
- * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+ * Drops `authorizing` pending. Drops `writing` pending only once its approval
+ * has expired and no escrow applied it; otherwise finish it with
+ * {@link resume}.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;
@@ -95,11 +134,14 @@ export type MfaRecoveryControllerGetPhaseAction = {
  * Union of all MfaRecoveryController action types.
  */
 export type MfaRecoveryControllerMethodActions =
+  | MfaRecoveryControllerAcquireLockAction
+  | MfaRecoveryControllerReleaseLockAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction
   | MfaRecoveryControllerAuthenticateIdentifierAction
   | MfaRecoveryControllerGetRecoverySecretAction
+  | MfaRecoveryControllerGetIdentifiersAction
   | MfaRecoveryControllerResumeAction
   | MfaRecoveryControllerAbortAction
   | MfaRecoveryControllerGetPhaseAction;

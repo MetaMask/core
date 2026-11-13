@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eip-5792-middleware",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Implements the JSON-RPC methods for sending multiple calls from the user's wallet, and checking their status, as referenced in EIP-5792",
   "keywords": [
     "Ethereum",
@@ -32,18 +32,20 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eip-5792-middleware",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eip-5792-middleware",
+    "changelog:validate": "../../scripts/validate-changelog.sh",
     "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "vitest",
     "test:clean": "vitest --clearCache",
+    "test:coverage": "vitest --coverage",
     "test:verbose": "vitest --reporter=verbose",
     "test:watch": "vitest --watch"
   },
@@ -51,14 +53,14 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/preferences-controller": "^24.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^73.0.0",
-    "@metamask/utils": "^12.0.1",
+    "@metamask/transaction-controller": "^74.0.0",
+    "@metamask/utils": "^12.0.2",
     "lodash-es": "^4.18.1",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^6.2.1",
-    "@metamask/keyring-controller": "^28.2.0",
+    "@metamask/auto-changelog": "^7.1.0",
+    "@metamask/keyring-controller": "^28.2.1",
     "@metamask/rpc-errors": "^7.0.3",
     "@typescript/native": "npm:typescript@^7.0.2",
     "klona": "^2.0.6",
@@ -66,7 +68,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "5.0.3"
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"

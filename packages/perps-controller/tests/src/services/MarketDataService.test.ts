@@ -491,6 +491,35 @@ describe('MarketDataService', () => {
       );
     });
 
+    it('does not commit a response from a previous venue', async () => {
+      const staleAccountState: AccountState = {
+        spendableBalance: '10000',
+        withdrawableBalance: '10000',
+        totalBalance: '15000',
+        marginUsed: '5000',
+        unrealizedPnl: '1000',
+        returnOnEquity: '0.2',
+        providerId: 'hyperliquid',
+      };
+      mockProvider.getAccountState.mockResolvedValue(staleAccountState);
+      const context: ServiceContext = {
+        ...mockContext,
+        accountDataContext: {
+          isCurrent: (accountState) => accountState.providerId === 'lighter',
+        },
+      };
+
+      const result = await marketDataService.getAccountState({
+        provider: mockProvider,
+        context,
+      });
+
+      // The caller still receives the response, but it must not overwrite the
+      // current venue's snapshot.
+      expect(result).toEqual(staleAccountState);
+      expect(mockContext.stateManager?.update).not.toHaveBeenCalled();
+    });
+
     it('throws error when account state is null', async () => {
       mockProvider.getAccountState.mockResolvedValue(null as never);
 

@@ -11083,8 +11083,8 @@ describe('RampsController', () => {
     const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
       finalStatus,
-      // Relay and vendor decisions agree in these cases; the relay-approved,
-      // vendor-pending divergence is covered by its own test below.
+      // Relay and vendor decisions agree in these cases; status divergence is
+      // covered by dedicated tests below.
       kycStatus: finalStatus,
       vendorStatus: finalStatus,
       externalUserId: CANONICAL_PROFILE_ID,
@@ -11558,9 +11558,9 @@ describe('RampsController', () => {
       });
     });
 
-    it('treats a relay-approved session as approved without signing or creating', async () => {
+    it('keeps a relay-approved session pending until the vendor approves it', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger, {
+        const handlers = registerKycHandlers(rootMessenger, {
           session: {
             ...approvedSession,
             finalStatus: 'pending',
@@ -11575,15 +11575,32 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'pending' }));
+
+        expect(handlers.getCustomerByExternalId).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(registerWallet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('uses final provider approval when the relay status lags', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger, {
+          session: {
+            ...approvedSession,
+            kycStatus: 'pending',
+          },
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
             autorampStatus: 'needs_wallet_registration',
           }),
         );
-
-        expect(createAutoramp).not.toHaveBeenCalled();
-        expect(registerWallet).not.toHaveBeenCalled();
       });
     });
 
@@ -13215,6 +13232,48 @@ describe('RampsController', () => {
 
         rootMessenger.call('RampsController:stopOrderPolling');
       });
+    });
+
+    it('does not extend polling backoff while network access is denied', async () => {
+      let allowed = true;
+
+      await withController(
+        { options: { isNetworkAccessAllowed: () => allowed } },
+        async ({ rootMessenger }) => {
+          const order = createMockOrder({
+            providerOrderId: 'denied-poll-1',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: '/providers/transak',
+              name: 'Transak',
+            }),
+            walletAddress: '0xabc',
+          });
+          rootMessenger.call('RampsController:addOrder', order);
+
+          const handler = vi.fn(async () => ({
+            ...order,
+            status: RampsOrderStatus.Completed,
+          }));
+          rootMessenger.registerActionHandler('RampsService:getOrder', handler);
+
+          allowed = false;
+          rootMessenger.call('RampsController:startOrderPolling');
+          await vi.advanceTimersByTimeAsync(0);
+          // Three denied polls then a skipped tick: the normal error path
+          // would be at a 120 second backoff by now.
+          await vi.advanceTimersByTimeAsync(90_000);
+
+          expect(handler).not.toHaveBeenCalled();
+
+          allowed = true;
+          await vi.advanceTimersByTimeAsync(30_000);
+
+          expect(handler).toHaveBeenCalledTimes(1);
+
+          rootMessenger.call('RampsController:stopOrderPolling');
+        },
+      );
     });
 
     it('respects pollingSecondsMinimum on orders', async () => {
@@ -15010,6 +15069,555 @@ describe('RampsController', () => {
           );
         });
       });
+    });
+  });
+
+  describe('network access gate', () => {
+    type GatedCase = {
+      name: string;
+      invoke: (payload: {
+        controller: RampsController;
+        rootMessenger: RootMessenger;
+      }) => unknown;
+    };
+
+    const gatedCases: GatedCase[] = [
+      {
+        name: 'executeRequest',
+        invoke: ({ controller }) =>
+          controller.executeRequest('direct-key', async () => 'data'),
+      },
+      {
+        name: 'init',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:init'),
+      },
+      {
+        name: 'getCountries',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getCountries'),
+      },
+      {
+        name: 'getTokens',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getTokens'),
+      },
+      {
+        name: 'getProviders',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getProviders'),
+      },
+      {
+        name: 'getPaymentMethods',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getPaymentMethods'),
+      },
+      {
+        name: 'getPaymentMethodsForContext',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getPaymentMethodsForContext', {
+            assetId: 'eip155:1/slip44:60',
+          }),
+      },
+      {
+        name: 'getQuotes',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getQuotes', {
+            amount: 1,
+            walletAddress: '0xabc',
+          }),
+      },
+      {
+        name: 'getQuoteWithFees',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getQuoteWithFees', {
+            amount: 1,
+            assetId: 'eip155:1/slip44:60',
+            walletAddress: '0xabc',
+          }),
+      },
+      {
+        name: 'syncOrdersWithUserStorage',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:syncOrdersWithUserStorage'),
+      },
+      {
+        name: 'createAutoramp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:createAutoramp',
+            buildBrazilMusdAutorampRequest('0xabc'),
+          ),
+      },
+      {
+        name: 'resolveAutorampCustomerId',
+        invoke: ({ controller }) => controller.resolveAutorampCustomerId(),
+      },
+      {
+        name: 'registerMoneyAccountWallet',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:registerMoneyAccountWallet', {
+            address: '0xabc',
+          }),
+      },
+      {
+        name: 'hydrateVbaOnboarding',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:hydrateVbaOnboarding', {
+            walletAddress: '0xabc',
+          }),
+      },
+      {
+        name: 'refreshAutoramp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:refreshAutoramp', 'autoramp-1'),
+      },
+      {
+        name: 'refreshAutoramps',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:refreshAutoramps'),
+      },
+      {
+        name: 'refreshAutorampTransactions',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:refreshAutorampTransactions',
+            'autoramp-1',
+          ),
+      },
+      {
+        name: 'refreshCustomerAbilities',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:refreshCustomerAbilities'),
+      },
+      {
+        name: 'getBuyWidgetData',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getBuyWidgetData', {
+            quote: {},
+          } as Quote),
+      },
+      {
+        name: 'getFallbackBuyWidgetData',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getFallbackBuyWidgetData', {
+            url: 'https://example.com/fallback',
+            browser: 'IN_APP_OS_BROWSER' as const,
+          }),
+      },
+      {
+        name: 'getOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:getOrder',
+            'transak',
+            'abc-123',
+            '0xabc',
+          ),
+      },
+      {
+        name: 'getOrderFromCallback',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:getOrderFromCallback',
+            'transak',
+            'https://example.com/callback',
+            '0xabc',
+          ),
+      },
+      {
+        name: 'transakSendUserOtp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSendUserOtp',
+            'user@example.com',
+          ),
+      },
+      {
+        name: 'transakVerifyUserOtp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakVerifyUserOtp',
+            'user@example.com',
+            '123456',
+            'state-token',
+          ),
+      },
+      {
+        name: 'transakGetUserDetails',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakGetUserDetails'),
+      },
+      {
+        name: 'transakGetBuyQuote',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetBuyQuote',
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+          ),
+      },
+      {
+        name: 'transakGetKycRequirement',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetKycRequirement',
+            'quote-1',
+          ),
+      },
+      {
+        name: 'transakGetAdditionalRequirements',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetAdditionalRequirements',
+            'quote-1',
+          ),
+      },
+      {
+        name: 'transakCreateOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakCreateOrder',
+            'quote-1',
+            '0xabc',
+            'credit_debit_card',
+          ),
+      },
+      {
+        name: 'transakGetOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetOrder',
+            'order-1',
+            '0xabc',
+          ),
+      },
+      {
+        name: 'transakGetUserLimits',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetUserLimits',
+            'USD',
+            'credit_debit_card',
+            'L1',
+          ),
+      },
+      {
+        name: 'transakRequestOtt',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakRequestOtt'),
+      },
+      {
+        name: 'transakCreateWidgetUrl',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakCreateWidgetUrl',
+            {} as TransakBuyQuote,
+            '0xabc',
+          ),
+      },
+      {
+        name: 'transakSubmitPurposeOfUsageForm',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSubmitPurposeOfUsageForm',
+            ['investment'],
+          ),
+      },
+      {
+        name: 'transakPatchUser',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakPatchUser', {
+            personalDetails: { firstName: 'Jane', lastName: 'Doe' },
+          }),
+      },
+      {
+        name: 'transakSubmitSsnDetails',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSubmitSsnDetails',
+            '123-45-6789',
+            'quote-1',
+          ),
+      },
+      {
+        name: 'transakConfirmPayment',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakConfirmPayment',
+            'order-1',
+            'credit_debit_card',
+          ),
+      },
+      {
+        name: 'transakGetTranslation',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakGetTranslation', {}),
+      },
+      {
+        name: 'transakGetIdProofStatus',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetIdProofStatus',
+            'workflow-run-1',
+          ),
+      },
+      {
+        name: 'transakCancelOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakCancelOrder', 'order-1'),
+      },
+      {
+        name: 'transakCancelAllActiveOrders',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakCancelAllActiveOrders'),
+      },
+      {
+        name: 'transakGetActiveOrders',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakGetActiveOrders'),
+      },
+    ];
+
+    /**
+     * Methods that keep their local behavior when the gate denies network
+     * access: they apply the change and skip only the remote call.
+     */
+    const localCleanupMethodNames = [
+      'addOrder',
+      'addPrecreatedOrder',
+      'removeOrder',
+      'transakLogout',
+    ];
+
+    const gatedMethodNames = [
+      ...gatedCases.map(({ name }) => name),
+      ...localCleanupMethodNames,
+    ];
+
+    const ungatedMethodNames = [
+      'abortRequest',
+      'getRequestState',
+      'setUserRegion',
+      'setSelectedProvider',
+      'setSelectedProviderForAsset',
+      'setSelectedToken',
+      'setSelectedPaymentMethod',
+      'addAutoramp',
+      'removeAutoramp',
+      'markAutorampAsNotified',
+      'applyAutorampStatusFromPush',
+      'startOrderPolling',
+      'stopOrderPolling',
+      'destroy',
+      'transakSetApiKey',
+      'transakSetAccessToken',
+      'transakClearAccessToken',
+      'transakSetAuthenticated',
+      'transakResetState',
+      'transakGeneratePaymentWidgetUrl',
+      'setIsOrderSyncingInProgress',
+      'setIsApplyingOrderSyncChanges',
+      'getPendingRemoteDeletes',
+      'acknowledgePendingRemoteDeletes',
+      'clearPendingResourceCountForTest',
+    ];
+
+    for (const testCase of gatedCases) {
+      it(`rejects ${testCase.name} without a request when the check returns false`, async () => {
+        await withController(
+          { options: { isNetworkAccessAllowed: () => false } },
+          async ({ controller, messenger, rootMessenger }) => {
+            const callSpy = vi.spyOn(messenger, 'call');
+            const stateBefore = structuredClone(controller.state);
+
+            let thrown: unknown;
+            try {
+              await testCase.invoke({ controller, rootMessenger });
+            } catch (error) {
+              thrown = error;
+            }
+
+            expect(thrown).toMatchObject({
+              errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED,
+            });
+            expect(callSpy).not.toHaveBeenCalled();
+            expect(controller.state).toStrictEqual(stateBefore);
+          },
+        );
+      });
+    }
+
+    it('re-reads the check on every call', async () => {
+      let allowed = false;
+
+      await withController(
+        { options: { isNetworkAccessAllowed: () => allowed } },
+        async ({ controller, rootMessenger }) => {
+          const getCountriesHandler = vi.fn(async () => []);
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            getCountriesHandler,
+          );
+
+          await expect(
+            rootMessenger.call('RampsController:getCountries'),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED,
+          });
+          expect(getCountriesHandler).not.toHaveBeenCalled();
+          expect(controller.state.countries.data).toStrictEqual([]);
+
+          allowed = true;
+
+          const countries = await rootMessenger.call(
+            'RampsController:getCountries',
+          );
+          expect(countries).toStrictEqual([]);
+          expect(getCountriesHandler).toHaveBeenCalledTimes(1);
+          expect(controller.state.countries.data).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('does not invoke a direct executeRequest fetcher while denied', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller }) => {
+          const fetcher = vi.fn(async () => 'data');
+
+          await expect(
+            controller.executeRequest('direct-key', fetcher),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED,
+          });
+          expect(fetcher).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('addOrder keeps the local order and skips the remote write', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller, messenger, rootMessenger }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+          const order = createMockOrder();
+
+          rootMessenger.call('RampsController:addOrder', order);
+
+          expect(controller.state.orders).toHaveLength(1);
+          expect(controller.state.orders[0]).toMatchObject({
+            providerOrderId: getInternalOrderCode(order),
+            status: order.status,
+          });
+          expect(callSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('addPrecreatedOrder keeps the local stub and skips the remote write', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller, messenger, rootMessenger }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+
+          rootMessenger.call('RampsController:addPrecreatedOrder', {
+            orderId: 'abc-123',
+            providerCode: 'transak',
+            walletAddress: '0xabc',
+            chainId: 'eip155:1',
+          });
+
+          expect(controller.state.orders).toHaveLength(1);
+          expect(controller.state.orders[0]).toMatchObject({
+            providerOrderId: 'abc-123',
+            provider: expect.objectContaining({ id: 'transak' }),
+            walletAddress: '0xabc',
+            status: RampsOrderStatus.Precreated,
+          });
+          expect(callSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('removeOrder clears local state and skips the remote delete', async () => {
+      await withController(
+        {
+          options: {
+            state: { orders: [createMockOrder()] },
+            isNetworkAccessAllowed: () => false,
+          },
+        },
+        async ({ controller, messenger, rootMessenger }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+
+          rootMessenger.call('RampsController:removeOrder', 'abc-123');
+
+          expect(controller.state.orders).toStrictEqual([]);
+          expect(controller.getPendingRemoteDeletes()).toHaveLength(1);
+          expect(callSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('transakLogout clears the local session and skips the remote call', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller, rootMessenger }) => {
+          const logoutHandler = vi.fn(async () => 'logged out');
+          rootMessenger.registerActionHandler(
+            'TransakService:logout',
+            logoutHandler,
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:setAccessToken',
+            vi.fn(),
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:clearAccessToken',
+            vi.fn(),
+          );
+          rootMessenger.call('RampsController:transakSetAccessToken', {
+            accessToken: 'tok',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          });
+
+          const result = await rootMessenger.call(
+            'RampsController:transakLogout',
+          );
+
+          expect(result).toBe('Transak session cleared without network access');
+          expect(logoutHandler).not.toHaveBeenCalled();
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+          expect(
+            controller.state.nativeProviders.transak.userDetails.data,
+          ).toBeNull();
+        },
+      );
+    });
+
+    it('classifies every public method as gated or ungated', () => {
+      const prototype = RampsController.prototype as unknown as Record<
+        string,
+        unknown
+      >;
+      const methodNames = Object.getOwnPropertyNames(prototype)
+        .filter(
+          (name) =>
+            typeof Object.getOwnPropertyDescriptor(prototype, name)?.value ===
+            'function',
+        )
+        .filter((name) => name !== 'constructor');
+
+      const classified = [...gatedMethodNames, ...ungatedMethodNames];
+      expect(new Set(classified).size).toBe(classified.length);
+      expect([...methodNames].sort()).toStrictEqual(classified.sort());
     });
   });
 });

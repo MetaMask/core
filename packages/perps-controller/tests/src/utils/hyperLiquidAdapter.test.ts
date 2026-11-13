@@ -249,3 +249,64 @@ describe('adaptAccountStateFromSDK cross margin summary', () => {
     ).toThrow(`Invalid HyperLiquid cross margin ${field}`);
   });
 });
+
+describe('adaptAccountStateFromSDK available balance (characterization)', () => {
+  it('reports the account-wide withdrawable for every market and side while positions carry PnL', () => {
+    const state: ClearinghouseStateResponse = {
+      assetPositions: [
+        {
+          position: {
+            coin: 'BTC',
+            szi: '0.0002',
+            entryPx: '75600',
+            positionValue: '15.12',
+            unrealizedPnl: '-0.0312',
+            marginUsed: '7.4688',
+            leverage: { type: 'isolated', value: 2, rawUsd: '-7.4688' },
+            liquidationPx: '38100',
+            maxLeverage: 40,
+            returnOnEquity: '-0.0041',
+            cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+          },
+          type: 'oneWay',
+        },
+        {
+          position: {
+            coin: 'SOL',
+            szi: '0.06',
+            entryPx: '189.2',
+            positionValue: '11.3652',
+            unrealizedPnl: '0.0421',
+            marginUsed: '5.6826',
+            leverage: { type: 'cross', value: 2 },
+            liquidationPx: null,
+            maxLeverage: 10,
+            returnOnEquity: '0.0074',
+            cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+          },
+          type: 'oneWay',
+        },
+      ],
+      marginSummary: {
+        accountValue: '18.5',
+        totalNtlPos: '26.4852',
+        totalRawUsd: '18.5',
+        totalMarginUsed: '13.1514',
+      },
+      crossMarginSummary: {
+        accountValue: '11.0',
+        totalNtlPos: '11.3652',
+        totalRawUsd: '11.0',
+        totalMarginUsed: '5.6826',
+      },
+      crossMaintenanceMarginUsed: '0.57',
+      withdrawable: '0.050136',
+      time: 0,
+    };
+
+    const accountState = adaptAccountStateFromSDK(state);
+
+    expect(accountState.spendableBalance).toBe('0.050136');
+    expect(accountState.withdrawableBalance).toBe('0.050136');
+  });
+});

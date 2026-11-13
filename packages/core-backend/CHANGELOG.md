@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [14.1.0]
+
+### Added
+
+- Add `AccountsApiClient.fetchV5TransactionById` and `getV5TransactionByIdQueryOptions` for Accounts API `GET /v5/accounts/{accountId}/transactions/{txId}` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - The response `data` is a `V5TransactionRecord`, the same row shape as `GET /v5/multiaccount/transactions`
+
+### Changed
+
+- V5 transaction types now use CAIP identifiers from `@metamask/utils` instead of `string` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - `V5TransactionRecord.accountId`, fee `payer`, `unprocessedAccounts`, and the `accountIds` arguments of the v5 transaction fetch methods are `CaipAccountId`
+  - `V5Transaction.chainId` and the `networks` filter are `CaipChainId`
+  - Value-transfer, fee, and misc-operation `assetId` fields, and the `assetIds` filter, are `CaipAssetType`
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+- Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+
+### Deprecated
+
+- Deprecate `AccountsApiClient.fetchV1TransactionByHash` and `getV1TransactionByHashQueryOptions` ([#11444](https://github.com/MetaMask/core/pull/11444))
+  - Fetch one transaction with `fetchV5TransactionById` (`GET /v5/accounts/{accountId}/transactions/{txId}`) instead of `GET /v1/networks/{chainId}/transactions/{txHash}`
+
+## [14.0.0]
+
+### Added
+
+- Add `TokenApiClient.fetchV2Assets` and `getV2AssetsQueryOptions` for Token API `GET /v2/assets`, supporting `includeLaunchpadData` and `includeTokenSecurityData`, along with `V2AssetResponse` and `V2AssetsQueryOptions` types ([#11251](https://github.com/MetaMask/core/pull/11251))
+- Add optional `subscriptionNamespace` to `OHLCVService` so callers can select the WebSocket channel namespace (default: `ohlcv.v1`) ([#11249](https://github.com/MetaMask/core/pull/11249))
+
+### Changed
+
+- **BREAKING:** `OHLCVService` WebSocket channels now use the `ohlcv.v1` namespace instead of `market-data.v1` ([#11249](https://github.com/MetaMask/core/pull/11249))
+  - Channel strings change from `market-data.v1.<assetId>.<interval>.<currency>` to `ohlcv.v1.<assetId>.<interval>.<currency>`, and system notifications move to `system-notifications.v1.ohlcv.v1`.
+  - Pass `subscriptionNamespace: 'market-data.v1'` when constructing `OHLCVService` to keep the previous stream until `ohlcv.v1` is available in production.
+- Bump `uuid` from `^14.0.0` to `^14.0.1` ([#11179](https://github.com/MetaMask/core/pull/11179))
+
 ## [13.0.0]
 
 ### Added
@@ -532,7 +573,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...@metamask/core-backend@14.1.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...@metamask/core-backend@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...@metamask/core-backend@13.0.0
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.2.0...@metamask/core-backend@12.3.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...@metamask/core-backend@12.2.0

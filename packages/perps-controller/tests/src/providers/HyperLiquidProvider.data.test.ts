@@ -2,6 +2,7 @@
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import type { ActiveAssetDataWsEvent } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
@@ -641,6 +642,61 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.totalBalance).toBe('90');
     });
 
+    it('returns a decimal-safe unified balance with isolated positions across DEXs', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const clearinghouseState = vi
+        .fn()
+        .mockImplementation(({ dex }: { dex?: string }) => {
+          const dexBalance = dex ? '0.2' : '0.1';
+          return Promise.resolve({
+            marginSummary: {
+              totalMarginUsed: '0',
+              accountValue: dexBalance,
+            },
+            withdrawable: dexBalance,
+            assetPositions: [
+              {
+                position: {
+                  coin: dex ? 'xyz:TSLA' : 'BTC',
+                  unrealizedPnl: '0',
+                  marginUsed: '0',
+                  returnOnEquity: '0',
+                  leverage: { type: 'isolated', value: 10 },
+                },
+                type: 'oneWay',
+              },
+            ],
+          });
+        });
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        clearinghouseState,
+        spotClearinghouseState: vi.fn().mockResolvedValue({
+          balances: [{ coin: 'USDC', hold: '2.524821', total: '4.000004' }],
+        }),
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+      });
+
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(mockInfoClient);
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+      const accountState = await hip3Provider.getAccountState();
+
+      expect(accountState.spendableBalance).toBe('1.775183');
+      expect(accountState.withdrawableBalance).toBe('1.775183');
+      expect(accountState.totalBalance).toBe('1.775183');
+      expect(clearinghouseState).toHaveBeenCalledWith({ user: '0x123' });
+      expect(clearinghouseState).toHaveBeenCalledWith({
+        user: '0x123',
+        dex: 'xyz',
+      });
+    });
+
     it.each(['default', 'disabled'] as const)(
       'does not fold USDC spot balance in %s account mode',
       async (abstractionMode) => {
@@ -1027,6 +1083,135 @@ describe('HyperLiquidProvider', () => {
 
       expect(mockSubscriptionService.subscribeToOrderFills).toHaveBeenCalled();
       expect(typeof unsubscribe).toBe('function');
+    });
+
+    describe('subscribeToAvailableToTrade', () => {
+      const user = '0x8dc623e964475d4d669da601fd15ea9125469003' as const;
+      // Venue frames for an account whose withdrawable is 0.050136 USDC: the
+      // per-market value includes the open position's margin and PnL, so it
+      // must come from the frame, never from the account-wide balance.
+      const isolatedPositionFrame: ActiveAssetDataWsEvent = {
+        user,
+        coin: 'BTC',
+        leverage: { type: 'isolated', value: 2, rawUsd: '-7.4688' },
+        maxTradeSzs: ['0.01095', '0.01135'],
+        availableToTrade: ['413.904112', '429.016554'],
+        markPx: '75580.0',
+      };
+      const crossPositionFrame: ActiveAssetDataWsEvent = {
+        user,
+        coin: 'SOL',
+        leverage: { type: 'cross', value: 2 },
+        maxTradeSzs: ['4.31', '4.56'],
+        availableToTrade: ['408.122841', '432.207615'],
+        markPx: '189.42',
+      };
+
+      const subscribeWithFrames = (
+        symbol: string,
+      ): {
+        callback: Mock;
+        emit: (frame: ActiveAssetDataWsEvent) => void;
+        unsubscribe: Mock;
+      } => {
+        let listener: ((frame: ActiveAssetDataWsEvent) => void) | undefined;
+        const unsubscribe = vi.fn();
+        mockSubscriptionService.subscribeToActiveAssetData = vi.fn(
+          (
+            params: Parameters<
+              HyperLiquidSubscriptionService['subscribeToActiveAssetData']
+            >[0],
+          ) => {
+            listener = params.callback;
+            return unsubscribe;
+          },
+        );
+        const callback = vi.fn();
+        const cleanup = provider.subscribeToAvailableToTrade({
+          symbol,
+          callback,
+        });
+        expect(cleanup).toBe(unsubscribe);
+        return {
+          callback,
+          unsubscribe,
+          emit: (frame) => listener?.(frame),
+        };
+      };
+
+      it('reports the venue value per side with an open isolated position at non-zero PnL', () => {
+        const { callback, emit } = subscribeWithFrames('BTC');
+
+        emit(isolatedPositionFrame);
+
+        expect(
+          mockSubscriptionService.subscribeToActiveAssetData,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({ symbol: 'BTC', accountId: undefined }),
+        );
+        expect(callback).toHaveBeenCalledWith({
+          providerId: 'hyperliquid',
+          symbol: 'BTC',
+          long: '413.904112',
+          short: '429.016554',
+        });
+      });
+
+      it('reports the venue value per side with an open cross position at non-zero PnL', () => {
+        const { callback, emit } = subscribeWithFrames('SOL');
+
+        emit(crossPositionFrame);
+
+        expect(callback).toHaveBeenCalledWith({
+          providerId: 'hyperliquid',
+          symbol: 'SOL',
+          long: '408.122841',
+          short: '432.207615',
+        });
+      });
+
+      it('reports each new venue value as the position and leverage change', () => {
+        const { callback, emit } = subscribeWithFrames('BTC');
+
+        emit(isolatedPositionFrame);
+        emit({
+          ...isolatedPositionFrame,
+          leverage: { type: 'isolated', value: 5, rawUsd: '-12.0144' },
+          availableToTrade: ['416.811930', '427.402219'],
+        });
+
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback).toHaveBeenLastCalledWith({
+          providerId: 'hyperliquid',
+          symbol: 'BTC',
+          long: '416.811930',
+          short: '427.402219',
+        });
+      });
+
+      it('passes the account and error handler to the venue stream', () => {
+        const onError = vi.fn();
+        mockSubscriptionService.subscribeToActiveAssetData = vi
+          .fn()
+          .mockReturnValue(vi.fn());
+
+        provider.subscribeToAvailableToTrade({
+          symbol: 'xyz:TSLA',
+          accountId: `eip155:42161:${user}`,
+          callback: vi.fn(),
+          onError,
+        });
+
+        expect(
+          mockSubscriptionService.subscribeToActiveAssetData,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            symbol: 'xyz:TSLA',
+            accountId: `eip155:42161:${user}`,
+            onError,
+          }),
+        );
+      });
     });
 
     it('sets live data config', () => {

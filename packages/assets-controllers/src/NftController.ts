@@ -57,11 +57,14 @@ import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   hasNewCollectionFields,
+  isDataUri,
+  parseJsonDataUri,
   reduceInBatchesSerially,
 } from './assetsUtil.js';
 import { Source } from './constants.js';
 import { getNftOwnershipForMultipleNfts } from './multicall.js';
 import type { NftOwnershipResult } from './multicall.js';
+import type { NftControllerMethodActions } from './NftController-method-action-types.js';
 import type {
   ApiNftContract,
   ReservoirResponse,
@@ -293,11 +296,23 @@ type NftToAdd = {
  */
 const controllerName = 'NftController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'addNft',
+  'addNftVerifyOwnership',
+  'removeAndIgnoreNft',
+  'removeNft',
+  'checkAndUpdateAllNftsOwnershipStatus',
+  'checkAndUpdateSingleNftOwnershipStatus',
+  'isNftOwner',
+] as const;
+
 export type NftControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NftControllerState
 >;
-export type NftControllerActions = NftControllerGetStateAction;
+export type NftControllerActions =
+  | NftControllerGetStateAction
+  | NftControllerMethodActions;
 
 /**
  * The external actions available to the {@link NftController}.
@@ -341,6 +356,16 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
 });
 
 const NFT_UPDATE_THRESHOLD = 500;
+
+/**
+ * Narrows an untrusted token URI metadata field to a string.
+ *
+ * @param value - The metadata field value.
+ * @returns The value if it is a string, otherwise `null`.
+ */
+function toStringOrNull(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -433,6 +458,11 @@ export class NftController extends BaseController<
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
+    );
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -692,31 +722,63 @@ export class NftController extends BaseController<
       };
     }
 
-    try {
-      const object = await handleFetch(tokenURI);
-      // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
-      const image = Object.prototype.hasOwnProperty.call(object, 'image')
-        ? 'image'
-        : /* istanbul ignore next */ 'image_url';
+    const fallbackMetadata: NftMetadata = {
+      image: null,
+      name: null,
+      description: null,
+      standard: standard || null,
+      favorite: false,
+      tokenURI: tokenURI ?? null,
+    };
 
-      return {
-        image: object[image],
-        name: object.name,
-        description: object.description,
-        standard,
-        favorite: false,
-        tokenURI: tokenURI ?? null,
-      };
-    } catch {
-      return {
-        image: null,
-        name: null,
-        description: null,
-        standard: standard || null,
-        favorite: false,
-        tokenURI: tokenURI ?? null,
-      };
+    // Never hand a `data:` URL to `fetch`: not every client's `fetch` can
+    // decode them (e.g. it crashes MetaMask Mobile). JSON metadata is decoded
+    // inline; any other `data:` media type gets the safe fallback.
+    if (isDataUri(tokenURI)) {
+      const object = parseJsonDataUri(tokenURI);
+      return object
+        ? this.#buildNftMetadataFromTokenURIObject(object, standard, tokenURI)
+        : fallbackMetadata;
     }
+
+    try {
+      const object: Record<string, unknown> = await handleFetch(tokenURI);
+      return this.#buildNftMetadataFromTokenURIObject(
+        object,
+        standard,
+        tokenURI,
+      );
+    } catch {
+      return fallbackMetadata;
+    }
+  }
+
+  /**
+   * Builds NFT metadata from the JSON object a token URI resolves to.
+   *
+   * @param object - The JSON metadata object the token URI resolves to.
+   * @param standard - The NFT standard.
+   * @param tokenURI - The token URI.
+   * @returns The NFT metadata.
+   */
+  #buildNftMetadataFromTokenURIObject(
+    object: Record<string, unknown>,
+    standard: string,
+    tokenURI: string,
+  ): NftMetadata {
+    // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
+    const image = Object.prototype.hasOwnProperty.call(object, 'image')
+      ? 'image'
+      : /* istanbul ignore next */ 'image_url';
+
+    return {
+      image: toStringOrNull(object[image]),
+      name: toStringOrNull(object.name),
+      description: toStringOrNull(object.description),
+      standard: standard || null,
+      favorite: false,
+      tokenURI,
+    };
   }
 
   /**

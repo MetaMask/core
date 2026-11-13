@@ -15,7 +15,6 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 import { stringToBytes, wrapError } from '@metamask/utils';
-import { x25519 } from '@noble/curves/ed25519';
 
 import type {
   KycAnalyticsStatus,
@@ -23,6 +22,7 @@ import type {
   KycAnalyticsVerificationOutcomePayload,
 } from './analytics.js';
 import { getKycAnalyticsStatus } from './analytics.js';
+import { generateKeyPair } from './crypto.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
@@ -35,8 +35,9 @@ import {
   isEmailRequiredError,
 } from './partnerIdentityToken.js';
 import {
-  isSumSubFlowCompleted,
   isSumSubFlowFailed,
+  isSumSubPreSubmissionStatus,
+  isSumSubSubmissionStatus,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
@@ -59,6 +60,7 @@ import type {
   KycVendorSigning,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
+import type { UkycClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import type { Jwk } from './ukyc/jwtChain.js';
 import {
@@ -69,6 +71,7 @@ import {
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
 } from './ukyc/storageAccessToken.js';
+import type { UkycStorageOperation } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 import {
   areVendorDisclaimersCompleted,
@@ -100,9 +103,32 @@ export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
 // rather than a fixed short window, so this is a session-scoped window.
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
+// Lifetime of the `delete`-scoped `ukyc_capability_token`. The token is minted
+// and presented immediately, so four hours is enough.
+const UKYC_DELETE_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
+
 // First wait between UKYC session-status polls. Each later wait grows by this
 // step, so the delays are 10s, 20s, 30s, and so on.
 const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
+
+// After a SumSub close that looks like a submit, how many times, and how far
+// apart, the session status is fetched to see whether idOS left the `kyc` step.
+const SUBMISSION_CHECK_ATTEMPTS = 3;
+const SUBMISSION_CHECK_INTERVAL_MS = 1_000;
+
+/**
+ * Whether idOS still has the applicant on the `kyc` step with no decision,
+ * which means it has not received a SumSub submission.
+ *
+ * @param sessionStatus - Session status from the kyc-api.
+ * @returns Whether the applicant still has documents to submit.
+ */
+function isAwaitingSubmission(sessionStatus: KycSessionStatus): boolean {
+  return (
+    sessionStatus.currentStep === KYC_CURRENT_STEPS.kyc &&
+    !FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)
+  );
+}
 
 // === STATE ===
 
@@ -286,6 +312,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'recordVendorDisclaimers',
   'hasCompletedVendorDisclaimers',
   'launchProviderFlow',
+  'deleteEncryptedStorage',
 ] as const;
 
 export type KycControllerGetStateAction = ControllerGetStateAction<
@@ -856,12 +883,21 @@ export class KycController extends BaseController<
    * Writes that load a session into an empty slot must not use this helper, so
    * an already-decided session found on a fresh install is not reported.
    *
+   * A stored `submitted` outcome becomes `abandoned` when idOS shows that the
+   * submission never arrived, so a client that recorded one can resume.
+   *
    * @param sessionStatus - The session status to store.
    */
   #updateSessionStatusAndTrackAnalytics(sessionStatus: KycSessionStatus): void {
     const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
     this.update((state) => {
       state.sessionStatus = sessionStatus;
+      if (
+        state.providerFlowStatus === 'submitted' &&
+        isAwaitingSubmission(sessionStatus)
+      ) {
+        state.providerFlowStatus = 'abandoned';
+      }
     });
     this.#trackAnalyticsStatusIfChanged(previousAnalyticsStatus);
   }
@@ -925,10 +961,9 @@ export class KycController extends BaseController<
     // private half stays on the device; the public half is registered on the
     // session so the server can open later authorizations. Each encryption
     // schema from session creation supplies the matching server public key.
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
     // Residence is the ISO 3166-1 alpha-3 country already resolved for
     // disclaimers / KYC-required; fetch it if this sub-flow started without
     // that earlier step.
@@ -1023,10 +1058,9 @@ export class KycController extends BaseController<
       throw new Error('No session was found');
     }
 
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
 
     const {
       encryptionDataKey: encryptionDataKeySchema,
@@ -1286,6 +1320,54 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Deletes the caller's encrypted KYC blobs from MetaMask servers.
+   *
+   * Mints a fresh X25519 keypair, fetches a wrapping key from
+   * `POST /deletions`, seals a `delete`-scoped `ukyc_capability_token` (4 hour
+   * lifetime, client-presented) for that key, and submits it to
+   * `DELETE /deletions/{deletionId}`. Both KYC API calls are authenticated
+   * with `params.aal2Token`. Does not clear controller state.
+   *
+   * @param params - The deletion parameters.
+   * @param params.aal2Token - AAL2 authentication token sent as the
+   * Authorization bearer value for both deletion requests.
+   */
+  async deleteEncryptedStorage(params: { aal2Token: string }): Promise<void> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycController.deleteEncryptedStorage: aal2Token is required to delete encrypted KYC storage.',
+      );
+    }
+
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
+
+    const { deletionId, ukycCapabilityToken: capabilityTokenSchema } =
+      await this.messenger.call('KycService:createDeletion', {
+        sessionClientPublicKey,
+        aal2Token: params.aal2Token,
+      });
+
+    await this.#verifyCapabilityTokenSchema(capabilityTokenSchema);
+
+    const clientMaterial = await this.#getClientMaterial();
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
+      clientMaterial,
+      sessionClientPrivateKey,
+      serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
+      operations: ['delete'],
+      expiresAt: new Date(Date.now() + UKYC_DELETE_CAPABILITY_TOKEN_TTL_MS),
+    });
+
+    await this.messenger.call('KycService:completeDeletion', {
+      deletionId,
+      wrappedUkycCapabilityToken,
+      aal2Token: params.aal2Token,
+    });
+  }
+
+  /**
    * Presents the identity-provider verification UI. Currently launches SumSub.
    *
    * @param params - Optional SDK presentation options.
@@ -1338,11 +1420,11 @@ export class KycController extends BaseController<
         sessionId,
       );
 
-      // Track whether the SDK ever reported a successful completion or its own
-      // failure. A resolved `launch` alone does not imply success — the
-      // applicant may have abandoned the flow, or the SDK may have reported
-      // that it could not run.
-      let reachedCompletion = false;
+      // Whether the applicant submitted during this launch, and whether the SDK
+      // reported its own failure. A resolved `launch` alone does not imply
+      // success: the applicant may have abandoned the flow, or the SDK may
+      // have reported that it could not run.
+      let submitted = false;
       let sdkFailed = false;
 
       const result = await this.#sumsubLauncher.launch({
@@ -1355,8 +1437,12 @@ export class KycController extends BaseController<
           return journey.applicantAccessToken;
         },
         onStatusChange: (_prev, next) => {
-          if (isSumSubFlowCompleted(next)) {
-            reachedCompletion = true;
+          // A review decision keeps the previous value, so a decision the SDK
+          // opens on is not a submission but one that follows it still is.
+          if (isSumSubSubmissionStatus(next)) {
+            submitted = true;
+          } else if (isSumSubPreSubmissionStatus(next)) {
+            submitted = false;
           }
           if (isSumSubFlowFailed(next)) {
             sdkFailed = true;
@@ -1368,7 +1454,7 @@ export class KycController extends BaseController<
 
       // Some native SDKs resolve with their final status without first
       // delivering the corresponding state-change callback.
-      reachedCompletion ||= isSumSubFlowCompleted(result.status);
+      submitted ||= isSumSubSubmissionStatus(result.status);
       sdkFailed ||= isSumSubFlowFailed(result.status);
 
       const currentSessionStatus = this.state.sessionStatus;
@@ -1384,12 +1470,28 @@ export class KycController extends BaseController<
         return 'failed';
       }
 
-      if (reachedCompletion) {
+      if (submitted) {
+        const unsubmittedSessionStatus =
+          await this.#getUnsubmittedSessionStatus(sessionId);
+        const latestSessionStatus = this.state.sessionStatus;
+        if (latestSessionStatus?.id !== sessionId) {
+          this.#recordLaunchOutcomeAndTrackAnalytics('failed');
+          return 'failed';
+        }
+
+        if (unsubmittedSessionStatus) {
+          this.#recordLaunchOutcomeAndTrackAnalytics('abandoned', (state) => {
+            state.sessionStatus = unsubmittedSessionStatus;
+            state.providerFlowStatus = 'abandoned';
+          });
+          return 'abandoned';
+        }
+
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result.
         this.#recordLaunchOutcomeAndTrackAnalytics('submitted', (state) => {
           state.sessionStatus = {
-            ...currentSessionStatus,
+            ...latestSessionStatus,
             finalStatus: KYC_STATUSES.pending,
             // The applicant has submitted documents, so the session is in
             // vendor processing rather than still on the `kyc` step.
@@ -1414,6 +1516,78 @@ export class KycController extends BaseController<
         this.#recordLaunchOutcomeAndTrackAnalytics('failed');
       }
       return 'failed';
+    }
+  }
+
+  /**
+   * Checks whether idOS received a SumSub submission. SumSub reports `Pending`
+   * on some pages partway through its flow, so closing there looks like a
+   * submit, while idOS keeps the session on the `kyc` step with no decision.
+   * The status is fetched up to {@link SUBMISSION_CHECK_ATTEMPTS} times so a
+   * real submit that idOS has not processed yet still counts.
+   *
+   * @param sessionId - Session the SDK ran for.
+   * @returns The last status when idOS still has the applicant on the `kyc`
+   * step, or `null` when it shows a submission or a request fails.
+   */
+  async #getUnsubmittedSessionStatus(
+    sessionId: string,
+  ): Promise<KycSessionStatus | null> {
+    let sessionStatus: KycSessionStatus | null = null;
+    for (let attempt = 0; attempt < SUBMISSION_CHECK_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, SUBMISSION_CHECK_INTERVAL_MS),
+        );
+      }
+      try {
+        sessionStatus = await this.messenger.call(
+          'KycService:getSessionStatus',
+          { sessionId },
+        );
+      } catch {
+        return null;
+      }
+      if (!isAwaitingSubmission(sessionStatus)) {
+        return null;
+      }
+    }
+    return sessionStatus;
+  }
+
+  /**
+   * Verifies the deletion wrapping key. A deletion response carries only the
+   * `ukycCapabilityToken` schema, attested by the idOS relay.
+   *
+   * Fetch and verification failures are rethrown as a short message suitable
+   * for display. The original error is preserved on `cause`.
+   *
+   * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @throws When the relay signing keys cannot be fetched, or the schema's
+   * `jwtChain` does not verify.
+   */
+  async #verifyCapabilityTokenSchema(
+    capabilityTokenSchema: EncryptionSchema,
+  ): Promise<void> {
+    let idosRelayKeys: Jwk[];
+    try {
+      ({ keys: idosRelayKeys } = await this.messenger.call(
+        'KycService:fetchIdosRelayJwks',
+      ));
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyCapabilityTokenSchema: Unable to fetch JWKS needed to verify wrapping keys.',
+      );
+    }
+
+    try {
+      await assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyCapabilityTokenSchema: Failed to verify the wrapping keys.',
+      );
     }
   }
 
@@ -1451,8 +1625,10 @@ export class KycController extends BaseController<
     }
 
     try {
-      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+      await Promise.all([
+        assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey),
+        assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema),
+      ]);
     } catch (error) {
       throw wrapError(
         error,
@@ -1483,28 +1659,73 @@ export class KycController extends BaseController<
     wrappedEncryptionDataKey: CapabilityAuthorization;
     wrappedUkycCapabilityToken: CapabilityAuthorization;
   }> {
-    const localUserSecret = await getOrCreateLocalUserSecret(
-      this.#localUserSecretStore,
-    );
-    const clientMaterial = deriveClientMaterial(localUserSecret);
+    const clientMaterial = await this.#getClientMaterial();
     const wrappedEncryptionDataKey = wrapEncryptionKey(
       sessionClientPrivateKey,
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
     );
-
-    const ukycCapabilityToken = signStorageAccessToken({
-      material: clientMaterial,
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
+      clientMaterial,
+      sessionClientPrivateKey,
+      serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
       // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
       operations: ['read', 'write'],
       expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
     });
-    const wrappedUkycCapabilityToken = wrapEncryptionKey(
-      sessionClientPrivateKey,
-      capabilityTokenSchema.serverPublicKey.x,
-      stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
-    );
 
     return { wrappedEncryptionDataKey, wrappedUkycCapabilityToken };
+  }
+
+  /**
+   * Loads the stored `local_user_secret`, creating one when none exists, and
+   * derives the UKYC client material from it.
+   *
+   * @returns Client material derived from `local_user_secret`.
+   */
+  async #getClientMaterial(): Promise<UkycClientMaterial> {
+    const localUserSecret = await getOrCreateLocalUserSecret(
+      this.#localUserSecretStore,
+    );
+    return deriveClientMaterial(localUserSecret);
+  }
+
+  /**
+   * Mints a client-presented `ukyc_capability_token` and seals it for the
+   * server public key from a capability-token encryption schema.
+   *
+   * The operation list and lifetime stay with the caller: session
+   * authorizations grant `read` and `write` for the session lifetime, while
+   * deletion grants `delete` alone for a short window.
+   *
+   * @param params - Key material and token claims.
+   * @param params.clientMaterial - Client material derived from
+   * `local_user_secret`.
+   * @param params.sessionClientPrivateKey - X25519 private key used to seal
+   * the token.
+   * @param params.serverPublicKeyX - Server X25519 public key (unpadded
+   * base64url) from the capability-token schema.
+   * @param params.operations - Storage operations the token authorizes.
+   * `delete` must be the sole operation.
+   * @param params.expiresAt - Token expiry. Must be after the issue time.
+   * @returns The wrapped capability token.
+   */
+  async #wrapCapabilityToken(params: {
+    clientMaterial: UkycClientMaterial;
+    sessionClientPrivateKey: Uint8Array;
+    serverPublicKeyX: string;
+    operations: UkycStorageOperation[];
+    expiresAt: Date;
+  }): Promise<CapabilityAuthorization> {
+    const ukycCapabilityToken = await signStorageAccessToken({
+      material: params.clientMaterial,
+      operations: params.operations,
+      expiresAt: params.expiresAt,
+    });
+    return wrapEncryptionKey(
+      params.sessionClientPrivateKey,
+      params.serverPublicKeyX,
+      stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
+    );
   }
 }

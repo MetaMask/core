@@ -12,12 +12,9 @@ export default mergeConfig(
       taskTitleValueFormatTruncate: Infinity,
 
       coverage: {
-        provider: 'v8',
-
         exclude: [
           'src/**/strategy/types.ts',
           'src/**/quote-status-manager/types.ts',
-          'src/**/*-method-action-types.ts',
         ],
 
         thresholds: {

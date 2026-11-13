@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
+- Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+
+### Fixed
+
+- `launchProviderFlow` no longer reports `submitted` when the applicant closes SumSub without submitting ([#11463](https://github.com/MetaMask/core/pull/11463))
+  - A review decision the SDK opens on (`TemporarilyDeclined`, `FinallyRejected` or `Approved`) now counts as a submission only when the SDK reported `Pending`, `Completed` or `ActionCompleted` earlier in the same launch
+  - A `Pending` that SumSub reports partway through a level is cleared by a later `Ready`, `Initial` or `Incomplete`
+  - After a close that looks like a submit, the session status is fetched up to three times, one second apart. If idOS still has the applicant on the `kyc` step with no decision, the launch reports `abandoned` and stores that status
+  - A stored `submitted` outcome becomes `abandoned` when a fetched session status shows the applicant still on the `kyc` step with no decision, so a session already stuck on `submitted` can resume
+
+## [0.16.0]
+
+### Changed
+
+- **BREAKING:** `KycController.deleteEncryptedStorage` now requires `{ aal2Token }` instead of taking no arguments ([#11338](https://github.com/MetaMask/core/pull/11338))
+  - Pass an AAL2 token (one whose `ext.aal` is at least 2): `deleteEncryptedStorage({ aal2Token })`
+  - The token is sent as the `Authorization` bearer value for both deletion requests. An empty token throws before any request is made
+- **BREAKING:** `KycService.createDeletion` and `KycService.completeDeletion` require an `aal2Token` parameter, which is sent as the `Authorization` bearer value ([#11338](https://github.com/MetaMask/core/pull/11338))
+  - Callers of the `KycService:createDeletion` and `KycService:completeDeletion` messenger actions must pass `aal2Token` alongside the existing parameters
+  - Both methods throw if the token is empty
+
+## [0.15.0]
+
+### Added
+
+- Add `KycController.deleteEncryptedStorage`, which deletes the caller's encrypted KYC blobs ([#11262](https://github.com/MetaMask/core/pull/11262))
+  - `KycService.createDeletion` posts `POST /deletions` with a fresh client public key and returns `deletionId` plus the `ukycCapabilityToken` wrapping key
+  - The controller mints a client-presented `delete`-scoped uKYC capability token with a 4 hour lifetime, wraps it with that key, and `KycService.completeDeletion` sends it to `DELETE /deletions/{deletionId}`
+  - Both service methods are exposed as the `KycService:createDeletion` and `KycService:completeDeletion` messenger actions, and the controller method as `KycController:deleteEncryptedStorage`
+  - Controller state is left unchanged
+
 ## [0.14.0]
 
 ### Added
@@ -239,7 +276,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.14.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.16.0...HEAD
+[0.16.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.15.0...@metamask/kyc-controller@0.16.0
+[0.15.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.14.0...@metamask/kyc-controller@0.15.0
 [0.14.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.13.0...@metamask/kyc-controller@0.14.0
 [0.13.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...@metamask/kyc-controller@0.13.0
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1

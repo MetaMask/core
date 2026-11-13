@@ -9,8 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [4.3.1]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
+## [4.3.0]
+
+### Added
+
+- Allow an optional `properties` argument on `trackErrorAsAnalytics` so callers can attach extra payload fields such as `anonymous: true` while keeping sanitized `source` and `error_message` ([#11355](https://github.com/MetaMask/core/pull/11355))
+
+## [4.2.0]
+
+### Added
+
+- Add `trackErrorAsAnalytics` on `AnalyticsController` to report caught errors as `Error Occurred` events with a unique `source` and a sanitized `error_message`, bounded by sampling, deduplication, and a per-session cap ([#11051](https://github.com/MetaMask/core/pull/11051))
+
+### Changed
+
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+- Bump `uuid` from `^11.1.1` to `^14.0.2` ([#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
 
 ## [4.1.0]
 
@@ -137,7 +159,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.1...HEAD
+[4.3.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.0...@metamask/analytics-controller@4.3.1
+[4.3.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.2.0...@metamask/analytics-controller@4.3.0
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.1.0...@metamask/analytics-controller@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.0.0...@metamask/analytics-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.2.0...@metamask/analytics-controller@4.0.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.1.0...@metamask/analytics-controller@3.2.0

@@ -42,6 +42,7 @@ export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
 export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
+export const DEFAULT_GAS_STATION_COST_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
@@ -201,8 +202,19 @@ export type AtomicMaxEnabledConfig = {
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
+export type MaxBalanceRefreshIntervalConfig = {
+  [key in TransactionType]?: number;
+};
+
+export type ServerValidationEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
+  gasStationCostBuffer?: number;
+  maxBalanceRefreshInterval?: MaxBalanceRefreshIntervalConfig;
   payStrategies?: {
     relay?: {
       atomicMaxEnabled?: AtomicMaxEnabledConfig;
@@ -213,8 +225,10 @@ type FeatureFlagsExtendedRaw = {
       enabled?: boolean;
       enabledTransactionTypes?: string[];
       baseUrl?: string;
+      gaslessEnabled?: boolean;
       pollingInterval?: number;
       pollingTimeout?: number;
+      validationEnabled?: ServerValidationEnabledConfig;
     };
   };
 };
@@ -606,6 +620,30 @@ export function getStablecoins(
   return STABLECOINS;
 }
 
+export function getMaxBalanceRefreshInterval(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): number | undefined {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const config = featureFlags.maxBalanceRefreshInterval ?? {};
+
+  for (const [transactionType, interval] of Object.entries(config) as [
+    TransactionType,
+    number | undefined,
+  ][]) {
+    if (hasTransactionType(transaction, [transactionType])) {
+      return interval;
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Get Pay Strategies configuration.
  *
@@ -706,21 +744,64 @@ export function isRelayValidationEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  const validationEnabled =
-    featureFlags.payStrategies?.relay?.validationEnabled;
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.relay?.validationEnabled,
+    transaction,
+  );
+}
 
-  const transactionTypes = validationEnabled?.transactionTypes ?? {};
+/**
+ * Whether the server strategy may request gasless quotes.
+ *
+ * Acts as a kill switch, configured via the `payStrategies.server.gaslessEnabled`
+ * flag. Enabled by default.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if gasless server quotes are enabled.
+ */
+export function isServerGaslessEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
 
-  // A per-type override wins over the global `default` toggle. An override
-  // matches when the transaction, or any nested transaction, has that type.
-  for (const [type, enabled] of Object.entries(transactionTypes)) {
-    if (hasTransactionType(transaction, [type as TransactionType])) {
-      return enabled;
-    }
-  }
+  return featureFlags.payStrategies?.server?.gaslessEnabled ?? true;
+}
 
-  // `?? false`: `default` is optional, so an omitted config disables validation.
-  return validationEnabled?.default ?? false;
+/**
+ * Whether Server quote validation is enabled for a given transaction.
+ *
+ * Acts as an emergency kill switch: when disabled (default), Server quotes are
+ * surfaced without being simulated/validated.
+ *
+ * Configured via the `payStrategies.server.validationEnabled` flag, an object
+ * `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * `default` is the base toggle applied to all transactions (omitted = `false`);
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any of its nested transactions, has that type.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction being validated. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
+ * @returns True if Server quote validation is enabled.
+ */
+export function isServerValidationEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.server?.validationEnabled,
+    transaction,
+  );
 }
 
 /**
@@ -751,19 +832,10 @@ export function isAtomicMaxEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  const atomicMaxEnabled = featureFlags.payStrategies?.relay?.atomicMaxEnabled;
-
-  const transactionTypes = atomicMaxEnabled?.transactionTypes ?? {};
-
-  // A per-type override wins over the global `default` toggle. An override
-  // matches when the transaction, or any nested transaction, has that type.
-  for (const [type, enabled] of Object.entries(transactionTypes)) {
-    if (hasTransactionType(transaction, [type as TransactionType])) {
-      return enabled;
-    }
-  }
-
-  return atomicMaxEnabled?.default ?? false;
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.relay?.atomicMaxEnabled,
+    transaction,
+  );
 }
 
 /**
@@ -910,6 +982,29 @@ export function getGasBuffer(
     featureFlags.gasBuffer?.default ??
     DEFAULT_GAS_BUFFER
   );
+}
+
+/**
+ * Get the multiplier applied to the estimated gas station cost when reserving
+ * source token for gas in a max-amount quote.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Gas station cost buffer multiplier.
+ */
+export function getGasStationCostBuffer(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const buffer = featureFlags.gasStationCostBuffer;
+
+  return typeof buffer === 'number' && buffer >= 1
+    ? buffer
+    : DEFAULT_GAS_STATION_COST_BUFFER;
 }
 
 /**
@@ -1225,4 +1320,34 @@ export function getEIP7702UpgradeContractAddress(
   const contracts = getCaseInsensitive(eip7702Flags?.contracts, chainId);
 
   return contracts?.[0]?.address;
+}
+
+/**
+ * Resolve a per-transaction-type toggle.
+ *
+ * A per-type override wins over the global `default` toggle. An override
+ * matches when the transaction, or any nested transaction, has that type.
+ *
+ * @param config - Toggle configuration.
+ * @param transaction - Transaction to match against the type overrides.
+ * @returns The resolved toggle, or `false` when neither matches.
+ */
+function isEnabledForTransaction(
+  config:
+    | {
+        default?: boolean;
+        transactionTypes?: Partial<Record<TransactionType, boolean>>;
+      }
+    | undefined,
+  transaction: TransactionMeta | undefined,
+): boolean {
+  for (const [type, enabled] of Object.entries(
+    config?.transactionTypes ?? {},
+  )) {
+    if (hasTransactionType(transaction, [type as TransactionType])) {
+      return enabled;
+    }
+  }
+
+  return config?.default ?? false;
 }

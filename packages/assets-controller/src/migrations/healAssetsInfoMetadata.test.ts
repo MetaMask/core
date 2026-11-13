@@ -1016,6 +1016,19 @@ describe('cleanSpamAssets', () => {
     });
   });
 
+  it('spares a below-floor token the Token API reports as a launchpad token', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets({ launchpadAssetIds: [MAINNET_SPAM] });
+    const state = buildSpamWalletState({
+      assetsInfo: buildAssetsInfo([MAINNET_SPAM]),
+      assetsBalance: {},
+    });
+
+    const nextState = await runCleanup(state);
+
+    expect(Object.keys(nextState.assetsInfo)).toStrictEqual([MAINNET_SPAM]);
+  });
+
   it('does not mutate the state it was given', async () => {
     mockSuggestedOccurrenceFloors();
     mockV3Assets();

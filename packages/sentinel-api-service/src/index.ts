@@ -43,6 +43,7 @@ export type {
 export {
   SentinelCancellationReason,
   SentinelFeature,
+  SentinelKind,
   SentinelMinedTxStatus,
   SentinelOriginalTransactionStatus,
   SentinelProductFeature,
@@ -57,7 +58,7 @@ export type {
   SentinelApiServiceSubmitTransactionsAction,
   SentinelApiServiceGetSmartTransactionAction,
   SentinelApiServiceCancelAction,
-  SentinelApiServiceBatchStatusAction,
+  SentinelApiServiceGetBatchStatusAction,
 } from './sentinel-api-service-method-action-types.js';
 export {
   SentinelApiResponseValidationError,

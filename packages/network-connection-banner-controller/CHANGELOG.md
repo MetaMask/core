@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-enablement-controller` from `^7.1.1` to `^7.1.3` ([#11447](https://github.com/MetaMask/core/pull/11447), [#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [1.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -15,8 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.2.0` ([#10418](https://github.com/MetaMask/core/pull/10418), [#10851](https://github.com/MetaMask/core/pull/10851))
-- Bump `@metamask/network-enablement-controller` from `^7.0.0` to `^7.1.0` ([#10423](https://github.com/MetaMask/core/pull/10423), [#10658](https://github.com/MetaMask/core/pull/10658), [#11203](https://github.com/MetaMask/core/pull/11203))
-- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.1` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/network-enablement-controller` from `^7.0.0` to `^7.1.1` ([#10423](https://github.com/MetaMask/core/pull/10423), [#10658](https://github.com/MetaMask/core/pull/10658), [#11203](https://github.com/MetaMask/core/pull/11203), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^38.0.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
@@ -76,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dismissal, and switching custom RPC endpoints to an available Infura endpoint
   ([#9041](https://github.com/MetaMask/core/pull/9041))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@1.0.0...@metamask/network-connection-banner-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.2.1...@metamask/network-connection-banner-controller@1.0.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.2.0...@metamask/network-connection-banner-controller@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.2...@metamask/network-connection-banner-controller@0.2.0

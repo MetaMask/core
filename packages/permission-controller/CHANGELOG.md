@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `nanoid` from `^3.3.19` to `^6.0.2` ([#10602](https://github.com/MetaMask/core/pull/10602))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
 ## [14.1.0]
 
 ### Added

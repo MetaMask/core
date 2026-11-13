@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [3.3.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [3.3.0]
+
+### Changed
+
+- Read `accountId`, `chainId`, and `assetId` on `V5TransactionRecord` as CAIP identifiers in `mapV5ApiTransaction` ([#11444](https://github.com/MetaMask/core/pull/11444))
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+
+## [3.2.0]
+
+### Added
+
+- Add `mapV5ApiTransaction`, which maps a `V5TransactionRecord` from Accounts API `GET /v5/multiaccount/transactions` to an `ActivityItem` ([#11379](https://github.com/MetaMask/core/pull/11379))
+  - It uses the same classification as `mapApiTransaction`, takes the subject account from the record's `accountId`, and reads network fees from the record's `fee`
+  - Request records with `includeTxMetadata: true` so they include `transactionCategory`
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [3.1.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^13.0.0` to `^14.0.0` ([#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `eth-chainlist` from `^0.0.844` to `^0.0.873` ([#10722](https://github.com/MetaMask/core/pull/10722))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300))
+
 ## [3.1.0]
 
 ### Added
@@ -215,7 +252,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.3.1...HEAD
+[3.3.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.3.0...@metamask/client-utils@3.3.1
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.2.0...@metamask/client-utils@3.3.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.1.1...@metamask/client-utils@3.2.0
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.1.0...@metamask/client-utils@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.4...@metamask/client-utils@3.1.0
 [3.0.4]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.3...@metamask/client-utils@3.0.4
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.2...@metamask/client-utils@3.0.3

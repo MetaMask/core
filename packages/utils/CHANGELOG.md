@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.2]
+
+### Fixed
+
+- Build declaration files with `exactOptionalPropertyTypes` ([#11337](https://github.com/MetaMask/core/pull/11337))
+  - This TypeScript compiler option was accidentally dropped from the build in 12.0.1, so this change restores types to what they were prior to this version.
+  - `| undefined` is dropped from `params`, `data` and `stack` fields across `JsonRpcErrorStruct`, `JsonRpcRequestStruct`, `JsonRpcNotificationStruct`, `PendingJsonRpcResponseStruct`, `JsonRpcFailureStruct`, and `JsonRpcResponseStruct`, and in the types inferred from them (e.g., `JsonRpcRequestStruct` and `JsonRpcRequest` now match)
+
 ## [12.0.1]
 
 ### Added
@@ -48,5 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Narrow byte helper return types to `Uint8Array<ArrayBuffer>` ([#10617](https://github.com/MetaMask/core/pull/10617))
   - These functions already returned a `Uint8Array` backed by an `ArrayBuffer`, but were typed as returning `Uint8Array<ArrayBufferLike>`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.1...@metamask/utils@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/utils@12.0.1

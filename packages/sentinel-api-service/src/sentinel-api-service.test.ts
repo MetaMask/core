@@ -5,8 +5,10 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -26,19 +28,17 @@ import {
   SentinelJsonRpcError,
 } from './errors.js';
 import { SentinelApiService } from './sentinel-api-service.js';
+import { SentinelBatchStatusResponseStruct } from './structs.js';
 import {
   SentinelCancellationReason,
   SentinelFeature,
-  SentinelMinedTxStatus,
-  SentinelOriginalTransactionStatus,
+  SentinelKind,
   SentinelProductFeature,
   SentinelSmartTransactionStatus,
 } from './types.js';
 import type {
   SentinelApiServiceMessenger,
-  SentinelBatchedTransactionStatus,
   SentinelBatchStatusRequest,
-  SentinelBatchStatusResponse,
   SentinelCancelRequest,
   SentinelGetFeesRequest,
   SentinelRelaySubmitRequest,
@@ -77,6 +77,7 @@ function buildUrl(
 const NETWORKS_URL = buildUrl(NETWORKS_SUBDOMAIN);
 const MAINNET_URL = buildUrl(MAINNET_SUBDOMAIN);
 const OPTIMISM_URL = buildUrl('optimism-mainnet');
+const BASE_MAINNET_URL = buildUrl('base-mainnet');
 
 const MOCK_NETWORKS = {
   '1': {
@@ -94,6 +95,19 @@ const MOCK_NETWORKS = {
   },
   '137': {
     network: 'polygon-mainnet',
+  },
+  // `confirmations` disabled: smart-transaction endpoints must be rejected.
+  '56': {
+    network: 'bsc-mainnet',
+    confirmations: false,
+    smartTransactions: true,
+  },
+  // `smartTransactions` is a liveness signal that can flip, so the
+  // smart-transaction endpoints must not depend on it.
+  '8453': {
+    network: 'base-mainnet',
+    confirmations: true,
+    smartTransactions: false,
   },
 };
 
@@ -127,7 +141,8 @@ const MOCK_SIMULATION_REQUEST: SentinelSimulationRequest = {
   ],
 };
 
-const CHAIN_ID_POLYGON = '0x89' as Hex;
+const CHAIN_ID_NO_CONFIRMATIONS = '0x38' as Hex; // 56
+const CHAIN_ID_SMART_TRANSACTIONS_DISABLED = '0x2105' as Hex; // 8453
 
 const MOCK_FEES_REQUEST: SentinelGetFeesRequest = {
   chainId: CHAIN_ID_MAINNET,
@@ -171,24 +186,17 @@ const MOCK_BATCH_STATUS_REQUEST: SentinelBatchStatusRequest = {
   uuids: [UUID, UUID_2],
 };
 
-const MOCK_BATCH_STATUS_ENTRY: SentinelBatchedTransactionStatus = {
-  cancellationFeeWei: 0,
-  cancellationReason: SentinelCancellationReason.NotCancelled,
-  deadlineRatio: 0,
-  duplicated: false,
-  isSettled: false,
-  minedHash: '',
-  minedTx: SentinelMinedTxStatus.NotMined,
-  originalTransactionStatus: SentinelOriginalTransactionStatus.Pending,
-  proxied: false,
-  timedOut: false,
-  wouldRevertMessage: '',
-};
-
-const MOCK_BATCH_STATUS_RESPONSE: SentinelBatchStatusResponse = {
-  [UUID]: MOCK_BATCH_STATUS_ENTRY,
-  [UUID_2]: MOCK_BATCH_STATUS_ENTRY,
-};
+/**
+ * Body produced by the Sentinel `GET /batchStatus` handler for two pending
+ * transactions. Raw JSON, so a dropped or renamed field is not rewritten to
+ * match `SentinelBatchedTransactionStatus`.
+ */
+const BATCH_STATUS_RESPONSE_FIXTURE: unknown = JSON.parse(
+  readFileSync(
+    new URL('./fixtures/batch-status.response.json', import.meta.url),
+    'utf8',
+  ),
+);
 
 const MOCK_FEES_RESPONSE = {
   txs: [
@@ -352,6 +360,7 @@ describe('SentinelApiService', () => {
 
     it('exposes feature values', () => {
       expect(SentinelFeature.Sponsored).toBe('sponsored');
+      expect(SentinelKind.GaslessEIP7702).toBe('gaslessEIP7702');
       expect(SentinelProductFeature.Swap).toBe('Swap');
     });
   });
@@ -1148,16 +1157,38 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
-    it('throws when smart transactions are not enabled for the chain', async () => {
+    it('throws when confirmations are not enabled for the chain', async () => {
       const { service } = createService();
       mockNetworks();
 
       await expect(
         service.getFees({
           ...MOCK_FEES_REQUEST,
-          chainId: CHAIN_ID_POLYGON,
+          chainId: CHAIN_ID_NO_CONFIRMATIONS,
         }),
-      ).rejects.toThrow(SentinelChainNotSupportedError);
+      ).rejects.toThrow(
+        new SentinelChainNotSupportedError(
+          CHAIN_ID_NO_CONFIRMATIONS,
+          'confirmations',
+        ),
+      );
+      service.destroy();
+    });
+
+    it('does not require smartTransactions to be enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(BASE_MAINNET_URL)
+        .post('/v1/networks/8453/getFees')
+        .reply(200, MOCK_FEES_RESPONSE);
+
+      const result = await service.getFees({
+        ...MOCK_FEES_REQUEST,
+        chainId: CHAIN_ID_SMART_TRANSACTIONS_DISABLED,
+      });
+
+      expect(result).toStrictEqual(MOCK_FEES_RESPONSE);
+      expect(scope.isDone()).toBe(true);
       service.destroy();
     });
 
@@ -1285,16 +1316,38 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
-    it('throws when smart transactions are not enabled for the chain', async () => {
+    it('throws when confirmations are not enabled for the chain', async () => {
       const { service } = createService();
       mockNetworks();
 
       await expect(
         service.submitTransactions({
           ...MOCK_SUBMIT_REQUEST,
-          chainId: CHAIN_ID_POLYGON,
+          chainId: CHAIN_ID_NO_CONFIRMATIONS,
         }),
-      ).rejects.toThrow(SentinelChainNotSupportedError);
+      ).rejects.toThrow(
+        new SentinelChainNotSupportedError(
+          CHAIN_ID_NO_CONFIRMATIONS,
+          'confirmations',
+        ),
+      );
+      service.destroy();
+    });
+
+    it('does not require smartTransactions to be enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(BASE_MAINNET_URL)
+        .post('/v1/networks/8453/submitTransactions')
+        .reply(200, MOCK_SUBMIT_RESPONSE);
+
+      const result = await service.submitTransactions({
+        ...MOCK_SUBMIT_REQUEST,
+        chainId: CHAIN_ID_SMART_TRANSACTIONS_DISABLED,
+      });
+
+      expect(result).toStrictEqual(MOCK_SUBMIT_RESPONSE);
+      expect(scope.isDone()).toBe(true);
       service.destroy();
     });
 
@@ -1390,16 +1443,38 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
-    it('throws when smart transactions are not enabled for the chain', async () => {
+    it('throws when confirmations are not enabled for the chain', async () => {
       const { service } = createService();
       mockNetworks();
 
       await expect(
         service.cancel({
           ...MOCK_CANCEL_REQUEST,
-          chainId: CHAIN_ID_POLYGON,
+          chainId: CHAIN_ID_NO_CONFIRMATIONS,
         }),
-      ).rejects.toThrow(SentinelChainNotSupportedError);
+      ).rejects.toThrow(
+        new SentinelChainNotSupportedError(
+          CHAIN_ID_NO_CONFIRMATIONS,
+          'confirmations',
+        ),
+      );
+      service.destroy();
+    });
+
+    it('does not require smartTransactions to be enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(BASE_MAINNET_URL)
+        .post('/v1/networks/8453/cancel')
+        .reply(200, MOCK_CANCEL_RESPONSE);
+
+      const result = await service.cancel({
+        ...MOCK_CANCEL_REQUEST,
+        chainId: CHAIN_ID_SMART_TRANSACTIONS_DISABLED,
+      });
+
+      expect(result).toStrictEqual(MOCK_CANCEL_RESPONSE);
+      expect(scope.isDone()).toBe(true);
       service.destroy();
     });
 
@@ -1492,18 +1567,24 @@ describe('SentinelApiService', () => {
     });
   });
 
-  describe('batchStatus', () => {
+  describe('getBatchStatus', () => {
     it('returns the status for each requested uuid', async () => {
       const { service } = createService();
       mockNetworks();
       const scope = nock(MAINNET_URL)
         .get('/v1/networks/1/batchStatus')
         .query({ uuids: `${UUID},${UUID_2}` })
-        .reply(200, MOCK_BATCH_STATUS_RESPONSE);
+        .reply(200, BATCH_STATUS_RESPONSE_FIXTURE);
 
-      const result = await service.batchStatus(MOCK_BATCH_STATUS_REQUEST);
+      const [validationError] = validate(
+        BATCH_STATUS_RESPONSE_FIXTURE,
+        SentinelBatchStatusResponseStruct,
+      );
+      expect(validationError).toBeUndefined();
 
-      expect(result).toStrictEqual(MOCK_BATCH_STATUS_RESPONSE);
+      const result = await service.getBatchStatus(MOCK_BATCH_STATUS_REQUEST);
+
+      expect(result).toStrictEqual(BATCH_STATUS_RESPONSE_FIXTURE);
       expect(scope.isDone()).toBe(true);
       service.destroy();
     });
@@ -1517,7 +1598,7 @@ describe('SentinelApiService', () => {
         .reply(200, { [UUID]: { unexpected: true } });
 
       await expect(
-        service.batchStatus(MOCK_BATCH_STATUS_REQUEST),
+        service.getBatchStatus(MOCK_BATCH_STATUS_REQUEST),
       ).rejects.toThrow(SentinelApiResponseValidationError);
       service.destroy();
     });
@@ -1527,11 +1608,47 @@ describe('SentinelApiService', () => {
       mockNetworks();
 
       await expect(
-        service.batchStatus({
+        service.getBatchStatus({
           ...MOCK_BATCH_STATUS_REQUEST,
           chainId: CHAIN_ID_UNKNOWN,
         }),
       ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws when confirmations are not enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.getBatchStatus({
+          ...MOCK_BATCH_STATUS_REQUEST,
+          chainId: CHAIN_ID_NO_CONFIRMATIONS,
+        }),
+      ).rejects.toThrow(
+        new SentinelChainNotSupportedError(
+          CHAIN_ID_NO_CONFIRMATIONS,
+          'confirmations',
+        ),
+      );
+      service.destroy();
+    });
+
+    it('does not require smartTransactions to be enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(BASE_MAINNET_URL)
+        .get('/v1/networks/8453/batchStatus')
+        .query(true)
+        .reply(200, BATCH_STATUS_RESPONSE_FIXTURE);
+
+      const result = await service.getBatchStatus({
+        ...MOCK_BATCH_STATUS_REQUEST,
+        chainId: CHAIN_ID_SMART_TRANSACTIONS_DISABLED,
+      });
+
+      expect(result).toStrictEqual(BATCH_STATUS_RESPONSE_FIXTURE);
+      expect(scope.isDone()).toBe(true);
       service.destroy();
     });
 
@@ -1544,7 +1661,7 @@ describe('SentinelApiService', () => {
         .reply(404, { statusCode: 404, error: 'Not Found' });
 
       const error = await service
-        .batchStatus(MOCK_BATCH_STATUS_REQUEST)
+        .getBatchStatus(MOCK_BATCH_STATUS_REQUEST)
         .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(HttpError);
@@ -1564,7 +1681,7 @@ describe('SentinelApiService', () => {
         .reply(502, 'Bad Gateway');
 
       const error = await service
-        .batchStatus(MOCK_BATCH_STATUS_REQUEST)
+        .getBatchStatus(MOCK_BATCH_STATUS_REQUEST)
         .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(HttpError);
@@ -1579,14 +1696,14 @@ describe('SentinelApiService', () => {
       nock(MAINNET_URL)
         .get('/v1/networks/1/batchStatus')
         .query(true)
-        .reply(200, MOCK_BATCH_STATUS_RESPONSE);
+        .reply(200, BATCH_STATUS_RESPONSE_FIXTURE);
 
       const result = await rootMessenger.call(
-        'SentinelApiService:batchStatus',
+        'SentinelApiService:getBatchStatus',
         MOCK_BATCH_STATUS_REQUEST,
       );
 
-      expect(result).toStrictEqual(MOCK_BATCH_STATUS_RESPONSE);
+      expect(result).toStrictEqual(BATCH_STATUS_RESPONSE_FIXTURE);
       service.destroy();
     });
   });
