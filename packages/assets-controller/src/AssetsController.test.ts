@@ -2316,8 +2316,11 @@ describe('AssetsController', () => {
           // Background pipelines are still in flight (fire-and-forget).
           expect(updateSpy).not.toHaveBeenCalled(); // internal #updateState, not handleAssetsUpdate
 
-          // Let all pending microtasks resolve so background pipelines finish.
-          await flushPromises();
+          await waitFor(() =>
+            expect(
+              controller.state.assetsBackgroundLoadingStatus?.[MOCK_ACCOUNT_ID],
+            ).toBe('loaded'),
+          );
 
           updateSpy.mockRestore();
         });
@@ -2330,8 +2333,6 @@ describe('AssetsController', () => {
             { forceUpdate: true },
           );
           expect(assets).toBeDefined();
-
-          await flushPromises();
         });
       });
 
@@ -2351,7 +2352,13 @@ describe('AssetsController', () => {
               forceUpdate: true,
             });
 
-            await flushPromises();
+            await waitFor(() =>
+              expect(
+                controller.state.assetsBackgroundLoadingStatus?.[
+                  MOCK_ACCOUNT_ID
+                ],
+              ).toBe('loaded'),
+            );
 
             // Background pipelines overlay balances without wiping fast-pipeline results.
             expect(
@@ -2372,8 +2379,6 @@ describe('AssetsController', () => {
               { forceUpdate: true },
             );
             expect(assets).toBeDefined();
-
-            await flushPromises();
           },
         );
       });
@@ -2431,8 +2436,6 @@ describe('AssetsController', () => {
             remoteFeatureFlags: { assetsAccountsApiV6: true },
           },
           async ({ controller }) => {
-            await flushPromises();
-
             await controller.addCustomAsset(MOCK_ACCOUNT_ID, customToken);
 
             rpcMiddleware.mockClear();
@@ -2479,7 +2482,10 @@ describe('AssetsController', () => {
             await controller.getAssets([createMockInternalAccount()], {
               forceUpdate: true,
             });
-            await flushPromises();
+            await waitUntilStable(() => [
+              tokenMiddlewareGetter.mock.calls.length,
+              priceMiddlewareGetter.mock.calls.length,
+            ]);
           },
         );
 
@@ -2539,7 +2545,11 @@ describe('AssetsController', () => {
               chainIds: ['eip155:1'],
               forceUpdate: true,
             });
-            await flushPromises();
+            await waitUntilStable(() => [
+              fetchV6MultiAccountBalances.mock.calls.length,
+              tokenMiddlewareGetter.mock.calls.length,
+              priceMiddlewareGetter.mock.calls.length,
+            ]);
           },
         );
 
