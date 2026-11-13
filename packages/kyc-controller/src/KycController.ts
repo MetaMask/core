@@ -1353,10 +1353,13 @@ export class KycController extends BaseController<
           return journey.applicantAccessToken;
         },
         onStatusChange: (_prev, next) => {
+          console.log('SumSub flow onStatusChange', next);
           if (isSumSubFlowCompleted(next)) {
+            console.log('SumSub flow onStatusChange reached completion');
             reachedCompletion = true;
           }
           if (isSumSubFlowFailed(next)) {
+            console.log('SumSub flow onStatusChange sdk failed');
             sdkFailed = true;
           }
         },
@@ -1368,6 +1371,8 @@ export class KycController extends BaseController<
       // delivering the corresponding state-change callback.
       reachedCompletion ||= isSumSubFlowCompleted(result.status);
       sdkFailed ||= isSumSubFlowFailed(result.status);
+
+      console.log('SumSub flow ended', {reachedCompletion, sdkFailed});
 
       const currentSessionStatus = this.state.sessionStatus;
       if (currentSessionStatus?.id !== sessionId) {
@@ -1383,6 +1388,7 @@ export class KycController extends BaseController<
       }
 
       if (reachedCompletion) {
+        console.log('SumSub flow reached completion');
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result.
         this.#recordLaunchOutcomeAndTrackAnalytics('submitted', (state) => {

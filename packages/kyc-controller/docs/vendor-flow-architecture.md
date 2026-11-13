@@ -1,5 +1,9 @@
 # Multi-vendor KYC flow architecture
 
+> **Superseded.** Orchestration is moving to kyc-api: see
+> [`vendor-onboarding-flow.md`](./vendor-onboarding-flow.md). The requirement
+> graph below may still guide how kyc-api plans steps.
+
 Target architecture for generalizing `@metamask/kyc-controller` across multiple
 identity vendors (Iron, MoonPay, Kalshi, and future vendors) without growing a
 single shared phase enum per vendor quirk.
