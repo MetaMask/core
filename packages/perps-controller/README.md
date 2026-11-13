@@ -69,11 +69,22 @@ aggregated mode across initialization and restarts. Reserve it for intentional
 mode changes. Use `setDefaultProvider` to change the aggregated routing
 preference without switching modes or reconnecting providers.
 
-When an aggregated provider has multiple registered venues, writes must name a
-`providerId` (or `position.providerId` for `flipPosition`). An aggregated wrapper
-with only one registered venue, including HyperLiquid-only fallback when Lighter
-is unavailable, accepts writes without an explicit route because there is only
-one destination.
+When an aggregated provider has multiple registered venues, `placeOrder`,
+`editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`,
+`replacePositionTPSLLeg` and `updateMargin` must name a `providerId`, and
+`flipPosition` must name `position.providerId`. Without a route they return
+`PROVIDER_ROUTE_REQUIRED`. An aggregated wrapper with only one registered venue,
+including HyperLiquid-only fallback when Lighter is unavailable, accepts these
+writes without an explicit route because there is only one destination.
+
+`cancelOrders`, `closePositions` and `withdraw` are not covered by this check.
+In aggregated mode, `cancelOrders` sends every matching open order, from every
+venue, to the default venue; `closePositions` closes only the default venue's
+positions; and `withdraw` uses the default venue unless it is given a
+`providerId`. Do not enable `perpsMultiProviderModeEnabled` while Lighter is
+enabled until a release routes batch cancel and close-all to each order's or
+position's own venue, and Lighter implements `cancelOrders` and
+`closePositions`.
 
 ## Rewards discounts and fee previews
 
