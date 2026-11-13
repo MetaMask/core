@@ -36,7 +36,7 @@ The messenger must allow these actions and events:
 
 - Actions:
   - `AuthenticatedUserStorageService:invalidateQueries`, `getMarketingConsent`, `putMarketingConsent`, `getNotificationPreferences`, `putNotificationPreferences`
-  - `AnalyticsController:getState`, `optInToMarketing`, `optOutOfMarketing`, `applyRemoteMarketingConsent`, `clearPendingMarketingConsent`
+  - `AnalyticsController:getState`, `optInToMarketing`, `optOutOfMarketing`, `applyRemoteMarketingConsent`, `clearMarketingConsentSyncPending`
   - `AuthenticationController:getState`
   - `KeyringController:getState`
 - Events:
