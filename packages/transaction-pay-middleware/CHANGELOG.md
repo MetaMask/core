@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/perps-controller` from `^23.1.0` to `^24.0.0` ([#11464](https://github.com/MetaMask/core/pull/11464))
 - Bump `@metamask/perps-controller` from `^23.0.0` to `^23.1.0` ([#11426](https://github.com/MetaMask/core/pull/11426))
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 
