@@ -226,10 +226,6 @@ export class NetworkEnablementController extends BaseController<
   NetworkEnablementControllerState,
   NetworkEnablementControllerMessenger
 > {
-  /**
-   * Tracks chain IDs for networks being added without switching the active selection.
-   * When a chain is in this set, #onAddNetwork will preserve the current selection.
-   */
   readonly #nonActiveAdditions = new Set<Hex>();
 
   /**
@@ -648,24 +644,11 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Sets the network addition mode for the next network that is added.
-   *
-   * Call this before adding a network (via NetworkController:addNetwork) to control
-   * how the controller handles the addition. When 'non-active' mode is set for a
-   * chain ID, the controller preserves the current enabled network selection instead
-   * of switching to the newly added network.
-   *
-   * In popular-networks mode (when multiple popular networks are enabled), a newly
-   * added popular network will be enabled alongside the existing selection. In
-   * single-network mode, the current selection is preserved unchanged.
-   *
-   * Returns a cleanup function that should be called in a finally block to remove
-   * the mode marker, ensuring it doesn't affect subsequent unrelated network additions.
+   * Controls how the next network addition is handled.
    *
    * @param chainId - The chain ID that will be added.
-   * @param mode - The addition mode: 'non-active' to preserve current selection,
-   * or 'default' for normal behavior (switch to new network).
-   * @returns A cleanup function that removes the mode marker.
+   * @param mode - 'non-active' preserves current selection, 'default' switches to new network.
+   * @returns Cleanup function to call in finally block.
    */
   setNetworkAdditionMode(
     chainId: Hex,
@@ -683,12 +666,10 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Checks if a network addition is currently marked as non-active.
-   * This is used by extension subscribers to skip snapshot restores for
-   * user-initiated network additions.
+   * Checks if a network addition is marked as non-active.
    *
    * @param chainId - The chain ID to check.
-   * @returns True if the chain is marked as a non-active addition.
+   * @returns True if marked as non-active addition.
    */
   isNonActiveAddition(chainId: Hex): boolean {
     return this.#nonActiveAdditions.has(chainId);
@@ -791,89 +772,53 @@ export class NetworkEnablementController extends BaseController<
     });
   }
 
-  /**
-   * Handles the addition of a new EVM network to the controller.
-   *
-   * @param chainId - The chain ID to add (Hex format)
-   *
-   * @description
-   * When the network was marked via setNetworkAdditionMode('non-active'):
-   * - In popular-networks mode AND adding a popular network: enable the new chain
-   *   alongside the existing selection
-   * - Otherwise: add the network as disabled, preserving current selection
-   *
-   * When not marked (default behavior):
-   * - If in popular networks mode AND adding a popular network: enable the new chain
-   * - Otherwise: switch to the newly added network (disable all others, enable this one)
-   *
-   * Also updates the nativeAssetIdentifiers with the CAIP-19-like identifier.
-   */
   async #onAddNetwork(chainId: Hex): Promise<void> {
     const { namespace, storageKey, reference, caipChainId } =
       deriveKeys(chainId);
 
-    // Parse reference (decimal string from CAIP-2) to number for chainid.network lookup
-    const numericChainId = parseInt(reference, 10);
+    const isNonActiveAddition = this.#nonActiveAdditions.has(chainId);
 
-    // EVM networks: use getEvmSlip44 (chainid.network data)
+    const numericChainId = parseInt(reference, 10);
     const slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
 
     const isRegistryAutoAdded = selectEvmAutoEnabledNetworksChainIds(
       this.messenger.call('ConfigRegistryController:getState'),
     ).includes(caipChainId);
 
-    const isNonActiveAddition = this.#nonActiveAdditions.has(chainId);
-
     this.update((state) => {
-      // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(state, namespace);
 
       if (isNonActiveAddition) {
-        // Non-active addition: preserve current selection.
-        // In popular mode, add the new popular network to the selection.
-        // Otherwise, add as disabled.
         const inPopularNetworksMode = this.#isInPopularNetworksMode();
         const isAddedNetworkPopular =
           this.#getPopularEvmChainIds().includes(chainId);
 
         if (inPopularNetworksMode && isAddedNetworkPopular) {
-          // Popular mode: enable the new popular network alongside existing ones
           state.enabledNetworkMap[namespace][storageKey] = true;
         } else {
-          // Single-network mode or non-popular network: add as disabled
           state.enabledNetworkMap[namespace][storageKey] = false;
         }
       } else if (isRegistryAutoAdded) {
-        // Registry auto-added network: add as disabled to preserve selection
         state.enabledNetworkMap[namespace][storageKey] ??= false;
       } else {
-        // Default behavior: check if popular networks mode is active
         const inPopularNetworksMode = this.#isInPopularNetworksMode();
-
-        // Check if the network being added is a popular network
         const isAddedNetworkPopular =
           this.#getPopularEvmChainIds().includes(chainId);
-
-        // Keep current selection only if in popular networks mode AND adding a popular network
         const shouldKeepCurrentSelection =
           inPopularNetworksMode && isAddedNetworkPopular;
 
         if (shouldKeepCurrentSelection) {
-          // Add the popular network and enable it (keep current selection)
           state.enabledNetworkMap[namespace][storageKey] = true;
         } else {
-          // Switch to the newly added network (disable all others, enable this one)
           Object.keys(state.enabledNetworkMap).forEach((ns) => {
             Object.keys(state.enabledNetworkMap[ns]).forEach((key) => {
               state.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
             });
           });
-          // Enable the newly added network
           state.enabledNetworkMap[namespace][storageKey] = true;
         }
       }
 
-      // Update nativeAssetIdentifiers with the CAIP-19-like identifier
       state.nativeAssetIdentifiers[caipChainId] = buildNativeAssetIdentifier(
         caipChainId,
         slip44CoinType,

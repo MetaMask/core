@@ -2580,9 +2580,7 @@ describe('NetworkEnablementController', () => {
     it('sets mode to default explicitly', async () => {
       const { controller, rootMessenger } = setupController();
 
-      // First mark as non-active
       controller.setNetworkAdditionMode('0x999', 'non-active');
-      // Then explicitly set to default
       const cleanup = controller.setNetworkAdditionMode('0x999', 'default');
 
       try {
@@ -2605,12 +2603,39 @@ describe('NetworkEnablementController', () => {
 
         await vi.advanceTimersByTimeAsync(1);
 
-        // Should switch to new network (default behavior)
         expect(controller.isNetworkEnabled('0x999')).toBe(true);
         expect(controller.isNetworkEnabled('0x1')).toBe(false);
       } finally {
         cleanup();
       }
+    });
+
+    it('captures non-active flag before async lookup to prevent race condition', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      const cleanup = controller.setNetworkAdditionMode('0xa86a', 'non-active');
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa86a',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Avalanche',
+        nativeCurrency: 'AVAX',
+        rpcEndpoints: [
+          {
+            url: 'https://api.avax.network/ext/bc/C/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      cleanup();
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
     });
   });
 
