@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Use `@metamask/sentinel-api-service` for all Sentinel API calls instead of calling the endpoints directly
+- **BREAKING:** Use `@metamask/sentinel-api-service` for all Sentinel API calls instead of calling the endpoints directly ([#11516](https://github.com/MetaMask/core/pull/11516))
   - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:getNetwork`, `SentinelApiService:getFees`, `SentinelApiService:submitTransactions`, `SentinelApiService:cancel` and `SentinelApiService:getBatchStatus` actions to the `SmartTransactionsController` messenger.
   - `fetchLiveness` now calls `SentinelApiService:getNetwork`, and `getFees` calls `SentinelApiService:getFees`. The `getFees` return type is unchanged.
   - `submitSignedTransactions` now calls `SentinelApiService:submitTransactions`. `signedCanceledTransactions` is forwarded as `rawCancelTxs`, and `SignedTransactionWithMetadata.tx` is now typed as `Hex`.
