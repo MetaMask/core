@@ -7,7 +7,8 @@ import type { VendorOnboardingController } from './VendorOnboardingController.js
 
 /**
  * Asks kyc-api for the vendor's current step and saves it. Call it when a
- * screen opens: the answer replaces whatever was saved.
+ * screen opens: the answer replaces whatever was saved. Calls that overlap
+ * share one request.
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor.

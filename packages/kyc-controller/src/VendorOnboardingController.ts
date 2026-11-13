@@ -216,6 +216,14 @@ export class VendorOnboardingController extends BaseController<
   readonly #stepRequests: Partial<Record<OnboardingVendor, number>> = {};
 
   /**
+   * The step read in flight per vendor, which a plain `refreshStep` joins
+   * instead of starting its own. A read is dropped from here as soon as the
+   * phone learns the step another way (see {@link #writeStep}), so nobody
+   * joins an answer that is already out of date.
+   */
+  readonly #stepReads: Partial<Record<OnboardingVendor, Promise<KycStep>>> = {};
+
+  /**
    * Constructs a new {@link VendorOnboardingController}.
    *
    * @param options - The constructor options.
@@ -249,7 +257,8 @@ export class VendorOnboardingController extends BaseController<
 
   /**
    * Asks kyc-api for the vendor's current step and saves it. Call it when a
-   * screen opens: the answer replaces whatever was saved.
+   * screen opens: the answer replaces whatever was saved. Calls that overlap
+   * share one request.
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor.
@@ -260,14 +269,7 @@ export class VendorOnboardingController extends BaseController<
   }: {
     vendor: OnboardingVendor;
   }): Promise<KycStep> {
-    const request = (this.#stepRequests[vendor] ?? 0) + 1;
-    this.#stepRequests[vendor] = request;
-    const step = await this.messenger.call('KycService:getStep', vendor);
-    // A newer request started while this one was in flight.
-    if (this.#stepRequests[vendor] === request) {
-      this.#writeStep(vendor, step);
-    }
-    return step;
+    return this.#readStep(vendor, { join: true });
   }
 
   /**
@@ -312,7 +314,7 @@ export class VendorOnboardingController extends BaseController<
     await this.#requireAdapter(params.vendor).startLink({
       email: params.email,
     });
-    return this.refreshStep({ vendor: params.vendor });
+    return this.#readStep(params.vendor, { join: false });
   }
 
   /**
@@ -333,7 +335,7 @@ export class VendorOnboardingController extends BaseController<
     const { mfaMethod } = await this.#requireAdapter(params.vendor).verifyLink({
       code: params.code,
     });
-    const step = await this.refreshStep({ vendor: params.vendor });
+    const step = await this.#readStep(params.vendor, { join: false });
     return { step, ...(mfaMethod ? { mfaMethod } : {}) };
   }
 
@@ -378,7 +380,7 @@ export class VendorOnboardingController extends BaseController<
           sessionId: existing.id,
         });
       }
-      return this.refreshStep({ vendor });
+      return this.#readStep(vendor, { join: false });
     }
 
     if (!params.aal2Token) {
@@ -397,7 +399,7 @@ export class VendorOnboardingController extends BaseController<
       ...(params.email ? { email: params.email } : {}),
     });
     this.#write(vendor, { sessionId: session.id });
-    return this.refreshStep({ vendor });
+    return this.#readStep(vendor, { join: false });
   }
 
   /**
@@ -451,7 +453,7 @@ export class VendorOnboardingController extends BaseController<
       credentialReusabilityConsentGiven:
         params.credentialReusabilityConsentGiven,
     });
-    return this.refreshStep({ vendor: params.vendor });
+    return this.#readStep(params.vendor, { join: false });
   }
 
   /**
@@ -673,7 +675,7 @@ export class VendorOnboardingController extends BaseController<
       step,
       ...(body ? { body } : {}),
     });
-    return this.refreshStep({ vendor });
+    return this.#readStep(vendor, { join: false });
   }
 
   /**
@@ -711,7 +713,60 @@ export class VendorOnboardingController extends BaseController<
     return adapter;
   }
 
+  /**
+   * Asks kyc-api for the step and saves it.
+   *
+   * A caller that only wants the current step (a screen opening, a poll)
+   * joins a read already in flight. A caller that has just changed something
+   * at kyc-api never joins one: that read may have started before the change
+   * and would answer with the old step.
+   *
+   * @param vendor - The vendor.
+   * @param options - The options.
+   * @param options.join - Whether to share a read already in flight.
+   * @returns The step.
+   */
+  async #readStep(
+    vendor: OnboardingVendor,
+    { join }: { join: boolean },
+  ): Promise<KycStep> {
+    const inflight = this.#stepReads[vendor];
+    if (join && inflight) {
+      return inflight;
+    }
+    const request = (this.#stepRequests[vendor] ?? 0) + 1;
+    this.#stepRequests[vendor] = request;
+    const read = (async (): Promise<KycStep> => {
+      try {
+        const step = await this.messenger.call('KycService:getStep', vendor);
+        // The phone learned a newer step while this read was in flight.
+        if (this.#stepRequests[vendor] === request) {
+          this.#write(vendor, { step });
+        }
+        return step;
+      } finally {
+        // A newer read, or a step that came back with an action, has taken
+        // over from this one.
+        if (this.#stepRequests[vendor] === request) {
+          delete this.#stepReads[vendor];
+        }
+      }
+    })();
+    this.#stepReads[vendor] = read;
+    return read;
+  }
+
+  /**
+   * Saves a step kyc-api returned as part of an action. Any read still in
+   * flight started before this answer, so its result is dropped and nobody
+   * joins it.
+   *
+   * @param vendor - The vendor.
+   * @param step - The step.
+   */
   #writeStep(vendor: OnboardingVendor, step: KycStep): void {
+    this.#stepRequests[vendor] = (this.#stepRequests[vendor] ?? 0) + 1;
+    delete this.#stepReads[vendor];
     this.#write(vendor, { step });
   }
 
