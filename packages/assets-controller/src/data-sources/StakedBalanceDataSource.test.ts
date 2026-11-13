@@ -141,7 +141,7 @@ async function withController<ReturnValue>(
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
     ...options,
-    pollInterval: 1000,
+    pollInterval: 60_000,
   });
 
   try {
