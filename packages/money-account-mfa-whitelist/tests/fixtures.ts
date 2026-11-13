@@ -76,6 +76,8 @@ export const PREMIUM_VAULT = {
 
 export const CARD_SIGN_IN_DOMAIN = 'link.metamask.io';
 
+export const CHOMP_SIGN_IN_DOMAIN = 'chomp.example.com';
+
 export const NOW = Date.parse('2026-10-09T12:00:00.000Z');
 
 export const CONFIG: MfaWhitelistConfig = {
@@ -85,6 +87,7 @@ export const CONFIG: MfaWhitelistConfig = {
   chompDelegateAddress: CHOMP_DELEGATE,
   vaults: [VAULT, PREMIUM_VAULT],
   cardSignInDomain: CARD_SIGN_IN_DOMAIN,
+  chompSignInDomain: CHOMP_SIGN_IN_DOMAIN,
 };
 
 export const MAX_UINT256 = 2n ** 256n - 1n;
