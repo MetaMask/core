@@ -416,12 +416,9 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await waitFor(
-          () => {
-            expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-          },
-          { timeoutMs: 400 },
-        );
+        await waitFor(() => {
+          expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        });
       });
     });
 
@@ -444,9 +441,7 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length], {
-          stableForMs: 300,
-        });
+        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length]);
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
     });
@@ -467,12 +462,9 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await waitFor(
-          () => {
-            expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-          },
-          { timeoutMs: 400 },
-        );
+        await waitFor(() => {
+          expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        });
       });
     });
   });
