@@ -50,6 +50,8 @@ export type PerpsProviderHealthReason =
 /**
  * One provider's health. `unavailable` means the provider is not registered,
  * or is disconnected with no reconnect pending (not started or disconnected).
+ * It describes the provider, not its socket: Lighter closes its socket when
+ * nothing listens and still reports `healthy`.
  */
 export type PerpsProviderHealth = {
   providerId: PerpsProviderType;
