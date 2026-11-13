@@ -29,6 +29,7 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
+import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
 import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
 import type { MaxQuoteDetails } from '../../utils/max-quote.js';
 import {
@@ -196,8 +197,17 @@ async function fetchQuotes(
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   const { accountSupports7702, messenger, signal, transaction } = fullRequest;
 
+  const normalizedRequest = await applyHyperliquidActivationFee(
+    normalizeServerPerpsRequest(quoteRequest, transaction),
+    messenger,
+    transaction,
+    signal,
+  );
+
+  const { hyperliquidActivationFeeUsd } = normalizedRequest;
+
   const body = await buildServerQuoteRequest(
-    quoteRequest,
+    normalizedRequest,
     transaction,
     messenger,
     accountSupports7702,
@@ -224,7 +234,13 @@ async function fetchQuotes(
     fulfilledResults.map((result) =>
       normalizeQuote(
         result,
-        { ...quoteRequest, recipient: body.recipient },
+        {
+          ...quoteRequest,
+          ...(hyperliquidActivationFeeUsd
+            ? { hyperliquidActivationFeeUsd }
+            : {}),
+          recipient: body.recipient,
+        },
         messenger,
         body,
         transaction,
@@ -240,15 +256,11 @@ async function fetchQuotes(
 }
 
 async function buildServerQuoteRequest(
-  quoteRequest: QuoteRequest,
+  normalizedRequest: QuoteRequest,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
   accountSupports7702: boolean,
 ): Promise<ServerQuoteRequest> {
-  const normalizedRequest = normalizeServerPerpsRequest(
-    quoteRequest,
-    transaction,
-  );
   const {
     atomic,
     from,
@@ -621,8 +633,12 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
+  // Any reserved HyperLiquid activation fee is withheld from the source send,
+  // so it is surfaced in the provider fee to keep the displayed amount intact.
   const provider = getFiatValueFromUsd(
-    new BigNumber(quote.fees.provider),
+    new BigNumber(quote.fees.provider).plus(
+      quoteRequest.hyperliquidActivationFeeUsd ?? '0',
+    ),
     usdToFiatRate,
   );
 

@@ -117,11 +117,6 @@ describe('server-support', () => {
 
     it.each([
       [
-        'hyperliquidActivationFeeUsd',
-        { hyperliquidActivationFeeUsd: '1' },
-        ServerUnsupportedReason.HyperliquidActivationFee,
-      ],
-      [
         'isDirectMusdMoneyAccount',
         { isDirectMusdMoneyAccount: true },
         ServerUnsupportedReason.DirectMusdMoneyAccount,
