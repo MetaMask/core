@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `accountHardwareType` to `SentinelMeta` for relay transaction metadata ([#10842](https://github.com/MetaMask/core/pull/10842))
 - Add `getFees`, `submitTransactions`, `cancel`, and `getBatchStatus` methods, with matching `SentinelApiService:*` actions, for smart-transaction fee quotes, submission, cancellation, and status lookup ([#11272](https://github.com/MetaMask/core/pull/11272))
   - `getFees` quotes gas fees via `POST /v1/networks/{chainId}/getFees`. Accepts a `SentinelGetFeesRequest` and returns a `SentinelGetFeesResponse`. Each transaction is a `SentinelSimulationTransaction`, the object `infura_simulateTransactions` accepts. The handler forwards them as the `txs` array.
   - `submitTransactions` submits signed smart transactions via `POST /v1/networks/{chainId}/submitTransactions`. Accepts a `SentinelSubmitTransactionsRequest` (`rawTxs`, optional `rawCancelTxs`, optional `rawTxsWithMetadata`) and returns a `SentinelSubmitTransactionsResponse` (`uuid`).
