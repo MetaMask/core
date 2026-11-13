@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.0.0]
 
-### Uncategorized
-
-- Release 1418.0.0 ([#11447](https://github.com/MetaMask/core/pull/11447))
-- Release 1415.0.0 ([#11437](https://github.com/MetaMask/core/pull/11437))
-
 ### Added
 
 - Add `PerpsController.setDefaultProvider` (messenger action `PerpsController:setDefaultProvider`) to save the default venue for aggregated-mode routing, and a persisted `defaultProvider` state field separate from `activeProvider` ([#11421](https://github.com/MetaMask/core/pull/11421))
