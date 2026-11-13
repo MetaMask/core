@@ -27,11 +27,16 @@ export type {
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
   SentinelStateOverrides,
+  SentinelApiServiceTraceCallback,
+  SentinelApiServiceTraceName,
+  SentinelApiServiceTraceOptions,
+  SentinelApiServiceTraceRequest,
 } from './types.js';
 export {
   SentinelFeature,
   SentinelKind,
   SentinelSmartTransactionStatus,
+  TRACES,
 } from './types.js';
 export type {
   SentinelApiServiceGetNetworkAction,

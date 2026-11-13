@@ -1,5 +1,6 @@
 import { BaseDataService } from '@metamask/base-data-service';
 import { handleWhen, HttpError } from '@metamask/controller-utils';
+import type { TraceContext } from '@metamask/controller-utils';
 import { validate } from '@metamask/superstruct';
 import type { Hex, Json } from '@metamask/utils';
 
@@ -33,6 +34,9 @@ import {
 import type {
   SentinelApiServiceMessenger,
   SentinelApiServiceOptions,
+  SentinelApiServiceTraceCallback,
+  SentinelApiServiceTraceOptions,
+  SentinelApiServiceTraceRequest,
   SentinelNetwork,
   SentinelNetworkRegistry,
   SentinelRelaySubmitRequest,
@@ -42,8 +46,25 @@ import type {
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
 } from './types.js';
+import { TRACES } from './types.js';
 
 const log = createModuleLogger(projectLogger, serviceName);
+const traceLogger = createModuleLogger(projectLogger, 'trace');
+
+/**
+ * Default trace callback used when the client does not pass one. Records
+ * nothing and runs `fn` so the callback contract still holds.
+ *
+ * @param _request - The trace request, ignored.
+ * @param fn - Optional work to run.
+ * @returns The value returned by `fn`.
+ */
+async function noopTrace<ReturnType>(
+  _request: SentinelApiServiceTraceRequest,
+  fn?: (context?: TraceContext) => ReturnType,
+): Promise<ReturnType> {
+  return await Promise.resolve(fn?.() as ReturnType);
+}
 
 const MESSENGER_EXPOSED_METHODS = [
   'getNetwork',
@@ -85,6 +106,8 @@ export class SentinelApiService extends BaseDataService<
 
   readonly #environmentDomain: string;
 
+  readonly #trace: SentinelApiServiceTraceCallback;
+
   /**
    * Constructs a new SentinelApiService.
    *
@@ -105,6 +128,8 @@ export class SentinelApiService extends BaseDataService<
    * Retries are disabled by default (`maxRetries: 0`) to preserve the
    * single-attempt behaviour of the clients this service replaces; pass
    * `maxRetries` here to opt in.
+   * @param options.trace - Optional callback to trace network requests.
+   * Tracing is best-effort and does not affect the request result if it fails.
    */
   constructor({
     messenger,
@@ -114,6 +139,7 @@ export class SentinelApiService extends BaseDataService<
     clientVersion,
     queryClientConfig = {},
     policyOptions = {},
+    trace,
   }: SentinelApiServiceOptions) {
     super({
       name: serviceName,
@@ -138,6 +164,7 @@ export class SentinelApiService extends BaseDataService<
     this.#environmentDomain = ENVIRONMENT_DOMAIN[environment];
     this.#clientId = clientId;
     this.#clientVersion = clientVersion;
+    this.#trace = trace ?? noopTrace;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -245,6 +272,55 @@ export class SentinelApiService extends BaseDataService<
   }
 
   /**
+   * Runs a request and emits a best-effort backdated trace.
+   *
+   * @param request - Trace metadata for the request.
+   * @param fn - Request to execute.
+   * @returns The request result.
+   */
+  async #traceRequest<ReturnType>(
+    request: SentinelApiServiceTraceRequest,
+    fn: () => Promise<ReturnType>,
+  ): Promise<ReturnType> {
+    const startTime = Date.now();
+    let success = false;
+    let errorName: string | undefined;
+
+    try {
+      const result = await fn();
+      success = true;
+      return result;
+    } catch (error) {
+      errorName = error instanceof Error ? error.name : typeof error;
+      throw error;
+    } finally {
+      const traceRequest = {
+        ...request,
+        startTime,
+        data: {
+          ...request.data,
+          success,
+          ...(errorName ? { errorName } : {}),
+        },
+      };
+      const onTraceError = (traceError: unknown): void => {
+        traceLogger('Failed to emit trace', {
+          traceName: request.name,
+          traceError,
+        });
+      };
+
+      try {
+        Promise.resolve(this.#trace(traceRequest, () => undefined)).catch(
+          onTraceError,
+        );
+      } catch (traceError) {
+        onTraceError(traceError);
+      }
+    }
+  }
+
+  /**
    * Simulates transactions against the Sentinel API via
    * `infura_simulateTransactions`. Not cached, since each request body is
    * unique and stale simulations must not be reused.
@@ -256,12 +332,17 @@ export class SentinelApiService extends BaseDataService<
    * Sentinel URL resolved for the chain and returns the URL to use instead.
    * Lets consumers rewrite the request URL (for example to route through the
    * MetaMask Shield proxy) without the service knowing about those concerns.
+   * @param options.traceContext - Optional trace context to nest the
+   * simulation trace under. Without it, clients that do not infer a parent
+   * from the active span record the trace as a root span.
    * @returns The simulation response.
    */
   async simulateTransactions(
     chainId: Hex,
     request: SentinelSimulationRequest,
-    options: { getUrl?: (defaultUrl: string) => string | Promise<string> } = {},
+    options: {
+      getUrl?: (defaultUrl: string) => string | Promise<string>;
+    } & SentinelApiServiceTraceOptions = {},
   ): Promise<SentinelSimulationResponse> {
     const defaultUrl = await this.#resolveUrl(chainId, 'confirmations');
     const url = options.getUrl ? await options.getUrl(defaultUrl) : defaultUrl;
@@ -269,24 +350,38 @@ export class SentinelApiService extends BaseDataService<
     const result = await this.fetchQuery({
       queryKey: [`${this.name}:simulateTransactions`, chainId, request, url],
       staleTime: 0,
-      queryFn: async (): Promise<Json> => {
-        log('simulateTransactions', 'Request', url, request);
+      queryFn: () =>
+        this.#traceRequest(
+          {
+            name: TRACES.SIMULATE_TRANSACTIONS,
+            parentContext: options.traceContext,
+            data: {
+              chainId,
+              transactionCount: request.transactions.length,
+            },
+          },
+          async (): Promise<Json> => {
+            log('simulateTransactions', 'Request', url, request);
 
-        const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SIMULATE, [
-          request,
-        ]);
+            const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SIMULATE, [
+              request,
+            ]);
 
-        const [error] = validate(rpcResult, SentinelSimulationResponseStruct);
-        if (error) {
-          throw new SentinelApiResponseValidationError(
-            `Sentinel API: Malformed response from simulation endpoint: ${error.message}`,
-          );
-        }
+            const [error] = validate(
+              rpcResult,
+              SentinelSimulationResponseStruct,
+            );
+            if (error) {
+              throw new SentinelApiResponseValidationError(
+                `Sentinel API: Malformed response from simulation endpoint: ${error.message}`,
+              );
+            }
 
-        log('simulateTransactions', 'Response', rpcResult);
+            log('simulateTransactions', 'Response', rpcResult);
 
-        return rpcResult;
-      },
+            return rpcResult;
+          },
+        ),
     });
 
     return result as unknown as SentinelSimulationResponse;
