@@ -511,10 +511,6 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller, messenger, getSelectedAccountsMock });
   } finally {
-    await waitUntilStable(() => controller.state, {
-      intervalMs: 0,
-      stableForMs: 1,
-    });
     controller.destroy();
   }
 }
