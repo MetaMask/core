@@ -452,7 +452,7 @@ describe('syncAusUserAssets', () => {
         fixture.addCustomAsset(MOCK_ACCOUNT_ID, MALFORMED_ASSET_ID),
       ).rejects.toThrow('Invalid CAIP asset type.');
 
-      await flushPromises();
+      await waitUntilStable(() => [fixture.messenger.call.mock.calls.length]);
 
       expect(fixture.messenger.call).not.toHaveBeenCalled();
       expect(fixture.localCalls).not.toContain('addCustomAsset');
@@ -466,15 +466,16 @@ describe('syncAusUserAssets', () => {
       await expect(
         fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
       ).rejects.toThrow('post-mutation fetch failed');
-      await flushPromises();
 
       // The local mutation was applied before the failure, so the mirror
       // still fires — local state and AUS stay in sync.
       expect(fixture.localCalls).toContain('addCustomAsset');
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
-        MOCK_ASSET_ID,
-      ]);
+      await waitFor(() => {
+        expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
+        expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
+          MOCK_ASSET_ID,
+        ]);
+      });
     });
   });
 
@@ -494,7 +495,16 @@ describe('syncAusUserAssets', () => {
         expect(
           await fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
         ).toBeUndefined();
-        await flushPromises();
+        await waitFor(() => {
+          expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
+          expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
+          expect(fixture.messenger.captureException).toHaveBeenCalledWith(
+            new Error('Failed to sync user assets to AUS', {
+              cause: new Error('AUS unavailable'),
+            }),
+          );
+        });
+        await waitUntilStable(() => [unhandledRejections.length]);
       } finally {
         process.off('unhandledRejection', recordUnhandledRejection);
       }
@@ -502,14 +512,7 @@ describe('syncAusUserAssets', () => {
       // The local method ran and its result was unaffected; the AUS failure
       // was swallowed (no unhandled rejection) and reported.
       expect(fixture.localCalls).toContain('addCustomAsset');
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(unhandledRejections).toStrictEqual([]);
-      expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.captureException).toHaveBeenCalledWith(
-        new Error('Failed to sync user assets to AUS', {
-          cause: new Error('AUS unavailable'),
-        }),
-      );
     });
 
     it('swallows a throwing error reporter', async () => {
@@ -522,9 +525,9 @@ describe('syncAusUserAssets', () => {
       });
 
       fixture.hideAsset(MOCK_ASSET_ID);
-      await flushPromises();
-
-      expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
+      });
     });
   });
 
