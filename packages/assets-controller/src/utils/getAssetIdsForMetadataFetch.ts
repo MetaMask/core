@@ -1,6 +1,9 @@
 import { parseCaipAssetType } from '@metamask/utils';
 
-import { isStakingContractAssetId } from '../data-sources/evm-rpc-services/index.js';
+import {
+  getSupportedStakingChainIds,
+  isStakingContractAssetId,
+} from '../data-sources/evm-rpc-services/index.js';
 import type {
   AssetMetadata,
   AssetsControllerState,
@@ -53,34 +56,69 @@ export function getAssetIdsForMetadataFetch({
   response,
 }: GetAssetIdsForMetadataFetchParams): GetAssetIdsForMetadataFetchResult {
   const stateMetadata = state.assetsInfo ?? {};
+  const responseMetadata = response.assetsInfo;
   const accountFilter = buildAccountFilter(request);
   const chainFilter = buildChainFilter(request);
   const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
-  const knownMetadataIds = new Set(
-    Object.keys(stateMetadata).map((assetId) => assetId.toLowerCase()),
-  );
+  // `parseCaipAssetType` anchors the chain ID at the start of the asset ID
+  // and chain IDs cannot contain `/`, so an asset ID whose chain is in the
+  // request's chain filter must start with `${chainId}/`. Checking those
+  // prefixes first lets out-of-scope assets (and malformed IDs) skip the
+  // CAIP parse entirely.
+  const chainFilterPrefixes = chainFilter
+    ? Array.from(chainFilter, (chainId) => `${chainId}/`)
+    : undefined;
+  let knownMetadataIds: Set<string> | undefined;
   const assetIdsNeedingMetadata = new Set<string>();
   const balanceHealAssetIds = new Set<string>();
   const stateBalanceIds = new Set<string>();
 
-  const needsMetadata = (assetId: string): boolean => {
-    if (hiddenAssetIds.has(assetId.toLowerCase())) {
+  // A staking-contract asset ID must start with
+  // `${chainId}/erc20:` for some chain ID with a staking contract (the CAIP
+  // asset type regex anchors the chain ID and asset namespace at the start of
+  // the ID, and `getStakingContractAddress` is defined only for
+  // `getSupportedStakingChainIds()`). Checking that prefix first lets the
+  // common case skip the CAIP parse behind `isStakingContractAssetId`.
+  const stakingAssetIdPrefixes = getSupportedStakingChainIds().map(
+    (chainId) => `${chainId}/erc20:`,
+  );
+
+  const needsMetadata = (assetId: string, lowerAssetId: string): boolean => {
+    if (hiddenAssetIds.has(lowerAssetId)) {
       return false;
     }
+    const responseEntry = responseMetadata?.[assetId as Caip19AssetId];
     if (
-      hasMetadataUsedByClients(response.assetsInfo?.[assetId as Caip19AssetId])
+      responseEntry !== undefined &&
+      hasMetadataUsedByClients(responseEntry)
     ) {
       return false;
     }
-    if (hasMetadataUsedByClients(stateMetadata[assetId as Caip19AssetId])) {
+    const stateEntry = stateMetadata[assetId as Caip19AssetId];
+    if (stateEntry !== undefined && hasMetadataUsedByClients(stateEntry)) {
       return false;
     }
-    return !isStakingContractAssetId(assetId);
+    for (const prefix of stakingAssetIdPrefixes) {
+      if (assetId.startsWith(prefix)) {
+        return !isStakingContractAssetId(assetId);
+      }
+    }
+    return true;
   };
 
   const inRequestChains = (assetId: string): boolean => {
-    if (!chainFilter) {
+    if (!chainFilter || !chainFilterPrefixes) {
       return true;
+    }
+    let inScope = false;
+    for (const prefix of chainFilterPrefixes) {
+      if (assetId.startsWith(prefix)) {
+        inScope = true;
+        break;
+      }
+    }
+    if (!inScope) {
+      return false;
     }
     try {
       const { chainId } = parseCaipAssetType(assetId as Caip19AssetId);
@@ -90,31 +128,45 @@ export function getAssetIdsForMetadataFetch({
     }
   };
 
-  for (const [accountId, accountBalances] of Object.entries(
-    state.assetsBalance ?? {},
-  )) {
+  const stateBalances = state.assetsBalance ?? {};
+  for (const accountId of Object.keys(stateBalances)) {
     if (accountFilter && !accountFilter.has(accountId)) {
       continue;
     }
-    for (const assetId of Object.keys(accountBalances)) {
-      stateBalanceIds.add(assetId.toLowerCase());
-      if (!inRequestChains(assetId) || !needsMetadata(assetId)) {
+    for (const assetId of Object.keys(stateBalances[accountId])) {
+      const lowerAssetId = assetId.toLowerCase();
+      stateBalanceIds.add(lowerAssetId);
+      // Cheap verdicts first: the hidden/metadata/prefix checks run before
+      // the CAIP parse behind the chain filter.
+      if (!needsMetadata(assetId, lowerAssetId) || !inRequestChains(assetId)) {
         continue;
       }
       assetIdsNeedingMetadata.add(assetId);
-      balanceHealAssetIds.add(assetId.toLowerCase());
+      balanceHealAssetIds.add(lowerAssetId);
     }
   }
 
   for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
     for (const assetId of Object.keys(accountBalances)) {
-      if (!needsMetadata(assetId)) {
+      const lowerAssetId = assetId.toLowerCase();
+      if (!needsMetadata(assetId, lowerAssetId)) {
         continue;
       }
       assetIdsNeedingMetadata.add(assetId);
-      const lowerId = assetId.toLowerCase();
-      if (stateBalanceIds.has(lowerId) || knownMetadataIds.has(lowerId)) {
-        balanceHealAssetIds.add(lowerId);
+      if (stateBalanceIds.has(lowerAssetId)) {
+        balanceHealAssetIds.add(lowerAssetId);
+      } else {
+        // Built on first use: calls with no (or fully state-known) response
+        // balances never pay for the state-metadata lowercase pass.
+        if (knownMetadataIds === undefined) {
+          knownMetadataIds = new Set<string>();
+          for (const metadataId of Object.keys(stateMetadata)) {
+            knownMetadataIds.add(metadataId.toLowerCase());
+          }
+        }
+        if (knownMetadataIds.has(lowerAssetId)) {
+          balanceHealAssetIds.add(lowerAssetId);
+        }
       }
     }
   }
@@ -204,9 +256,11 @@ function buildChainFilter(
 function collectHiddenAssetIdKeys(
   assetPreferences: AssetsControllerState['assetPreferences'] | undefined,
 ): Set<string> {
-  return new Set(
-    Object.entries(assetPreferences ?? {})
-      .filter(([, preferences]) => preferences.hidden)
-      .map(([assetId]) => assetId.toLowerCase()),
-  );
+  const hiddenAssetIds = new Set<string>();
+  for (const [assetId, preferences] of Object.entries(assetPreferences ?? {})) {
+    if (preferences.hidden) {
+      hiddenAssetIds.add(assetId.toLowerCase());
+    }
+  }
+  return hiddenAssetIds;
 }
