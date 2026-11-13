@@ -236,9 +236,7 @@ async function fetchQuotes(
         result,
         {
           ...quoteRequest,
-          ...(hyperliquidActivationFeeUsd
-            ? { hyperliquidActivationFeeUsd }
-            : {}),
+          hyperliquidActivationFeeUsd,
           recipient: body.recipient,
         },
         messenger,

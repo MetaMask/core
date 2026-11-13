@@ -662,7 +662,11 @@ describe('server-quotes', () => {
           provider: FULFILLED_RESULT_MOCK.provider,
           steps: quote.steps,
         },
-        request: { ...QUOTE_REQUEST_MOCK, recipient: FROM_MOCK },
+        request: {
+          ...QUOTE_REQUEST_MOCK,
+          hyperliquidActivationFeeUsd: undefined,
+          recipient: FROM_MOCK,
+        },
         requiresSecondLeg: false,
         sourceAmount: {
           fiat: '0',
@@ -2578,9 +2582,7 @@ describe('server-quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].request).not.toHaveProperty(
-        'hyperliquidActivationFeeUsd',
-      );
+      expect(result[0].request.hyperliquidActivationFeeUsd).toBeUndefined();
       expect(result[0].fees.provider).toStrictEqual({
         fiat: '0.25',
         usd: '0.25',
