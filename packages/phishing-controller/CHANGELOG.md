@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.3.1]
+
 ### Uncategorized
 
 - Revert "Update dependent versions and changelogs"
@@ -736,7 +738,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.1...HEAD
+[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.3.0...@metamask/phishing-controller@18.3.1
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.1...@metamask/phishing-controller@18.3.0
 [18.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.2.0...@metamask/phishing-controller@18.2.1
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.1.1...@metamask/phishing-controller@18.2.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.0.0]
+
 ### Uncategorized
 
 - Revert "Release 1422.0.0"
@@ -2915,7 +2917,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...HEAD
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...@metamask/transaction-controller@74.0.0
 [73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2
 [73.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.0...@metamask/transaction-controller@73.1.1
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.0.0...@metamask/transaction-controller@73.1.0
