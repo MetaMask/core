@@ -6329,7 +6329,9 @@ describe('AssetsController', () => {
           );
 
           release();
-          await flushPromises();
+          await waitUntilStable(
+            () => controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+          );
 
           expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
             'loaded',
@@ -6506,7 +6508,6 @@ describe('AssetsController', () => {
               chainIds: ['eip155:1'],
               forceUpdate: true,
             });
-            await flushPromises();
 
             // assert: the initial load settled, and no background fetch ran.
             expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
