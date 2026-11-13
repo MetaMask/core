@@ -32,7 +32,9 @@ export const isSmartTransactionStatusResolved = (
   stxStatus: SmartTransactionsStatus | string,
 ) => stxStatus === 'uuid_not_found';
 
-export const calculateStatus = (stxStatus: SmartTransactionsStatus): SmartTransactionStatuses => {
+export const calculateStatus = (
+  stxStatus: SmartTransactionsStatus,
+): SmartTransactionStatuses => {
   if (isSmartTransactionStatusResolved(stxStatus)) {
     return SmartTransactionStatuses.RESOLVED;
   }
