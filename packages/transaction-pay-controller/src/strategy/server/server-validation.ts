@@ -22,6 +22,7 @@ import {
   buildDelegationSimulation,
 } from '../../utils/simulation.js';
 import type { QuoteSimulation } from '../../utils/simulation.js';
+import { getEvmQuoteSource } from '../../utils/token.js';
 import { validateQuotes } from '../../utils/validation.js';
 import { getServerDepositData } from './deposit-step.js';
 import {
@@ -120,7 +121,8 @@ async function buildServerSimulation(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<QuoteSimulation> {
-  const { from, sourceChainId, targetChainId } = quote.request;
+  const { from, targetChainId } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const context = { from, sourceChainId, targetChainId };
 
   if (quote.request.isPolymarketDepositWallet) {

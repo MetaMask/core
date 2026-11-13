@@ -2,6 +2,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import type {
   PayStrategyGetQuotesRequest,
   QuoteRequest,
@@ -23,7 +24,12 @@ import { QuoteError } from './validation.js';
 vi.mock(import('./account.js'));
 vi.mock(import('./feature-flags.js'));
 vi.mock(import('./max-gas-station.js'));
-vi.mock(import('./token.js'));
+vi.mock(import('./token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'getEvmAsset',
+    'getEvmQuoteSource',
+  ]),
+);
 
 type OriginalQuoteMock = {
   id: string;
@@ -39,8 +45,8 @@ const REQUEST_MOCK: QuoteRequest = {
   from: '0x1234567890123456789012345678901234567891',
   isMaxAmount: true,
   sourceBalanceRaw: '1000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc',
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567891',
+  sourceAssetId: 'eip155:1/erc20:0xabc',
   sourceTokenAmount: '1000000',
   targetAmountMinimum: '0',
   targetChainId: '0x2',

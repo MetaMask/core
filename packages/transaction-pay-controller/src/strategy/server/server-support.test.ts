@@ -11,9 +11,9 @@ import {
 
 const REQUEST_MOCK: QuoteRequest = {
   from: '0x1234567890123456789012345678901234567890',
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+  sourceAssetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
   sourceBalanceRaw: '1000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0x0000000000000000000000000000000000000001',
   sourceTokenAmount: '1000',
   targetAmountMinimum: '900',
   targetChainId: '0xa4b1',

@@ -17,6 +17,7 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayQuote,
 } from '../../types.js';
+import { getEvmAccountOverride } from '../../utils/account.js';
 import { buildCaipAssetType } from '../../utils/token.js';
 import {
   collectTransactionIds,
@@ -43,6 +44,7 @@ vi.mock(import('./utils.js'), async (importOriginal) => ({
   deriveFiatAssetForFiatPayment: vi.fn(),
   resolveSourceAmountRaw: vi.fn(),
 }));
+vi.mock(import('../../utils/account.js'));
 vi.mock(import('../../utils/token.js'));
 vi.mock(import('../../utils/transaction.js'));
 vi.mock(import('../relay/relay-quotes.js'));
@@ -81,9 +83,9 @@ const RAMPS_QUOTE_MOCK: RampsQuote = {
 
 const BASE_QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: WALLET_ADDRESS_MOCK,
+  sourceAccountId: `eip155:137:${WALLET_ADDRESS_MOCK}`,
+  sourceAssetId: 'eip155:137/slip44:966',
   sourceBalanceRaw: '1000000000000000000',
-  sourceChainId: '0x89',
-  sourceTokenAddress: '0x0000000000000000000000000000000000001010',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '12000000',
   targetChainId: '0x89',
@@ -225,6 +227,7 @@ function getFiatQuoteMock({
 }
 
 function getRequest({
+  accountOverride,
   fiatOptionsError,
   fiatOptions,
   orderId = ORDER_ID_MOCK,
@@ -233,6 +236,7 @@ function getRequest({
   quotes = [getFiatQuoteMock()],
   transaction = TRANSACTION_MOCK,
 }: {
+  accountOverride?: string;
   fiatOptionsError?: Error;
   fiatOptions?: TransactionPayFiatOptions;
   orderId?: string;
@@ -249,6 +253,7 @@ function getRequest({
       return {
         transactionData: {
           [transaction.id]: {
+            accountOverride,
             fiatPayment: {
               orderId,
               rampsQuote,
@@ -503,6 +508,28 @@ describe('submitFiatQuotes', () => {
     );
     expect(submitRelayQuotesMock).toHaveBeenCalled();
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('uses the EVM account override as the wallet address', async () => {
+    const accountOverride = 'override-account-id';
+    const overrideAddress = '0x2222222222222222222222222222222222222222';
+
+    vi.mocked(getEvmAccountOverride).mockReturnValue(overrideAddress);
+
+    const { callMock, request } = getRequest({ accountOverride });
+
+    await submitFiatQuotes(request);
+
+    expect(getEvmAccountOverride).toHaveBeenCalledWith(
+      request.messenger,
+      accountOverride,
+    );
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getOrder',
+      'transak-native-staging',
+      ORDER_ID_MOCK,
+      overrideAddress,
+    );
   });
 
   it('uses fiat test funding source instead of polling ramps order', async () => {
@@ -1105,9 +1132,9 @@ describe('submitFiatQuotes', () => {
     const MUSD_QUOTE_REQUEST: QuoteRequest = {
       from: WALLET_ADDRESS_MOCK,
       isDirectMusdMoneyAccount: true,
+      sourceAccountId: `eip155:143:${WALLET_ADDRESS_MOCK}`,
+      sourceAssetId: `eip155:143/erc20:${MUSD_MONAD_FIAT_ASSET.address}`,
       sourceBalanceRaw: '10000000',
-      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
       sourceTokenAmount: '10000000',
       targetAmountMinimum: '10000000',
       targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,

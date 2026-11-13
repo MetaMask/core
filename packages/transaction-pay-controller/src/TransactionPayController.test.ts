@@ -45,11 +45,26 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
-const PAYMENT_TOKEN_MOCK = {
-  address: TOKEN_ADDRESS_MOCK,
+const ASSET_ID_MOCK = `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}` as const;
+const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: ASSET_ID_MOCK,
+  balanceFiat: '0',
+  balanceHuman: '0',
   balanceRaw: '0',
-  chainId: CHAIN_ID_MOCK,
-} as TransactionPaymentToken;
+  balanceUsd: '0',
+  decimals: 6,
+  symbol: 'USDC',
+};
+const NON_EVM_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  decimals: 6,
+  symbol: 'USDC',
+};
 
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = vi.mocked(updateFiatPayment);
@@ -147,15 +162,33 @@ describe('TransactionPayController', () => {
     it('calls util', () => {
       createController().updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       expect(updatePaymentTokenMock).toHaveBeenCalledWith(
         {
           transactionId: TRANSACTION_ID_MOCK,
-          tokenAddress: TOKEN_ADDRESS_MOCK,
-          chainId: CHAIN_ID_MOCK,
+          assetId: ASSET_ID_MOCK,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+
+    it('calls util with a non-EVM asset via messenger action handler', () => {
+      createController();
+
+      messenger.call('TransactionPayController:updatePaymentToken', {
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      expect(updatePaymentTokenMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
         },
         {
           messenger,
@@ -350,20 +383,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -393,20 +424,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -436,20 +465,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -849,20 +876,18 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -884,25 +909,51 @@ describe('TransactionPayController', () => {
       );
     });
 
+    it('passes no payment token route args into feature flag fallback for a non-EVM payment token', async () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      messenger.call(
+        'TransactionPayController:getStrategy',
+        TRANSACTION_META_MOCK,
+      );
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
+    });
+
     it('passes fiat payment method ID into getStrategyOrder', async () => {
       const controller = createController();
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.paymentToken = {
-          address: TOKEN_ADDRESS_MOCK,
+          assetId: ASSET_ID_MOCK,
           balanceFiat: '1',
           balanceHuman: '1',
           balanceRaw: '1',
           balanceUsd: '1',
-          chainId: CHAIN_ID_MOCK,
           decimals: 6,
           symbol: 'USDC',
         };
@@ -932,8 +983,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -959,8 +1009,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -997,8 +1046,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -1020,8 +1068,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -1042,13 +1089,62 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).not.toHaveBeenCalled();
     });
 
+    it('updates source amounts and quotes when switching from a non-EVM to an EVM payment token', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('updates source amounts and quotes when the non-EVM account override changes', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.accountOverride = '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z';
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores payment token balance change when not max amount', () => {
       const controller = createController();
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -1073,8 +1169,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -1103,8 +1198,7 @@ describe('TransactionPayController', () => {
 
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
 
       const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
@@ -1143,8 +1237,7 @@ describe('TransactionPayController', () => {
       const controller = createController();
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        assetId: ASSET_ID_MOCK,
       });
       return {
         controller,

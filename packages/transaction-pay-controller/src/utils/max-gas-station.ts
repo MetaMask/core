@@ -10,7 +10,7 @@ import type {
 import { getGasStationCostBuffer } from './feature-flags.js';
 import type { GasStationStepData } from './gas-payment.js';
 import { resolveGasStationCost, shouldUseGasStation } from './gas-payment.js';
-import { getTokenInfo } from './token.js';
+import { getEvmQuoteSource, getTokenInfo } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'max-gas-station');
 
@@ -109,7 +109,10 @@ export async function getMaxGasStationQuote<OriginalQuote>(
     nativeGasCostRaw: quote.fees.isSourceGasFeeToken
       ? undefined
       : quote.fees.sourceNetwork.max.raw,
-    request: context.request,
+    request: {
+      from: context.request.from,
+      sourceChainId: getEvmQuoteSource(context.request).chainId,
+    },
   });
 
   if (!useGasStation) {
@@ -234,10 +237,12 @@ async function getProbeGasCost<OriginalQuote>(
   context: MaxGasStationContext<OriginalQuote>,
 ): Promise<BigNumber | undefined> {
   const { getQuoteDetails, messenger, request, requote } = context;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
   const sourceToken = getTokenInfo(
     messenger,
-    request.sourceTokenAddress,
-    request.sourceChainId,
+    sourceTokenAddress,
+    sourceChainId,
   );
 
   if (!sourceToken) {
@@ -290,8 +295,8 @@ async function getProbeGasCost<OriginalQuote>(
     messenger,
     request: {
       from: request.from,
-      sourceChainId: request.sourceChainId,
-      sourceTokenAddress: request.sourceTokenAddress,
+      sourceChainId,
+      sourceTokenAddress,
     },
     totalGasEstimate: sum(gasLimits),
     totalItemCount: gasStationTransactions.totalItemCount,

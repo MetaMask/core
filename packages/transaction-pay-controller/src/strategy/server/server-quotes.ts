@@ -41,7 +41,7 @@ import { reservePostQuoteGas } from '../../utils/post-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
-import { getTokenFiatRate } from '../../utils/token.js';
+import { getEvmQuoteSource, getTokenFiatRate } from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
 import { hasServerDepositStep } from './deposit-step.js';
 import { normalizeServerPerpsRequest } from './perps.js';
@@ -256,13 +256,13 @@ async function buildServerQuoteRequest(
     isPolymarketDepositWallet,
     isPostQuote,
     refundTo,
-    sourceChainId,
-    sourceTokenAddress,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
   } = normalizedRequest;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(normalizedRequest);
 
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
@@ -600,10 +600,12 @@ async function normalizeQuote(
     transaction,
   });
 
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quoteRequest);
   const sourceFiatRate = getTokenFiatRate(
     messenger,
-    quoteRequest.sourceTokenAddress,
-    quoteRequest.sourceChainId,
+    sourceTokenAddress,
+    sourceChainId,
   );
 
   const usdToFiatRate = sourceFiatRate
@@ -716,8 +718,9 @@ async function calculateSourceNetworkCost({
     maxPriorityFeePerGas: undefined,
   };
 
-  const { from, isPolymarketDepositWallet, sourceChainId, sourceTokenAddress } =
-    quoteRequest;
+  const { from, isPolymarketDepositWallet } = quoteRequest;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quoteRequest);
 
   // A deposit wallet withdraw is broadcast by the Polymarket relayer, which
   // pays the gas, so the user only signs.

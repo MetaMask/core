@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
   QuoteRequest,
@@ -15,7 +16,12 @@ import { getTokenInfo } from './token.js';
 
 vi.mock(import('./feature-flags.js'));
 vi.mock(import('./gas-payment.js'));
-vi.mock(import('./token.js'));
+vi.mock(import('./token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'getEvmAsset',
+    'getEvmQuoteSource',
+  ]),
+);
 
 type OriginalQuoteMock = MaxGasStationQuoteDetails;
 
@@ -25,8 +31,8 @@ const REQUEST_MOCK: QuoteRequest = {
   from: '0x1234567890123456789012345678901234567891',
   isMaxAmount: true,
   sourceBalanceRaw: '100000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc',
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567891',
+  sourceAssetId: 'eip155:1/erc20:0xabc',
   sourceTokenAmount: '100000',
   targetAmountMinimum: '0',
   targetChainId: '0x2',
@@ -197,7 +203,7 @@ describe('getMaxGasStationQuote', () => {
     expect(shouldUseGasStationMock).toHaveBeenCalledWith({
       messenger: MESSENGER_MOCK,
       nativeGasCostRaw: '100',
-      request: REQUEST_MOCK,
+      request: { from: REQUEST_MOCK.from, sourceChainId: '0x1' },
     });
     expect(requote).not.toHaveBeenCalled();
   });
@@ -294,8 +300,8 @@ describe('getMaxGasStationQuote', () => {
       messenger: MESSENGER_MOCK,
       request: {
         from: REQUEST_MOCK.from,
-        sourceChainId: REQUEST_MOCK.sourceChainId,
-        sourceTokenAddress: REQUEST_MOCK.sourceTokenAddress,
+        sourceChainId: '0x1',
+        sourceTokenAddress: '0xabc',
       },
       totalGasEstimate: 3000,
       totalItemCount: 2,

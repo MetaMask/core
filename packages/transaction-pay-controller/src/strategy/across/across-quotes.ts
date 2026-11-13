@@ -27,7 +27,7 @@ import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import { getTokenFiatRate } from '../../utils/token.js';
+import { getEvmQuoteSource, getTokenFiatRate } from '../../utils/token.js';
 import type { AcrossDestination } from './across-actions.js';
 import { getAcrossDestination } from './across-actions.js';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
@@ -101,13 +101,13 @@ async function getSingleQuote(
   const {
     from,
     isMaxAmount,
-    sourceChainId,
-    sourceTokenAddress,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
   } = normalizedRequest;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(normalizedRequest);
 
   const config = getPayStrategiesConfig(messenger);
   const slippageDecimal = getSlippage(
@@ -566,7 +566,9 @@ async function calculateSourceNetworkCost(
 }> {
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
-  const { from, sourceChainId, sourceTokenAddress } = request;
+  const { from } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
   const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
@@ -762,10 +764,12 @@ function calculateSourceGasFeeTokenNetworkFallback({
   quote: AcrossSwapApprovalResponse;
   request: QuoteRequest;
 }): TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'] | undefined {
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
   const sourceFiatRate = getTokenFiatRate(
     messenger,
-    request.sourceTokenAddress,
-    request.sourceChainId,
+    sourceTokenAddress,
+    sourceChainId,
   );
 
   if (!sourceFiatRate) {

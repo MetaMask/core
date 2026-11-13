@@ -1,9 +1,15 @@
 import { Interface } from '@ethersproject/abi';
 import type { AssetsControllerState } from '@metamask/assets-controller';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { createModuleLogger } from '@metamask/utils';
+import {
+  createModuleLogger,
+  hexToBigInt,
+  KnownCaipNamespace,
+  numberToHex,
+  parseCaipAssetType,
+  toCaipAssetType,
+} from '@metamask/utils';
 import type { CaipAssetType, Hex } from '@metamask/utils';
-import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
@@ -12,7 +18,13 @@ import {
   SLIP44_COIN_TYPE_BY_CHAIN,
 } from '../constants.js';
 import { projectLogger } from '../logger.js';
-import type { FiatRates, TransactionPayControllerMessenger } from '../types.js';
+import type {
+  EvmPaymentToken,
+  FiatRates,
+  QuoteRequest,
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
+} from '../types.js';
 import { getStablecoins, isChainExcludedFromInfura } from './feature-flags.js';
 import { rpcRequest } from './provider.js';
 
@@ -45,6 +57,101 @@ export function isSameToken(
     token1.address.toLowerCase() === token2.address.toLowerCase() &&
     token1.chainId === token2.chainId
   );
+}
+
+/**
+ * Check if a payment token is on a non-EVM chain.
+ *
+ * The chain is derived from the CAIP-19 asset type of the payment token.
+ *
+ * @param paymentToken - Payment token to check.
+ * @returns True if the payment token is a non-EVM payment token.
+ */
+export function isNonEvmPaymentToken(
+  paymentToken: TransactionPaymentToken,
+): boolean {
+  return !getEvmAsset(paymentToken.assetId);
+}
+
+/**
+ * Check if the source asset of a quote request is on an EVM chain.
+ *
+ * Strategies use it to support or reject a request and to select their
+ * execution path, which is the only place the source protocol matters.
+ *
+ * @param request - Quote request to check.
+ * @returns True if the source asset is on an EVM chain.
+ */
+export function isEvmQuoteRequest(
+  request: Pick<QuoteRequest, 'sourceAssetId'>,
+): boolean {
+  return Boolean(getEvmAsset(request.sourceAssetId));
+}
+
+/**
+ * Get the Hex chain ID and token address of the EVM source asset of a quote
+ * request, as used by the EVM quote and execution paths.
+ *
+ * @param request - Quote request.
+ * @returns The Hex chain ID and token address derived from `sourceAssetId`.
+ */
+export function getEvmQuoteSource(
+  request: Pick<QuoteRequest, 'sourceAssetId'>,
+): { chainId: Hex; tokenAddress: Hex } {
+  const evmAsset = getEvmAsset(request.sourceAssetId);
+
+  if (!evmAsset) {
+    throw new Error(
+      `Unsupported non-EVM source asset: ${request.sourceAssetId}`,
+    );
+  }
+
+  return { chainId: evmAsset.chainId, tokenAddress: evmAsset.address };
+}
+
+/**
+ * Derive the Hex chain ID and token address of an EVM CAIP-19 asset type.
+ *
+ * A `slip44` native asset maps to the chain's native token address, so the
+ * result matches the address the EVM quote and balance paths expect.
+ *
+ * @param assetId - CAIP-19 asset type.
+ * @returns The Hex chain ID and token address, or undefined if the asset is
+ * not on an EVM chain.
+ */
+export function getEvmAsset(
+  assetId: CaipAssetType,
+): { address: Hex; chainId: Hex } | undefined {
+  const { chain, assetNamespace, assetReference } = parseCaipAssetType(assetId);
+
+  if (chain.namespace !== KnownCaipNamespace.Eip155) {
+    return undefined;
+  }
+
+  const chainId = numberToHex(Number(chain.reference));
+
+  const address =
+    assetNamespace === 'slip44'
+      ? getNativeToken(chainId)
+      : (assetReference as Hex);
+
+  return { address, chainId };
+}
+
+/**
+ * Add the Hex chain ID and token address derived from its asset type to an
+ * EVM payment token.
+ *
+ * @param paymentToken - Payment token, if any.
+ * @returns The payment token with its derived chain ID and address, or
+ * undefined if no payment token is provided or it is not an EVM token.
+ */
+export function getEvmPaymentToken(
+  paymentToken: TransactionPaymentToken | undefined,
+): EvmPaymentToken | undefined {
+  const evmAsset = paymentToken && getEvmAsset(paymentToken.assetId);
+
+  return evmAsset && { ...paymentToken, ...evmAsset };
 }
 
 /**
@@ -83,21 +190,82 @@ export function getTokenBalance(
     return '0';
   }
 
-  const amount = assetsBalance[accountId]?.[assetId]?.amount;
+  return getRawBalance(assetsBalance, assetsInfo, accountId, assetId);
+}
 
-  if (amount === undefined) {
-    return '0';
+/**
+ * Get the balance of a CAIP-19 asset held by an `InternalAccount`.
+ *
+ * @param messenger - Controller messenger.
+ * @param walletAccountId - ID of the `InternalAccount` holding the asset.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns Raw asset balance as a decimal string.
+ */
+export function getAssetBalance(
+  messenger: TransactionPayControllerMessenger,
+  walletAccountId: string,
+  assetId: CaipAssetType,
+): string {
+  const { assetsBalance, assetsInfo } = messenger.call(
+    'AssetsController:getState',
+  );
+
+  return getRawBalance(assetsBalance, assetsInfo, walletAccountId, assetId);
+}
+
+/**
+ * Get the decimals and symbol for a CAIP-19 asset.
+ *
+ * @param messenger - Controller messenger.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns The asset decimals and symbol, or undefined if the asset is not found.
+ */
+export function getAssetInfo(
+  messenger: TransactionPayControllerMessenger,
+  assetId: CaipAssetType,
+): { decimals: number; symbol: string } | undefined {
+  const { assetsInfo } = messenger.call('AssetsController:getState');
+  const asset = assetsInfo[assetId];
+
+  if (!asset) {
+    return undefined;
   }
 
-  // AssetsController stores human-readable decimal amounts, whereas callers of
-  // this function expect raw base units. Shift by the token decimals to convert.
-  // The asset ID resolved above is a key of `assetsInfo`, so its metadata is
-  // read from the snapshot already in hand rather than re-fetched.
-  const { decimals } = assetsInfo[assetId];
+  return { decimals: Number(asset.decimals), symbol: asset.symbol };
+}
 
-  return new BigNumber(amount)
-    .shiftedBy(Number(decimals))
-    .toFixed(0, BigNumber.ROUND_DOWN);
+/**
+ * Get the fiat rates for a CAIP-19 asset.
+ *
+ * Configured EVM stablecoins are priced at exactly 1 USD.
+ *
+ * @param messenger - Controller messenger.
+ * @param assetId - CAIP-19 asset type as keyed in `AssetsController` state.
+ * @returns An object containing the USD and fiat rates, or undefined if rates are not available.
+ */
+export function getAssetFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  assetId: CaipAssetType,
+): FiatRates | undefined {
+  const { assetsPrice } = messenger.call('AssetsController:getState');
+  const price = assetsPrice[assetId];
+
+  if (price?.assetPriceType !== 'fungible') {
+    return undefined;
+  }
+
+  const evmAsset = getEvmAsset(assetId);
+
+  const isStablecoin =
+    evmAsset &&
+    getStablecoins(messenger)[evmAsset.chainId]?.includes(
+      evmAsset.address.toLowerCase() as Hex,
+    );
+
+  return {
+    fiatRate: String(price.price),
+    usdRate: isStablecoin ? '1' : String(price.usdPrice),
+  };
 }
 
 /**
@@ -444,6 +612,37 @@ export function normalizeTokenAddress(
   }
 
   return tokenAddress;
+}
+
+/**
+ * Read a raw balance from `AssetsController` state.
+ *
+ * `AssetsController` stores human-readable decimal amounts, whereas callers
+ * expect raw base units, so the amount is shifted by the asset decimals.
+ *
+ * @param assetsBalance - Asset balances keyed by account ID and CAIP-19 ID.
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param accountId - ID of the `InternalAccount` holding the asset.
+ * @param assetId - CAIP-19 asset type as keyed in state.
+ * @returns Raw balance as a decimal string, or `'0'` if no balance or asset
+ * metadata is stored.
+ */
+function getRawBalance(
+  assetsBalance: AssetsControllerState['assetsBalance'],
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  accountId: string,
+  assetId: CaipAssetType,
+): string {
+  const amount = assetsBalance[accountId]?.[assetId]?.amount;
+  const decimals = assetsInfo[assetId]?.decimals;
+
+  if (amount === undefined || decimals === undefined) {
+    return '0';
+  }
+
+  return new BigNumber(amount)
+    .shiftedBy(Number(decimals))
+    .toFixed(0, BigNumber.ROUND_DOWN);
 }
 
 /**

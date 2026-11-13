@@ -119,8 +119,8 @@ function buildQuote(
     } as unknown as RelayQuote,
     request: {
       from: FROM_MOCK,
-      sourceChainId: CHAIN_ID_MOCK,
-      sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+      sourceAccountId: `eip155:1:${FROM_MOCK}`,
+      sourceAssetId: `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`,
       sourceBalanceRaw: '1000',
       sourceTokenAmount: '100',
       targetAmountMinimum: '100',

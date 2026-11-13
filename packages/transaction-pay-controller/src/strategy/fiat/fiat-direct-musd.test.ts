@@ -5,6 +5,7 @@ import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyGetQuotesRequest,
@@ -20,7 +21,9 @@ import {
   isDirectMusdMoneyAccountQuote,
 } from './fiat-direct-musd.js';
 
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['getEvmQuoteSource']),
+);
 vi.mock(import('../../utils/transaction.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
@@ -197,9 +200,9 @@ describe('fiat-direct-musd', () => {
             from: MONEY_ACCOUNT_ADDRESS_MOCK,
             isDirectMusdMoneyAccount: true,
             recipient: MONEY_ACCOUNT_ADDRESS_MOCK,
+            sourceAccountId: `eip155:143:${MONEY_ACCOUNT_ADDRESS_MOCK}`,
+            sourceAssetId: MUSD_CAIP_ASSET_ID_MOCK,
             sourceBalanceRaw: '5000000',
-            sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-            sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
             sourceTokenAmount: '5000000',
             targetAmountMinimum: '5000000',
           }),

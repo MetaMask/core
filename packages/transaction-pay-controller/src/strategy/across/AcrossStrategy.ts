@@ -15,6 +15,7 @@ import {
   isPerpsDepositRequest,
   isPerpsDepositTransaction,
 } from '../../utils/perps.js';
+import { getEvmQuoteSource, isEvmQuoteRequest } from '../../utils/token.js';
 import { getAcrossDestination } from './across-actions.js';
 import { getAcrossQuotes } from './across-quotes.js';
 import { submitAcrossQuotes } from './across-submit.js';
@@ -27,6 +28,10 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
     const config = getPayStrategiesConfig(request.messenger);
 
     if (!config.across.enabled) {
+      return false;
+    }
+
+    if (!request.requests.every(isEvmQuoteRequest)) {
       return false;
     }
 
@@ -48,7 +53,8 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       // Across doesn't support same-chain swaps (e.g. mUSD conversions).
       const hasSameChainRequest = actionableRequests.some(
         (singleRequest) =>
-          singleRequest.sourceChainId === singleRequest.targetChainId,
+          getEvmQuoteSource(singleRequest).chainId ===
+          singleRequest.targetChainId,
       );
 
       if (hasSameChainRequest) {

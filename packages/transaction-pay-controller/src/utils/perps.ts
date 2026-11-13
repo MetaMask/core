@@ -10,7 +10,9 @@ import {
   USDC_DECIMALS,
 } from '../constants.js';
 import type { QuoteRequest } from '../types.js';
+import { getCaipAccountId } from './account.js';
 import { extractErc20TransferRecipient } from './polymarket/calldata.js';
+import { buildCaipAssetType } from './token.js';
 
 const HYPERLIQUID_BRIDGE_ADDRESS_LOWER =
   '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
@@ -133,10 +135,15 @@ export function normalizePerpsWithdrawRequest(
     return request;
   }
 
+  const sourceAssetId = buildCaipAssetType(
+    CHAIN_ID_HYPERCORE,
+    hypercoreUsdcAddress,
+  );
+
   return {
     ...request,
-    sourceChainId: CHAIN_ID_HYPERCORE,
-    sourceTokenAddress: hypercoreUsdcAddress,
+    sourceAccountId: getCaipAccountId(sourceAssetId, request.from),
+    sourceAssetId,
     sourceTokenAmount: request.sourceTokenAmount
       ? toHypercoreAmount(request.sourceTokenAmount)
       : request.sourceTokenAmount,

@@ -13,14 +13,23 @@ import {
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
 } from '../constants.js';
+import type { TransactionPaymentToken } from '../types.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
   computeTokenAmounts,
+  getAssetBalance,
+  getAssetFiatRate,
+  getAssetInfo,
+  getEvmAsset,
+  getEvmPaymentToken,
+  getEvmQuoteSource,
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
   getNativeToken,
+  isEvmQuoteRequest,
+  isNonEvmPaymentToken,
   isSameToken,
   getLiveTokenBalance,
   getLiveTokenBalanceOrUndefined,
@@ -47,6 +56,29 @@ const SYMBOL_MOCK = 'TEST';
 const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
 const PROVIDER_MOCK = { request: vi.fn() };
+const SOLANA_ASSET_ID_MOCK: CaipAssetType =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+const SOLANA_WALLET_ACCOUNT_ID_MOCK = 'solana-account-uuid';
+
+const EVM_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`,
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  decimals: DECIMALS_MOCK,
+  symbol: SYMBOL_MOCK,
+};
+
+const NON_EVM_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: SOLANA_ASSET_ID_MOCK,
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  decimals: 9,
+  symbol: 'SOL',
+};
 
 /**
  * Build a CAIP-19 asset ID for fixtures, mirroring how `AssetsController` keys
@@ -1601,6 +1633,244 @@ describe('Token Utils', () => {
       const token2 = { address: TOKEN_ADDRESS_2_MOCK, chainId: '0x89' as Hex };
 
       expect(isSameToken(token1, token2)).toBe(false);
+    });
+  });
+
+  describe('isNonEvmPaymentToken', () => {
+    it('returns true for a non-EVM asset ID', () => {
+      expect(isNonEvmPaymentToken(NON_EVM_PAYMENT_TOKEN_MOCK)).toBe(true);
+    });
+
+    it('returns false for an EVM asset ID', () => {
+      expect(isNonEvmPaymentToken(EVM_PAYMENT_TOKEN_MOCK)).toBe(false);
+    });
+  });
+
+  describe('getEvmAsset', () => {
+    it('derives the chain ID and address of an ERC-20 asset', () => {
+      expect(
+        getEvmAsset(`eip155:59144/erc20:${TOKEN_ADDRESS_MOCK}`),
+      ).toStrictEqual({ address: TOKEN_ADDRESS_MOCK, chainId: '0xe708' });
+    });
+
+    it('derives the native token address of a slip44 asset', () => {
+      expect(getEvmAsset('eip155:1/slip44:60')).toStrictEqual({
+        address: NATIVE_TOKEN_ADDRESS,
+        chainId: CHAIN_ID_MOCK,
+      });
+    });
+
+    it('derives the Polygon native token address of a slip44 asset', () => {
+      expect(getEvmAsset('eip155:137/slip44:966')).toStrictEqual({
+        address: getNativeToken(CHAIN_ID_POLYGON),
+        chainId: CHAIN_ID_POLYGON,
+      });
+    });
+
+    it('returns undefined for a non-EVM asset', () => {
+      expect(getEvmAsset(SOLANA_ASSET_ID_MOCK)).toBeUndefined();
+    });
+  });
+
+  describe('isEvmQuoteRequest', () => {
+    it('returns true for an EVM source asset', () => {
+      expect(isEvmQuoteRequest({ sourceAssetId: 'eip155:1/slip44:60' })).toBe(
+        true,
+      );
+    });
+
+    it('returns false for a non-EVM source asset', () => {
+      expect(isEvmQuoteRequest({ sourceAssetId: SOLANA_ASSET_ID_MOCK })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('getEvmQuoteSource', () => {
+    it('derives the chain ID and token address of an EVM source asset', () => {
+      expect(
+        getEvmQuoteSource({
+          sourceAssetId: `eip155:59144/erc20:${TOKEN_ADDRESS_MOCK}`,
+        }),
+      ).toStrictEqual({ chainId: '0xe708', tokenAddress: TOKEN_ADDRESS_MOCK });
+    });
+
+    it('throws for a non-EVM source asset', () => {
+      expect(() =>
+        getEvmQuoteSource({ sourceAssetId: SOLANA_ASSET_ID_MOCK }),
+      ).toThrow(`Unsupported non-EVM source asset: ${SOLANA_ASSET_ID_MOCK}`);
+    });
+  });
+
+  describe('getEvmPaymentToken', () => {
+    it('adds the derived chain ID and address to an EVM payment token', () => {
+      expect(getEvmPaymentToken(EVM_PAYMENT_TOKEN_MOCK)).toStrictEqual({
+        ...EVM_PAYMENT_TOKEN_MOCK,
+        address: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+    });
+
+    it('returns undefined for a non-EVM payment token', () => {
+      expect(getEvmPaymentToken(NON_EVM_PAYMENT_TOKEN_MOCK)).toBeUndefined();
+    });
+
+    it('returns undefined if no payment token is provided', () => {
+      expect(getEvmPaymentToken(undefined)).toBeUndefined();
+    });
+  });
+
+  describe('getAssetBalance', () => {
+    it('returns the raw balance for the account and asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [SOLANA_WALLET_ACCOUNT_ID_MOCK]: {
+            [SOLANA_ASSET_ID_MOCK]: { amount: '1.5' },
+          },
+        },
+        assetsInfo: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            decimals: 9,
+            name: 'Solana',
+            symbol: 'SOL',
+            type: 'native',
+          },
+        },
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('1500000000');
+    });
+
+    it('returns zero if the account has no balance for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {},
+        assetsInfo: {},
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('0');
+    });
+
+    it('returns zero if the asset metadata is missing', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [SOLANA_WALLET_ACCOUNT_ID_MOCK]: {
+            [SOLANA_ASSET_ID_MOCK]: { amount: '1.5' },
+          },
+        },
+        assetsInfo: {},
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('0');
+    });
+  });
+
+  describe('getAssetInfo', () => {
+    it('returns decimals and symbol for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            decimals: 9,
+            name: 'Solana',
+            symbol: 'SOL',
+            type: 'native',
+          },
+        },
+      });
+
+      expect(getAssetInfo(messenger, SOLANA_ASSET_ID_MOCK)).toStrictEqual({
+        decimals: 9,
+        symbol: 'SOL',
+      });
+    });
+
+    it('returns undefined if the asset is not found', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} });
+
+      expect(getAssetInfo(messenger, SOLANA_ASSET_ID_MOCK)).toBeUndefined();
+    });
+  });
+
+  describe('getAssetFiatRate', () => {
+    it('returns fiat and USD rates for the asset', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsPrice: {
+          [SOLANA_ASSET_ID_MOCK]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 85,
+            usdPrice: 100,
+          },
+        },
+      });
+
+      expect(getAssetFiatRate(messenger, SOLANA_ASSET_ID_MOCK)).toStrictEqual({
+        fiatRate: '85',
+        usdRate: '100',
+      });
+    });
+
+    it('returns undefined if the asset has no fungible price', () => {
+      getAssetsControllerStateMock.mockReturnValue({ assetsPrice: {} });
+
+      expect(getAssetFiatRate(messenger, SOLANA_ASSET_ID_MOCK)).toBeUndefined();
+    });
+
+    it('returns a fixed USD rate for an EVM stablecoin', () => {
+      const assetId = buildAssetId(CHAIN_ID_POLYGON, POLYGON_USDCE_ADDRESS);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 0.85,
+            usdPrice: 0.999,
+          },
+        },
+      });
+
+      expect(getAssetFiatRate(messenger, assetId)).toStrictEqual({
+        fiatRate: '0.85',
+        usdRate: '1',
+      });
+    });
+
+    it('returns the USD price for an EVM asset that is not a stablecoin', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 2,
+            usdPrice: 3,
+          },
+        },
+      });
+
+      expect(getAssetFiatRate(messenger, assetId)).toStrictEqual({
+        fiatRate: '2',
+        usdRate: '3',
+      });
     });
   });
 

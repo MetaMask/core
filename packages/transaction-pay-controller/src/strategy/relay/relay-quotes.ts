@@ -63,6 +63,8 @@ import { estimateSourceGas } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
+  buildCaipAssetType,
+  getEvmQuoteSource,
   getNativeToken,
   getTokenFiatRate,
   normalizeTokenAddress,
@@ -236,13 +238,13 @@ async function getSingleQuote(
 
   const {
     from,
-    sourceChainId,
-    sourceTokenAddress,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
   } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
 
   const slippageDecimal = getSlippage(
     messenger,
@@ -487,12 +489,18 @@ function normalizeRequest(
   request: QuoteRequest,
   transaction: TransactionMeta,
 ): QuoteRequest {
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
+
   const newRequest = {
     ...request,
-    sourceTokenAddress: normalizeTokenAddress(
-      request.sourceTokenAddress,
-      request.sourceChainId,
-      TokenAddressTarget.Relay,
+    sourceAssetId: buildCaipAssetType(
+      sourceChainId,
+      normalizeTokenAddress(
+        sourceTokenAddress,
+        sourceChainId,
+        TokenAddressTarget.Relay,
+      ),
     ),
     targetTokenAddress: normalizeTokenAddress(
       request.targetTokenAddress,
@@ -661,12 +669,13 @@ function getFiatRates(
   // For HyperLiquid source, the normalized chain/token (HyperCore + Perps USDC)
   // won't have a fiat rate entry. Use Arbitrum USDC instead since Perps USDC
   // is pegged 1:1.
+  const quoteSource = getEvmQuoteSource(request);
   const sourceChainId = request.isHyperliquidSource
     ? CHAIN_ID_ARBITRUM
-    : request.sourceChainId;
+    : quoteSource.chainId;
   const sourceTokenAddress = request.isHyperliquidSource
     ? ARBITRUM_USDC_ADDRESS
-    : request.sourceTokenAddress;
+    : quoteSource.tokenAddress;
 
   const finalSourceTokenAddress =
     sourceChainId === CHAIN_ID_POLYGON &&
@@ -723,7 +732,9 @@ async function calculateSourceNetworkCost(
     is7702: boolean;
   }
 > {
-  const { from, sourceChainId, sourceTokenAddress } = request;
+  const { from } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
 
   // None of these flows bill origin gas to the user: the execute flow has a
   // relayer redeem a signed delegation, a HyperLiquid withdrawal's "deposit"

@@ -8,6 +8,7 @@ import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   NATIVE_TOKEN_ADDRESS,
   TransactionPayStrategy,
@@ -36,7 +37,9 @@ import {
 } from './utils.js';
 
 vi.mock(import('../relay/relay-quotes.js'));
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['getEvmQuoteSource']),
+);
 vi.mock(import('./utils.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   deriveFiatAssetForFiatPayment: vi.fn(),
@@ -264,8 +267,8 @@ describe('getFiatQuotes', () => {
         expect.objectContaining({
           from: WALLET_ADDRESS,
           isPostQuote: true,
-          sourceChainId: FIAT_ASSET_MOCK.chainId,
-          sourceTokenAddress: FIAT_ASSET_MOCK.address,
+          sourceAccountId: `eip155:137:${WALLET_ADDRESS}`,
+          sourceAssetId: FIAT_ASSET_CAIP_ID_MOCK,
           sourceTokenAmount: '5000000000000000000',
           targetAmountMinimum: REQUIRED_TOKEN_MOCK.amountRaw,
           targetChainId: REQUIRED_TOKEN_MOCK.chainId,
@@ -905,8 +908,8 @@ describe('getFiatQuotes', () => {
             from: MONEY_ACCOUNT_ADDRESS,
             isDirectMusdMoneyAccount: true,
             recipient: MONEY_ACCOUNT_ADDRESS,
-            sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-            sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+            sourceAccountId: `eip155:143:${MONEY_ACCOUNT_ADDRESS}`,
+            sourceAssetId: `eip155:143/erc20:${MUSD_MONAD_FIAT_ASSET.address}`,
           }),
           strategy: TransactionPayStrategy.Fiat,
         }),
