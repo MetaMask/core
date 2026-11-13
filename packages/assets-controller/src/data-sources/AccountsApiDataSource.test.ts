@@ -278,10 +278,7 @@ async function setupController(
     ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
   });
 
-  await waitUntilStable(() => controller.getActiveChainsSync(), {
-    intervalMs: 0,
-    stableForMs: 1,
-  });
+  await waitUntilStable(() => controller.getActiveChainsSync());
 
   return {
     controller,
@@ -2070,10 +2067,7 @@ describe('AccountsApiDataSource', () => {
 
       const controller = new AccountsApiDataSource(controllerOptions);
 
-      await waitUntilStable(() => controller.getActiveChainsSync(), {
-        intervalMs: 0,
-        stableForMs: 1,
-      });
+      await waitUntilStable(() => controller.getActiveChainsSync());
 
       return {
         controller,
