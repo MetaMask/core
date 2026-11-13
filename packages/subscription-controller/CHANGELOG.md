@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.2.2]
 
+### Changed
+
+- Bump `@metamask/money-account-utils` from `^2.2.0` to `^2.2.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
 ## [15.2.1]
 
 ### Changed

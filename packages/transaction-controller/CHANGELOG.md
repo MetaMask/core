@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [74.0.0]
 
-### Uncategorized
-
-- Revert "Release 1422.0.0"
-- Release 1422.0.0
-
 ### Changed
 
 - **BREAKING:** Detect Permit2 `approve(address token, address spender, uint160 amount, uint48 expiration)` transactions as `tokenMethodApprove` instead of `contractInteraction` ([#11416](https://github.com/MetaMask/core/pull/11416))
