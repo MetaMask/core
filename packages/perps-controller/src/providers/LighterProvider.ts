@@ -18567,6 +18567,11 @@ export class LighterProvider implements PerpsProvider {
     ) {
       this.#scheduleChannelRelease(channel);
     }
+    if (this.#isSocketDown && !this.#hasAnySubscriber()) {
+      // A down socket degrades health only while streams wait on it.
+      this.#isSocketDown = false;
+      this.#emitHealth();
+    }
     this.#scheduleIdleClose();
   };
 

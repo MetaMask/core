@@ -749,6 +749,43 @@ describe('LighterProvider stream lifecycle', () => {
       await provider.disconnect();
     });
 
+    it('stops reporting socket_down once the last stream listener leaves, and reports it again when streams return to a down socket', async () => {
+      const { provider } = buildStreamProvider();
+      const health: PerpsProviderHealth[] = [];
+      provider.subscribeToProviderHealth((snapshot) => health.push(snapshot));
+      const leave = provider.subscribeToPrices({
+        symbols: [],
+        callback: vi.fn(),
+      });
+      latestSocket().open();
+      latestSocket().close();
+      await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_DOWN_GRACE_MS);
+      expect(provider.getProviderHealth()).toMatchObject({
+        status: 'degraded',
+        reasons: ['socket_down'],
+      });
+
+      leave();
+      expect(health.at(-1)).toMatchObject({ status: 'healthy', reasons: [] });
+      // The reconnect in flight fails with nothing listening.
+      latestSocket().close();
+      expect(provider.getProviderHealth()).toMatchObject({
+        status: 'healthy',
+        reasons: [],
+        connectionState: 'disconnected',
+        reconnectionAttempt: 0,
+      });
+
+      provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
+      latestSocket().close();
+      await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_DOWN_GRACE_MS);
+      expect(health.at(-1)).toMatchObject({
+        status: 'degraded',
+        reasons: ['socket_down'],
+      });
+      await provider.disconnect();
+    });
+
     it('reports 5xx streaks and rate-limit cooldowns from the REST client, then recovers', async () => {
       const { provider, clientInstance } = buildStreamProvider();
       const onRequestHealthChange = getRequestHealthHook();
