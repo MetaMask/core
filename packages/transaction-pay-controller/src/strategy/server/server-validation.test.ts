@@ -164,8 +164,6 @@ function buildQuote({
   };
 }
 
-const REFUND_TO_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
-
 describe('validateServerQuotes', () => {
   const {
     messenger,
