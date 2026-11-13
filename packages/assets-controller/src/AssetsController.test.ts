@@ -211,10 +211,7 @@ const OTHER_ASSET_ID =
 type LifecyclePublish = (topic: string, payload?: unknown) => void;
 
 async function activateTracking(messenger: RootMessenger): Promise<void> {
-  (messenger as unknown as { publish: LifecyclePublish }).publish(
-    'ClientController:stateChanged',
-    { isUiOpen: true },
-  );
+  messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
   messenger.publish('KeyringController:unlock');
   (messenger as unknown as { publish: LifecyclePublish }).publish(
     'AccountTreeController:initialized',
@@ -463,7 +460,7 @@ async function withController<ReturnValue>(
     () => clientControllerState,
   );
   messenger.subscribe(
-    'ClientController:stateChanged',
+    'ClientController:stateChange',
     (open: boolean) => {
       clientControllerState = { isUiOpen: open };
     },
@@ -4349,11 +4346,11 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           // UI must be open and keyring unlocked so AccountActivityDataSource is
           // subscribed and can route balanceUpdated events to the account.
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
@@ -5081,11 +5078,11 @@ describe('AssetsController', () => {
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
@@ -5197,11 +5194,11 @@ describe('AssetsController', () => {
           },
         },
         async ({ controller, messenger }) => {
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
@@ -5259,11 +5256,11 @@ describe('AssetsController', () => {
           },
         },
         async ({ controller, messenger }) => {
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
@@ -5300,11 +5297,11 @@ describe('AssetsController', () => {
         },
         async ({ controller, messenger }) => {
           // UI must be open, keyring unlocked, and account tree ready
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
@@ -5398,11 +5395,11 @@ describe('AssetsController', () => {
           // call is still in flight — #activeSubscriptions is still empty at
           // this point, so only the in-flight guard can prevent a duplicate
           // #runStartupRefresh() (and its own forced getAssets() call).
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
           expect(getAssetsSpy).toHaveBeenCalledTimes(1);
@@ -5801,11 +5798,11 @@ describe('AssetsController', () => {
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
       try {
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish(
+          'ClientController:stateChange',
+          { isUiOpen: true },
+          [],
+        );
         messenger.publish('KeyringController:unlock');
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:initialized',
@@ -5956,11 +5953,11 @@ describe('AssetsController', () => {
         });
 
       try {
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish(
+          'ClientController:stateChange',
+          { isUiOpen: true },
+          [],
+        );
         messenger.publish('KeyringController:unlock');
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:initialized',
@@ -6045,11 +6042,11 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish(
+          'ClientController:stateChange',
+          { isUiOpen: true },
+          [],
+        );
         messenger.publish('KeyringController:unlock');
         await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
@@ -6592,11 +6589,7 @@ describe('AssetsController', () => {
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
       // Step 1: UI open + unlock — accounts empty, #start() is a no-op
-      (
-        messenger as unknown as {
-          publish: (topic: string, payload?: unknown) => void;
-        }
-      ).publish('ClientController:stateChanged', { isUiOpen: true });
+      messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
       messenger.publish('KeyringController:unlock');
       await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
