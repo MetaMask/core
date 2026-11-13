@@ -63,19 +63,6 @@ const formatExchangeRatesForBridgeMock = vi.mocked(
   formatExchangeRatesForBridge,
 );
 
-/**
- * Flush pending microtasks so fire-and-forget background pipelines settle
- * before the test runner tears down the test.  Multiple rounds are needed because the
- * background pipeline chains several async steps.
- *
- * @returns A promise that resolves after pending callbacks.
- */
-async function flushPromises(): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-}
-
 function createMockQueryApiClient(): ApiPlatformClient {
   const cache = new Map<string, unknown>();
   return {
