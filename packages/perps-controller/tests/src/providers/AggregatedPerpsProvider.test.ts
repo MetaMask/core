@@ -805,6 +805,42 @@ describe('AggregatedPerpsProvider', () => {
 
       await expect(aggregatedProvider.getAccountState()).rejects.toThrow();
     });
+
+    it('forces a strict read in the aggregated fan-out so a failed venue read cannot masquerade as zero', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+      mockLighterProvider.getAccountState.mockRejectedValue(
+        new Error('venue down'),
+      );
+
+      const result = await aggregatedProvider.getAccountState();
+
+      // Adapters with a lenient default (Lighter answers an infrastructure
+      // failure with an empty zero state) must be told to fail loudly here:
+      // otherwise the aggregate classifies the failure as available zero
+      // balances.
+      expect(mockHLProvider.getAccountState).toHaveBeenCalledWith(
+        expect.objectContaining({ throwOnUnavailable: true }),
+      );
+      expect(mockLighterProvider.getAccountState).toHaveBeenCalledWith(
+        expect.objectContaining({ throwOnUnavailable: true }),
+      );
+      expect(result.aggregate).toStrictEqual({
+        status: 'partial',
+        availableProviders: ['hyperliquid'],
+        unavailableProviders: ['lighter'],
+      });
+    });
+
+    it('keeps direct read defaults when only one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+
+      await aggregatedProvider.getAccountState();
+
+      // The single-venue passthrough forwards params untouched: each adapter
+      // keeps its own lenient/strict default for direct callers.
+      expect(mockHLProvider.getAccountState).toHaveBeenCalledWith(undefined);
+    });
   });
 
   describe('Read Operations - getAccountSupport', () => {
@@ -1513,6 +1549,100 @@ describe('AggregatedPerpsProvider', () => {
       expect(result.successCount).toBe(1);
     });
 
+    it('fails a foreign-venue target on its own when only one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('hl-1', 'BTC'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      // The loaded venue sees only its own target: forwarding the Lighter
+      // order ID would let HyperLiquid cancel a colliding local ID.
+      expect(mockHLProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('does not lose the registered venue targets when a foreign venue appears first', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('hl-1', 'BTC'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+
+      // The first entry's venue must not pick the route for the whole batch:
+      // the registered venue's targets still execute.
+      expect(mockHLProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('fails every target without a venue call when all name other venues', async () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(mockHLProvider.cancelOrders).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      });
+      expect(result.results[0]).toMatchObject({
+        orderId: 'lt-1',
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+        providerId: 'lighter',
+      });
+    });
+
     it('fans a mixed-venue close out to each named venue and attributes results', async () => {
       mockHLProvider.closePositions.mockResolvedValue({
         success: true,
@@ -1597,6 +1727,36 @@ describe('AggregatedPerpsProvider', () => {
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
       expect(mockHLProvider.closePositions).not.toHaveBeenCalled();
       expect(mockLighterProvider.closePositions).not.toHaveBeenCalled();
+    });
+
+    it('lets closeAll override a legacy symbols list while multiple venues are registered', async () => {
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true }],
+      });
+      mockLighterProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'ETH', success: true }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        closeAll: true,
+        symbols: ['BTC'],
+      });
+
+      // Same request succeeds on the direct path, so the aggregator must not
+      // refuse it: closeAll wins over symbols in every layer.
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
+      });
+      expect(mockLighterProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
+      });
+      expect(result.successCount).toBe(2);
     });
 
     it('records a per-symbol failure when a tagged venue close throws', async () => {
@@ -1711,6 +1871,28 @@ describe('AggregatedPerpsProvider', () => {
         aggregatedProvider.closePositions({ symbols: ['BTC'] }),
       ).resolves.toMatchObject({ successCount: 1 });
       expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+    });
+
+    it('passes closeAll through over a symbols list when only one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 2,
+        failureCount: 0,
+        results: [
+          { symbol: 'BTC', success: true },
+          { symbol: 'ETH', success: true },
+        ],
+      });
+
+      await expect(
+        aggregatedProvider.closePositions({ closeAll: true, symbols: ['BTC'] }),
+      ).resolves.toMatchObject({ successCount: 2 });
+      // Same precedence as the direct path: the venue decides closeAll.
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
         symbols: ['BTC'],
       });
     });
@@ -3161,6 +3343,59 @@ describe('AggregatedPerpsProvider', () => {
         mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
       hlCallback(null);
       lighterCallback(null);
+
+      expect(callback).toHaveBeenCalledWith(null);
+    });
+
+    it('keeps the direct stream shape when only one venue is registered', () => {
+      aggregatedProvider.removeProvider('lighter');
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      expect(mockLighterProvider.subscribeToAccount).not.toHaveBeenCalled();
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback({
+        totalBalance: '1000.10',
+        spendableBalance: '700.05',
+        withdrawableBalance: '600.02',
+        marginUsed: '200',
+        unrealizedPnl: '30',
+        returnOnEquity: '15',
+        crossMarginSummary: {
+          accountValue: '1000.10',
+          maintenanceMargin: '20',
+          marginUsed: '200',
+          notional: '4000',
+        },
+        subAccountBreakdown: {
+          main: {
+            totalBalance: '1000.10',
+            spendableBalance: '700.05',
+            withdrawableBalance: '600.02',
+          },
+        },
+      });
+
+      // REST/stream parity: top-level venue identity and venue-local fields
+      // survive, they are not folded under `providerStates`.
+      const emitted = callback.mock.calls[0][0] as AccountState | null;
+      expect(emitted?.providerId).toBe('hyperliquid');
+      expect(emitted?.totalBalance).toBe('1000.10');
+      expect(emitted?.crossMarginSummary?.notional).toBe('4000');
+      expect(emitted?.subAccountBreakdown?.main.totalBalance).toBe('1000.10');
+      expect(emitted?.providerStates).toBeUndefined();
+      expect(emitted?.aggregate).toBeUndefined();
+    });
+
+    it('passes a null single-venue update through as no data, not zero', () => {
+      aggregatedProvider.removeProvider('lighter');
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback(null);
 
       expect(callback).toHaveBeenCalledWith(null);
     });
