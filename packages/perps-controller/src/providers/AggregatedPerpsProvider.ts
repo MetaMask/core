@@ -1495,6 +1495,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   /**
    * Read public trades from the explicit route, else the default provider.
+   * An unrouted read resolves to an empty list if the default changes before
+   * the venue answers.
    *
    * @param params - Market, optional limit and route.
    * @returns The route's trades, newest first.
@@ -1507,26 +1509,42 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (!provider.getPublicTrades) {
       throw new Error(`Public trades not supported by provider ${providerId}`);
     }
-    return provider.getPublicTrades({ ...params, providerId });
+    const trades = await provider.getPublicTrades({ ...params, providerId });
+    if (
+      params.providerId === undefined &&
+      providerId !== this.#defaultProvider
+    ) {
+      return [];
+    }
+    return trades;
   }
 
   /**
    * Stream public trades from the explicit route, else the default provider.
-   * A missing route or one without a public trade feed returns a no-op
-   * cleanup and never calls back.
+   * An unrouted stream follows the default and moves with it. A missing
+   * route or one without a public trade feed returns a no-op cleanup and
+   * never calls back.
    *
    * @param params - Market, optional route, callback and error handler.
    * @returns A cleanup function to unsubscribe.
    */
   subscribeToPublicTrades(params: SubscribePublicTradesParams): () => void {
-    const providerId = params.providerId ?? this.#defaultProvider;
-    const provider = this.#providers.get(providerId);
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (defaultProvider) =>
+          defaultProvider.subscribeToPublicTrades?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? (() => undefined),
+      });
+    }
+    const provider = this.#providers.get(params.providerId);
     if (!provider?.subscribeToPublicTrades) {
       return () => {
         // No-op: route missing or without a public trade feed
       };
     }
-    return provider.subscribeToPublicTrades({ ...params, providerId });
+    return provider.subscribeToPublicTrades(params);
   }
 
   /**
