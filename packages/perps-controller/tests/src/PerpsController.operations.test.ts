@@ -3155,6 +3155,25 @@ describe('PerpsController', () => {
       });
     });
 
+    it('forwards an explicit deposit venue to transaction preparation', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      await depositController.depositWithConfirmation({
+        amount: '100',
+        providerId: 'lighter',
+      });
+
+      expect(
+        mockDepositServiceInstance.prepareTransaction,
+      ).toHaveBeenCalledWith({
+        provider: mockProvider,
+        providerId: 'lighter',
+      });
+    });
+
     it('calls NetworkController:findNetworkClientIdByChainId with correct chainId', async () => {
       depositController.testMarkInitialized();
       depositController.testSetProviders(

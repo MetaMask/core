@@ -125,8 +125,11 @@ reaches that venue — required when both venues list the same symbol — and
 stays pinned when the routing default changes. Omitting it keeps the
 default-routed behavior. `getDepositRoutes` and `getWithdrawalRoutes` return
 every active venue's routes, each tagged with a `providerId`; identical
-asset/chain routes from different venues are distinct entries, and a chosen
-route's venue is captured on the deposit or withdrawal record it initiates.
+asset/chain routes from different venues are distinct entries.
+`depositWithConfirmation` funds the route for its `providerId`, or the
+routing default when that is omitted, and fails closed when that venue has
+no route. The chosen route's venue is captured on the deposit or withdrawal
+record it initiates.
 
 ## Rewards discounts and fee previews
 
