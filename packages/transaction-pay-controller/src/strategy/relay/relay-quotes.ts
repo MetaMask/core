@@ -28,6 +28,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { withNonAtomicRequests } from '../../utils/account.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import {
   getRelayOriginGasOverhead,
@@ -92,12 +93,15 @@ type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'> &
 /**
  * Fetches Relay quotes.
  *
- * @param request - Request object.
+ * @param fullRequest - Request object.
  * @returns Array of quotes.
  */
 export async function getRelayQuotes(
-  request: PayStrategyGetQuotesRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>[]> {
+  // Fiat estimation and submit build a fresh request and call here directly,
+  // so they never pass through the dispatch in `getQuotes`.
+  const request = withNonAtomicRequests(fullRequest);
   const { requests } = request;
 
   log('Fetching quotes', requests);

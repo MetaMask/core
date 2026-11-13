@@ -19,7 +19,7 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types.js';
-import { accountRequiresMfa, accountSupports7702 } from './account.js';
+import { accountSupports7702, withNonAtomicRequests } from './account.js';
 import { buildNoOpQuote } from './no-op-quote.js';
 import { updateSourceAmounts } from './source-amounts.js';
 import {
@@ -102,7 +102,6 @@ export async function updateQuotes(
   } = transactionData;
 
   const from = getFrom(transaction, transactionData);
-  const atomic = resolveAtomic(transaction, messenger, requestedAtomic);
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
@@ -138,7 +137,7 @@ export async function updateQuotes(
 
     const requests = buildQuoteRequests({
       accountOverride,
-      atomic,
+      atomic: requestedAtomic,
       from,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
@@ -245,35 +244,6 @@ function getFrom(
   }
 
   return transactionData.accountOverride ?? transactionFrom;
-}
-
-/**
- * Resolve whether quotes may execute the target transaction atomically.
- *
- * An atomic quote embeds the target calls, which needs a fresh delegation
- * signed by the account they execute from — `transaction.txParams.from`, not
- * the quote sender, which `accountOverride` may point at the funding EOA.
- * When that keyring requires MFA each quote refresh costs the user a
- * confirmation, so atomic execution is never acceptable for those accounts.
- *
- * Resolved here rather than in a strategy so it applies to every strategy and
- * to both the max and non-max quote paths.
- *
- * @param transaction - Transaction metadata.
- * @param messenger - Messenger used to resolve the signing account's keyring.
- * @param requestedAtomic - Atomic hint supplied by the client.
- * @returns The atomic hint to send with quote requests.
- */
-function resolveAtomic(
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-  requestedAtomic: boolean | undefined,
-): boolean | undefined {
-  if (accountRequiresMfa(messenger, transaction.txParams.from)) {
-    return false;
-  }
-
-  return requestedAtomic;
 }
 
 /**
@@ -791,7 +761,9 @@ async function getQuotes(
     };
   }
 
-  const request = {
+  // One place for every strategy. An MFA signing account never receives an
+  // atomic request, whichever strategy runs.
+  const request = withNonAtomicRequests({
     accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
     from,
@@ -799,7 +771,7 @@ async function getQuotes(
     requests,
     signal,
     transaction,
-  };
+  });
 
   let error: QuoteErrorInfo | undefined;
 

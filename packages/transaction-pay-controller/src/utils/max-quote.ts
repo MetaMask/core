@@ -89,6 +89,9 @@ export type MaxQuotesRequest<OriginalQuote> = {
  * - `false`: quote non-atomically first, promoting to an atomic quote when the
  * route turns out to be subsidized. A failed promotion is terminal.
  *
+ * Accounts whose keyring requires MFA never take either atomic path. Every
+ * request stays non-atomic, whatever hint it arrived with.
+ *
  * @param options - Max quotes request.
  * @returns One quote per provider.
  */
@@ -97,6 +100,17 @@ export async function getMaxQuotes<OriginalQuote>(
 ): Promise<TransactionPayQuote<OriginalQuote>[]> {
   const { fullRequest, getQuotes, request } = options;
   const { messenger, transaction } = fullRequest;
+
+  // Promotion and the atomic-first path both embed the target calls. An MFA
+  // signing account would confirm a delegation on every refresh, so those
+  // paths are skipped for every request, not only ones already marked
+  // non-atomic.
+  if (accountRequiresMfa(messenger, transaction.txParams.from)) {
+    const nonAtomicRequest =
+      request.atomic === false ? request : { ...request, atomic: false };
+    const quotes = await getQuotes(nonAtomicRequest, transaction);
+    return Promise.all(quotes.map((quote) => withGasStation(quote, options)));
+  }
 
   if (!isAtomicMaxSupported({ messenger, request, transaction })) {
     // Only the atomic flows below may produce an atomic max quote.
@@ -214,19 +228,6 @@ async function getPromotedQuotes<OriginalQuote>(
       const details = getQuoteDetails(quote);
 
       if (!details.isSubsidized) {
-        return quote;
-      }
-
-      // A request whose signing keyring requires MFA arrives here already
-      // cleared to `atomic: false` by `updateQuotes`. Promotion ignores that
-      // hint and sets `atomic: true` regardless, which would embed the target
-      // calls again and reintroduce the per-quote delegation signature.
-      if (
-        accountRequiresMfa(
-          fullRequest.messenger,
-          fullRequest.transaction.txParams.from,
-        )
-      ) {
         return quote;
       }
 
