@@ -13,12 +13,18 @@ import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags.js';
 import { getRelayQuotes } from '../relay/relay-quotes.js';
 import { submitRelayQuotes } from '../relay/relay-submit.js';
 import type { RelayQuote } from '../relay/types.js';
-import { submitSimpleRelay } from './fiat-submit-simple.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import { submitServerQuotes } from '../server/server-submit.js';
+import type { ServerQuote } from '../server/types.js';
+import { resolveFiatCryptoLeg } from './fiat-crypto-leg.js';
+import { submitSimpleCryptoLeg } from './fiat-submit-simple.js';
 import type { FiatQuote } from './types.js';
 
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../relay/relay-quotes.js'));
 vi.mock(import('../relay/relay-submit.js'));
+vi.mock(import('../server/server-quotes.js'));
+vi.mock(import('../server/server-submit.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -79,6 +85,39 @@ function buildFiatQuote(): TransactionPayQuote<FiatQuote> {
   };
 }
 
+function buildServerQuote({
+  sourceUsd = '5.00',
+  targetUsd = '4.85',
+}: {
+  sourceUsd?: string;
+  targetUsd?: string;
+} = {}): TransactionPayQuote<ServerQuote> {
+  return {
+    ...RELAY_QUOTE_MOCK,
+    original: {
+      id: 'server-quote',
+      input: { raw: '1000000000000000000' },
+      output: { raw: '12000000' },
+    } as ServerQuote,
+    sourceAmount: { fiat: '0', human: '0', raw: '0', usd: sourceUsd },
+    strategy: TransactionPayStrategy.Server,
+    targetAmount: { fiat: '0', usd: targetUsd },
+  };
+}
+
+function buildServerFiatQuote(): TransactionPayQuote<FiatQuote> {
+  const serverQuote = buildServerQuote();
+
+  return {
+    ...serverQuote,
+    original: {
+      rampsQuote: {} as never,
+      serverQuote: serverQuote.original,
+    },
+    strategy: TransactionPayStrategy.Fiat,
+  };
+}
+
 function buildRequest(
   overrides?: Partial<PayStrategyExecuteRequest<FiatQuote>>,
 ): PayStrategyExecuteRequest<FiatQuote> {
@@ -92,7 +131,19 @@ function buildRequest(
   };
 }
 
-describe('submitSimpleRelay', () => {
+async function submitSimple(
+  options: Omit<
+    Parameters<typeof submitSimpleCryptoLeg>[0],
+    'leg' | 'originalQuote'
+  >,
+): ReturnType<typeof submitSimpleCryptoLeg> {
+  return await submitSimpleCryptoLeg({
+    ...options,
+    ...resolveFiatCryptoLeg(options.request.quotes[0]),
+  });
+}
+
+describe('submitSimpleCryptoLeg', () => {
   const getRelayQuotesMock = vi.mocked(getRelayQuotes);
   const submitRelayQuotesMock = vi.mocked(submitRelayQuotes);
   const getFiatMaxRateDriftPercentMock = vi.mocked(getFiatMaxRateDriftPercent);
@@ -107,7 +158,7 @@ describe('submitSimpleRelay', () => {
   it('builds an EXACT_INPUT relay request with the full settled amount', async () => {
     const req = buildRequest();
 
-    await submitSimpleRelay({
+    await submitSimple({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request: req,
       sourceAmountRaw: '5000000000000000000',
@@ -129,7 +180,7 @@ describe('submitSimpleRelay', () => {
   it('submits relay quotes after rate drift validation', async () => {
     const req = buildRequest();
 
-    const result = await submitSimpleRelay({
+    const result = await submitSimple({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request: req,
       sourceAmountRaw: '1000000000000000000',
@@ -150,7 +201,7 @@ describe('submitSimpleRelay', () => {
     const req = buildRequest();
 
     await expect(
-      submitSimpleRelay({
+      submitSimple({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request: req,
         sourceAmountRaw: '1000000000000000000',
@@ -165,7 +216,7 @@ describe('submitSimpleRelay', () => {
     const req = buildRequest({ quotes: [fiatQuote] });
 
     await expect(
-      submitSimpleRelay({
+      submitSimple({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request: req,
         sourceAmountRaw: '1000000000000000000',
@@ -195,7 +246,7 @@ describe('submitSimpleRelay', () => {
     const req = buildRequest();
 
     await expect(
-      submitSimpleRelay({
+      submitSimple({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request: req,
         sourceAmountRaw: '1000000000000000000',
@@ -223,7 +274,7 @@ describe('submitSimpleRelay', () => {
 
     const req = buildRequest();
 
-    const result = await submitSimpleRelay({
+    const result = await submitSimple({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request: req,
       sourceAmountRaw: '1000000000000000000',
@@ -244,7 +295,7 @@ describe('submitSimpleRelay', () => {
 
     const req = buildRequest({ quotes: [fiatQuote] });
 
-    const result = await submitSimpleRelay({
+    const result = await submitSimple({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request: req,
       sourceAmountRaw: '1000000000000000000',
@@ -258,7 +309,7 @@ describe('submitSimpleRelay', () => {
     getFiatMaxRateDriftPercentMock.mockReturnValue(25);
     const req = buildRequest();
 
-    await submitSimpleRelay({
+    await submitSimple({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request: req,
       sourceAmountRaw: '1000000000000000000',
@@ -266,5 +317,79 @@ describe('submitSimpleRelay', () => {
     });
 
     expect(getFiatMaxRateDriftPercentMock).toHaveBeenCalledWith(req.messenger);
+  });
+
+  describe('with server crypto leg', () => {
+    const getServerQuotesMock = vi.mocked(getServerQuotes);
+    const submitServerQuotesMock = vi.mocked(submitServerQuotes);
+
+    beforeEach(() => {
+      getServerQuotesMock.mockResolvedValue([buildServerQuote()]);
+      submitServerQuotesMock.mockResolvedValue({ transactionHash: '0xdef' });
+    });
+
+    it('submits server quotes if the fiat quote has a server quote', async () => {
+      const serverQuote = buildServerQuote();
+      getServerQuotesMock.mockResolvedValue([serverQuote]);
+
+      const req = buildRequest({ quotes: [buildServerFiatQuote()] });
+
+      const result = await submitSimple({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request: req,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(getRelayQuotesMock).not.toHaveBeenCalled();
+      expect(submitRelayQuotesMock).not.toHaveBeenCalled();
+      expect(getServerQuotesMock.mock.calls[0][0].requests).toStrictEqual([
+        expect.objectContaining({
+          isPostQuote: true,
+          sourceTokenAmount: '1000000000000000000',
+        }),
+      ]);
+      expect(submitServerQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quotes: [serverQuote],
+          transaction: TRANSACTION_MOCK,
+        }),
+      );
+      expect(result).toStrictEqual({ transactionHash: '0xdef' });
+    });
+
+    it('throws when server returns no quotes', async () => {
+      getServerQuotesMock.mockResolvedValue([]);
+      const req = buildRequest({ quotes: [buildServerFiatQuote()] });
+
+      await expect(
+        submitSimple({
+          baseRequest: BASE_QUOTE_REQUEST_MOCK,
+          request: req,
+          sourceAmountRaw: '1000000000000000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('No server quotes returned for completed fiat order');
+    });
+
+    it('throws when server rate drift exceeds configured threshold', async () => {
+      getFiatMaxRateDriftPercentMock.mockReturnValue(5);
+      getServerQuotesMock.mockResolvedValue([
+        buildServerQuote({ targetUsd: '2.00' }),
+      ]);
+
+      const req = buildRequest({ quotes: [buildServerFiatQuote()] });
+
+      await expect(
+        submitSimple({
+          baseRequest: BASE_QUOTE_REQUEST_MOCK,
+          request: req,
+          sourceAmountRaw: '1000000000000000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow(/Server rate drift too high/u);
+
+      expect(submitServerQuotesMock).not.toHaveBeenCalled();
+    });
   });
 });

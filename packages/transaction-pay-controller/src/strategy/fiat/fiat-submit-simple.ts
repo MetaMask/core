@@ -2,47 +2,51 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../../logger.js';
-import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types.js';
+import type {
+  PayStrategyExecuteRequest,
+  QuoteRequest,
+  TransactionPayQuote,
+} from '../../types.js';
 import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import { submitRelayQuotes } from '../relay/relay-submit.js';
+import type { FiatCryptoLeg, FiatCryptoLegQuote } from './fiat-crypto-leg.js';
 import type { FiatQuote } from './types.js';
-import { validateRelayRateDrift } from './utils.js';
+import { validateRateDrift } from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit-simple');
 
 /**
- * Submits a single EXACT_INPUT relay quote for simple deposits
+ * Submits a single EXACT_INPUT crypto leg quote for simple deposits
  * that don't require nested calldata re-encoding or delegation.
  *
  * @param options - The submission options.
  * @param options.baseRequest - The base quote request from the original fiat quote.
+ * @param options.leg - Strategy used for the crypto leg.
+ * @param options.originalQuote - Crypto leg quote from the original fiat quote.
  * @param options.request - The original fiat strategy execute request.
  * @param options.sourceAmountRaw - The settled source amount in atomic units.
  * @param options.transaction - The transaction metadata.
- * @returns An object containing the relay transaction hash if available.
+ * @returns An object containing the crypto leg transaction hash if available.
  */
-export async function submitSimpleRelay({
+export async function submitSimpleCryptoLeg({
   baseRequest,
+  leg,
+  originalQuote,
   request,
   sourceAmountRaw,
   transaction,
 }: {
   baseRequest: QuoteRequest;
+  leg: FiatCryptoLeg;
+  originalQuote: TransactionPayQuote<FiatCryptoLegQuote>;
   request: PayStrategyExecuteRequest<FiatQuote>;
   sourceAmountRaw: string;
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
 }): Promise<{ transactionHash?: Hex }> {
   const { messenger } = request;
   const transactionId = transaction.id;
+  const legName = leg.name.toLowerCase();
 
-  const originalRelayQuote = request.quotes[0].original.relayQuote;
-
-  if (!originalRelayQuote) {
-    throw new Error('Missing Relay quote');
-  }
-
-  const relayRequest: QuoteRequest = {
+  const cryptoRequest: QuoteRequest = {
     ...baseRequest,
     isMaxAmount: false,
     isPostQuote: true,
@@ -51,35 +55,36 @@ export async function submitSimpleRelay({
     sourceTokenAmount: sourceAmountRaw,
   };
 
-  const relayQuotes = await getRelayQuotes({
+  const cryptoQuotes = await leg.getQuotes({
     accountSupports7702: request.accountSupports7702,
     from: baseRequest.from,
     messenger,
-    requests: [relayRequest],
+    requests: [cryptoRequest],
     transaction,
   });
 
-  if (!relayQuotes.length) {
-    throw new Error('No relay quotes returned for completed fiat order');
+  if (!cryptoQuotes.length) {
+    throw new Error(`No ${legName} quotes returned for completed fiat order`);
   }
 
-  validateRelayRateDrift({
-    originalQuote: originalRelayQuote,
-    discoveryQuote: relayQuotes[0].original,
+  validateRateDrift({
+    discoveryAmounts: leg.getAmounts(cryptoQuotes[0]),
+    legName: leg.name,
     maxRateDriftPercent: getFiatMaxRateDriftPercent(messenger),
+    originalAmounts: leg.getAmounts(originalQuote),
     transactionId,
   });
 
-  log('Submitting simple relay after fiat settlement', {
-    relayQuoteCount: relayQuotes.length,
+  log(`Submitting simple ${legName} after fiat settlement`, {
+    quoteCount: cryptoQuotes.length,
     transactionId,
   });
 
-  return await submitRelayQuotes({
+  return await leg.submit({
     accountSupports7702: request.accountSupports7702,
     isSmartTransaction: request.isSmartTransaction,
     messenger,
-    quotes: relayQuotes,
+    quotes: cryptoQuotes,
     transaction,
   });
 }

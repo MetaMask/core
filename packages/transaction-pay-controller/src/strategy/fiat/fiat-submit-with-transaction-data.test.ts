@@ -18,6 +18,10 @@ import { getTransaction, updateTransaction } from '../../utils/transaction.js';
 import { getRelayQuotes } from '../relay/relay-quotes.js';
 import { submitRelayQuotes } from '../relay/relay-submit.js';
 import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import { submitServerQuotes } from '../server/server-submit.js';
+import type { ServerQuote } from '../server/types.js';
+import { resolveFiatCryptoLeg } from './fiat-crypto-leg.js';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data.js';
 import type { FiatQuote } from './types.js';
 
@@ -25,6 +29,8 @@ vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../../utils/transaction.js'));
 vi.mock(import('../relay/relay-quotes.js'));
 vi.mock(import('../relay/relay-submit.js'));
+vi.mock(import('../server/server-quotes.js'));
+vi.mock(import('../server/server-submit.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -93,6 +99,29 @@ function buildFiatQuote(
   };
 }
 
+const SERVER_QUOTE_MOCK = {
+  ...RELAY_QUOTE_MOCK,
+  original: {
+    id: 'server-quote',
+    input: { raw: '1000000000000000000' },
+    output: { raw: '12000000' },
+  } as ServerQuote,
+  sourceAmount: { fiat: '0', human: '0', raw: '0', usd: '5.00' },
+  strategy: TransactionPayStrategy.Server,
+  targetAmount: { fiat: '0', usd: '4.85' },
+} as TransactionPayQuote<ServerQuote>;
+
+function buildServerFiatQuote(): TransactionPayQuote<FiatQuote> {
+  return {
+    ...SERVER_QUOTE_MOCK,
+    original: {
+      rampsQuote: {} as never,
+      serverQuote: SERVER_QUOTE_MOCK.original,
+    },
+    strategy: TransactionPayStrategy.Fiat,
+  };
+}
+
 function buildCallMock({
   getAmountDataUpdates = [
     { nestedTransactionIndex: 0, data: '0xNewApprove' },
@@ -132,7 +161,19 @@ function buildRequest({
   };
 }
 
-describe('submitWithCalldataReEncoding', () => {
+async function submit(
+  options: Omit<
+    Parameters<typeof submitWithTransactionData>[0],
+    'leg' | 'originalQuote'
+  >,
+): ReturnType<typeof submitWithTransactionData> {
+  return await submitWithTransactionData({
+    ...options,
+    ...resolveFiatCryptoLeg(options.request.quotes[0]),
+  });
+}
+
+describe('submitWithTransactionData', () => {
   const getRelayQuotesMock = vi.mocked(getRelayQuotes);
   const submitRelayQuotesMock = vi.mocked(submitRelayQuotes);
   const getTransactionMock = vi.mocked(getTransaction);
@@ -154,7 +195,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('performs three-phase flow: discovery, calldata re-encoding, delegation quote', async () => {
     const request = buildRequest();
 
-    const result = await submitWithTransactionData({
+    const result = await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -185,7 +226,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('reserves original relay fee from discovery source amount', async () => {
     const request = buildRequest();
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -204,7 +245,7 @@ describe('submitWithCalldataReEncoding', () => {
     getFiatFeeReserveMultiplierMock.mockReturnValue(1.5);
     const request = buildRequest();
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -220,7 +261,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('clamps discovery source to minimum 1 when fee reserve exceeds settled amount', async () => {
     const request = buildRequest();
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '10000000000000000',
@@ -247,7 +288,7 @@ describe('submitWithCalldataReEncoding', () => {
 
     const request = buildRequest({ quotes: [fiatQuote] });
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -274,7 +315,7 @@ describe('submitWithCalldataReEncoding', () => {
 
     const request = buildRequest({ quotes: [fiatQuote] });
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -288,7 +329,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('adds discovery fee back to adjusted target amount', async () => {
     const request = buildRequest();
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -307,7 +348,7 @@ describe('submitWithCalldataReEncoding', () => {
     const callMock = buildCallMock();
     const request = buildRequest({ callMock });
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -323,7 +364,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('updates nested calldata and requiredAssets with adjusted amount', async () => {
     const request = buildRequest();
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -356,7 +397,7 @@ describe('submitWithCalldataReEncoding', () => {
     const request = buildRequest();
 
     await expect(
-      submitWithTransactionData({
+      submit({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request,
         sourceAmountRaw: '1000000000000000000',
@@ -372,7 +413,7 @@ describe('submitWithCalldataReEncoding', () => {
     const request = buildRequest();
 
     await expect(
-      submitWithTransactionData({
+      submit({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request,
         sourceAmountRaw: '1000000000000000000',
@@ -386,7 +427,7 @@ describe('submitWithCalldataReEncoding', () => {
     const request = buildRequest({ callMock });
 
     await expect(
-      submitWithTransactionData({
+      submit({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request,
         sourceAmountRaw: '1000000000000000000',
@@ -403,7 +444,7 @@ describe('submitWithCalldataReEncoding', () => {
     const request = buildRequest({ quotes: [fiatQuote] });
 
     await expect(
-      submitWithTransactionData({
+      submit({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request,
         sourceAmountRaw: '1000000000000000000',
@@ -416,7 +457,7 @@ describe('submitWithCalldataReEncoding', () => {
     getTransactionMock.mockReturnValue(undefined);
     const request = buildRequest();
 
-    const result = await submitWithTransactionData({
+    const result = await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -449,7 +490,7 @@ describe('submitWithCalldataReEncoding', () => {
     const callMock = buildCallMock();
     const request = buildRequest({ callMock });
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -482,7 +523,7 @@ describe('submitWithCalldataReEncoding', () => {
     const callMock = buildCallMock();
     const request = buildRequest({ callMock });
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -499,7 +540,7 @@ describe('submitWithCalldataReEncoding', () => {
     getFiatMaxRateDriftPercentMock.mockReturnValue(15);
     const request = buildRequest();
 
-    await submitWithTransactionData({
+    await submit({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -509,5 +550,101 @@ describe('submitWithCalldataReEncoding', () => {
     expect(getFiatMaxRateDriftPercentMock).toHaveBeenCalledWith(
       request.messenger,
     );
+  });
+
+  describe('with server crypto leg', () => {
+    const getServerQuotesMock = vi.mocked(getServerQuotes);
+    const submitServerQuotesMock = vi.mocked(submitServerQuotes);
+
+    beforeEach(() => {
+      getServerQuotesMock.mockResolvedValue([SERVER_QUOTE_MOCK]);
+      submitServerQuotesMock.mockResolvedValue({ transactionHash: '0xdef' });
+    });
+
+    it('performs three-phase flow with server quotes', async () => {
+      const callMock = buildCallMock();
+      const request = buildRequest({
+        callMock,
+        quotes: [buildServerFiatQuote()],
+      });
+
+      const result = await submit({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      });
+
+      expect(getRelayQuotesMock).not.toHaveBeenCalled();
+      expect(submitRelayQuotesMock).not.toHaveBeenCalled();
+      expect(getServerQuotesMock).toHaveBeenCalledTimes(2);
+
+      // Fee quote: sourceUsd=5.00, targetUsd=4.85, input.raw=1e18
+      // feeReserveRaw = 0.15 / (5.00/1e18) = 3e16
+      expect(getServerQuotesMock.mock.calls[0][0].requests[0]).toStrictEqual(
+        expect.objectContaining({
+          isPostQuote: true,
+          sourceTokenAmount: '970000000000000000',
+        }),
+      );
+
+      // Discovery output.raw=12000000, fee=0.15 USD
+      // discoveryFeeInTargetRaw = 0.15 / (4.85/12000000) = 371134
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionPayController:getAmountData',
+        expect.objectContaining({ amount: '12371134' }),
+      );
+
+      expect(getServerQuotesMock.mock.calls[1][0].requests[0]).toStrictEqual(
+        expect.objectContaining({
+          isPostQuote: false,
+          targetAmountMinimum: '12371134',
+        }),
+      );
+
+      expect(submitServerQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ quotes: [SERVER_QUOTE_MOCK] }),
+      );
+      expect(result).toStrictEqual({ transactionHash: '0xdef' });
+    });
+
+    it('throws when discovery server returns no quotes', async () => {
+      getServerQuotesMock.mockResolvedValue([]);
+      const request = buildRequest({ quotes: [buildServerFiatQuote()] });
+
+      await expect(
+        submit({
+          baseRequest: BASE_QUOTE_REQUEST_MOCK,
+          request,
+          sourceAmountRaw: '1000000000000000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('No server quotes returned for fiat discovery');
+    });
+
+    it('throws when server rate drift exceeds configured threshold', async () => {
+      getFiatMaxRateDriftPercentMock.mockReturnValue(5);
+      getServerQuotesMock
+        .mockResolvedValueOnce([SERVER_QUOTE_MOCK])
+        .mockResolvedValueOnce([
+          {
+            ...SERVER_QUOTE_MOCK,
+            targetAmount: { fiat: '0', usd: '2.00' },
+          },
+        ]);
+
+      const request = buildRequest({ quotes: [buildServerFiatQuote()] });
+
+      await expect(
+        submit({
+          baseRequest: BASE_QUOTE_REQUEST_MOCK,
+          request,
+          sourceAmountRaw: '1000000000000000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow(/Server rate drift too high/u);
+
+      expect(submitServerQuotesMock).not.toHaveBeenCalled();
+    });
   });
 });

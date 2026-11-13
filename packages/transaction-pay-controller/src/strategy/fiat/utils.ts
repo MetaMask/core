@@ -17,13 +17,13 @@ import {
 } from '../../utils/feature-flags.js';
 import { buildCaipAssetType } from '../../utils/token.js';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
-import type { RelayQuote } from '../relay/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import {
   DEFAULT_FIAT_CURRENCY,
   FIAT_ENABLED_TYPES,
   MONEY_ACCOUNT_DEPOSIT_TYPES,
 } from './constants.js';
+import type { FiatCryptoLegAmounts } from './fiat-crypto-leg.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -264,8 +264,8 @@ export function getRawSourceAmountFromOrderCryptoAmount({
 }
 
 /**
- * Validates that the relay exchange rate hasn't drifted significantly between
- * the original quoting phase and the post-settlement discovery quote.
+ * Validates that the crypto leg exchange rate hasn't drifted significantly
+ * between the original quoting phase and the post-settlement quote.
  *
  * Compares the USD output/input ratio from both quotes. This normalises for
  * different source amounts (quoting phase uses a theoretical amount, discovery
@@ -273,32 +273,27 @@ export function getRawSourceAmountFromOrderCryptoAmount({
  * movement rather than amount differences.
  *
  * @param options - The validation options.
- * @param options.originalQuote - Relay quote from the original quoting phase.
- * @param options.discoveryQuote - Relay quote from the post-settlement discovery.
+ * @param options.discoveryAmounts - Amounts of the post-settlement quote.
+ * @param options.legName - Name of the crypto leg strategy, used in errors.
  * @param options.maxRateDriftPercent - Maximum allowed rate drift percentage.
+ * @param options.originalAmounts - Amounts of the original quote.
  * @param options.transactionId - Transaction ID for error reporting.
  */
-export function validateRelayRateDrift({
-  originalQuote,
-  discoveryQuote,
+export function validateRateDrift({
+  discoveryAmounts,
+  legName,
   maxRateDriftPercent,
+  originalAmounts,
   transactionId,
 }: {
-  originalQuote: RelayQuote;
-  discoveryQuote: RelayQuote;
+  discoveryAmounts: FiatCryptoLegAmounts;
+  legName: string;
   maxRateDriftPercent: number;
+  originalAmounts: FiatCryptoLegAmounts;
   transactionId: string;
 }): void {
-  const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
-  const originalOut = new BigNumber(
-    originalQuote.details.currencyOut.amountUsd,
-  );
-  const discoveryIn = new BigNumber(
-    discoveryQuote.details.currencyIn.amountUsd,
-  );
-  const discoveryOut = new BigNumber(
-    discoveryQuote.details.currencyOut.amountUsd,
-  );
+  const { sourceUsd: originalIn, targetUsd: originalOut } = originalAmounts;
+  const { sourceUsd: discoveryIn, targetUsd: discoveryOut } = discoveryAmounts;
 
   if (
     !originalIn.gt(0) ||
@@ -317,17 +312,18 @@ export function validateRelayRateDrift({
     .dividedBy(originalRate)
     .multipliedBy(100);
 
-  log('Relay rate drift check', {
-    originalRate: originalRate.toFixed(6),
+  log('Rate drift check', {
     discoveryRate: discoveryRate.toFixed(6),
     driftPercent: driftPercent.toFixed(2),
+    legName,
     maxRateDriftPercent,
+    originalRate: originalRate.toFixed(6),
     transactionId,
   });
 
   if (driftPercent.gt(maxRateDriftPercent)) {
     throw new Error(
-      `Relay rate drift too high for transaction ` +
+      `${legName} rate drift too high for transaction ` +
         `${driftPercent.toFixed(2)}% exceeds ${maxRateDriftPercent}% max`,
     );
   }

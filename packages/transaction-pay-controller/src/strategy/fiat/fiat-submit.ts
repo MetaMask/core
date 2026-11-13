@@ -16,11 +16,12 @@ import {
   getFiatOrderPollTimeoutMs,
 } from '../../utils/feature-flags.js';
 import { updateTransaction } from '../../utils/transaction.js';
+import { resolveFiatCryptoLeg } from './fiat-crypto-leg.js';
 import {
   isDirectMusdMoneyAccountQuote,
   submitDirectMusdAfterFiatCompletion,
 } from './fiat-direct-musd.js';
-import { submitSimpleRelay } from './fiat-submit-simple.js';
+import { submitSimpleCryptoLeg } from './fiat-submit-simple.js';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data.js';
 import { fundFiatOrderFromTestSource } from './fiat-test-funding.js';
 import type { FiatQuote } from './types.js';
@@ -42,14 +43,14 @@ const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
 
 /**
  * Submits fiat strategy quotes by polling the on-ramp order until completion,
- * then re-quoting and submitting the relay leg with the settled crypto amount.
+ * then re-quoting and submitting the crypto leg with the settled crypto amount.
  *
  * @param request - Strategy execute request containing fiat quotes, messenger, and transaction metadata.
  * @param request.messenger - Controller messenger for cross-controller calls.
  * @param request.quotes - Fiat quotes to execute (exactly one expected).
  * @param request.transaction - Original transaction metadata.
  * @param request.isSmartTransaction - Callback to check smart transaction eligibility.
- * @returns An object containing the relay transaction hash if available.
+ * @returns An object containing the crypto leg transaction hash if available.
  */
 export async function submitFiatQuotes(
   request: PayStrategyExecuteRequest<FiatQuote>,
@@ -128,7 +129,7 @@ export async function submitFiatQuotes(
   try {
     await waitForKeyringUnlock(messenger, transactionId);
 
-    const result = await submitRelayAfterFiatCompletion({
+    const result = await submitCryptoLegAfterFiatCompletion({
       order,
       request,
     });
@@ -226,14 +227,14 @@ async function waitForOrderCompletion({
 }
 
 /**
- * Re-quotes and submits the relay leg using the settled amount from a completed fiat order.
+ * Re-quotes and submits the crypto leg using the settled amount from a completed fiat order.
  *
  * @param options - The submission options.
  * @param options.order - The completed on-ramp order containing the settled crypto amount.
  * @param options.request - The original fiat strategy execute request.
- * @returns An object containing the relay transaction hash if available.
+ * @returns An object containing the crypto leg transaction hash if available.
  */
-async function submitRelayAfterFiatCompletion({
+async function submitCryptoLegAfterFiatCompletion({
   order,
   request,
 }: {
@@ -274,9 +275,7 @@ async function submitRelayAfterFiatCompletion({
     walletAddress: baseRequest.from,
   });
 
-  if (!fiatQuote.original.relayQuote) {
-    throw new Error('Missing Relay quote');
-  }
+  const { leg, originalQuote } = resolveFiatCryptoLeg(fiatQuote);
 
   const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
 
@@ -284,18 +283,22 @@ async function submitRelayAfterFiatCompletion({
   // approve + deposit) need a three-phase flow: discovery quote to learn
   // the target amount, calldata re-encoding, then a delegation quote.
   // Simple deposits (Perps, Predict) skip straight to a single EXACT_INPUT
-  // relay quote — cheaper fees, no leftover dust, one fewer request.
+  // crypto leg quote — cheaper fees, no leftover dust, one fewer request.
   if (hasNestedCalldata) {
     return await submitWithTransactionData({
       baseRequest,
+      leg,
+      originalQuote,
       request,
       sourceAmountRaw,
       transaction,
     });
   }
 
-  return await submitSimpleRelay({
+  return await submitSimpleCryptoLeg({
     baseRequest,
+    leg,
+    originalQuote,
     request,
     sourceAmountRaw,
     transaction,

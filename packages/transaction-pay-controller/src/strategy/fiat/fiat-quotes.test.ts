@@ -26,6 +26,8 @@ import {
 } from '../../utils/token.js';
 import { getRelayQuotes } from '../relay/relay-quotes.js';
 import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import type { ServerQuote } from '../server/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import { getFiatQuotes } from './fiat-quotes.js';
@@ -36,6 +38,7 @@ import {
 } from './utils.js';
 
 vi.mock(import('../relay/relay-quotes.js'));
+vi.mock(import('../server/server-quotes.js'));
 vi.mock(import('../../utils/token.js'));
 vi.mock(import('./utils.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -146,12 +149,14 @@ function getRequest({
   amountFiat = '10',
   fiatPaymentMethod = '/payments/debit-credit-card',
   rampsQuotes = FIAT_QUOTES_RESPONSE_MOCK,
+  remoteFeatureFlags = {},
   tokens = [REQUIRED_TOKEN_MOCK],
   throwsOnRampsQuotes,
 }: {
   amountFiat?: string;
   fiatPaymentMethod?: string;
   rampsQuotes?: RampsQuotesResponse;
+  remoteFeatureFlags?: Record<string, unknown>;
   tokens?: TransactionPayRequiredToken[];
   throwsOnRampsQuotes?: Error;
 } = {}): {
@@ -195,7 +200,7 @@ function getRequest({
       }
 
       if (action === 'RemoteFeatureFlagController:getState') {
-        return { remoteFeatureFlags: {} };
+        return { remoteFeatureFlags };
       }
 
       throw new Error(`Unexpected action: ${action}`);
@@ -729,6 +734,70 @@ describe('getFiatQuotes', () => {
       });
       // provider = relay(1) + ramps(0) = 1
       expect(result[0].fees.provider).toStrictEqual({ fiat: '1', usd: '1' });
+    });
+  });
+
+  describe('server crypto leg', () => {
+    const SERVER_FLAGS_MOCK = {
+      confirmations_pay_fiat: { serverStrategyEnabled: true },
+    };
+
+    const getServerQuotesMock = vi.mocked(getServerQuotes);
+
+    beforeEach(() => {
+      getServerQuotesMock.mockResolvedValue([
+        {
+          ...getRelayQuoteMock(),
+          original: { id: 'server-quote' } as ServerQuote,
+          strategy: TransactionPayStrategy.Server,
+        },
+      ]);
+    });
+
+    it('quotes the crypto leg with the server strategy if enabled', async () => {
+      const { request } = getRequest({
+        remoteFeatureFlags: SERVER_FLAGS_MOCK,
+      });
+
+      const result = await getFiatQuotes(request);
+
+      expect(getRelayQuotesMock).not.toHaveBeenCalled();
+      expect(getServerQuotesMock).toHaveBeenCalledTimes(1);
+      expect(getServerQuotesMock.mock.calls[0][0].requests).toStrictEqual([
+        expect.objectContaining({
+          isPostQuote: true,
+          sourceChainId: FIAT_ASSET_MOCK.chainId,
+          sourceTokenAddress: FIAT_ASSET_MOCK.address,
+          sourceTokenAmount: '5000000000000000000',
+          targetAmountMinimum: REQUIRED_TOKEN_MOCK.amountRaw,
+          targetChainId: REQUIRED_TOKEN_MOCK.chainId,
+          targetTokenAddress: REQUIRED_TOKEN_MOCK.address,
+        }),
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].strategy).toBe(TransactionPayStrategy.Fiat);
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '1.7',
+        usd: '1.7',
+      });
+      expect(result[0].original).toStrictEqual({
+        rampsQuote: FIAT_QUOTE_MOCK,
+        serverQuote: { id: 'server-quote' },
+      });
+    });
+
+    it('returns empty array if server quotes are unavailable', async () => {
+      getServerQuotesMock.mockResolvedValue([]);
+
+      const { request } = getRequest({
+        remoteFeatureFlags: SERVER_FLAGS_MOCK,
+      });
+
+      const result = await getFiatQuotes(request);
+
+      expect(result).toStrictEqual([]);
+      expect(getRelayQuotesMock).not.toHaveBeenCalled();
     });
   });
 

@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support max-amount quotes in `ServerStrategy`, using the same max flow as `RelayStrategy` ([#11418](https://github.com/MetaMask/core/pull/11418))
   - Re-quote with a reduced source amount so origin gas can be paid from the source token when the user lacks native balance.
   - Quote subsidized routes atomically when `payStrategies.relay.atomicMaxEnabled` is enabled, embedding the transaction's calls re-encoded for the max amount.
+- Support `ServerStrategy` for the crypto leg of `FiatStrategy`, behind the `confirmations_pay_fiat.serverStrategyEnabled` feature flag, disabled by default ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Fiat quotes store the server quote as `serverQuote` instead of `relayQuote`, and submit uses the same strategy the quote was created with.
+  - Rate drift and fee reserve checks use the normalized server quote amounts.
 
 ### Changed
 

@@ -115,6 +115,7 @@ type FiatFlags = {
   maxRateDriftPercent?: number;
   orderPollIntervalMs?: number;
   orderPollTimeoutMs?: number;
+  serverStrategyEnabled?: boolean;
   vaultDisabled?: boolean;
 };
 
@@ -1174,6 +1175,26 @@ export function getDirectMoneyMusdEnabled(
     | FiatFlags
     | undefined;
   return fiatFlags?.directMoneyMusdEnabled === true;
+}
+
+/**
+ * Whether the fiat strategy uses the server strategy for the crypto leg that
+ * runs after the on-ramp, instead of the relay strategy.
+ *
+ * Configured via `confirmations_pay_fiat.serverStrategyEnabled`. Defaults to
+ * `false`.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if the fiat crypto leg uses the server strategy.
+ */
+export function getFiatServerStrategyEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.serverStrategyEnabled === true;
 }
 
 export function getFiatVaultDisabled(

@@ -30,6 +30,7 @@ import {
   getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
   getDirectMoneyMusdEnabled,
+  getFiatServerStrategyEnabled,
   getServerPollingInterval,
   getServerPollingTimeout,
   getFiatVaultDisabled,
@@ -2253,6 +2254,39 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatServerStrategyEnabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatServerStrategyEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when server strategy flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { serverStrategyEnabled: true },
+        },
+      });
+
+      expect(getFiatServerStrategyEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when server strategy flag is not true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { serverStrategyEnabled: 'true' },
+        },
+      });
+
+      expect(getFiatServerStrategyEnabled(messenger)).toBe(false);
     });
   });
 

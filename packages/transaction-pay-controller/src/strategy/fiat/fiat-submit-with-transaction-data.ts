@@ -3,22 +3,28 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
-import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types.js';
+import type {
+  PayStrategyExecuteRequest,
+  QuoteRequest,
+  TransactionPayQuote,
+} from '../../types.js';
 import {
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
 } from '../../utils/feature-flags.js';
 import { getTransaction, updateTransaction } from '../../utils/transaction.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import { submitRelayQuotes } from '../relay/relay-submit.js';
-import type { RelayQuote } from '../relay/types.js';
+import type {
+  FiatCryptoLeg,
+  FiatCryptoLegAmounts,
+  FiatCryptoLegQuote,
+} from './fiat-crypto-leg.js';
 import type { FiatQuote } from './types.js';
-import { validateRelayRateDrift } from './utils.js';
+import { validateRateDrift } from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit-calldata');
 
 /**
- * Submits relay quotes using the three-phase flow for transactions with nested
+ * Submits crypto leg quotes using the three-phase flow for transactions with nested
  * calldata that needs re-encoding (e.g. moneyAccountDeposit with approve + deposit).
  *
  * Phase 1: Discovery quote (EXACT_INPUT) to learn the target token output.
@@ -27,32 +33,36 @@ const log = createModuleLogger(projectLogger, 'fiat-submit-calldata');
  *
  * @param options - The submission options.
  * @param options.baseRequest - The base quote request from the original fiat quote.
+ * @param options.leg - Strategy used for the crypto leg.
+ * @param options.originalQuote - Crypto leg quote from the original fiat quote.
  * @param options.request - The original fiat strategy execute request.
  * @param options.sourceAmountRaw - The settled source amount in atomic units.
  * @param options.transaction - The transaction metadata.
- * @returns An object containing the relay transaction hash if available.
+ * @returns An object containing the crypto leg transaction hash if available.
  */
 export async function submitWithTransactionData({
   baseRequest,
+  leg,
+  originalQuote,
   request,
   sourceAmountRaw,
   transaction,
 }: {
   baseRequest: QuoteRequest;
+  leg: FiatCryptoLeg;
+  originalQuote: TransactionPayQuote<FiatCryptoLegQuote>;
   request: PayStrategyExecuteRequest<FiatQuote>;
   sourceAmountRaw: string;
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
 }): Promise<{ transactionHash?: Hex }> {
   const { messenger } = request;
   const transactionId = transaction.id;
-  const originalRelayQuote = request.quotes[0].original.relayQuote;
-
-  if (!originalRelayQuote) {
-    throw new Error('Missing Relay quote');
-  }
+  const legName = leg.name.toLowerCase();
+  const originalAmounts = leg.getAmounts(originalQuote);
 
   const feeReserveRaw = calculateFeeReserve({
-    feeQuote: originalRelayQuote,
+    feeAmounts: originalAmounts,
+    feeUsd: leg.getFeeUsd(originalQuote),
     multiplier: getFiatFeeReserveMultiplier(messenger),
   });
 
@@ -76,7 +86,7 @@ export async function submitWithTransactionData({
     sourceTokenAmount: discoverySourceAmount,
   };
 
-  const discoveryQuotes = await getRelayQuotes({
+  const discoveryQuotes = await leg.getQuotes({
     accountSupports7702: request.accountSupports7702,
     from: baseRequest.from,
     messenger,
@@ -85,15 +95,15 @@ export async function submitWithTransactionData({
   });
 
   if (!discoveryQuotes.length) {
-    throw new Error('No relay quotes returned for fiat discovery');
+    throw new Error(`No ${legName} quotes returned for fiat discovery`);
   }
 
-  const discoveryRelay = discoveryQuotes[0].original;
+  const discoveryAmounts = leg.getAmounts(discoveryQuotes[0]);
 
-  const adjustedTargetRaw = calculateAdjustedTarget(discoveryRelay);
+  const adjustedTargetRaw = calculateAdjustedTarget(discoveryAmounts);
 
   log('Adjusted target for final quote', {
-    discoveryMinimum: discoveryRelay.details.currencyOut.minimumAmount,
+    discoveryMinimum: discoveryAmounts.targetMinimumRaw.toFixed(0),
     adjustedTargetRaw,
     transactionId,
   });
@@ -126,7 +136,7 @@ export async function submitWithTransactionData({
   const updatedTransaction =
     getTransaction(transactionId, messenger) ?? transaction;
 
-  const relayRequest: QuoteRequest = {
+  const cryptoRequest: QuoteRequest = {
     ...baseRequest,
     isMaxAmount: false,
     isPostQuote: false,
@@ -135,61 +145,62 @@ export async function submitWithTransactionData({
     targetAmountMinimum: adjustedTargetRaw,
   };
 
-  const relayQuotes = await getRelayQuotes({
+  const cryptoQuotes = await leg.getQuotes({
     accountSupports7702: request.accountSupports7702,
     from: baseRequest.from,
     messenger,
-    requests: [relayRequest],
+    requests: [cryptoRequest],
     transaction: updatedTransaction,
   });
 
-  if (!relayQuotes.length) {
-    throw new Error('No relay quotes returned for completed fiat order');
+  if (!cryptoQuotes.length) {
+    throw new Error(`No ${legName} quotes returned for completed fiat order`);
   }
 
-  validateRelayRateDrift({
-    originalQuote: originalRelayQuote,
-    discoveryQuote: relayQuotes[0].original,
+  validateRateDrift({
+    discoveryAmounts: leg.getAmounts(cryptoQuotes[0]),
+    legName: leg.name,
     maxRateDriftPercent: getFiatMaxRateDriftPercent(messenger),
+    originalAmounts,
     transactionId,
   });
 
-  log('Received relay quotes for completed fiat order', {
-    relayQuoteCount: relayQuotes.length,
+  log(`Received ${legName} quotes for completed fiat order`, {
+    quoteCount: cryptoQuotes.length,
     transactionId,
   });
 
-  return await submitRelayQuotes({
+  return await leg.submit({
     accountSupports7702: request.accountSupports7702,
     isSmartTransaction: request.isSmartTransaction,
     messenger,
-    quotes: relayQuotes,
+    quotes: cryptoQuotes,
     transaction: updatedTransaction,
   });
 }
 
 /**
  * Calculates the fee reserve in raw source token units from the original
- * relay fee quote. This reserve is subtracted from the discovery quote's
+ * crypto leg quote. This reserve is subtracted from the discovery quote's
  * source amount so the final EXACT_OUTPUT quote stays within the settled
  * balance.
  *
  * @param options - Calculation options.
- * @param options.feeQuote - The original relay quote from the fee/quoting phase.
+ * @param options.feeAmounts - Amounts of the original crypto leg quote from the fee/quoting phase.
+ * @param options.feeUsd - Fee of the original crypto leg quote in USD.
  * @param options.multiplier - Multiplier applied to the fee reserve (default 1).
  * @returns The fee reserve in raw source token units.
  */
 function calculateFeeReserve({
-  feeQuote,
+  feeAmounts,
+  feeUsd,
   multiplier,
 }: {
-  feeQuote: RelayQuote;
+  feeAmounts: FiatCryptoLegAmounts;
+  feeUsd: BigNumber;
   multiplier: number;
 }): BigNumber {
-  const sourceRaw = new BigNumber(feeQuote.details.currencyIn.amount);
-  const sourceUsd = new BigNumber(feeQuote.details.currencyIn.amountUsd);
-  const rawImpact = new BigNumber(feeQuote.details.totalImpact.usd);
-  const feeUsd = rawImpact.isNegative() ? rawImpact.abs() : new BigNumber(0);
+  const { sourceRaw, sourceUsd } = feeAmounts;
 
   if (!sourceUsd.gt(0) || !sourceRaw.gt(0) || !feeUsd.gt(0)) {
     return new BigNumber(0);
@@ -212,15 +223,17 @@ function calculateFeeReserve({
  * minimum output compensates for this differential, ensuring the final
  * quote targets a realistic amount.
  *
- * @param discoveryQuote - The relay quote from the discovery phase.
+ * @param discoveryAmounts - Amounts of the crypto leg quote from the discovery phase.
  * @returns The adjusted target amount in raw target token units.
  */
-function calculateAdjustedTarget(discoveryQuote: RelayQuote): string {
-  const targetMinRaw = new BigNumber(
-    discoveryQuote.details.currencyOut.minimumAmount,
-  );
-  const targetUsd = new BigNumber(discoveryQuote.details.currencyOut.amountUsd);
-  const sourceUsd = new BigNumber(discoveryQuote.details.currencyIn.amountUsd);
+function calculateAdjustedTarget(
+  discoveryAmounts: FiatCryptoLegAmounts,
+): string {
+  const {
+    sourceUsd,
+    targetMinimumRaw: targetMinRaw,
+    targetUsd,
+  } = discoveryAmounts;
 
   if (!targetUsd.gt(0) || !targetMinRaw.gt(0)) {
     return targetMinRaw.toFixed(0);
