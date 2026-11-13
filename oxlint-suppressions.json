@@ -1688,14 +1688,6 @@
       "count": 18
     }
   },
-  "packages/bridge-status-controller/src/bridge-status-controller.ts": {
-    "jsdoc/require-param": {
-      "count": 1
-    },
-    "jsdoc/require-returns": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/quote-status-manager/quote-status-api-service.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 11

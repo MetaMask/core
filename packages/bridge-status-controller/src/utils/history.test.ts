@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   BridgeStatusControllerState,
   BridgeHistoryItem,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
   StatusResponse,
 } from '../types.js';
 import {
@@ -37,8 +37,12 @@ describe('History Utils', () => {
     it('returns false when history item missing', () => {
       const state = makeState();
       const result = rekeyHistoryItemInState(state, 'missing', 'tx1', {
-        id: 'tx1',
-        hash: '0xhash',
+        txMetaId: 'tx1',
+        status: {
+          srcChain: {
+            txHash: '0xhash',
+          },
+        },
       });
       expect(result).toBe(false);
     });
@@ -64,8 +68,12 @@ describe('History Utils', () => {
       });
 
       const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
-        id: 'tx1',
-        hash: '0xnew',
+        status: {
+          srcChain: {
+            txHash: '0xnew',
+          },
+        },
+        txMetaId: 'tx1',
       });
 
       expect(result).toBe(true);
@@ -94,7 +102,7 @@ describe('History Utils', () => {
       });
 
       const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
-        id: 'tx1',
+        txMetaId: 'tx1',
       });
 
       expect(result).toBe(true);
@@ -140,7 +148,7 @@ describe('History Utils', () => {
       slippagePercentage: 0,
       accountAddress: '0xaccount',
       isStxEnabled: false,
-    } as unknown as StartPollingForBridgeTxStatusArgsSerialized;
+    } as unknown as StartPollingForBridgeTxStatusArgs;
 
     it('defaults isStxEnabled when omitted', () => {
       const { isStxEnabled: _ignored, ...argsWithoutStx } = baseArgs;

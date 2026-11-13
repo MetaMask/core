@@ -361,12 +361,6 @@
   "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
     "TS2322": {
       "count": 2
-    },
-    "TS2345": {
-      "count": 1
-    },
-    "TS2741": {
-      "count": 2
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {

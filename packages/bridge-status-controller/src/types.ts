@@ -1,4 +1,7 @@
-import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerState,
+} from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -17,6 +20,7 @@ import type {
   BatchSellTradesResponse,
   BridgeControllerGetStateAction,
   InputPrimaryDenomination,
+  Trade,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -133,6 +137,36 @@ export type QuoteAndTxMetadata = {
    * Transaction metadata from the TransactionController after submission
    */
   txMeta?: TransactionMeta;
+};
+
+export type SubmitStrategyParamsJson<
+  TradeType extends Trade = TxData,
+  BatchSellTradesResponseType extends BatchSellTradesResponse | null =
+    BatchSellTradesResponse | null,
+> = {
+  /**
+   * The response from obtainGaslessBatch API containing submittable transactions and their fees
+   */
+  batchSellTrades: BatchSellTradesResponseType;
+  isBridgeTx: boolean;
+  isDelegatedAccount: boolean;
+  /**
+   * Whether the STX is enabled in the wallet. Does not necessarily mean that
+   * STX will be used to submit the transaction.
+   */
+  isStxEnabled: boolean;
+  quoteResponses: (QuoteResponseV1<TradeType, TradeType> & QuoteMetadata)[];
+  /**
+   * Set to true so hardware wallets get prompted for approval on mobile
+   */
+  requireApproval: boolean;
+  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
+  clientId: BridgeClientId;
+  bridgeApiBaseUrl: string;
+  /**
+   * The batch ID of the transaction batch passed to the addTransactionBatchFn
+   */
+  batchId?: `0x${string}`;
 };
 
 export type BridgeHistoryItem = {
@@ -287,9 +321,8 @@ export type QuoteMetadataSerialized = {
 
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Partial<
-    Pick<TransactionMeta, 'id' | 'hash' | 'batchId' | 'status'>
+    Pick<TransactionMeta, 'id' | 'hash' | 'batchId' | 'status' | 'actionId'>
   >;
-  actionId?: string;
   batchSellData?: BridgeHistoryItem['batchSellData'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
@@ -314,18 +347,6 @@ export type StartPollingForBridgeTxStatusArgs = {
   tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
   // Primary denomination at submission time, persisted for post-submit analytics.
   inputPrimaryDenomination?: BridgeHistoryItem['inputPrimaryDenomination'];
-};
-
-/**
- * Chrome: The BigNumber values are automatically serialized to strings when sent to the background
- * Firefox: The BigNumber values are not serialized to strings when sent to the background,
- * so we force the ui to do it manually, by using StartPollingForBridgeTxStatusArgsSerialized type on the startPollingForBridgeTxStatus action
- */
-export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
-  StartPollingForBridgeTxStatusArgs,
-  'quoteResponse'
-> & {
-  quoteResponse: QuoteResponseV1 & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
