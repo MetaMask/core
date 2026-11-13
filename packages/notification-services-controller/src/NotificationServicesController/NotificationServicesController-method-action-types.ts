@@ -233,7 +233,7 @@ export type NotificationServicesControllerSendPerpPlaceOrderNotificationAction =
  * rejected. Only the fields in the update are checked: a marketing channel
  * already on in storage doesn't block updates to other preferences. Turning
  * consent off turns marketing channels off on its own (see
- * `MarketingConsentController`).
+ * `MarketingConsentSyncService`).
  *
  * Read preferences from `AuthenticatedUserStorageService:getNotificationPreferences`
  * (e.g. through `@metamask/react-data-query`), whose cache keeps UIs up to

@@ -33,7 +33,7 @@
   "metamask/money-account-api-data-service": "team-earn",
   "metamask/money-account-mfa-whitelist": "team-earn",
   "metamask/notification-services-controller": "team-engagement",
-  "metamask/marketing-consent-controller": "team-engagement",
+  "metamask/marketing-consent-sync-service": "team-engagement",
   "metamask/compliance-controller": "team-perps",
   "metamask/perps-controller": "team-perps",
   "metamask/phishing-controller": "team-product-safety",

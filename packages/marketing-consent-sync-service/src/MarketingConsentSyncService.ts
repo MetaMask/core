@@ -23,15 +23,15 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
-import type { MarketingConsentControllerMethodActions } from './MarketingConsentController-method-action-types.js';
+import type { MarketingConsentSyncServiceMethodActions } from './MarketingConsentSyncService-method-action-types.js';
 
 // === GENERAL ===
 
 /**
- * The name of the {@link MarketingConsentController}, used to namespace the
- * controller's actions.
+ * The name of the {@link MarketingConsentSyncService}, used to namespace the
+ * service's actions.
  */
-export const controllerName = 'MarketingConsentController';
+export const serviceName = 'MarketingConsentSyncService';
 
 /**
  * One signed-in period. A new session starts whenever the signed-in status
@@ -78,22 +78,22 @@ function selectPendingConsent(
 // === MESSENGER ===
 
 /**
- * The controller methods exposed as messenger actions.
+ * The service methods exposed as messenger actions.
  */
 const MESSENGER_EXPOSED_METHODS = ['setMarketingConsent', 'refresh'] as const;
 
 /**
- * Actions that {@link MarketingConsentControllerMessenger} exposes to other
+ * Actions that {@link MarketingConsentSyncServiceMessenger} exposes to other
  * consumers.
  */
-export type MarketingConsentControllerActions =
-  MarketingConsentControllerMethodActions;
+export type MarketingConsentSyncServiceActions =
+  MarketingConsentSyncServiceMethodActions;
 
 type AuthenticationControllerState =
   AuthenticationController.AuthenticationControllerState;
 
 /**
- * Actions from other messengers that {@link MarketingConsentControllerMessenger}
+ * Actions from other messengers that {@link MarketingConsentSyncServiceMessenger}
  * calls.
  */
 type AllowedActions =
@@ -111,7 +111,7 @@ type AllowedActions =
   | KeyringControllerGetStateAction;
 
 /**
- * Events from other messengers that {@link MarketingConsentControllerMessenger}
+ * Events from other messengers that {@link MarketingConsentSyncServiceMessenger}
  * subscribes to.
  */
 type AllowedEvents =
@@ -125,29 +125,29 @@ type AllowedEvents =
 
 /**
  * The messenger restricted to actions and events accessed by
- * {@link MarketingConsentController}.
+ * {@link MarketingConsentSyncService}.
  */
-export type MarketingConsentControllerMessenger = Messenger<
-  typeof controllerName,
-  MarketingConsentControllerActions | AllowedActions,
+export type MarketingConsentSyncServiceMessenger = Messenger<
+  typeof serviceName,
+  MarketingConsentSyncServiceActions | AllowedActions,
   AllowedEvents
 >;
 
 /**
- * The options that {@link MarketingConsentController} takes.
+ * The options that {@link MarketingConsentSyncService} takes.
  */
-export type MarketingConsentControllerOptions = {
+export type MarketingConsentSyncServiceOptions = {
   /**
-   * The messenger suited for this controller.
+   * The messenger suited for this service.
    */
-  messenger: MarketingConsentControllerMessenger;
+  messenger: MarketingConsentSyncServiceMessenger;
   /**
    * The client sent with every AUS write.
    */
   clientType: ClientType;
 };
 
-// === CONTROLLER DEFINITION ===
+// === SERVICE DEFINITION ===
 
 /**
  * Keeps the user's marketing consent (held locally by `AnalyticsController`)
@@ -155,9 +155,9 @@ export type MarketingConsentControllerOptions = {
  * source of truth.
  *
  * - Clients change consent with
- * {@link MarketingConsentController.setMarketingConsent}, which resolves once
+ * {@link MarketingConsentSyncService.setMarketingConsent}, which resolves once
  * AUS has saved the change.
- * - On sign-in, unlock or {@link MarketingConsentController.refresh}, consent
+ * - On sign-in, unlock or {@link MarketingConsentSyncService.refresh}, consent
  * is read from AUS and applied locally. A client with no local decision (e.g. a
  * social-login restore on a new device) adopts the decision saved in AUS, or
  * stays undecided when there is none.
@@ -167,17 +167,17 @@ export type MarketingConsentControllerOptions = {
  * - Whenever consent is off, the AUS "marketing" notification channels are
  * turned off too, including when another client revoked consent.
  *
- * The controller holds no persisted state: `AnalyticsController` records which
+ * The service holds no persisted state: `AnalyticsController` records which
  * local change is waiting to be saved (`marketingConsentSyncPending`), in the
  * same state update as the consent itself.
  */
-export class MarketingConsentController {
+export class MarketingConsentSyncService {
   /**
-   * The name of the controller.
+   * The name of the service.
    */
-  readonly name: typeof controllerName;
+  readonly name: typeof serviceName;
 
-  readonly #messenger: MarketingConsentControllerMessenger;
+  readonly #messenger: MarketingConsentSyncServiceMessenger;
 
   /**
    * The client sent with every AUS write.
@@ -185,7 +185,7 @@ export class MarketingConsentController {
   readonly #clientType: ClientType;
 
   /**
-   * Whether {@link MarketingConsentController.initialize} has run.
+   * Whether {@link MarketingConsentSyncService.initialize} has run.
    */
   #initialized = false;
 
@@ -212,22 +212,22 @@ export class MarketingConsentController {
   #inFlight: Promise<void> | undefined;
 
   /**
-   * Counts {@link MarketingConsentController.setMarketingConsent} calls, so a
+   * Counts {@link MarketingConsentSyncService.setMarketingConsent} calls, so a
    * call overtaken by a newer one can tell.
    */
   #latestConsentRequest = 0;
 
   /**
-   * Creates a new MarketingConsentController. It doesn't read other
-   * controllers or sync until {@link MarketingConsentController.initialize}
+   * Creates a new MarketingConsentSyncService. It doesn't read other
+   * controllers or sync until {@link MarketingConsentSyncService.initialize}
    * is called.
    *
    * @param options - Constructor options.
-   * @param options.messenger - The messenger suited for this controller.
+   * @param options.messenger - The messenger suited for this service.
    * @param options.clientType - The client writing to AUS.
    */
-  constructor({ messenger, clientType }: MarketingConsentControllerOptions) {
-    this.name = controllerName;
+  constructor({ messenger, clientType }: MarketingConsentSyncServiceOptions) {
+    this.name = serviceName;
     this.#messenger = messenger;
     this.#clientType = clientType;
 
@@ -475,7 +475,7 @@ export class MarketingConsentController {
   }
 
   /**
-   * Throws if the session changed or the controller stopped being ready, so a
+   * Throws if the session changed or the service stopped being ready, so a
    * multi-step write stops before writing to a profile that signed in since.
    *
    * @param session - The session the write belongs to.
