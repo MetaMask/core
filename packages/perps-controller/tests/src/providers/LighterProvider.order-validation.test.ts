@@ -2855,10 +2855,9 @@ describe('LighterProvider', () => {
         }),
       });
       // The frame itself is the first observer: it must be dropped, and
-      // the rebind replaces the socket for account B.
-      expect(accountCallback).toHaveBeenCalledWith(
-        expect.objectContaining({ totalBalance: '0', providerId: 'lighter' }),
-      );
+      // the rebind replaces the socket for account B, whose balance is not
+      // known yet.
+      expect(accountCallback).toHaveBeenCalledWith(null);
       expect(accountCallback).not.toHaveBeenCalledWith(
         expect.objectContaining({ totalBalance: '9999' }),
       );
