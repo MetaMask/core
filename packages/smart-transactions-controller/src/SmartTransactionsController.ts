@@ -8,6 +8,7 @@ import {
   query,
   safelyExecute,
   ChainId,
+  HttpError,
   isSafeDynamicKey,
 } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
@@ -20,11 +21,18 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
+import type {
+  SentinelApiServiceGetBatchStatusAction,
+  SentinelApiServiceCancelAction,
+  SentinelApiServiceGetFeesAction,
+  SentinelApiServiceGetNetworkAction,
+  SentinelApiServiceSubmitTransactionsAction,
+  SentinelSubmitTransactionsResponse,
+} from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerFailTransactionAction,
   TransactionControllerGetNonceLockAction,
@@ -40,7 +48,6 @@ import {
   DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS,
   MetaMetricsEventCategory,
   MetaMetricsEventName,
-  SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
 } from './constants.js';
 import {
@@ -62,11 +69,9 @@ import type {
   FeatureFlags,
   ClientId,
 } from './types.js';
-import { APIType, SmartTransactionStatuses } from './types.js';
+import { SmartTransactionStatuses } from './types.js';
 import {
   calculateStatus,
-  getAPIRequestURL,
-  handleFetch,
   incrementNonceInHex,
   isSmartTransactionCancellable,
   isSmartTransactionPending,
@@ -187,10 +192,14 @@ export type SmartTransactionsControllerActions =
   | SmartTransactionsControllerMethodActions;
 
 type AllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
+  | SentinelApiServiceGetBatchStatusAction
+  | SentinelApiServiceCancelAction
+  | SentinelApiServiceGetFeesAction
+  | SentinelApiServiceGetNetworkAction
+  | SentinelApiServiceSubmitTransactionsAction
   | TransactionControllerFailTransactionAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetTransactionsAction;
@@ -314,38 +323,6 @@ export class SmartTransactionsController extends StaticIntervalPollingController
         ),
       );
     }
-  }
-
-  /* istanbul ignore next */
-  async #fetch(request: string, options?: RequestInit) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(this.#clientId && { 'X-Client-Id': this.#clientId }),
-    };
-
-    const urlMatches = Object.values(SENTINEL_API_BASE_URL_MAP).some(
-      (baseUrl) => request.startsWith(baseUrl),
-    );
-
-    if (urlMatches) {
-      const token = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-    }
-
-    const fetchOptions = {
-      ...options,
-      headers: {
-        ...headers,
-        ...options?.headers,
-      },
-    };
-
-    return handleFetch(request, fetchOptions);
   }
 
   constructor({
@@ -805,21 +782,27 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     // Since transactions come from the same chain group, take the chainId from the first one.
     const { chainId } = transactions[0];
 
-    // Build query parameters with all UUIDs
     const uuids = transactions.map((tx) => tx.uuid);
-    const params = new URLSearchParams({ uuids: uuids.join(',') });
 
     // Get the ethQuery for the first transaction's networkClientId
     const ethQuery = this.#getEthQuery({
       networkClientId: transactions[0].networkClientId,
     });
 
-    // Construct the URL and fetch the data
-    const url = `${getAPIRequestURL(APIType.BATCH_STATUS, chainId)}?${params.toString()}`;
-    const data = (await this.#fetch(url)) as Record<
-      string,
-      SmartTransactionsStatus
-    >;
+    let data: Record<string, SmartTransactionsStatus>;
+    try {
+      data = await this.messenger.call('SentinelApiService:getBatchStatus', {
+        chainId,
+        uuids,
+      });
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
+          data: 'data' in error ? error.data : undefined,
+        });
+      }
+      throw error;
+    }
 
     // Process each returned status
     for (const [uuid, stxStatus] of Object.entries(data)) {
@@ -906,16 +889,24 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       );
     }
     transactions.push(unsignedTradeTransactionWithNonce);
-    const data = await this.#trace(
-      { name: SmartTransactionsTraceName.GetFees },
-      async () =>
-        await this.#fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
-          method: 'POST',
-          body: JSON.stringify({
-            txs: transactions,
+    let data;
+    try {
+      data = await this.#trace(
+        { name: SmartTransactionsTraceName.GetFees },
+        async () =>
+          await this.messenger.call('SentinelApiService:getFees', {
+            chainId,
+            transactions,
           }),
-        }),
-    );
+      );
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
+          data: 'data' in error ? error.data : undefined,
+        });
+      }
+      throw error;
+    }
     let approvalTxFees: IndividualTxFees | null;
     let tradeTxFees: IndividualTxFees | null;
     if (approvalTx) {
@@ -961,7 +952,12 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     transactionMeta?: TransactionMeta;
     txParams?: TransactionParams;
     networkClientId?: NetworkClientId;
-  }) {
+  }): Promise<
+    SentinelSubmitTransactionsResponse & {
+      txHash: string;
+      txHashes: string[];
+    }
+  > {
     const selectedNetworkClientId =
       networkClientId ??
       this.messenger.call('NetworkController:getState').selectedNetworkClientId;
@@ -973,18 +969,15 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     });
     const data = await this.#trace(
       { name: SmartTransactionsTraceName.SubmitTransactions },
-      async () =>
-        await this.#fetch(
-          getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, chainId),
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              rawTxs: signedTransactions,
-              rawCancelTxs: signedCanceledTransactions,
-              rawTxsWithMetadata: signedTransactionsWithMetadata,
-            }),
-          },
-        ),
+      async (): Promise<SentinelSubmitTransactionsResponse> =>
+        await this.messenger.call('SentinelApiService:submitTransactions', {
+          chainId,
+          rawTxs: signedTransactions,
+          rawCancelTxs: signedCanceledTransactions,
+          ...(signedTransactionsWithMetadata === undefined
+            ? {}
+            : { rawTxsWithMetadata: signedTransactionsWithMetadata }),
+        }),
     );
     const time = Date.now();
     let preTxBalance;
@@ -1123,14 +1116,23 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     } = {},
   ): Promise<void> {
     const chainId = this.#getChainId({ networkClientId });
-    await this.#trace(
-      { name: SmartTransactionsTraceName.CancelTransaction },
-      async () =>
-        await this.#fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
-          method: 'POST',
-          body: JSON.stringify({ uuid }),
-        }),
-    );
+    try {
+      await this.#trace(
+        { name: SmartTransactionsTraceName.CancelTransaction },
+        async () =>
+          await this.messenger.call('SentinelApiService:cancel', {
+            chainId,
+            uuid,
+          }),
+      );
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
+          data: 'data' in error ? error.data : undefined,
+        });
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1153,12 +1155,12 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     const chainId = chainIdArg ?? this.#getChainId({ networkClientId });
     let liveness = false;
     try {
-      const response = await this.#trace(
+      const network = await this.#trace(
         { name: SmartTransactionsTraceName.FetchLiveness },
         async () =>
-          await this.#fetch(getAPIRequestURL(APIType.LIVENESS, chainId)),
+          await this.messenger.call('SentinelApiService:getNetwork', chainId),
       );
-      liveness = Boolean(response.smartTransactions);
+      liveness = Boolean(network.smartTransactions);
     } catch {
       console.log('"fetchLiveness" API call failed');
     }

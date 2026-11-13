@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Use `@metamask/sentinel-api-service` for all Sentinel API calls instead of calling the endpoints directly ([#11516](https://github.com/MetaMask/core/pull/11516))
+  - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:getNetwork`, `SentinelApiService:getFees`, `SentinelApiService:submitTransactions`, `SentinelApiService:cancel` and `SentinelApiService:getBatchStatus` actions to the `SmartTransactionsController` messenger.
+  - `fetchLiveness` now calls `SentinelApiService:getNetwork`, and `getFees` calls `SentinelApiService:getFees`. The `getFees` return type is unchanged.
+  - `submitSignedTransactions` now calls `SentinelApiService:submitTransactions`. `signedCanceledTransactions` is forwarded as `rawCancelTxs`, and `SignedTransactionWithMetadata.tx` is now typed as `Hex`.
+  - `cancelSmartTransaction` now calls `SentinelApiService:cancel`. It still accepts `uuid` and an optional `networkClientId`, and still resolves to `void`.
+  - `fetchSmartTransactionsStatus` now calls `SentinelApiService:getBatchStatus`. It still resolves to a `Record<string, SmartTransactionsStatus>` keyed by UUID.
+  - A non-2xx response from `getBatchStatus` or `cancel` is still thrown as `Fetch error: <status>` with the response body on `data`.
+  - A batch status response that does not match the Sentinel batch status schema now throws instead of being processed.
+  - The controller no longer calls `AuthenticationController:getBearerToken`, and `@metamask/profile-sync-controller` is no longer a dependency.
+  - `Feature` and `Kind` are no longer exported. `SentinelMeta` is now re-exported from `@metamask/sentinel-api-service`.
+  - Re-export `SentinelCancellationReason`, `SentinelMinedTxStatus` and `SentinelOriginalTransactionStatus` from `@metamask/sentinel-api-service`, and use them for the `cancellationReason`, `minedTx` and `originalTransactionStatus` types of `SmartTransactionsStatus`.
+  - `calculateStatus` no longer special-cases `minedTx === 'unknown'`; any unrecognised `minedTx` value resolves to `SmartTransactionStatuses.UNKNOWN`.
+  - Remove `SmartTransactionMinedTx`, `SmartTransactionCancellationReason` and `OriginalTransactionStatus`; use `SentinelMinedTxStatus`, `SentinelCancellationReason` and `SentinelOriginalTransactionStatus` instead. The string values are unchanged, but members are PascalCase (e.g. `SmartTransactionMinedTx.NOT_MINED` becomes `SentinelMinedTxStatus.NotMined`). `SmartTransactionMinedTx.UNKNOWN` has no replacement.
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 

@@ -27,10 +27,10 @@
       "path": "../polling-controller/tsconfig.build.json"
     },
     {
-      "path": "../profile-sync-controller/tsconfig.build.json"
+      "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {
-      "path": "../remote-feature-flag-controller/tsconfig.build.json"
+      "path": "../sentinel-api-service/tsconfig.build.json"
     },
     {
       "path": "../transaction-controller/tsconfig.build.json"
