@@ -1,0 +1,728 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`BridgeStatusController (deposit) > startPollingForBridgeTxStatus > emits bridgeTransactionFailed event when the status response is failed 1`] = `
+[
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 105213.34261666666,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_hash_present": false,
+      "destination_transaction": "FAILED",
+      "error_code": "status_failed_without_reason",
+      "failure_phase": "source_execution",
+      "feature_id": "unified_swap_bridge",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_hash_present": true,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > startPollingForBridgeTxStatus > stops polling when the status response is complete 1`] = `
+[
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 105213.34261666666,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_hash_present": true,
+      "destination_transaction": "COMPLETE",
+      "feature_id": "unified_swap_bridge",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_hash_present": true,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": true,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "transaction_internal_id": "bridgeTxMetaId1",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > startPollingForBridgeTxStatus > stops polling when the status response is complete 2`] = `
+[
+  "BridgeStatusController:destinationTransactionCompleted",
+  "eip155:10/slip44:60",
+]
+`;
+
+exports[`BridgeStatusController (deposit) > submitTx: Solana bridge > adds historyItem.next on submit 1`] = `
+[
+  [
+    "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "SOLaccountAddress",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:1",
+      "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "custom_slippage": false,
+      "destination_hash_present": false,
+      "feature_id": "unified_swap_bridge",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Unknown",
+      "price_impact": 0,
+      "provider": "test-bridge_test-bridge",
+      "quoted_time_minutes": 5,
+      "slippage_limit": 0,
+      "source_hash_present": false,
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:1/slip44:60",
+      "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "SOL",
+      "usd_amount_source": 100,
+      "usd_quoted_gas": 5,
+      "usd_quoted_return": 985,
+    },
+  ],
+  [
+    "SnapController:handleRequest",
+    {
+      "handler": "onClientRequest",
+      "origin": "metamask",
+      "request": {
+        "id": "test-uuid-1234",
+        "jsonrpc": "2.0",
+        "method": "signAndSendTransaction",
+        "params": {
+          "accountId": "solana-account-1",
+          "options": {
+            "destAssetId": "eip155:1/slip44:60",
+            "sourceAssetId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
+          },
+          "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+        },
+      },
+      "snapId": "test-snap",
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > submitTx: Solana bridge > adds historyItem.next on submit 2`] = `
+{
+  "approvalTxId": undefined,
+  "chainId": "0x416edef1601be",
+  "destinationChainId": "0x1",
+  "destinationTokenAddress": "0x...",
+  "destinationTokenAmount": "0.5",
+  "destinationTokenDecimals": 18,
+  "destinationTokenSymbol": "ETH",
+  "hash": "signature",
+  "id": "signature",
+  "isBridgeTx": true,
+  "isSolana": true,
+  "networkClientId": "test-snap",
+  "origin": "test-snap",
+  "sourceTokenAddress": "native",
+  "sourceTokenAmount": "1000000000",
+  "sourceTokenDecimals": 9,
+  "sourceTokenSymbol": "SOL",
+  "status": "submitted",
+  "swapTokenValue": "1",
+  "time": 1234567891,
+  "txParams": {
+    "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
+    "from": "0x123...",
+  },
+  "type": "bridge",
+}
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should not start polling for bridge tx if tx is not in txHistory 1`] = `[]`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should not track completed event for other transaction types 1`] = `[]`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for bridge tx if status response is invalid 1`] = `
+[
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Status Failed Validation",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "failures": [
+        "across|status",
+      ],
+      "feature_id": "perps",
+      "location": "Main View",
+      "refresh_count": 0,
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+    },
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Status Failed Validation",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "failures": [
+        "across|unknown",
+      ],
+      "feature_id": "unified_swap_bridge",
+      "location": "Main View",
+      "refresh_count": 0,
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for bridge tx if status response is invalid 2`] = `
+[
+  [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|status],
+  ],
+  [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|unknown],
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for completed bridge tx with featureId=perps 2`] = `
+{
+  "bridge": "across",
+  "destChain": {
+    "amount": "990654755978611",
+    "chainId": 10,
+    "token": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "txHash": "0xdestTxHash1",
+  },
+  "isExpectedToken": true,
+  "srcChain": {
+    "amount": "991250000000000",
+    "chainId": 42161,
+    "token": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "txHash": "0xperpsSrcTxHash1",
+  },
+  "status": "COMPLETE",
+}
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for failed bridge tx with featureId=perps 2`] = `
+{
+  "bridge": "debridge",
+  "destChain": {
+    "chainId": 10,
+    "token": {},
+  },
+  "srcChain": {
+    "amount": "991250000000000",
+    "chainId": 42161,
+    "token": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "symbol": "ETH",
+    },
+    "txHash": "0xperpsSrcTxHash1",
+  },
+  "status": "FAILED",
+}
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should track completed event for swap transaction 1`] = `
+[
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 833734.9086333333,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_hash_present": false,
+      "destination_transaction": "PENDING",
+      "feature_id": "unified_swap_bridge",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Unknown",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_hash_present": true,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_address_destination": "eip155:42161/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "transaction_internal_id": "swapTxMetaId1",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should find history by actionId when txMeta.id not in history (pre-submission failure) 1`] = `
+[
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Failed",
+  {
+    "account_hardware_type": null,
+    "action_type": "swapbridge-v1",
+    "actual_time_minutes": 833734.9086333333,
+    "allowance_reset_transaction": undefined,
+    "approval_transaction": undefined,
+    "chain_id_destination": "eip155:10",
+    "chain_id_source": "eip155:42161",
+    "custom_slippage": false,
+    "destination_hash_present": false,
+    "destination_transaction": "FAILED",
+    "error_code": "unknown",
+    "error_message": "Transaction failed. tx-error",
+    "failure_phase": "source_execution",
+    "feature_id": "unified_swap_bridge",
+    "gas_included": false,
+    "gas_included_7702": false,
+    "is_hardware_wallet": false,
+    "location": "Main View",
+    "price_impact": 0,
+    "provider": "lifi_across",
+    "quote_vs_execution_ratio": 0,
+    "quoted_time_minutes": 0.25,
+    "quoted_vs_used_gas_ratio": 0,
+    "security_warnings": [],
+    "slippage_limit": 0,
+    "source_hash_present": true,
+    "source_transaction": "COMPLETE",
+    "stx_enabled": false,
+    "swap_type": "crosschain",
+    "token_address_destination": "eip155:10/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+    "token_security_type_destination": null,
+    "token_symbol_destination": "ETH",
+    "token_symbol_source": "ETH",
+    "usd_actual_gas": 0,
+    "usd_actual_return": 0,
+    "usd_amount_source": 0,
+    "usd_quoted_gas": 2.5778,
+    "usd_quoted_return": 0,
+  },
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should not track failed event for approved status 1`] = `[]`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should not track failed event for other transaction types 1`] = `[]`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should not track failed event for signed status 1`] = `[]`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for bridge transaction 1`] = `
+[
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Failed",
+  {
+    "account_hardware_type": null,
+    "action_type": "swapbridge-v1",
+    "actual_time_minutes": 833734.9086333333,
+    "allowance_reset_transaction": undefined,
+    "approval_transaction": undefined,
+    "batch_id": "0xBatchIdFailed1",
+    "chain_id_destination": "eip155:10",
+    "chain_id_source": "eip155:42161",
+    "custom_slippage": false,
+    "destination_hash_present": false,
+    "destination_transaction": "FAILED",
+    "error_code": "unknown",
+    "error_message": "Transaction failed. tx-error",
+    "failure_phase": "source_execution",
+    "feature_id": "unified_swap_bridge",
+    "gas_included": false,
+    "gas_included_7702": false,
+    "is_hardware_wallet": false,
+    "location": "Main View",
+    "price_impact": 0,
+    "provider": "lifi_across",
+    "quote_vs_execution_ratio": 0,
+    "quoted_time_minutes": 0.25,
+    "quoted_vs_used_gas_ratio": 0,
+    "security_warnings": [],
+    "slippage_limit": 0,
+    "source_hash_present": true,
+    "source_transaction": "COMPLETE",
+    "stx_enabled": false,
+    "swap_type": "crosschain",
+    "token_address_destination": "eip155:10/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+    "token_security_type_destination": null,
+    "token_symbol_destination": "ETH",
+    "token_symbol_source": "ETH",
+    "usd_actual_gas": 0,
+    "usd_actual_return": 0,
+    "usd_amount_source": 0,
+    "usd_quoted_gas": 2.5778,
+    "usd_quoted_return": 0,
+  },
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for bridge transaction if approval is dropped 1`] = `
+[
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 833734.9086333333,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": "COMPLETE",
+      "chain_id_destination": "eip155:10",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_hash_present": false,
+      "destination_transaction": "FAILED",
+      "error_code": "unknown",
+      "error_message": "Transaction dropped. tx-error",
+      "failure_phase": "source_execution",
+      "feature_id": "unified_swap_bridge",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_hash_present": true,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:10/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for bridge transaction if not in txHistory 1`] = `
+[
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 0,
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_hash_present": false,
+      "error_code": "unknown",
+      "error_message": "Transaction failed. tx-error",
+      "failure_phase": "broadcast",
+      "feature_id": "unified_swap_bridge",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Unknown",
+      "price_impact": 0,
+      "provider": "",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_hash_present": false,
+      "source_transaction": "FAILED",
+      "stx_enabled": false,
+      "swap_type": "crosschain",
+      "token_address_destination": "eip155:42161/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "",
+      "token_symbol_source": "",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for swap transaction 1`] = `
+[
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Failed",
+    {
+      "account_hardware_type": null,
+      "action_type": "swapbridge-v1",
+      "actual_time_minutes": 833734.9086333333,
+      "allowance_reset_transaction": undefined,
+      "approval_transaction": undefined,
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "destination_hash_present": false,
+      "destination_transaction": "FAILED",
+      "error_code": "unknown",
+      "error_message": "Transaction failed. tx-error",
+      "failure_phase": "source_execution",
+      "feature_id": "unified_swap_bridge",
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Unknown",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quote_vs_execution_ratio": 0,
+      "quoted_time_minutes": 0.25,
+      "quoted_vs_used_gas_ratio": 0,
+      "security_warnings": [],
+      "slippage_limit": 0,
+      "source_hash_present": true,
+      "source_transaction": "COMPLETE",
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_address_destination": "eip155:42161/slip44:60",
+      "token_address_source": "eip155:42161/slip44:60",
+      "token_security_type_destination": null,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_actual_gas": 0,
+      "usd_actual_return": 0,
+      "usd_amount_source": 0,
+      "usd_quoted_gas": 0,
+      "usd_quoted_return": 0,
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController (deposit) > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for swap transaction if approval fails 1`] = `
+[
+  "BridgeController:trackUnifiedSwapBridgeEvent",
+  "Unified SwapBridge Failed",
+  {
+    "account_hardware_type": null,
+    "action_type": "swapbridge-v1",
+    "actual_time_minutes": 833734.9086333333,
+    "allowance_reset_transaction": undefined,
+    "approval_transaction": "COMPLETE",
+    "chain_id_destination": "eip155:10",
+    "chain_id_source": "eip155:42161",
+    "custom_slippage": false,
+    "destination_hash_present": false,
+    "destination_transaction": "FAILED",
+    "error_code": "unknown",
+    "error_message": "Transaction failed. approval-tx-error",
+    "failure_phase": "source_execution",
+    "feature_id": "unified_swap_bridge",
+    "gas_included": false,
+    "gas_included_7702": false,
+    "is_hardware_wallet": false,
+    "location": "Main View",
+    "price_impact": 0,
+    "provider": "lifi_across",
+    "quote_vs_execution_ratio": 0,
+    "quoted_time_minutes": 0.25,
+    "quoted_vs_used_gas_ratio": 0,
+    "security_warnings": [],
+    "slippage_limit": 0,
+    "source_hash_present": true,
+    "source_transaction": "COMPLETE",
+    "stx_enabled": false,
+    "swap_type": "crosschain",
+    "token_address_destination": "eip155:10/slip44:60",
+    "token_address_source": "eip155:42161/slip44:60",
+    "token_security_type_destination": null,
+    "token_symbol_destination": "ETH",
+    "token_symbol_source": "ETH",
+    "usd_actual_gas": 0,
+    "usd_actual_return": 0,
+    "usd_amount_source": 0,
+    "usd_quoted_gas": 2.5778,
+    "usd_quoted_return": 0,
+  },
+]
+`;

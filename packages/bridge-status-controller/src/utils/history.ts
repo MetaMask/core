@@ -30,8 +30,18 @@ const mergeHistoryItems = (
   historyItemOverrides?: Partial<
     Pick<
       BridgeHistoryItem,
-      'approvalTxId' | 'quoteIds' | 'quote' | 'txMetaId' | 'actionId'
-    > & { status?: DeepPartial<BridgeHistoryItem['status']> }
+      | 'approvalTxId'
+      | 'quoteIds'
+      | 'quote'
+      | 'txMetaId'
+      | 'actionId'
+      | 'batchId'
+      | 'depositTxMeta'
+      | 'originalTransactionId'
+      | 'next'
+    > & {
+      status?: DeepPartial<BridgeHistoryItem['status']>;
+    }
   >,
 ): Partial<BridgeHistoryItem> => {
   return {
@@ -42,6 +52,7 @@ const mergeHistoryItems = (
     actionId: historyItemOverrides?.actionId ?? oldHistoryItem.actionId,
     approvalTxId:
       historyItemOverrides?.approvalTxId ?? oldHistoryItem.approvalTxId,
+    batchId: historyItemOverrides?.batchId ?? oldHistoryItem.batchId,
     status: {
       ...oldHistoryItem.status,
       srcChain: {
@@ -56,6 +67,15 @@ const mergeHistoryItems = (
     ...(historyItemOverrides?.quote && { quote: historyItemOverrides.quote }),
     ...(historyItemOverrides?.quoteIds && {
       quoteIds: historyItemOverrides.quoteIds,
+    }),
+    ...(historyItemOverrides?.next && { next: historyItemOverrides.next }),
+    ...(historyItemOverrides?.depositTxMeta && {
+      depositTxMeta: {
+        ...(oldHistoryItem.depositTxMeta && {
+          ...oldHistoryItem.depositTxMeta,
+        }),
+        ...historyItemOverrides.depositTxMeta,
+      },
     }),
   };
 };
@@ -171,6 +191,29 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
   });
 };
 
+/**
+ * Returns the history entry whose depositTxMeta matches the txMeta's batchId
+ *
+ * @param txHistory - The transaction history
+ * @param txMeta - The transaction meta
+ * @returns The history entry that matches the txMeta
+ */
+const getMatchingHistoryItemForDepositTxMeta = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txMeta: TransactionMeta,
+): [string, BridgeHistoryItem] | undefined => {
+  const historyEntries = Object.entries(txHistory);
+
+  return historyEntries.find(([_, value]) => {
+    if (
+      value.depositTxMeta?.batchId &&
+      value.depositTxMeta.batchId === txMeta.batchId
+    ) {
+      return true;
+    }
+  });
+};
+
 export const resolveHistoryKeyForTxMeta = (
   { transactionMeta }: { transactionMeta: TransactionMeta },
   txHistory: BridgeStatusControllerState['txHistory'],
@@ -179,10 +222,9 @@ export const resolveHistoryKeyForTxMeta = (
     // Match swap/bridge/batch src tx
     (getMatchingHistoryEntryForTxMeta(txHistory, transactionMeta) ??
       // Match approval tx
-      getMatchingHistoryEntryForApprovalTxMeta(
-        txHistory,
-        transactionMeta,
-      ))?.[0],
+      getMatchingHistoryEntryForApprovalTxMeta(txHistory, transactionMeta) ??
+      // Match deposit tx
+      getMatchingHistoryItemForDepositTxMeta(txHistory, transactionMeta))?.[0],
   txMeta: transactionMeta,
 });
 
@@ -306,6 +348,7 @@ export const getInitialHistoryItem = (
     location,
     abTests,
     activeAbTests,
+    next,
     accountAddress: selectedAddress,
     originalTransactionId,
     tokenSecurityTypeDestination,
@@ -352,6 +395,7 @@ export const getInitialHistoryItem = (
     ...(inputPrimaryDenomination !== undefined && {
       inputPrimaryDenomination,
     }),
+    ...(next && { next }),
   };
 
   if (batchSellData) {

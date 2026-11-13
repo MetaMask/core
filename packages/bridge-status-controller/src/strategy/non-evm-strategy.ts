@@ -73,6 +73,9 @@ export async function* submitNonEvmHandler(
   const {
     quoteResponses: [quoteResponse],
     isBridgeTx,
+    next,
+    messenger,
+    selectedAccount,
   } = args;
 
   const approvalTxId = await handleTronApproval(args);
@@ -80,10 +83,10 @@ export async function* submitNonEvmHandler(
   // TODO bridge-status should update history with actionId if approvalTxId is present
 
   const tradeMeta = await handleNonEvmTx(
-    args.messenger,
+    messenger,
     quoteResponse.trade,
     quoteResponse,
-    args.selectedAccount,
+    selectedAccount,
   );
 
   yield {
@@ -91,31 +94,53 @@ export async function* submitNonEvmHandler(
     payload: { tradeMeta },
   };
 
-  yield {
-    type: SubmitStep.AddHistoryItem,
-    payload: {
-      historyKey: tradeMeta.id,
-      approvalTxId,
-      bridgeTxMeta: {
-        id: tradeMeta.id,
-        hash: tradeMeta.hash,
+  // This strategy doesn't rekey the history item, so key by the next batchId
+  // for the next submit execution
+  let historyKey: string | undefined;
+
+  if (args.historyKey) {
+    historyKey = args.historyKey;
+    yield {
+      type: SubmitStep.UpdateHistoryItem,
+      payload: {
+        historyKey,
+        historyItemOverrides: {
+          txMetaId: tradeMeta.id,
+          approvalTxId,
+          quote: quoteResponse.quote,
+          next,
+        },
       },
-      quoteResponse,
-    },
-  };
+    };
+  } else {
+    historyKey = tradeMeta.id;
+    yield {
+      type: SubmitStep.AddHistoryItem,
+      payload: {
+        historyKey,
+        approvalTxId,
+        bridgeTxMeta: {
+          id: tradeMeta.id,
+          hash: tradeMeta.hash,
+        },
+        quoteResponse,
+        next,
+      },
+    };
+  }
 
   yield {
     type: SubmitStep.StartPolling,
     payload: {
-      historyKey: tradeMeta.id,
+      historyKey,
     },
   };
 
-  if (!isTronChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
+  if (!isTronChainId(quoteResponse.quote.srcChainId) && !isBridgeTx && !next) {
     yield {
       type: SubmitStep.PublishCompletedEvent,
       payload: {
-        historyKey: tradeMeta.id,
+        historyKey,
       },
     };
   }

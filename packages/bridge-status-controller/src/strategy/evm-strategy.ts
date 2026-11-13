@@ -152,23 +152,43 @@ export async function* submitEvmHandler(
     quoteResponses: [quoteResponse],
     requireApproval,
     isBridgeTx,
+    next,
+    batchId,
   } = args;
 
   // Generate actionId for pre-submission history
-  const actionId = generateActionId();
+  const actionId = batchId ?? generateActionId();
+  const historyKey = args.historyKey ?? actionId;
 
-  // Add pre-submission history keyed by actionId
-  // This ensures we have quote data available if transaction fails during submission
-  yield {
-    type: SubmitStep.AddHistoryItem,
-    payload: {
-      historyKey: actionId,
-      quoteResponse,
-      bridgeTxMeta: {
-        actionId,
+  // Add new history item if no batchId is provided
+  if (args.historyKey) {
+    yield {
+      type: SubmitStep.UpdateHistoryItem,
+      payload: {
+        historyKey,
+        historyItemOverrides: {
+          next,
+          quote: quoteResponse.quote,
+          actionId,
+          batchId,
+        },
       },
-    },
-  };
+    };
+  } else {
+    // Add pre-submission history keyed by actionId
+    // This ensures we have quote data available if transaction fails during submission
+    yield {
+      type: SubmitStep.AddHistoryItem,
+      payload: {
+        historyKey,
+        quoteResponse,
+        bridgeTxMeta: {
+          actionId,
+        },
+        next,
+      },
+    };
+  }
 
   // Submit resetApproval and approval transactions if present
   const approvalTxMeta = await handleEvmApprovals(args, actionId);
@@ -183,7 +203,7 @@ export async function* submitEvmHandler(
     yield {
       type: SubmitStep.RekeyHistoryItem,
       payload: {
-        oldHistoryKey: actionId,
+        oldHistoryKey: historyKey,
         newHistoryKey: tradeActionId,
         historyItemOverrides: {
           approvalTxId,

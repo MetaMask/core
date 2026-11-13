@@ -67,9 +67,10 @@ import type {
   StartPollingForBridgeTxStatusArgs,
   FetchFunction,
   BridgeHistoryItem,
+  BridgeStatusControllerMessenger,
+  NextAction,
 } from './types.js';
-import type { BridgeStatusControllerMessenger } from './types.js';
-import { BridgeClientId } from './types.js';
+import { BridgeClientId, Operation } from './types.js';
 import { getJwt } from './utils/authentication.js';
 import {
   fetchBridgeTxStatus,
@@ -107,6 +108,7 @@ import { getSelectedChainId } from './utils/network.js';
 import { normalizeQuoteResponses } from './utils/quotes.js';
 import {
   approvalUpdateHandler,
+  depositUpdateHandler,
   tradeUpdateHandler,
 } from './utils/subscriptions.js';
 import type {
@@ -129,6 +131,8 @@ import {
   updateTransactionsInBatch,
   hasNestedSwapTransactions,
   hasNestedBridgeTransactions,
+  isTradeTx,
+  hasNestedDepositTransactions,
 } from './utils/transaction.js';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -292,6 +296,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           case TransactionType.bridgeApproval:
             handler = approvalUpdateHandler;
             break;
+          case TransactionType.moneyAccountDeposit:
+            handler = depositUpdateHandler;
+            break;
           case TransactionType.bridge:
           case TransactionType.swap:
             handler = tradeUpdateHandler;
@@ -303,6 +310,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               hasNestedBridgeTransactions(args.txMeta)
             ) {
               handler = tradeUpdateHandler;
+            } else if (hasNestedDepositTransactions(args.txMeta)) {
+              handler = depositUpdateHandler;
             } else {
               // This handler only checks for failures, so it's safe to use
               // for unrecognized transactions
@@ -396,10 +405,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#updateHistoryItem({
       historyKey,
-      status: StatusTypes.FAILED,
-      // Only update txHash if it's not an approval tx failure
-      txHash: isApprovalTxMeta ? undefined : txMeta?.hash,
-      completionTime: Date.now(),
+      historyItemOverrides: {
+        status: StatusTypes.FAILED,
+        // Only update txHash if it's not an approval tx failure
+        txHash:
+          txMeta?.type && isTradeTx(txMeta.type) ? txMeta?.hash : undefined,
+        completionTime: Date.now(),
+      },
     });
 
     if (txMeta?.status === TransactionStatus.rejected) {
@@ -458,13 +470,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.txMeta - The transaction meta
    * @param params.historyKey - The history key
    */
-  readonly #onTransactionConfirmed = ({
+  readonly #onTransactionConfirmed = async ({
     txMeta,
     historyKey,
   }: {
     txMeta: TransactionMeta;
     historyKey: string;
-  }): void => {
+  }): Promise<void> => {
+    const historyItem = this.state.txHistory[historyKey];
+
+    // Return early if deposit is already in flight
+    if (
+      historyItem.depositTxMeta?.batchId &&
+      historyItem.depositTxMeta.batchId !== txMeta.batchId
+    ) {
+      return;
+    }
+
     const { type, hash: txHash, id, chainId } = txMeta;
 
     const isBridge =
@@ -472,7 +494,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (isBridge) {
       this.#updateHistoryItem({
         historyKey,
-        txHash,
+        historyItemOverrides: {
+          txHash,
+        },
       });
       this.#startPollingForTxId(historyKey);
       return;
@@ -480,11 +504,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#updateHistoryItem({
       historyKey,
-      status: StatusTypes.COMPLETE,
-      txHash: txMeta.hash,
-      completionTime: Date.now(),
+      historyItemOverrides: {
+        status: StatusTypes.COMPLETE,
+        txHash: txMeta.hash,
+        completionTime: Date.now(),
+      },
     });
 
+    const updatedHistoryItem = this.state.txHistory[historyKey];
     const isSwap =
       type === TransactionType.swap || hasNestedSwapTransactions(txMeta);
     const isIntent = this.#isIntentHistoryItem(historyKey);
@@ -493,14 +520,26 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // confirmed, so the submitted status handler never had one to report.
       // Report it here (before reportFinalised) so the deferred-queue entry
       // exists.
-      const historyItem = this.state.txHistory[historyKey];
-      if (txHash && !isNonEvmChainId(historyItem.quote.srcChainId)) {
+      if (txHash && !isNonEvmChainId(updatedHistoryItem.quote.srcChainId)) {
         this.#reportSubmittedOnce(historyKey, txHash, id);
       }
       this.#quoteStatusManager.reportFinalised(id, true, chainId, txHash);
       this.#traceSwapOperationCompleted(historyKey, 'success', 'source').catch(
         () => undefined,
       );
+    }
+
+    // Return early if there is a post-tx action needed
+    if (updatedHistoryItem.next && updatedHistoryItem.next.length > 0) {
+      this.#updateHistoryItem({
+        historyKey,
+        ...((isSwap || isBridge) && { txHash }),
+        ...(updatedHistoryItem.depositTxMeta && {
+          depositTxMeta: { hash: txHash },
+        }),
+      });
+      await this.#nextTx(historyKey);
+      return;
     }
 
     this.#trackUnifiedSwapBridgeEvent(
@@ -948,7 +987,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Update the attempts counter
     this.#updateHistoryItem({
       historyKey: bridgeTxMetaId,
-      attempts: newAttempts,
+      historyItemOverrides: {
+        attempts: newAttempts,
+      },
     });
   };
 
@@ -1168,6 +1209,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             'BridgeStatusController:destinationTransactionCompleted',
             historyItem.quote.destAsset.assetId,
           );
+          // Execute post-tx actions instead of terminal status events
+          if (
+            newBridgeHistoryItem?.next &&
+            newBridgeHistoryItem.next.length > 0
+          ) {
+            await this.#nextTx(bridgeTxMetaId);
+            return;
+          }
           this.#trackUnifiedSwapBridgeEvent(
             UnifiedSwapBridgeEventName.Completed,
             bridgeTxMetaId,
@@ -1185,6 +1234,140 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.#handleFetchFailure(bridgeTxMetaId);
     } finally {
       await this.#handleOldHistoryItem(bridgeTxMetaId);
+    }
+  };
+
+  /*
+   * Generates a new batchId and adds it to history
+   * so the upcoming action can't be executed again.
+   *
+   * @param historyKey - The key of the history item to lock
+   * @returns The shifted next actions, new batchId, and rebuilt quoteResponse
+   */
+  readonly #lockHistoryItem = (
+    historyKey: string,
+  ): {
+    operation: Operation;
+    batchId: `0x${string}`;
+    next: NextAction[];
+    quoteResponse: QuoteResponseV1;
+  } => {
+    const historyItem = this.state.txHistory[historyKey];
+    if (historyItem.status.isExpectedToken === false) {
+      throw new Error(
+        `Incorrect token received from bridge tx, skipping next action: ${historyKey}`,
+      );
+    }
+
+    const { depositTxMeta } = historyItem;
+    const [pending, ...next] = historyItem.next ?? [];
+
+    // Return early if deposit has already started
+    if (depositTxMeta?.batchId || !pending) {
+      throw new Error(`Deposit has already started, skipping: ${historyKey}`);
+    }
+
+    const batchId = generateBatchId();
+
+    this.#updateHistoryItem({
+      historyKey,
+      historyItemOverrides: {
+        ...(pending.operation === Operation.DEPOSIT && {
+          depositTxMeta: {
+            batchId,
+          },
+        }),
+      },
+    });
+
+    return {
+      operation: pending.operation,
+      batchId,
+      next,
+      quoteResponse: { quote: historyItem.quote, ...pending.partialQuote },
+    };
+  };
+
+  readonly #nextTx = async (historyKey: string): Promise<void> => {
+    try {
+      const { batchId, next, quoteResponse, operation } =
+        this.#lockHistoryItem(historyKey);
+
+      const historyItem = this.state.txHistory[historyKey];
+
+      const isBridgeTx = isCrossChain(
+        historyItem.quote.srcChainId,
+        historyItem.quote.destChainId,
+      );
+
+      // Use tx hash that transferred funds to the user's wallet
+      const txHash = isBridgeTx
+        ? historyItem.status.destChain?.txHash
+        : historyItem.status.srcChain.txHash;
+
+      const selectedAccount = getAccountByAddress(
+        this.messenger,
+        historyItem.account,
+      );
+      if (!selectedAccount) {
+        throw new Error(
+          `Account not found, skipping next action: ${historyItem.account}`,
+        );
+      }
+      const isDelegatedAccount = isNonEvmChainId(quoteResponse.quote.srcChainId)
+        ? false
+        : await checkIsDelegatedAccount(
+            this.messenger,
+            selectedAccount.address as Hex,
+            [formatChainIdToHex(quoteResponse.quote.srcChainId)],
+          );
+
+      const { error, txMeta } = await this.#executeSubmitStrategy(
+        {
+          addTransactionBatchFn: this.#addTransactionBatchFn,
+          fetchFn: this.#fetchFn,
+          traceFn: this.#trace,
+          messenger: this.messenger,
+          isStxEnabled: Boolean(historyItem.isStxEnabled),
+          isBridgeTx,
+          requireApproval: false,
+          selectedAccount,
+          clientId: this.#clientId,
+          bridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
+          batchSellTrades: historyItem.batchSellData ?? null,
+          quoteResponses: [quoteResponse],
+          isDelegatedAccount,
+          operation,
+          batchId,
+          next,
+          previousTxHash: txHash,
+          historyKey,
+        },
+        {
+          startTime: historyItem.startTime,
+          location: historyItem.location ?? MetaMetricsSwapsEventSource.Unknown,
+          abTests: historyItem.abTests,
+          activeAbTests: historyItem.activeAbTests,
+          tokenSecurityTypeDestination:
+            historyItem.tokenSecurityTypeDestination,
+          inputPrimaryDenomination: historyItem.inputPrimaryDenomination,
+          customSlippage: historyItem.customSlippage,
+        },
+      );
+      if (error) {
+        throw error;
+      }
+      if (!txMeta) {
+        throw new Error('Transaction failed due to missing tx meta');
+      }
+    } catch (error) {
+      // Client submission hooks don't catch this error so use messenger to capture it
+      this.messenger.captureException?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      this.#onTransactionFailed({
+        historyKey,
+      });
     }
   };
 
@@ -1228,7 +1411,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       : undefined;
     this.#updateHistoryItem({
       historyKey: bridgeTxMetaId,
-      txHash: localTxHash,
+      historyItemOverrides: {
+        txHash: localTxHash,
+      },
     });
 
     return localTxHash;
@@ -1236,32 +1421,87 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #updateHistoryItem = ({
     historyKey,
-    status,
-    txHash,
-    attempts,
-    completionTime,
+    historyItemOverrides,
   }: {
     historyKey?: string;
-    status?: StatusTypes;
-    txHash?: string;
-    attempts?: BridgeHistoryItem['attempts'];
-    completionTime?: BridgeHistoryItem['completionTime'];
+    historyItemOverrides?: {
+      status?: StatusTypes;
+      txHash?: string;
+    } & Partial<
+      Pick<
+        BridgeHistoryItem,
+        | 'attempts'
+        | 'completionTime'
+        | 'depositTxMeta'
+        | 'next'
+        | 'quote'
+        | 'batchId'
+        | 'actionId'
+        | 'txMetaId'
+        | 'approvalTxId'
+        | 'originalTransactionId'
+      >
+    >;
   }): void => {
-    if (!historyKey) {
+    if (!historyKey || !historyItemOverrides) {
       return;
     }
+
+    const {
+      status,
+      txHash,
+      attempts,
+      completionTime,
+      depositTxMeta,
+      next,
+      quote,
+      batchId,
+      actionId,
+      txMetaId,
+      approvalTxId,
+      originalTransactionId,
+    } = historyItemOverrides;
+
     this.update((currentState) => {
+      const historyItem = currentState.txHistory[historyKey];
       if (status) {
-        currentState.txHistory[historyKey].status.status = status;
+        historyItem.status.status = status;
       }
       if (txHash) {
-        currentState.txHistory[historyKey].status.srcChain.txHash = txHash;
+        historyItem.status.srcChain.txHash = txHash;
       }
       if (attempts) {
-        currentState.txHistory[historyKey].attempts = attempts;
+        historyItem.attempts = attempts;
       }
       if (completionTime) {
-        currentState.txHistory[historyKey].completionTime = completionTime;
+        historyItem.completionTime = completionTime;
+      }
+      if (depositTxMeta) {
+        historyItem.depositTxMeta = {
+          ...historyItem.depositTxMeta,
+          ...depositTxMeta,
+        };
+      }
+      if (next) {
+        historyItem.next = next;
+      }
+      if (quote) {
+        historyItem.quote = quote;
+      }
+      if (batchId) {
+        historyItem.batchId = batchId;
+      }
+      if (actionId) {
+        historyItem.actionId = actionId;
+      }
+      if (txMetaId) {
+        historyItem.txMetaId = txMetaId;
+      }
+      if (approvalTxId) {
+        historyItem.approvalTxId = approvalTxId;
+      }
+      if (originalTransactionId) {
+        historyItem.originalTransactionId = originalTransactionId;
       }
     });
   };
@@ -1402,6 +1642,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             this.#startPollingForTxId(payload.historyKey);
             break;
 
+          case SubmitStep.UpdateHistoryItem:
+            this.#updateHistoryItem(payload);
+            break;
+
           case SubmitStep.PublishCompletedEvent: {
             const completedHistoryItem =
               this.state.txHistory[payload.historyKey];
@@ -1459,6 +1703,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
    * @param params.inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
    * @param params.migrationPhase - The active migration phase for the quote response
+   * @param params.operation - The money account operation to execute before or after the swap
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
@@ -1474,6 +1719,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     batchSellTrades = null,
     inputPrimaryDenomination,
     migrationPhase,
+    operation = Operation.SWAP,
   }: {
     accountAddress: string;
     quoteResponses:
@@ -1488,6 +1734,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     batchSellTrades?: BatchSellTradesResponse | null;
     inputPrimaryDenomination?: InputPrimaryDenomination;
     migrationPhase?: QuoteMetadataMigrationPhase;
+    operation?: Operation;
   }): Promise<TransactionMeta> => {
     const quoteResponses = normalizeQuoteResponses(
       quoteResponsesV1orV2,
@@ -1572,6 +1819,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             [formatChainIdToHex(quote.srcChainId)],
           );
 
+      const partialQuote = {
+        quoteId: quoteResponse.quoteId,
+        trade: quoteResponse.trade,
+        approval: quoteResponse.approval,
+        resetApproval: quoteResponse.resetApproval,
+        estimatedProcessingTimeInSeconds:
+          quoteResponse.estimatedProcessingTimeInSeconds,
+      };
+      const next = [
+        {
+          operation:
+            operation === Operation.DEPOSIT
+              ? Operation.DEPOSIT // after swap
+              : Operation.SWAP, // after withdraw
+          partialQuote, // cache initial trade and approval txs
+        },
+      ];
+
       const strategyParams: SubmitStrategyParams<Trade> = {
         messenger: this.messenger,
         quoteResponses,
@@ -1587,6 +1852,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         fetchFn: this.#fetchFn,
         traceFn: this.#trace,
         batchId,
+        operation,
+        next: operation === Operation.SWAP ? undefined : next,
       };
 
       return await this.#trace(
@@ -1657,6 +1924,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
     migrationPhase?: QuoteMetadataMigrationPhase;
+    operation?: Operation;
   }): Promise<TransactionMeta> => {
     const {
       quoteResponse,
@@ -1669,6 +1937,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       inputPrimaryDenomination,
       isStxEnabled = false,
       quotesReceivedContext,
+      operation,
     } = params;
 
     return await this.submitTx({
@@ -1683,6 +1952,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       batchSellTrades: undefined,
       inputPrimaryDenomination,
       migrationPhase,
+      operation,
     });
   };
 

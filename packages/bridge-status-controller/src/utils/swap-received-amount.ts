@@ -1,3 +1,4 @@
+import type { Web3Provider } from '@ethersproject/providers';
 import type { TokenAmountValues } from '@metamask/bridge-controller';
 import { isNativeAddress } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
@@ -9,7 +10,7 @@ const getReceivedNativeAmount = (
   historyItem: BridgeHistoryItem,
   actualGas: Omit<TokenAmountValues, 'valueInCurrency'> | null,
   txMeta: TransactionMeta,
-) => {
+): string | BigNumber | null => {
   const { preTxBalance, postTxBalance } = txMeta;
 
   if (!preTxBalance || !postTxBalance || preTxBalance === postTxBalance) {
@@ -32,7 +33,7 @@ export const getReceivedERC20Amount = (
   walletAddress: string,
   destAssetAddress: string,
   logs?: { address?: string; topics?: string[]; data?: string }[],
-) => {
+): BigNumber | null => {
   if (!logs) {
     return null;
   }
@@ -79,7 +80,7 @@ export const getActualSwapReceivedAmount = (
   historyItem: BridgeHistoryItem,
   actualGas: Omit<TokenAmountValues, 'valueInCurrency'> | null,
   txMeta?: TransactionMeta,
-) => {
+): null | { amount?: BigNumber | string | null; usd: BigNumber | null } => {
   const { pricingData } = historyItem;
   const quotedReturnAmount = historyItem.quote.destTokenAmount;
 
@@ -137,4 +138,24 @@ export const getActualBridgeReceivedAmount = (
         usd: usdExchangeRate.multipliedBy(actualAmount).toString(10),
       }
     : null;
+};
+
+export const getReceivedAmountFromTxHash = async (
+  txHash: string,
+  walletAddress: string,
+  tokenAddress: string,
+  provider: Web3Provider,
+): Promise<BigNumber> => {
+  const txReceipt = await provider.getTransactionReceipt(txHash);
+  const receivedAmount = getReceivedERC20Amount(
+    walletAddress,
+    tokenAddress,
+    txReceipt?.logs,
+  );
+
+  if (!receivedAmount) {
+    throw new Error(`Missing received amount`);
+  }
+
+  return receivedAmount;
 };

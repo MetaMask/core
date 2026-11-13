@@ -200,6 +200,10 @@ export type QuoteRequest<
    * The fee that will be charged by MetaMask
    */
   fee?: number;
+  /**
+   * Whether the destWalletAddress is a money account, only needed for same-chain swaps
+   */
+  isMoneyAccount?: boolean;
 };
 
 export enum StatusTypes {
