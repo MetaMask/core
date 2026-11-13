@@ -694,6 +694,7 @@ describe('Relay Quotes Utils', () => {
 
         const result = await getRelayQuotes({
           accountSupports7702: true,
+          from: FROM_MOCK,
           messenger,
           requests: [{ ...QUOTE_REQUEST_MOCK, atomic }],
           transaction: {
