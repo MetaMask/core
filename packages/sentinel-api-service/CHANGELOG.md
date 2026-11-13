@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `trace` constructor option to `SentinelApiService` for tracing `simulateTransactions`. Tracing is best-effort and does not affect the simulation result if it fails ([#11505](https://github.com/MetaMask/core/pull/11505))
+  - Add optional `traceContext` option to `simulateTransactions` to nest the simulation trace under a caller-provided parent context.
 - Add optional `accountHardwareType` to `SentinelMeta` for relay transaction metadata ([#10842](https://github.com/MetaMask/core/pull/10842))
 - Add `getFees`, `submitTransactions`, `cancel`, and `getBatchStatus` methods, with matching `SentinelApiService:*` actions, for smart-transaction fee quotes, submission, cancellation, and status lookup ([#11272](https://github.com/MetaMask/core/pull/11272))
   - `getFees` quotes gas fees via `POST /v1/networks/{chainId}/getFees`. Accepts a `SentinelGetFeesRequest` and returns a `SentinelGetFeesResponse`. Each transaction is a `SentinelSimulationTransaction`, the object `infura_simulateTransactions` accepts. The handler forwards them as the `txs` array.

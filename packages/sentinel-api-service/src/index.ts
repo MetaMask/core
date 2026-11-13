@@ -8,6 +8,10 @@ export type {
   SentinelApiServiceInvalidateQueriesAction,
   SentinelApiServiceCacheUpdatedEvent,
   SentinelApiServiceGranularCacheUpdatedEvent,
+  SentinelApiServiceTraceCallback,
+  SentinelApiServiceTraceName,
+  SentinelApiServiceTraceOptions,
+  SentinelApiServiceTraceRequest,
   SentinelAuthorization,
   SentinelBatchedTransactionStatus,
   SentinelBatchStatusRequest,
@@ -48,6 +52,7 @@ export {
   SentinelOriginalTransactionStatus,
   SentinelProductFeature,
   SentinelSmartTransactionStatus,
+  TRACES,
 } from './types.js';
 export type {
   SentinelApiServiceGetFeesAction,

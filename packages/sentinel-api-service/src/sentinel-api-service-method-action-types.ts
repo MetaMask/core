@@ -42,6 +42,9 @@ export type SentinelApiServiceGetNetworksAction = {
  * Sentinel URL resolved for the chain and returns the URL to use instead.
  * Lets consumers rewrite the request URL (for example to route through the
  * MetaMask Shield proxy) without the service knowing about those concerns.
+ * @param options.traceContext - Optional trace context to nest the
+ * simulation trace under. Without it, clients that do not infer a parent
+ * from the active span record the trace as a root span.
  * @returns The simulation response.
  */
 export type SentinelApiServiceSimulateTransactionsAction = {
