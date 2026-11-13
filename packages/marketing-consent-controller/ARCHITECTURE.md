@@ -27,7 +27,7 @@ The controller holds no state. Whether a local change is waiting to be saved to 
 | ---------------------------------------------- | --------- | --------------------------------- |
 | `optInToMarketing` / `optOutOfMarketing`       | set       | `true`                            |
 | `applyRemoteMarketingConsent` (value from AUS) | set       | unchanged; does nothing if `true` |
-| `clearPendingMarketingConsent(value)`          | unchanged | `false` if consent equals `value` |
+| `clearMarketingConsentSyncPending(value)`      | unchanged | `false` if consent equals `value` |
 | `resetMarketingConsentDecision`                | undecided | `false`                           |
 
 Every local choice is marked pending, whether it comes from `setMarketingConsent` or from other code calling `AnalyticsController` directly, even when it matches local consent, so an explicit choice wins over a different value in AUS. Values the controller applies from AUS are not marked pending, so they are never written back. A reset drops the pending change: an undecided client has nothing to write and reads AUS instead.
@@ -70,7 +70,7 @@ flowchart TD
 
 If a change is made while the AUS read is in progress, the read result is ignored and the change is written instead.
 
-After a write, the controller calls `clearPendingMarketingConsent` with the value it wrote. The flag is only cleared if local consent still equals that value, so a change made during the write stays pending and is written next.
+After a write, the controller calls `clearMarketingConsentSyncPending` with the value it wrote. The flag is only cleared if local consent still equals that value, so a change made during the write stays pending and is written next.
 
 A write that has started is never cancelled; a newer change is written after it. Only the latest value is ever written next, so values the user moved past are skipped: if the user changes consent several times during a write, at most one more write follows, and none if they end up back on the value being written. Before sign-in, or while another run is still reading AUS, intermediate values are never sent at all.
 
@@ -91,7 +91,7 @@ On failure:
 
 - If a newer choice was made while it waited (a newer `setMarketingConsent` call, or other code changing consent in `AnalyticsController`), it resolves; the newer choice is saved on its own.
 - If the wallet locked or the user was signed out during the save, the change stays pending and the call rejects.
-- Otherwise the change is dropped (`clearPendingMarketingConsent`), consent is re-read from AUS and applied locally, and the call rejects.
+- Otherwise the change is dropped (`clearMarketingConsentSyncPending`), consent is re-read from AUS and applied locally, and the call rejects.
 
 ## Marketing notifications
 

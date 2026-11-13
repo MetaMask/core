@@ -99,7 +99,7 @@ const DELEGATED_ACTIONS = [
   'AnalyticsController:optInToMarketing',
   'AnalyticsController:optOutOfMarketing',
   'AnalyticsController:applyRemoteMarketingConsent',
-  'AnalyticsController:clearPendingMarketingConsent',
+  'AnalyticsController:clearMarketingConsentSyncPending',
   'AuthenticationController:getState',
   'KeyringController:getState',
 ] as const;
@@ -196,7 +196,7 @@ function setup({
     optInToMarketing: Mock<() => Promise<void>>;
     optOutOfMarketing: Mock<() => void>;
     applyRemoteMarketingConsent: Mock<(optedIn: boolean) => Promise<void>>;
-    clearPendingMarketingConsent: Mock<(optedIn: boolean) => void>;
+    clearMarketingConsentSyncPending: Mock<(optedIn: boolean) => void>;
   };
   setAnalyticsState: (newState: Partial<AnalyticsControllerState>) => void;
   getPendingConsent: () => boolean | null;
@@ -265,7 +265,7 @@ function setup({
       }
       setAnalyticsState(optedIn ? OPTED_IN : OPTED_OUT);
     }),
-    clearPendingMarketingConsent: vi.fn((optedIn: boolean) => {
+    clearMarketingConsentSyncPending: vi.fn((optedIn: boolean) => {
       if (toPendingConsent(currentAnalyticsState) === optedIn) {
         setAnalyticsState({ marketingConsentSyncPending: false });
       }
@@ -292,8 +292,8 @@ function setup({
     mocks.applyRemoteMarketingConsent,
   );
   rootMessenger.registerActionHandler(
-    'AnalyticsController:clearPendingMarketingConsent',
-    mocks.clearPendingMarketingConsent,
+    'AnalyticsController:clearMarketingConsentSyncPending',
+    mocks.clearMarketingConsentSyncPending,
   );
   rootMessenger.registerActionHandler(
     'AuthenticationController:getState',

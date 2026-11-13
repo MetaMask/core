@@ -1,11 +1,12 @@
 import type {
   AnalyticsControllerApplyRemoteMarketingConsentAction,
-  AnalyticsControllerClearPendingMarketingConsentAction,
+  AnalyticsControllerClearMarketingConsentSyncPendingAction,
   AnalyticsControllerGetStateAction,
   AnalyticsControllerOptInToMarketingAction,
   AnalyticsControllerOptOutOfMarketingAction,
   AnalyticsControllerState,
 } from '@metamask/analytics-controller';
+import { analyticsControllerSelectors } from '@metamask/analytics-controller';
 import type {
   AuthenticatedUserStorageInvalidateQueriesAction,
   AuthenticatedUserStorageServiceGetMarketingConsentAction,
@@ -64,14 +65,9 @@ type LocalConsent = {
  * @param state - The AnalyticsController state.
  * @returns The consent value to save, or `null` when nothing is pending.
  */
-function selectPendingConsent(
-  state: Pick<
-    AnalyticsControllerState,
-    'optedInToMarketing' | 'marketingConsentSyncPending'
-  >,
-): boolean | null {
-  return state.marketingConsentSyncPending === true
-    ? state.optedInToMarketing === true
+function selectPendingConsent(state: AnalyticsControllerState): boolean | null {
+  return analyticsControllerSelectors.selectMarketingConsentSyncPending(state)
+    ? analyticsControllerSelectors.selectOptedInToMarketing(state)
     : null;
 }
 
@@ -106,7 +102,7 @@ type AllowedActions =
   | AnalyticsControllerOptInToMarketingAction
   | AnalyticsControllerOptOutOfMarketingAction
   | AnalyticsControllerApplyRemoteMarketingConsentAction
-  | AnalyticsControllerClearPendingMarketingConsentAction
+  | AnalyticsControllerClearMarketingConsentSyncPendingAction
   | AuthenticationController.AuthenticationControllerGetStateAction
   | KeyringControllerGetStateAction;
 
@@ -337,7 +333,7 @@ export class MarketingConsentController {
       return;
     }
     this.#messenger.call(
-      'AnalyticsController:clearPendingMarketingConsent',
+      'AnalyticsController:clearMarketingConsentSyncPending',
       enabled,
     );
     this.#session.refreshRequested = true;
@@ -641,7 +637,7 @@ export class MarketingConsentController {
     // a newer local change made during the write stays pending and is
     // flushed next.
     this.#messenger.call(
-      'AnalyticsController:clearPendingMarketingConsent',
+      'AnalyticsController:clearMarketingConsentSyncPending',
       value,
     );
     if (this.#getPendingConsent() === null) {
