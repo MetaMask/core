@@ -10,8 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `getShouldYieldAfterFirstQuote` constructor option to `BridgeController` ([#11465](https://github.com/MetaMask/core/pull/11465))
-  - When it returns `true`, the quote stream yields the JS thread for one macrotask after the first valid quote is written to state, so clients can render it before the rest of the burst is processed
-  - Defaults to `false`, which keeps the current behavior
+  - When it returns `true`, the quote stream yields one macrotask after the first quote is written to state, so clients can render it before the rest of the burst is processed
 
 ### Changed
 

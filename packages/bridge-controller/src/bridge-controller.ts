@@ -295,7 +295,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   readonly #getUseAssetsControllerForRates: () => boolean;
 
-  readonly #getShouldYieldAfterFirstQuote: () => boolean;
+  readonly #getShouldYieldAfterFirstQuote?: () => boolean;
 
   constructor({
     messenger,
@@ -331,9 +331,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
      */
     getUseAssetsControllerForRates?: () => boolean;
     /**
-     * When provided and returns true, the quote stream yields the JS thread
-     * once (one macrotask) after the first valid quote is written to state,
-     * so clients can render it before the rest of the burst is processed.
+     * When it returns true, the quote stream yields one macrotask after the first quote is written to state.
      */
     getShouldYieldAfterFirstQuote?: () => boolean;
   }) {
@@ -359,8 +357,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trace = traceFn;
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
-    this.#getShouldYieldAfterFirstQuote =
-      getShouldYieldAfterFirstQuote ?? (() => false);
+    this.#getShouldYieldAfterFirstQuote = getShouldYieldAfterFirstQuote;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -1120,7 +1117,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             if (
               validQuotesCounter === 1 &&
               quotesWithFees.length > 0 &&
-              this.#getShouldYieldAfterFirstQuote()
+              this.#getShouldYieldAfterFirstQuote?.()
             ) {
               await new Promise((resolve) => setTimeout(resolve, 0));
             }
