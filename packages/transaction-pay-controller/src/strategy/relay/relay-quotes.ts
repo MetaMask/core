@@ -42,6 +42,7 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
+import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
 import {
   getMaxQuotes,
   isAtomicMaxQuote,
@@ -71,7 +72,6 @@ import {
 import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { hasRelayDepositStep } from './deposit-step.js';
-import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import { fetchRelayQuote } from './relay-api.js';
 import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import { validateRelayQuotes } from './relay-validation.js';
