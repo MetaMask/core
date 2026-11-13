@@ -25,15 +25,15 @@ import {
  * address.
  * @returns The Ethereum address corresponding to the given key.
  */
-export function privateKeyToEthAddress(
+export async function privateKeyToEthAddress(
   key: Uint8Array<ArrayBuffer>,
-): Uint8Array<ArrayBuffer> {
+): Promise<Uint8Array<ArrayBuffer>> {
   assert(
     key instanceof Uint8Array && isValidBytesKey(key, BYTES_KEY_LENGTH),
     'Invalid key: The key must be a 32-byte, non-zero Uint8Array.',
   );
 
-  const publicKey = secp256k1.getPublicKey(key, false);
+  const publicKey = await secp256k1.getPublicKey(key, false);
   return publicKeyToEthAddress(publicKey);
 }
 
