@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `trace` constructor option to `SentinelApiService` for tracing `simulateTransactions`. Tracing is best-effort and does not affect the simulation result if it fails.
+- Add optional `trace` constructor option to `SentinelApiService` for tracing `simulateTransactions`. Tracing is best-effort and does not affect the simulation result if it fails ([#11505](https://github.com/MetaMask/core/pull/11505))
   - Add optional `traceContext` option to `simulateTransactions` to nest the simulation trace under a caller-provided parent context.
 - Add optional `suggestFees.withRedeemerEnforcer` property to `SentinelSimulationRequest`, optional `balance` property to `SentinelStateOverrides`, and optional `sponsorship.sponsor` property to `SentinelSimulationResponse` ([#9476](https://github.com/MetaMask/core/pull/9476))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
