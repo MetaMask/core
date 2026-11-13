@@ -35,7 +35,6 @@ import {
   getDefaultPerpsControllerState,
   InitializationState,
 } from '../../src/PerpsController.js';
-import type { AccountState } from '../../src/types/index.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
@@ -46,6 +45,7 @@ import * as eligibilityServiceModule from '../../src/services/EligibilityService
 import * as featureFlagConfigurationServiceModule from '../../src/services/FeatureFlagConfigurationService.js';
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
+import type { AccountState } from '../../src/types/index.js';
 import type {
   PerpsProvider,
   PerpsPlatformDependencies,

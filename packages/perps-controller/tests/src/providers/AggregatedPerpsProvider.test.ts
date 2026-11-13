@@ -36,12 +36,8 @@ type MockPerpsProvider = Mocked<PerpsProvider> & {
   getAccountSupport: MockedFunction<
     NonNullable<PerpsProvider['getAccountSupport']>
   >;
-  cancelOrders: MockedFunction<
-    NonNullable<PerpsProvider['cancelOrders']>
-  >;
-  closePositions: MockedFunction<
-    NonNullable<PerpsProvider['closePositions']>
-  >;
+  cancelOrders: MockedFunction<NonNullable<PerpsProvider['cancelOrders']>>;
+  closePositions: MockedFunction<NonNullable<PerpsProvider['closePositions']>>;
 };
 
 // Create a comprehensive mock provider
