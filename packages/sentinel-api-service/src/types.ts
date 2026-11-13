@@ -183,12 +183,27 @@ export enum SentinelFeature {
 /**
  * The kind of relay (gas station) submission. Redefined here so that this
  * package does not depend on `@metamask/smart-transactions-controller`.
+ *
+ * @deprecated Sentinel no longer takes a `kind` in its metadata. This enum
+ * will be removed in a future major version.
  */
 export enum SentinelKind {
   Bundle = 'bundle',
   Default = 'default',
   GaslessEIP7702 = 'gaslessEIP7702',
   GaslessSendBundle = 'gaslessSendBundle',
+}
+
+export enum SentinelProductFeature {
+  Bridge = 'Bridge',
+  Card = 'Card',
+  dAppTransaction = 'dAppTransaction',
+  Earn = 'Earn',
+  Perp = 'Perp',
+  Prediction = 'Prediction',
+  Ramp = 'Ramp',
+  Staking = 'Staking',
+  Swap = 'Swap',
 }
 
 /**
@@ -198,11 +213,23 @@ export enum SentinelKind {
 export type SentinelMeta = {
   client?: string;
   clientVersion?: string;
-  feature?: SentinelFeature;
+  feature?: SentinelFeature | SentinelProductFeature;
+
+  /**
+   * @deprecated Sentinel no longer takes a `kind` in its metadata. This field
+   * will be removed in a future major version.
+   */
   kind?: SentinelKind;
   origin?: string;
   txType?: string;
+
+  /**
+   * @deprecated Sentinel no longer takes a `wallet` in its metadata. This field
+   * will be removed in a future major version.
+   */
   wallet?: string;
+  // Hardware wallet manufacturer. Omitted when the signer is not a hardware wallet.
+  accountHardwareType?: string;
 };
 
 /**
@@ -356,6 +383,84 @@ export type SentinelSmartTransactionRequest = {
 
   /** The UUID returned by {@link SentinelRelaySubmitResponse}. */
   uuid: string;
+};
+
+/**
+ * A request to quote gas fees for unsigned smart transactions via
+ * `POST /v1/networks/{chainId}/getFees`.
+ */
+export type SentinelGetFeesRequest = {
+  /** The chain to quote fees on. */
+  chainId: Hex;
+
+  /**
+   * Transactions to quote, in the order the fees should be returned. Each
+   * entry is a {@link SentinelSimulationTransaction}. The handler forwards
+   * them as the `txs` array.
+   */
+  transactions: SentinelSimulationTransaction[];
+};
+
+/**
+ * A raw signed smart transaction and the metadata stored with it.
+ */
+export type SentinelSubmitTransactionWithMetadata = {
+  /** Raw signed transaction. */
+  tx: Hex;
+
+  /** Observability metadata stored with the transaction. */
+  metadata?: SentinelMeta;
+};
+
+/**
+ * A request to submit signed smart transactions via
+ * `POST /v1/networks/{chainId}/submitTransactions`.
+ */
+export type SentinelSubmitTransactionsRequest = {
+  /** The chain to submit the transactions on. */
+  chainId: Hex;
+
+  /**
+   * Raw signed transactions. Used when `rawTxsWithMetadata` is omitted or
+   * empty.
+   */
+  rawTxs: Hex[];
+
+  /** Raw signed transactions that cancel the submitted batch. */
+  rawCancelTxs?: Hex[];
+
+  /**
+   * Raw signed transactions with metadata. When non-empty, the API submits
+   * these instead of `rawTxs`.
+   */
+  rawTxsWithMetadata?: SentinelSubmitTransactionWithMetadata[];
+};
+
+/**
+ * A request to cancel a smart transaction via
+ * `POST /v1/networks/{chainId}/cancel`.
+ */
+export type SentinelCancelRequest = {
+  /** The chain to cancel the transaction on. */
+  chainId: Hex;
+
+  /** UUID of the smart transaction to cancel. */
+  uuid: string;
+};
+
+/**
+ * A request to look up smart-transaction statuses via
+ * `GET /v1/networks/{chainId}/batchStatus`.
+ */
+export type SentinelBatchStatusRequest = {
+  /** The chain to look up statuses on. */
+  chainId: Hex;
+
+  /**
+   * UUIDs to look up. Sent as the comma-separated `uuids` query parameter.
+   * The handler rejects a list longer than 128.
+   */
+  uuids: string[];
 };
 
 /**
@@ -608,3 +713,183 @@ export type SentinelSmartTransaction = {
 export type SentinelSmartTransactionResponse = {
   transactions: SentinelSmartTransaction[];
 };
+
+/**
+ * One gas-fee level returned by the smart-transactions `/getFees` endpoint.
+ * Amounts are decimal numbers, in wei.
+ */
+export type SentinelSmartTransactionFee = {
+  /** Maximum fee per gas, in wei. */
+  maxFeePerGas: number;
+
+  /** Maximum priority fee per gas, in wei. */
+  maxPriorityFeePerGas: number;
+};
+
+/**
+ * Fee quote for a single transaction from the `/getFees` endpoint.
+ */
+export type SentinelSmartTransactionFees = {
+  /** Candidate fees for submitting the transaction. */
+  fees: SentinelSmartTransactionFee[];
+
+  /** Candidate fees for cancelling the transaction. */
+  cancelFees: SentinelSmartTransactionFee[];
+
+  /** Estimated total fee, in wei. */
+  feeEstimate: number;
+
+  /** Gas limit used for the quote. */
+  gasLimit: number;
+
+  /** Gas used by the quote. */
+  gasUsed: number;
+};
+
+/**
+ * The response from `POST /v1/networks/{chainId}/getFees`. One entry in `txs`
+ * per transaction in the request, in the same order.
+ */
+export type SentinelGetFeesResponse = {
+  txs: SentinelSmartTransactionFees[];
+};
+
+/**
+ * The response from `POST /v1/networks/{chainId}/submitTransactions`.
+ */
+export type SentinelSubmitTransactionsResponse = {
+  /** UUID assigned to the submitted batch. */
+  uuid: string;
+};
+
+/**
+ * The response from `POST /v1/networks/{chainId}/cancel`.
+ */
+export type SentinelCancelResponse = {
+  /** UUID of the cancelled smart transaction. */
+  uuid: string;
+
+  /** Number of pending transactions the cancel updated. */
+  affected: number;
+
+  /**
+   * Always `true` on a 200 response. The handler sets this itself; the RPC
+   * result only carries `uuid` and `affected`.
+   */
+  cancelled: boolean;
+};
+
+/**
+ * Values of `cancellationReason` on a batch-status entry.
+ * Compliant with the Transaction API (SCP).
+ */
+export enum SentinelCancellationReason {
+  DeadlineMissed = 'deadline_missed',
+  InvalidNonce = 'invalid_nonce',
+  NotCancelled = 'not_cancelled',
+  TooCheap = 'too_cheap',
+  UserCancelled = 'user_cancelled',
+  WouldRevert = 'would_revert',
+}
+
+/**
+ * Values of `minedTx` on a batch-status entry.
+ * Compliant with the Transaction API (SCP).
+ */
+export enum SentinelMinedTxStatus {
+  Cancelled = 'cancelled',
+  NotMined = 'not_mined',
+  Reverted = 'reverted',
+  Success = 'success',
+}
+
+/**
+ * Values of `originalTransactionStatus` on a batch-status entry.
+ * `UNKNOWN_STATUS` is the Go `String()` fallback and is not produced for a
+ * status loaded from the database.
+ */
+export enum SentinelOriginalTransactionStatus {
+  Cancelled = 'CANCELLED',
+  CancelledLeakedReverted = 'CANCELLED_LEAKED_REVERTED',
+  CancelledLeakedValidated = 'CANCELLED_LEAKED_VALIDATED',
+  Failed = 'FAILED',
+  FailedAuth = 'FAILED_AUTH',
+  FailedGaslessConfig = 'FAILED_GASLESS_CONFIG',
+  FailedGasTooLow = 'FAILED_GAS_TOO_LOW',
+  FailedInsufficientFee = 'FAILED_INSUFFICIENT_FEE',
+  FailedInsufficientFunds = 'FAILED_INSUFFICIENT_FUNDS',
+  FailedNonceTooHigh = 'FAILED_NONCE_TOO_HIGH',
+  FailedSpam = 'FAILED_SPAM',
+  FailedSponsorshipRule = 'FAILED_SPONSORSHIP_RULE',
+  FailedTimeout = 'FAILED_TIMEOUT',
+  FailedUnknown = 'FAILED_UNKNOWN',
+  FailedWouldRevert = 'FAILED_WOULD_REVERT',
+  LeakedReverted = 'LEAKED_REVERTED',
+  LeakedValidated = 'LEAKED_VALIDATED',
+  NonceTooLow = 'NONCE_TOO_LOW',
+  Pending = 'PENDING',
+  PendingCancelled = 'PENDING_CANCELLED',
+  Reverted = 'REVERTED',
+  Validated = 'VALIDATED',
+}
+
+/**
+ * One UUID's status from `GET /v1/networks/{chainId}/batchStatus`.
+ */
+export type SentinelBatchedTransactionStatus = {
+  /**
+   * Cancellation fee in wei. The handler always sends `0`.
+   */
+  cancellationFeeWei: number;
+
+  /** Why the transaction was cancelled, or `not_cancelled`. */
+  cancellationReason: SentinelCancellationReason;
+
+  /**
+   * Deadline ratio. The handler always sends `0`.
+   */
+  deadlineRatio: number;
+
+  /**
+   * Whether the transaction has left `PENDING`. `PENDING_CANCELLED` is
+   * settled.
+   */
+  isSettled: boolean;
+
+  /**
+   * Hash of the mined submission. Empty when the aggregate status is not a
+   * mined status, or when no submission hash matches that status.
+   */
+  minedHash: string;
+
+  /** Mining outcome of the smart transaction. */
+  minedTx: SentinelMinedTxStatus;
+
+  /**
+   * Failure message. Empty unless the aggregate status is
+   * `FAILED_WOULD_REVERT`, `FAILED_SPONSORSHIP_RULE`,
+   * `FAILED_INSUFFICIENT_FUNDS`, or `FAILED_INSUFFICIENT_FEE`.
+   */
+  wouldRevertMessage: string;
+
+  /** Whether Sentinel treated the submission as a duplicate. */
+  duplicated: boolean;
+
+  /** Whether the submission was proxied. */
+  proxied: boolean;
+
+  /** Whether the submission timed out. */
+  timedOut: boolean;
+
+  /** Aggregate smart-transaction status. */
+  originalTransactionStatus: SentinelOriginalTransactionStatus;
+};
+
+/**
+ * The response from `GET /v1/networks/{chainId}/batchStatus`.
+ * Keys are the smart-transaction UUIDs from the request.
+ */
+export type SentinelBatchStatusResponse = Record<
+  string,
+  SentinelBatchedTransactionStatus
+>;

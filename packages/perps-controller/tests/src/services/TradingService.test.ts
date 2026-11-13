@@ -773,7 +773,11 @@ describe('TradingService', () => {
         reportOrderToDataLake: mockReportOrderToDataLake,
       });
 
-      expect(mockSaveTradeConfiguration).toHaveBeenCalledWith('BTC', 10);
+      expect(mockSaveTradeConfiguration).toHaveBeenCalledWith(
+        'BTC',
+        10,
+        undefined,
+      );
     });
 
     it('tracks analytics event when order succeeds', async () => {

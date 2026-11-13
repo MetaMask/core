@@ -859,6 +859,49 @@ describe('SLIP10Node', () => {
         'Invalid path: Cannot derive unhardened child keys with ed25519.',
       );
     });
+
+    describe('public key computation', () => {
+      it('computes the public key once for each derived node of a path', async () => {
+        const spy = vi.spyOn(secp256k1, 'getPublicKey');
+        const node = await SLIP10Node.fromDerivationPath({
+          derivationPath: [
+            defaultBip39NodeToken,
+            BIP44PurposeNodeToken,
+            `bip32:60'`,
+            `bip32:0'`,
+            'bip32:0',
+            'bip32:0',
+          ],
+          curve: 'secp256k1',
+        });
+
+        expect(node.publicKey).toBe(
+          '0x04e47161e7a085fe66b74e29176a7ecf0dcbce949730cdc57b646b08a4efbec094959ddf068a1d670f83a1c69d23207c70294e45975a2e3a82a69265c94b4850da',
+        );
+        expect(spy).toHaveBeenCalledTimes(6);
+      });
+
+      it('computes the public key once for each derived sibling node', async () => {
+        const node = await SLIP10Node.fromDerivationPath({
+          derivationPath: [
+            defaultBip39NodeToken,
+            BIP44PurposeNodeToken,
+            `bip32:60'`,
+            `bip32:0'`,
+            'bip32:0',
+          ],
+          curve: 'secp256k1',
+        });
+
+        const spy = vi.spyOn(secp256k1, 'getPublicKey');
+
+        for (let index = 0; index < 10; index++) {
+          await node.derive([`bip32:${index}`]);
+        }
+
+        expect(spy).toHaveBeenCalledTimes(10);
+      });
+    });
   });
 
   describe('publicKey', () => {
@@ -939,30 +982,6 @@ describe('SLIP10Node', () => {
       expect(node.compressedPublicKey).toStrictEqual(
         bytesToHex(compressPublicKey(node.publicKeyBytes)),
       );
-    });
-  });
-
-  describe('publicKeyBytes', () => {
-    it('lazily computes the public key bytes', async () => {
-      const baseNode = await SLIP10Node.fromDerivationPath({
-        derivationPath: [
-          defaultBip39NodeToken,
-          BIP44PurposeNodeToken,
-          `bip32:0'`,
-          `bip32:0'`,
-        ],
-        curve: 'secp256k1',
-      });
-
-      const { publicKey, ...json } = baseNode.toJSON();
-
-      const spy = vi.spyOn(secp256k1, 'getPublicKey');
-
-      const node = await SLIP10Node.fromExtendedKey(json);
-      expect(spy).not.toHaveBeenCalled();
-
-      expect(node.publicKeyBytes).toStrictEqual(baseNode.publicKeyBytes);
-      expect(spy).toHaveBeenCalled();
     });
   });
 

@@ -40,6 +40,7 @@ import {
   getLighterHttpEndpoint,
   LIGHTER_DATA_INTEGRITY_PREFIX,
   LIGHTER_HTTP_TIMEOUT_MS,
+  LIGHTER_RECENT_TRADES_MAX_LIMIT,
 } from '../constants/lighterConfig.js';
 import type { PerpsPlatformDependencies } from '../types/index.js';
 import type {
@@ -56,6 +57,7 @@ import type {
   LighterOrderBookDetailsResponse,
   LighterOrderBooksResponse,
   LighterCandlesResponse,
+  LighterRecentTradesResponse,
   LighterDepositHistoryResponse,
   LighterInactiveOrdersResponse,
   LighterPnlResponse,
@@ -323,6 +325,19 @@ const TradeStruct = type({
   makerPositionSignChanged: optional(boolean()),
 });
 
+// Public trade tape: only the fields the feed reads, so a change to the
+// venue's account-specific fields cannot break it.
+const PublicTradeStruct = type({
+  tradeIdStr: optional(string()),
+  tradeId: NonNegativeIntegerStruct,
+  txHash: string(),
+  marketId: NonNegativeIntegerStruct,
+  size: PositiveDecimalStringStruct,
+  price: PositiveDecimalStringStruct,
+  isMakerAsk: boolean(),
+  timestamp: NonNegativeIntegerStruct,
+});
+
 const BookOrderStruct = type({
   orderIndex: NonNegativeIntegerStruct,
   orderId: string(),
@@ -471,6 +486,10 @@ const ResponseStructs = {
     ...BaseResponseStruct.schema,
     nextCursor: optional(string()),
     trades: array(TradeStruct),
+  }),
+  recentTrades: type({
+    ...BaseResponseStruct.schema,
+    trades: array(PublicTradeStruct),
   }),
   fundings: type({
     ...BaseResponseStruct.schema,
@@ -967,6 +986,30 @@ export class LighterClientService {
       }`,
       ResponseStructs.trades,
       { authorization: authToken },
+    );
+  }
+
+  /**
+   * Fetch a market's most recent public trades (no auth), newest first.
+   *
+   * @param marketId - Numeric Lighter market id.
+   * @param limit - Number of trades, 1 to {@link LIGHTER_RECENT_TRADES_MAX_LIMIT}.
+   * @returns Recent trades payload.
+   */
+  async getRecentTrades(
+    marketId: number,
+    limit: number,
+  ): Promise<LighterRecentTradesResponse> {
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > LIGHTER_RECENT_TRADES_MAX_LIMIT
+    ) {
+      throw new Error('Invalid Lighter recent trades limit');
+    }
+    return await this.#get<LighterRecentTradesResponse>(
+      `/api/v1/recentTrades?market_id=${marketId}&limit=${limit}`,
+      ResponseStructs.recentTrades,
     );
   }
 

@@ -30,7 +30,7 @@ export type Curve = {
   getPublicKey: (
     privateKey: Uint8Array<ArrayBuffer>,
     compressed?: boolean,
-  ) => Uint8Array<ArrayBuffer>;
+  ) => Promise<Uint8Array<ArrayBuffer>>;
   isValidPrivateKey: (privateKey: Uint8Array<ArrayBuffer>) => boolean;
   publicAdd: (
     publicKey: Uint8Array<ArrayBuffer>,

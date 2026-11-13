@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
 import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
-import { waitFor } from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import {
   AssetsController,
   getDefaultAssetsControllerState,
@@ -62,19 +62,6 @@ vi.mock(import('./utils/index.js'), async (importOriginal) => {
 const formatExchangeRatesForBridgeMock = vi.mocked(
   formatExchangeRatesForBridge,
 );
-
-/**
- * Flush pending microtasks so fire-and-forget background pipelines settle
- * before the test runner tears down the test.  Multiple rounds are needed because the
- * background pipeline chains several async steps.
- *
- * @returns A promise that resolves after pending callbacks.
- */
-async function flushPromises(): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-}
 
 function createMockQueryApiClient(): ApiPlatformClient {
   const cache = new Map<string, unknown>();
@@ -216,8 +203,8 @@ const OTHER_ASSET_ID =
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
- * the account tree initialized, then flushing the async startup so the
- * controller is in its running state.
+ * the account tree initialized, then waiting until controller state settles
+ * so the controller is in its running state.
  *
  * @param messenger - The root messenger used to publish lifecycle events.
  */
@@ -233,7 +220,7 @@ async function activateTracking(messenger: RootMessenger): Promise<void> {
     'AccountTreeController:initialized',
     {},
   );
-  await flushPromises();
+  await waitUntilStable(() => messenger.call('AssetsController:getState'));
 }
 
 function createMockInternalAccount(
@@ -511,7 +498,6 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller, messenger, getSelectedAccountsMock });
   } finally {
-    await flushPromises();
     controller.destroy();
   }
 }
@@ -943,6 +929,10 @@ describe('AssetsController', () => {
       const secondAssetId =
         'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
       const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
@@ -951,10 +941,7 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -969,7 +956,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
           fetchV6MultiAccountBalances.mockClear();
@@ -1016,11 +1005,11 @@ describe('AssetsController', () => {
           MOCK_ACCOUNT_ID,
           MOCK_ASSET_ID_LOWERCASE,
         );
-        await flushPromises();
-
-        // Single high-level import call, with the checksummed id.
-        expect(importTokens).toHaveBeenCalledTimes(1);
-        expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        await waitFor(() => {
+          // Single high-level import call, with the checksummed id.
+          expect(importTokens).toHaveBeenCalledTimes(1);
+          expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        });
       });
     });
 
@@ -1033,7 +1022,9 @@ describe('AssetsController', () => {
         expect(
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
         ).toBeUndefined();
-        await flushPromises();
+        await waitUntilStable(
+          () => controller.state.customAssets[MOCK_ACCOUNT_ID],
+        );
 
         // Fire-and-forget: the local state change stands despite the AUS failure.
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
@@ -1098,16 +1089,16 @@ describe('AssetsController', () => {
             });
 
           controller.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-          await flushPromises();
-
-          // Strip-only read-modify-write: the imported list loses the id and
-          // every other entry (including the hidden list) is untouched.
-          expect(getUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledWith({
-            version: 1,
-            importedAssets: [OTHER_ASSET_ID],
-            hiddenAssets: [OTHER_ASSET_ID],
+          await waitFor(() => {
+            // Strip-only read-modify-write: the imported list loses the id and
+            // every other entry (including the hidden list) is untouched.
+            expect(getUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledWith({
+              version: 1,
+              importedAssets: [OTHER_ASSET_ID],
+              hiddenAssets: [OTHER_ASSET_ID],
+            });
           });
         },
       );
@@ -1130,11 +1121,11 @@ describe('AssetsController', () => {
         const { hideTokens } = registerAusUserAssetsActionMocks(messenger);
 
         controller.hideAsset(MOCK_ASSET_ID_LOWERCASE);
-        await flushPromises();
-
-        // Single high-level hide call, with the checksummed id.
-        expect(hideTokens).toHaveBeenCalledTimes(1);
-        expect(hideTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        await waitFor(() => {
+          // Single high-level hide call, with the checksummed id.
+          expect(hideTokens).toHaveBeenCalledTimes(1);
+          expect(hideTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        });
       });
     });
   });
@@ -1255,7 +1246,12 @@ describe('AssetsController', () => {
           expect(
             controller.state.customAssets[MOCK_ACCOUNT_ID],
           ).toBeUndefined();
-          await flushPromises();
+          await waitUntilStable(() => [
+            ausMocks.importTokens.mock.calls.length,
+            ausMocks.hideTokens.mock.calls.length,
+            ausMocks.getUserAssets.mock.calls.length,
+            ausMocks.setUserAssets.mock.calls.length,
+          ]);
 
           // Graduation is automatic detection, not user intent: it must not
           // strip the still-visible token from the AUS user-assets blob.
@@ -1306,6 +1302,10 @@ describe('AssetsController', () => {
 
   describe('unhideAsset', () => {
     it('force-fetches the unhidden token as an includeAssetId on v6', async () => {
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
       const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
@@ -1314,10 +1314,7 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -1340,7 +1337,9 @@ describe('AssetsController', () => {
           },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
           fetchV6MultiAccountBalances.mockClear();
 
           await controller.unhideAsset(MOCK_ASSET_ID);
@@ -1392,16 +1391,16 @@ describe('AssetsController', () => {
             });
 
           await controller.unhideAsset(MOCK_ASSET_ID);
-          await flushPromises();
-
-          // Strip-only: the hidden list loses the id; the imported list is
-          // untouched (unhiding does not re-import the asset).
-          expect(getUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledWith({
-            version: 1,
-            importedAssets: [OTHER_ASSET_ID],
-            hiddenAssets: [OTHER_ASSET_ID],
+          await waitFor(() => {
+            // Strip-only: the hidden list loses the id; the imported list is
+            // untouched (unhiding does not re-import the asset).
+            expect(getUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledTimes(1);
+            expect(setUserAssets).toHaveBeenCalledWith({
+              version: 1,
+              importedAssets: [OTHER_ASSET_ID],
+              hiddenAssets: [OTHER_ASSET_ID],
+            });
           });
         },
       );
@@ -1948,13 +1947,14 @@ describe('AssetsController', () => {
         unprocessedNetworks: [],
       });
 
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances,
         },
@@ -1966,7 +1966,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           await controller.getAssets([createMockInternalAccount()], {
             chainIds: ['eip155:1'],
@@ -1985,14 +1987,15 @@ describe('AssetsController', () => {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       });
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
 
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -2010,7 +2013,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, customToken);
 
@@ -2036,14 +2041,15 @@ describe('AssetsController', () => {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       });
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
 
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -2061,7 +2067,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, customToken);
           controller.hideAsset(customToken);
@@ -2147,13 +2155,14 @@ describe('AssetsController', () => {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       });
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1, 137],
+        partialSupport: [],
+      });
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1, 137],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -2168,7 +2177,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, polygonToken);
@@ -2194,14 +2205,15 @@ describe('AssetsController', () => {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       });
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
 
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -2219,7 +2231,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           controller.hideAsset(hiddenToken);
 
@@ -2245,14 +2259,15 @@ describe('AssetsController', () => {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       });
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
+        fullSupport: [1],
+        partialSupport: [],
+      });
 
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
+          fetchV2SupportedNetworks,
           fetchV6MultiAccountBalances,
           fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
@@ -2267,7 +2282,9 @@ describe('AssetsController', () => {
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
-          await flushPromises();
+          await waitUntilStable(() => [
+            fetchV2SupportedNetworks.mock.calls.length,
+          ]);
 
           await controller.getAssets([createMockInternalAccount()], {
             chainIds: ['eip155:1'],
@@ -2303,8 +2320,11 @@ describe('AssetsController', () => {
           // Background pipelines are still in flight (fire-and-forget).
           expect(updateSpy).not.toHaveBeenCalled(); // internal #updateState, not handleAssetsUpdate
 
-          // Let all pending microtasks resolve so background pipelines finish.
-          await flushPromises();
+          await waitFor(() =>
+            expect(
+              controller.state.assetsBackgroundLoadingStatus?.[MOCK_ACCOUNT_ID],
+            ).toBe('loaded'),
+          );
 
           updateSpy.mockRestore();
         });
@@ -2317,8 +2337,6 @@ describe('AssetsController', () => {
             { forceUpdate: true },
           );
           expect(assets).toBeDefined();
-
-          await flushPromises();
         });
       });
 
@@ -2338,7 +2356,13 @@ describe('AssetsController', () => {
               forceUpdate: true,
             });
 
-            await flushPromises();
+            await waitFor(() =>
+              expect(
+                controller.state.assetsBackgroundLoadingStatus?.[
+                  MOCK_ACCOUNT_ID
+                ],
+              ).toBe('loaded'),
+            );
 
             // Background pipelines overlay balances without wiping fast-pipeline results.
             expect(
@@ -2359,8 +2383,6 @@ describe('AssetsController', () => {
               { forceUpdate: true },
             );
             expect(assets).toBeDefined();
-
-            await flushPromises();
           },
         );
       });
@@ -2418,8 +2440,6 @@ describe('AssetsController', () => {
             remoteFeatureFlags: { assetsAccountsApiV6: true },
           },
           async ({ controller }) => {
-            await flushPromises();
-
             await controller.addCustomAsset(MOCK_ACCOUNT_ID, customToken);
 
             rpcMiddleware.mockClear();
@@ -2466,7 +2486,10 @@ describe('AssetsController', () => {
             await controller.getAssets([createMockInternalAccount()], {
               forceUpdate: true,
             });
-            await flushPromises();
+            await waitUntilStable(() => [
+              tokenMiddlewareGetter.mock.calls.length,
+              priceMiddlewareGetter.mock.calls.length,
+            ]);
           },
         );
 
@@ -2526,7 +2549,11 @@ describe('AssetsController', () => {
               chainIds: ['eip155:1'],
               forceUpdate: true,
             });
-            await flushPromises();
+            await waitUntilStable(() => [
+              fetchV6MultiAccountBalances.mock.calls.length,
+              tokenMiddlewareGetter.mock.calls.length,
+              priceMiddlewareGetter.mock.calls.length,
+            ]);
           },
         );
 
@@ -3181,7 +3208,6 @@ describe('AssetsController', () => {
 
         // Lock the keyring so the controller stops and clears subscriptions.
         messenger.publish('KeyringController:lock');
-        await flushPromises();
 
         const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
 
@@ -3189,6 +3215,7 @@ describe('AssetsController', () => {
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
+        await waitUntilStable(() => [subscribeSpy.mock.calls.length]);
         expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
@@ -4333,8 +4360,6 @@ describe('AssetsController', () => {
             {},
           );
 
-          await flushPromises();
-
           messenger.publish('AccountActivityService:balanceUpdated', {
             address: '0x1234567890123456789012345678901234567890',
             chain: 'eip155:42161',
@@ -4352,11 +4377,11 @@ describe('AssetsController', () => {
             ],
           });
 
-          await flushPromises();
-
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbNative],
-          ).toStrictEqual({ amount: '0.00000114526056' });
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbNative],
+            ).toStrictEqual({ amount: '0.00000114526056' });
+          });
         },
       );
     });
@@ -4533,16 +4558,16 @@ describe('AssetsController', () => {
           txParams: { from: '0x1234567890123456789012345678901234567890' },
         });
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          {
-            chainIds: ['eip155:42161'],
-            forceUpdate: true,
-            bypassServerCache: true,
-          },
-        );
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:42161'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
 
         getAssetsSpy.mockRestore();
       });
@@ -4559,16 +4584,16 @@ describe('AssetsController', () => {
           txParams: { from: '0x1234567890123456789012345678901234567890' },
         });
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          {
-            chainIds: ['eip155:42161'],
-            forceUpdate: true,
-            bypassServerCache: true,
-          },
-        );
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:42161'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
 
         getAssetsSpy.mockRestore();
       });
@@ -4710,8 +4735,6 @@ describe('AssetsController', () => {
           status: 'up',
         });
 
-        await flushPromises();
-
         messenger.publish('TransactionController:unapprovedTransactionAdded', {
           chainId: '0xa4b1',
           txParams: { from: '0x1234567890123456789012345678901234567890' },
@@ -4721,7 +4744,7 @@ describe('AssetsController', () => {
           txParams: { from: '0x1234567890123456789012345678901234567890' },
         });
 
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
@@ -5014,7 +5037,7 @@ describe('AssetsController', () => {
         const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         messenger.publish('KeyringController:unlock');
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
         getAssetsSpy.mockRestore();
@@ -5026,7 +5049,6 @@ describe('AssetsController', () => {
         await activateTracking(messenger);
 
         messenger.publish('KeyringController:lock');
-        await flushPromises();
 
         expect(true).toBe(true);
       });
@@ -5070,63 +5092,62 @@ describe('AssetsController', () => {
             {},
           );
 
-          // Allow #start() -> getAssets() to resolve so the callback runs
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          const firstInitFetchCalls = traceMock.mock.calls.filter(
-            (call) =>
-              (call[0] as TraceRequest).name ===
-              'AssetsControllerFirstInitFetch',
-          );
-          expect(firstInitFetchCalls).toHaveLength(1);
-          const [request] = firstInitFetchCalls[0];
-          expect(request).toMatchObject({
-            name: 'AssetsControllerFirstInitFetch',
-            data: expect.objectContaining({
-              duration_ms: expect.any(Number),
-              chain_ids: expect.any(String),
-            }),
-            tags: expect.objectContaining({
-              controller: 'AssetsController',
-              duration_ms: expect.any(Number),
-            }),
-            startTime: expect.any(Number),
-            parentContext: parentSpan,
-          });
-          const {
-            duration_ms: durationMs,
-            chain_ids: chainIds,
-            ...durationByDataSource
-          } = request.data ?? {};
-          expect(durationMs).toBeGreaterThanOrEqual(0);
-          expect(typeof chainIds).toBe('string');
-          expect(typeof durationByDataSource).toBe('object');
-
-          const fullFetchCalls = traceMock.mock.calls.filter(
-            (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
-          );
-          expect(fullFetchCalls.length).toBeGreaterThan(0);
-          expect(fullFetchCalls[0][0]).toMatchObject({
-            data: expect.objectContaining({
-              duration_ms: expect.any(Number),
-            }),
-            tags: expect.objectContaining({
-              duration_ms: expect.any(Number),
-            }),
-            startTime: expect.any(Number),
-            parentContext: parentSpan,
-          });
-
-          const timingCalls = traceMock.mock.calls.filter(
-            (call) =>
-              (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
-          );
-          expect(timingCalls.length).toBeGreaterThan(0);
-          for (const [timingRequest] of timingCalls) {
-            expect(timingRequest).toMatchObject({
+          await waitFor(() => {
+            const firstInitFetchCalls = traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name ===
+                'AssetsControllerFirstInitFetch',
+            );
+            expect(firstInitFetchCalls).toHaveLength(1);
+            const [request] = firstInitFetchCalls[0];
+            expect(request).toMatchObject({
+              name: 'AssetsControllerFirstInitFetch',
+              data: expect.objectContaining({
+                duration_ms: expect.any(Number),
+                chain_ids: expect.any(String),
+              }),
+              tags: expect.objectContaining({
+                controller: 'AssetsController',
+                duration_ms: expect.any(Number),
+              }),
+              startTime: expect.any(Number),
               parentContext: parentSpan,
             });
-          }
+            const {
+              duration_ms: durationMs,
+              chain_ids: chainIds,
+              ...durationByDataSource
+            } = request.data ?? {};
+            expect(durationMs).toBeGreaterThanOrEqual(0);
+            expect(typeof chainIds).toBe('string');
+            expect(typeof durationByDataSource).toBe('object');
+
+            const fullFetchCalls = traceMock.mock.calls.filter(
+              (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+            );
+            expect(fullFetchCalls.length).toBeGreaterThan(0);
+            expect(fullFetchCalls[0][0]).toMatchObject({
+              data: expect.objectContaining({
+                duration_ms: expect.any(Number),
+              }),
+              tags: expect.objectContaining({
+                duration_ms: expect.any(Number),
+              }),
+              startTime: expect.any(Number),
+              parentContext: parentSpan,
+            });
+
+            const timingCalls = traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+            );
+            expect(timingCalls.length).toBeGreaterThan(0);
+            for (const [timingRequest] of timingCalls) {
+              expect(timingRequest).toMatchObject({
+                parentContext: parentSpan,
+              });
+            }
+          });
         },
       );
     });
@@ -5187,16 +5208,16 @@ describe('AssetsController', () => {
             {},
           );
 
-          await flushPromises();
-
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-          ).toBeUndefined();
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-              MOCK_NATIVE_ASSET_ID
-            ],
-          ).toStrictEqual({ amount: '2' });
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+            ).toBeUndefined();
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                MOCK_NATIVE_ASSET_ID
+              ],
+            ).toStrictEqual({ amount: '2' });
+          });
         },
       );
     });
@@ -5249,16 +5270,16 @@ describe('AssetsController', () => {
             {},
           );
 
-          await flushPromises();
-
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-          ).toBeUndefined();
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-              MOCK_NATIVE_ASSET_ID
-            ],
-          ).toStrictEqual({ amount: '2' });
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+            ).toBeUndefined();
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                MOCK_NATIVE_ASSET_ID
+              ],
+            ).toStrictEqual({ amount: '2' });
+          });
         },
       );
     });
@@ -5289,10 +5310,30 @@ describe('AssetsController', () => {
             'AccountTreeController:initialized',
             {},
           );
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await waitFor(() => {
+            const firstInitFetchCalls = traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name ===
+                'AssetsControllerFirstInitFetch',
+            );
+            expect(firstInitFetchCalls).toHaveLength(1);
+          });
 
           messenger.publish('KeyringController:unlock');
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await waitUntilStable(() => [
+            traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name ===
+                'AssetsControllerFirstInitFetch',
+            ).length,
+            traceMock.mock.calls.filter(
+              (call) => (call[0] as TraceRequest).name === 'AssetsFullFetch',
+            ).length,
+            traceMock.mock.calls.filter(
+              (call) =>
+                (call[0] as TraceRequest).name === 'AssetsDataSourceTiming',
+            ).length,
+          ]);
 
           const firstInitFetchCalls = traceMock.mock.calls.filter(
             (call) =>
@@ -5349,9 +5390,9 @@ describe('AssetsController', () => {
             'AccountTreeController:initialized',
             {},
           );
-          await flushPromises();
-
-          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+          await waitFor(() => {
+            expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+          });
 
           // Second, independent trigger fires while the first getAssets()
           // call is still in flight — #activeSubscriptions is still empty at
@@ -5362,12 +5403,12 @@ describe('AssetsController', () => {
               publish: (topic: string, payload?: unknown) => void;
             }
           ).publish('ClientController:stateChanged', { isUiOpen: true });
-          await flushPromises();
+          await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
           expect(getAssetsSpy).toHaveBeenCalledTimes(1);
 
           resolveGetAssets?.();
-          await flushPromises();
+          await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
           // The startup refresh remains a single getAssets call. Prices are
           // fetched inside that pipeline pass.
@@ -5462,8 +5503,6 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
         expect(true).toBe(true);
       });
     });
@@ -5552,13 +5591,13 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
-        expect(
-          controller.state.assetsBalance[solanaAccountId]?.[
-            solanaNativeAssetId
-          ],
-        ).toStrictEqual({ amount: '0' });
+        await waitFor(() => {
+          expect(
+            controller.state.assetsBalance[solanaAccountId]?.[
+              solanaNativeAssetId
+            ],
+          ).toStrictEqual({ amount: '0' });
+        });
       });
     });
 
@@ -5592,18 +5631,18 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
-        expect(
-          controller.state.assetsBalance[stellarAccountId]?.[
-            stellarNativeAssetId
-          ],
-        ).toStrictEqual({
-          amount: '0',
-          metadata: {
-            minimumReserveBalance: '0',
-            spendableBalance: '0',
-          },
+        await waitFor(() => {
+          expect(
+            controller.state.assetsBalance[stellarAccountId]?.[
+              stellarNativeAssetId
+            ],
+          ).toStrictEqual({
+            amount: '0',
+            metadata: {
+              minimumReserveBalance: '0',
+              spendableBalance: '0',
+            },
+          });
         });
       });
     });
@@ -5627,8 +5666,6 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'NetworkEnablementController:stateChange',
           {
@@ -5645,8 +5682,6 @@ describe('AssetsController', () => {
           [],
         );
 
-        await new Promise(process.nextTick);
-
         expect(true).toBe(true);
       });
     });
@@ -5661,8 +5696,6 @@ describe('AssetsController', () => {
           'NetworkController:networkRemoved',
           { chainId: '0x89' },
         );
-
-        await new Promise(process.nextTick);
 
         expect(true).toBe(true);
       });
@@ -5778,7 +5811,14 @@ describe('AssetsController', () => {
           'AccountTreeController:initialized',
           {},
         );
-        await flushPromises();
+        await waitFor(() => {
+          expect(fetchV2SupportedNetworks).toHaveBeenCalled();
+          expect(getAssetsSpy).toHaveBeenCalled();
+        });
+        await waitUntilStable(() => [
+          fetchV2SupportedNetworks.mock.calls.length,
+          getAssetsSpy.mock.calls.length,
+        ]);
 
         getAssetsSpy.mockClear();
         fetchV2SupportedNetworks.mockClear();
@@ -5789,20 +5829,19 @@ describe('AssetsController', () => {
           getNetworkState(),
         );
 
-        await flushPromises();
-
-        expect(fetchV2SupportedNetworks).toHaveBeenCalled();
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          expect.objectContaining({
-            chainIds: ['eip155:1'],
-            forceUpdate: true,
-            dataTypes: ['balance', 'metadata', 'price'],
-          }),
-        );
+        await waitFor(() => {
+          expect(fetchV2SupportedNetworks).toHaveBeenCalled();
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            expect.objectContaining({
+              chainIds: ['eip155:1'],
+              forceUpdate: true,
+              dataTypes: ['balance', 'metadata', 'price'],
+            }),
+          );
+        });
       } finally {
         getAssetsSpy.mockRestore();
-        await flushPromises();
         controller.destroy();
       }
     });
@@ -5927,7 +5966,10 @@ describe('AssetsController', () => {
           'AccountTreeController:initialized',
           {},
         );
-        await flushPromises();
+        await waitFor(() => {
+          expect(fetchSpy).toHaveBeenCalled();
+        });
+        await waitUntilStable(() => [fetchSpy.mock.calls.length]);
 
         // A new account has no native row yet. The switch must seed it
         // before the price subscription snapshots state.
@@ -5941,18 +5983,18 @@ describe('AssetsController', () => {
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
-        await flushPromises();
 
-        expect(fetchSpy).toHaveBeenCalled();
-        expect(nativePresentAtPriceFetch).toBe(true);
-        expect(
-          controller.state.assetsBalance[switchedAccountId]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '0' });
+        await waitFor(() => {
+          expect(fetchSpy).toHaveBeenCalled();
+          expect(nativePresentAtPriceFetch).toBe(true);
+          expect(
+            controller.state.assetsBalance[switchedAccountId]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          ).toStrictEqual({ amount: '0' });
+        });
       } finally {
         fetchSpy.mockRestore();
-        await flushPromises();
         controller.destroy();
       }
     });
@@ -5975,9 +6017,9 @@ describe('AssetsController', () => {
           'entropy:mock-keyring-id-1/0',
         );
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalled();
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalled();
+        });
         getAssetsSpy.mockRestore();
       });
     });
@@ -5992,7 +6034,7 @@ describe('AssetsController', () => {
           'entropy:mock-keyring-id-1/0',
         );
 
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
         getAssetsSpy.mockRestore();
@@ -6009,14 +6051,14 @@ describe('AssetsController', () => {
           }
         ).publish('ClientController:stateChanged', { isUiOpen: true });
         messenger.publish('KeyringController:unlock');
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
           '',
         );
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
@@ -6024,9 +6066,9 @@ describe('AssetsController', () => {
           'AccountTreeController:initialized',
           {},
         );
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalled();
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalled();
+        });
         getAssetsSpy.mockRestore();
       });
     });
@@ -6046,7 +6088,7 @@ describe('AssetsController', () => {
           'entropy:mock-keyring-id-1/0',
           'entropy:mock-keyring-id-1/0',
         );
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
         getAssetsSpy.mockRestore();
@@ -6282,7 +6324,9 @@ describe('AssetsController', () => {
           );
 
           release();
-          await flushPromises();
+          await waitUntilStable(
+            () => controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+          );
 
           expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
             'loaded',
@@ -6459,15 +6503,16 @@ describe('AssetsController', () => {
               chainIds: ['eip155:1'],
               forceUpdate: true,
             });
-            await flushPromises();
 
             // assert: the initial load settled, and no background fetch ran.
-            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
-              'loaded',
-            );
-            expect(
-              controller.state.assetsBackgroundLoadingStatus?.[account.id],
-            ).toBeUndefined();
+            await waitFor(() => {
+              expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+                'loaded',
+              );
+              expect(
+                controller.state.assetsBackgroundLoadingStatus?.[account.id],
+              ).toBeUndefined();
+            });
           },
         );
       });
@@ -6553,7 +6598,7 @@ describe('AssetsController', () => {
         }
       ).publish('ClientController:stateChanged', { isUiOpen: true });
       messenger.publish('KeyringController:unlock');
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
@@ -6564,7 +6609,7 @@ describe('AssetsController', () => {
         {},
         [],
       );
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
@@ -6573,13 +6618,13 @@ describe('AssetsController', () => {
         'AccountTreeController:initialized',
         {},
       );
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
-      expect(getAssetsSpy).toHaveBeenCalledWith(
-        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-        expect.objectContaining({ forceUpdate: true }),
-      );
+      await waitFor(() => {
+        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          expect.objectContaining({ forceUpdate: true }),
+        );
+      });
 
       controller.destroy();
     });
