@@ -8667,9 +8667,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (Date.now() >= session.deadline) {
       // The window closed. The last order stays resting as an ordinary limit
       // order and the session stays registered, so cancelling by its handle
-      // still reaches that order.
+      // still reaches that order. A refused replacement left nothing resting,
+      // so that chase ends as the refusal would have.
       session.active = false;
-      session.status = CHASE_ORDER_STATUS.DurationReached;
+      session.status =
+        session.orderId === null
+          ? CHASE_ORDER_STATUS.Failed
+          : CHASE_ORDER_STATUS.DurationReached;
       this.#deps.debugLogger.log('Chase session window closed', { sessionId });
       await this.#rebalanceChaseSession(session);
       return;

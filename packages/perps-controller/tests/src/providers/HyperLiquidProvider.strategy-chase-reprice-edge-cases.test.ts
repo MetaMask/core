@@ -418,4 +418,37 @@ describe('HyperLiquidProvider - Chase re-pricing edge cases', () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(order).toHaveBeenCalledTimes(2);
   });
+
+  it('ends a chase failed rather than duration-reached when nothing rests', async () => {
+    const order = vi
+      .fn()
+      .mockResolvedValueOnce(restedAs(55))
+      .mockRejectedValueOnce(
+        new Error('Post only order would have immediately matched'),
+      )
+      .mockResolvedValue(restedAs(77));
+    const l2Book = vi
+      .fn()
+      .mockResolvedValueOnce(ethBook([{ px: '2999', sz: '10' }]))
+      .mockResolvedValue(ethBook([{ px: '2998', sz: '10' }]));
+    useStrategyClients({ exchange: { order }, info: { l2Book } });
+
+    const placed = await provider.placeOrder({
+      ...baseOrder,
+      orderType: 'chase',
+      chaseIntervalMs: 1000,
+      chaseMaxDurationMs: 1500,
+    });
+    // The replacement is refused, and the window closes before the retry.
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(order).toHaveBeenCalledTimes(2);
+    expect(await provider.getChaseOrders()).toStrictEqual([
+      expect.objectContaining({
+        handle: placed.orderId,
+        restingOrderId: null,
+        status: CHASE_ORDER_STATUS.Failed,
+      }),
+    ]);
+  });
 });
