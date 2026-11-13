@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Update dependent versions and changelogs"
+- Update dependent versions and changelogs
+
 ### Changed
 
 - `getReceivedERC20Amount` utility now adds up all transferred ERC20 amounts to a given wallet address ([#11402](https://github.com/MetaMask/core/pull/11402))
