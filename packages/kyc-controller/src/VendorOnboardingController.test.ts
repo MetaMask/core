@@ -7,6 +7,7 @@ import type {
 import { describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
 import type { KycSessionStatus, KycStep } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
@@ -147,22 +148,183 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('ignores a slow answer that a newer request has passed', async () => {
+    it('shares one request between overlapping reads', async () => {
       await withController(async ({ controller, handlers }) => {
-        let answerFirst: (step: KycStep) => void = () => undefined;
-        const slowAnswer = new Promise<KycStep>((resolve) => {
-          answerFirst = resolve;
-        });
-        handlers.getStep
-          .mockReturnValueOnce(slowAnswer)
-          .mockResolvedValueOnce('kyc_pending');
+        let answer: (step: KycStep) => void = () => undefined;
+        handlers.getStep.mockReturnValueOnce(
+          new Promise<KycStep>((resolve) => {
+            answer = resolve;
+          }),
+        );
 
         const first = controller.refreshStep({ vendor: 'kalshi' });
-        await controller.refreshStep({ vendor: 'kalshi' });
-        answerFirst('vendor_terms');
-        await first;
+        const second = controller.refreshStep({ vendor: 'kalshi' });
+        answer('account_link');
 
-        expect(controller.state.vendors.kalshi?.step).toBe('kyc_pending');
+        expect(await Promise.all([first, second])).toStrictEqual([
+          'account_link',
+          'account_link',
+        ]);
+        expect(handlers.getStep).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('asks again once the earlier read has finished', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep
+          .mockResolvedValueOnce('vendor_terms')
+          .mockResolvedValueOnce('account_link');
+
+        await controller.refreshStep({ vendor: 'kalshi' });
+        const step = await controller.refreshStep({ vendor: 'kalshi' });
+
+        expect(step).toBe('account_link');
+        expect(handlers.getStep).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('does not share reads between vendors', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep
+          .mockResolvedValueOnce('approved')
+          .mockResolvedValueOnce('account_link');
+
+        await Promise.all([
+          controller.refreshStep({ vendor: 'iron' }),
+          controller.refreshStep({ vendor: 'kalshi' }),
+        ]);
+
+        expect(handlers.getStep).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('lets every caller of a failed shared read see the failure, then asks again', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep
+          .mockRejectedValueOnce(new Error('down'))
+          .mockResolvedValueOnce('account_link');
+
+        const first = controller.refreshStep({ vendor: 'kalshi' });
+        const second = controller.refreshStep({ vendor: 'kalshi' });
+
+        await expect(first).rejects.toThrow('down');
+        await expect(second).rejects.toThrow('down');
+        expect(await controller.refreshStep({ vendor: 'kalshi' })).toBe(
+          'account_link',
+        );
+      });
+    });
+
+    describe('after a change at kyc-api', () => {
+      const linked = {
+        startLink: vi.fn().mockResolvedValue(undefined),
+        verifyLink: vi.fn().mockResolvedValue({}),
+      };
+
+      it('does not join a read that started before the change', async () => {
+        await withController(
+          { options: { accountLinkAdapters: { kalshi: linked } } },
+          async ({ controller, handlers }) => {
+            let answerOld: (step: KycStep) => void = () => undefined;
+            handlers.getStep
+              .mockReturnValueOnce(
+                new Promise<KycStep>((resolve) => {
+                  answerOld = resolve;
+                }),
+              )
+              .mockResolvedValueOnce('account_link_code');
+
+            const old = controller.refreshStep({ vendor: 'kalshi' });
+            const step = await controller.startAccountLink({
+              vendor: 'kalshi',
+              email: 'a@b.co',
+            });
+            answerOld('account_link');
+            await old;
+
+            expect(step).toBe('account_link_code');
+            expect(handlers.getStep).toHaveBeenCalledTimes(2);
+            expect(controller.state.vendors.kalshi?.step).toBe(
+              'account_link_code',
+            );
+          },
+        );
+      });
+
+      it('lets a later plain read join the read the change started', async () => {
+        await withController(
+          { options: { accountLinkAdapters: { kalshi: linked } } },
+          async ({ controller, handlers }) => {
+            let answer: (step: KycStep) => void = () => undefined;
+            handlers.getStep.mockReturnValueOnce(
+              new Promise<KycStep>((resolve) => {
+                answer = resolve;
+              }),
+            );
+
+            const action = controller.startAccountLink({
+              vendor: 'kalshi',
+              email: 'a@b.co',
+            });
+            await flushPromises();
+            const plain = controller.refreshStep({ vendor: 'kalshi' });
+            answer('account_link_code');
+
+            expect(await Promise.all([action, plain])).toStrictEqual([
+              'account_link_code',
+              'account_link_code',
+            ]);
+            expect(handlers.getStep).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('drops an older read that finishes after the step came back with the action', async () => {
+        await withController(async ({ controller, handlers }) => {
+          let answerOld: (step: KycStep) => void = () => undefined;
+          handlers.getStep.mockReturnValueOnce(
+            new Promise<KycStep>((resolve) => {
+              answerOld = resolve;
+            }),
+          );
+          handlers.acceptVendorTerms.mockResolvedValue('account_link');
+
+          const old = controller.refreshStep({ vendor: 'kalshi' });
+          await controller.acceptTerms({
+            vendor: 'kalshi',
+            disclaimerIds: ['a'],
+          });
+          answerOld('vendor_terms');
+          await old;
+
+          expect(controller.state.vendors.kalshi?.step).toBe('account_link');
+        });
+      });
+
+      it('asks again, not joins, after a step came back with the action', async () => {
+        await withController(async ({ controller, handlers }) => {
+          let answerOld: (step: KycStep) => void = () => undefined;
+          handlers.getStep
+            .mockReturnValueOnce(
+              new Promise<KycStep>((resolve) => {
+                answerOld = resolve;
+              }),
+            )
+            .mockResolvedValueOnce('account_link_code');
+          handlers.acceptVendorTerms.mockResolvedValue('account_link');
+
+          const old = controller.refreshStep({ vendor: 'kalshi' });
+          await controller.acceptTerms({
+            vendor: 'kalshi',
+            disclaimerIds: ['a'],
+          });
+          const fresh = await controller.refreshStep({ vendor: 'kalshi' });
+          answerOld('vendor_terms');
+          await old;
+
+          expect(fresh).toBe('account_link_code');
+          expect(handlers.getStep).toHaveBeenCalledTimes(2);
+        });
       });
     });
 
