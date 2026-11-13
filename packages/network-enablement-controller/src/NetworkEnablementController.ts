@@ -40,6 +40,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'listPopularMultichainNetworks',
   'restoreEnabledNetworkMap',
   'setNetworkAdditionMode',
+  'isNonActiveAddition',
 ] as const;
 
 /**
@@ -682,6 +683,18 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Checks if a network addition is currently marked as non-active.
+   * This is used by extension subscribers to skip snapshot restores for
+   * user-initiated network additions.
+   *
+   * @param chainId - The chain ID to check.
+   * @returns True if the chain is marked as a non-active addition.
+   */
+  isNonActiveAddition(chainId: Hex): boolean {
+    return this.#nonActiveAdditions.has(chainId);
+  }
+
+  /**
    * Checks if a network is enabled.
    *
    * @param chainId - The chain ID of the network to check. Can be either:
@@ -815,9 +828,7 @@ export class NetworkEnablementController extends BaseController<
       // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(state, namespace);
 
-      if (isRegistryAutoAdded) {
-        state.enabledNetworkMap[namespace][storageKey] ??= false;
-      } else if (isNonActiveAddition) {
+      if (isNonActiveAddition) {
         // Non-active addition: preserve current selection.
         // In popular mode, add the new popular network to the selection.
         // Otherwise, add as disabled.
@@ -832,6 +843,9 @@ export class NetworkEnablementController extends BaseController<
           // Single-network mode or non-popular network: add as disabled
           state.enabledNetworkMap[namespace][storageKey] = false;
         }
+      } else if (isRegistryAutoAdded) {
+        // Registry auto-added network: add as disabled to preserve selection
+        state.enabledNetworkMap[namespace][storageKey] ??= false;
       } else {
         // Default behavior: check if popular networks mode is active
         const inPopularNetworksMode = this.#isInPopularNetworksMode();

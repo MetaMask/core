@@ -166,6 +166,19 @@ export type NetworkEnablementControllerSetNetworkAdditionModeAction = {
 };
 
 /**
+ * Checks if a network addition is currently marked as non-active.
+ * This is used by extension subscribers to skip snapshot restores for
+ * user-initiated network additions.
+ *
+ * @param chainId - The chain ID to check.
+ * @returns True if the chain is marked as a non-active addition.
+ */
+export type NetworkEnablementControllerIsNonActiveAdditionAction = {
+  type: `NetworkEnablementController:isNonActiveAddition`;
+  handler: NetworkEnablementController['isNonActiveAddition'];
+};
+
+/**
  * Checks if a network is enabled.
  *
  * @param chainId - The chain ID of the network to check. Can be either:
@@ -228,6 +241,7 @@ export type NetworkEnablementControllerMethodActions =
   | NetworkEnablementControllerDisableNetworkAction
   | NetworkEnablementControllerRestoreEnabledNetworkMapAction
   | NetworkEnablementControllerSetNetworkAdditionModeAction
+  | NetworkEnablementControllerIsNonActiveAdditionAction
   | NetworkEnablementControllerIsNetworkEnabledAction
   | NetworkEnablementControllerListPopularEvmNetworksAction
   | NetworkEnablementControllerListPopularMultichainNetworksAction
