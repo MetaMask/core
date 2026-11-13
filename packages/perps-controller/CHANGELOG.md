@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PerpsController.setDefaultProvider` (messenger action `PerpsController:setDefaultProvider`) to save the default venue for aggregated-mode routing, and a persisted `defaultProvider` state field separate from `activeProvider` ([#11421](https://github.com/MetaMask/core/pull/11421))
+  - Unlike `switchProvider`, changing the default never re-initializes the controller or reconnects provider transports: the live aggregated provider's routing default is updated in place and both venues stay connected
+  - Default-routed streams (account, available to trade, candles, order book, open-interest caps, TWAP and connection-state listeners) move to the new venue, and the cached `accountState` snapshot is cleared until the new venue delivers matching data
+  - Default-routed TWAP subscribers receive an empty snapshot when the default changes, replacing the previous venue's schedules even when the new venue has no native TWAP stream
+  - Available-to-trade subscriptions without an explicit route invalidate the previous venue's value through `onError` before moving; explicitly routed subscriptions stay on their venue
+  - `getAccountState` responses are attributed to the provider that served them: the provider id is captured before the venue request is awaited, so changing the default mid-request does not mislabel the balance in the user-data preloader's provider bucket
+  - REST account responses are validated against the active direct venue, or the default venue in aggregated mode, so a different saved default does not block direct-mode balance updates. A response from a previous venue, such as one that resolves after the default moved, is discarded instead of overwriting the new venue's balance snapshot
+  - An account-stream consumer is notified with an unavailable (`null`) snapshot when the default changes, so a channel that caches the balance separately from `accountState` does not keep showing the previous venue's value while the new venue's first update pends
+  - A stream whose previous venue fails to unsubscribe, or that fails to re-open, is reported instead of aborting the move for the other streams. A stream that fails to re-open is retried on the next `setDefaultProvider` call
+  - The saved `defaultProvider` is kept when its venue is temporarily unavailable: aggregated mode uses HyperLiquid as an in-memory fallback, accepts its account balances, and restores the saved route on a later successful initialization
+  - Returns the new `SetDefaultProviderResult` type (`{ success, defaultProvider, error? }`)
+  - Persist `hasExplicitDefaultProviderSelection` when `setDefaultProvider` succeeds, including unchanged defaults, so migration preserves user choices across cold starts but still infers the direct venue when `defaultProvider` was only automatically persisted ([#11421](https://github.com/MetaMask/core/pull/11421))
+  - New messenger action type `PerpsControllerSetDefaultProviderAction`
+- Add migration to aggregated mode behind the version-gated `perpsMultiProviderModeEnabled` remote feature flag ([#11421](https://github.com/MetaMask/core/pull/11421))
+  - When the flag is on, a persisted direct `activeProvider` (`hyperliquid` or `lighter`) migrates to `aggregated`, preserving an existing saved `defaultProvider` or inferring it from the previous direct venue for legacy state, so both venues' positions and balances are read at the same time
+  - A default saved with `setDefaultProvider` before initialization is preserved even if the multi-provider flag arrives later
+  - An explicit `switchProvider` to a direct venue is honored while `perpsMultiProviderModeEnabled` is on, and is preserved across later initialization (network toggle, disconnect/init, cold start) through the persisted `hasExplicitProviderSelection` flag, so the switch result, `activeProvider` and the active provider instance agree
+  - When the flag is explicitly disabled or fails its version gate, direct-provider mode is restored, including for existing aggregated sessions. The saved default preference is kept, unrouted writes are allowed again, and switches back to aggregated mode are rejected while disabled. Missing flags or pending validation do not trigger a rollback
+  - `hasMigratedToMultiProvider` is persisted separately from explicit user selections, so re-enabling the flag after an unavailable venue forced a direct-mode fallback does not overwrite the previously inferred default, including across restarts
+  - Existing Core subscriptions are rebound to the replacement provider during automatic rollback and subsequent initialization retries, keeping their original cleanup functions until successful recovery, unsubscribe or an explicit context change
+  - Mobile rollout requires removing navigation-driven `switchProvider` calls before the flag's minimum supported version; see the README's multi-provider rollout prerequisites
+- Add a structured `PROVIDER_ROUTE_REQUIRED` error code: in aggregated mode with multiple registered venues, a write that does not name a venue is refused with it instead of silently falling back to the default provider ([#11421](https://github.com/MetaMask/core/pull/11421))
+  - Applies to `placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`, `replacePositionTPSLLeg`, `updateMargin`, `withdraw` and `flipPosition` (a flip names its venue through `position.providerId`)
+  - `cancelOrders` and `closePositions` cannot name a venue, so they are always refused while multiple venues are registered instead of reaching the default venue. The refusal has zero counts, empty `results` and the code in a batch-level `error`
+  - `CancelOrdersResult` has a new optional batch-level `error` field, matching `ClosePositionsResult`
+  - Direct single-provider modes and aggregated wrappers with one registered venue, including HyperLiquid-only fallback when Lighter is unavailable, accept writes without an explicit route: they already have exactly one destination
+  - A write queued across a cold-start migration to aggregated mode is checked against the provider it actually reaches
+  - `PROVIDER_ROUTE_REQUIRED` widens the exported `PerpsErrorCode` union. Clients that key an exhaustive `Record<PerpsErrorCode, …>` must add an entry when they upgrade
+
+### Changed
+
+- **BREAKING:** `tradeConfigurations` state is keyed by provider and then market symbol (`{ [network]: { [providerId]: { [symbol]: config } } }`), so leverage, order-book grouping, margin mode and pending config saved for one venue no longer apply to the same symbol on another venue ([#11421](https://github.com/MetaMask/core/pull/11421))
+  - Persisted state written by older versions migrates automatically: entries move under the venue that was active when they were saved
+  - The trade-configuration methods (`getTradeConfiguration`, `saveTradeConfiguration`, `savePendingTradeConfiguration`, `getPendingTradeConfiguration`, `clearPendingTradeConfiguration`, `getOrderBookGrouping`, `saveOrderBookGrouping`, `getMarginMode`, `saveMarginMode`) and the `selectTradeConfiguration`, `selectPendingTradeConfiguration`, `selectOrderBookGrouping` and `selectMarginMode` selectors take an optional trailing `providerId` argument. Omitting it keeps the previous behaviour: the active provider in direct mode, the default provider in aggregated mode
+  - Implicit trade-configuration reads, writes and selectors resolve against the live venue during fallback and recovery, rather than the saved preference. The live venue is exposed as non-persisted `effectiveProvider` state while `defaultProvider` stays unchanged; explicit `providerId` routes still take priority
+  - `effectiveProvider` is cleared when switching providers or networks and during initialization, so implicit trade-configuration reads, writes and selectors use the selected destination while reconnecting instead of the previous venue's settings
+  - Types `PerpsPendingTradeConfiguration`, `PerpsTradeConfiguration` and `PerpsProviderTradeConfigurations`
+
+### Fixed
+
+- Fix `updateMargin` dropping its `providerId` route before reaching the provider, so an explicit venue now answers in aggregated mode ([#11421](https://github.com/MetaMask/core/pull/11421))
+- Harden the trade-configuration state writes against prototype pollution: `symbol` and venue keys are validated before they index persisted state, so a `__proto__`/`constructor`/`prototype` key (or an unknown venue id) from a JS caller or tampered persisted state is ignored instead of corrupting the record's prototype chain ([#11421](https://github.com/MetaMask/core/pull/11421))
+
 ## [23.1.0]
 
 ### Added

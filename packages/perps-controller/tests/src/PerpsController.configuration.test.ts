@@ -1205,7 +1205,8 @@ describe('PerpsController', () => {
       // Verify state was cleaned up
       const network = controller.state.isTestnet ? 'testnet' : 'mainnet';
       expect(
-        controller.state.tradeConfigurations[network]?.BTC?.pendingConfig,
+        controller.state.tradeConfigurations[network]?.hyperliquid?.BTC
+          ?.pendingConfig,
       ).toBeUndefined();
     });
 
@@ -1558,7 +1559,9 @@ describe('PerpsController', () => {
       controller.saveMarginMode('BTC', 'cross');
 
       expect(controller.getMarginMode('BTC')).toBe('cross');
-      expect(controller.state.tradeConfigurations.mainnet.BTC).toStrictEqual({
+      expect(
+        controller.state.tradeConfigurations.mainnet.hyperliquid.BTC,
+      ).toStrictEqual({
         marginMode: 'cross',
       });
     });
@@ -1571,7 +1574,9 @@ describe('PerpsController', () => {
       controller.saveMarginMode('ETH', 'isolated');
 
       expect(controller.getMarginMode('ETH')).toBe('isolated');
-      expect(controller.state.tradeConfigurations.mainnet.ETH).toBeUndefined();
+      expect(
+        controller.state.tradeConfigurations.mainnet.hyperliquid?.ETH,
+      ).toBeUndefined();
     });
 
     it('returns undefined when no margin mode is saved', () => {
