@@ -6510,14 +6510,14 @@ describe('AssetsController', () => {
             });
 
             // assert: the initial load settled, and no background fetch ran.
-            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
-              'loaded',
-            );
-            await waitFor(() =>
+            await waitFor(() => {
+              expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+                'loaded',
+              );
               expect(
                 controller.state.assetsBackgroundLoadingStatus?.[account.id],
-              ).toBeUndefined(),
-            );
+              ).toBeUndefined();
+            });
           },
         );
       });
