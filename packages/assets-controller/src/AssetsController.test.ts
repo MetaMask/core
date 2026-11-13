@@ -4572,16 +4572,16 @@ describe('AssetsController', () => {
           txParams: { from: '0x1234567890123456789012345678901234567890' },
         });
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          {
-            chainIds: ['eip155:42161'],
-            forceUpdate: true,
-            bypassServerCache: true,
-          },
-        );
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:42161'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
 
         getAssetsSpy.mockRestore();
       });
@@ -4598,16 +4598,16 @@ describe('AssetsController', () => {
           txParams: { from: '0x1234567890123456789012345678901234567890' },
         });
 
-        await flushPromises();
-
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-          {
-            chainIds: ['eip155:42161'],
-            forceUpdate: true,
-            bypassServerCache: true,
-          },
-        );
+        await waitFor(() => {
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            {
+              chainIds: ['eip155:42161'],
+              forceUpdate: true,
+              bypassServerCache: true,
+            },
+          );
+        });
 
         getAssetsSpy.mockRestore();
       });
@@ -4749,8 +4749,6 @@ describe('AssetsController', () => {
           status: 'up',
         });
 
-        await flushPromises();
-
         messenger.publish('TransactionController:unapprovedTransactionAdded', {
           chainId: '0xa4b1',
           txParams: { from: '0x1234567890123456789012345678901234567890' },
@@ -4760,7 +4758,7 @@ describe('AssetsController', () => {
           txParams: { from: '0x1234567890123456789012345678901234567890' },
         });
 
-        await flushPromises();
+        await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
