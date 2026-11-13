@@ -10,9 +10,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { describe, expect, it, vi } from 'vitest';
 
-import packageJson from '../package.json';
-import { SENTINEL_API_BASE_URL_MAP } from './constants.js';
-import { APIType, SmartTransactionStatuses, ClientId } from './types.js';
+import { SmartTransactionStatuses, ClientId } from './types.js';
 import * as utils from './utils.js';
 
 const createSignedTransaction = () => {
@@ -41,89 +39,6 @@ describe('src/utils.js', () => {
     it('returns true is a smart transaction is not yet mined and there is no error', () => {
       const smartTransaction = createSmartTransaction();
       expect(utils.isSmartTransactionPending(smartTransaction)).toBe(true);
-    });
-  });
-
-  describe('getAPIRequestURL', () => {
-    const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
-    const ethSepoliaChainIdDec = parseInt(ChainId.sepolia, 16);
-
-    it('returns a sentinel URL for getting fees', () => {
-      expect(utils.getAPIRequestURL(APIType.GET_FEES, ChainId.mainnet)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/getFees`,
-      );
-    });
-
-    it('returns correct sentinel URL for ESTIMATE_GAS', () => {
-      const chainId = '0x1'; // Mainnet in hex
-      const expectedUrl = `${SENTINEL_API_BASE_URL_MAP[1]}/v1/networks/1/estimateGas`;
-      const result = utils.getAPIRequestURL(APIType.ESTIMATE_GAS, chainId);
-      expect(result).toBe(expectedUrl);
-    });
-
-    it('converts hex chainId to decimal for ESTIMATE_GAS', () => {
-      const chainId = '0x89'; // Polygon in hex (137 in decimal)
-      const expectedUrl = `${SENTINEL_API_BASE_URL_MAP[137]}/v1/networks/137/estimateGas`;
-      const result = utils.getAPIRequestURL(APIType.ESTIMATE_GAS, chainId);
-      expect(result).toBe(expectedUrl);
-    });
-
-    it('returns a sentinel URL for submitting transactions', () => {
-      expect(
-        utils.getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, ChainId.mainnet),
-      ).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-      );
-    });
-
-    it('returns a sentinel URL for transaction cancellation', () => {
-      expect(utils.getAPIRequestURL(APIType.CANCEL, ChainId.mainnet)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/cancel`,
-      );
-    });
-
-    it('returns a sentinel URL for checking smart transaction status', () => {
-      expect(
-        utils.getAPIRequestURL(APIType.BATCH_STATUS, ChainId.mainnet),
-      ).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/batchStatus`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on ETH Mainnet', () => {
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, ChainId.mainnet)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/network`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on ETH Sepolia', () => {
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, ChainId.sepolia)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethSepoliaChainIdDec]}/network`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on BSC', () => {
-      const bscChainIdHex = '0x38';
-      const bscChainIdDec = parseInt(bscChainIdHex, 16);
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, bscChainIdHex)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[bscChainIdDec]}/network`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on Base', () => {
-      const baseChainIdHex = '0x2105';
-      const baseChainIdDec = parseInt(baseChainIdHex, 16);
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, baseChainIdHex)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[baseChainIdDec]}/network`,
-      );
-    });
-
-    it('throws when chain is not in SENTINEL_API_BASE_URL_MAP', () => {
-      const unsupportedChainId = '0x539'; // 1337 — local dev chain
-      const chainIdDec = parseInt(unsupportedChainId, 16);
-      expect(() =>
-        utils.getAPIRequestURL(APIType.GET_FEES, unsupportedChainId),
-      ).toThrow(`Chain ${chainIdDec} is not supported`);
     });
   });
 
@@ -336,32 +251,6 @@ describe('src/utils.js', () => {
     it('returns "0x57" if we pass "0x56"', () => {
       const incrementedNonce = utils.incrementNonceInHex('0x56');
       expect(incrementedNonce).toBe('0x57');
-    });
-  });
-
-  describe('mapKeysToCamel', () => {
-    it('returns keys and nested keys in camelCase', () => {
-      const errResponse = {
-        error_props: {
-          balance_needed_wei: 235105211121513150,
-          current_balance_wei: 230652394534126820,
-        },
-        error: 'not_enough_funds',
-        error_details:
-          'Not enough funds. Balance is only 230652394534126801 wei and we need 235105211121513136 wei at the very least.',
-      };
-      const errResponseCamelCase = utils.mapKeysToCamel(errResponse);
-      expect(errResponseCamelCase.errorProps.balanceNeededWei).toStrictEqual(
-        errResponse.error_props.balance_needed_wei,
-      );
-
-      expect(errResponseCamelCase.errorProps.currentBalanceWei).toStrictEqual(
-        errResponse.error_props.current_balance_wei,
-      );
-
-      expect(errResponseCamelCase.errorDetails).toStrictEqual(
-        errResponse.error_details,
-      );
     });
   });
 
@@ -745,51 +634,6 @@ describe('src/utils.js', () => {
         utils.getSmartTransactionMetricsProperties(smartTransaction);
 
       expect(result.stx_original_transaction_status).toBeUndefined();
-    });
-  });
-
-  describe('handleFetch', () => {
-    it('returns the response from the fetch', async () => {
-      const response = { transactions: [{ id: '123' }] };
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        json: () => Promise.resolve(response),
-        ok: true,
-        status: 200,
-      } as Response);
-      expect(await utils.handleFetch('https://example.com')).toStrictEqual(
-        response,
-      );
-    });
-
-    it('throws an error if the fetch fails', async () => {
-      vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Fetch error'));
-      await expect(utils.handleFetch('https://example.com')).rejects.toThrow(
-        'Fetch error',
-      );
-    });
-
-    it('throws an error if the response is not ok', async () => {
-      const consoleLogSpy = vi
-        .spyOn(console, 'log')
-        .mockImplementationOnce(vi.fn());
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            data: { error: 'too_cheap', details: 'insufficient funds' },
-          }),
-        ok: false,
-        status: 500,
-      } as Response);
-      await expect(utils.handleFetch('https://example.com')).rejects.toThrow(
-        'Fetch error: 500',
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        'response',
-        expect.objectContaining({
-          ok: false,
-          status: 500,
-        }),
-      );
     });
   });
 

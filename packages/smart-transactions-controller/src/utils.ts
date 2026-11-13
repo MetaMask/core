@@ -12,21 +12,13 @@ import type {
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { hasProperty } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { camelCase, isArray, isObject, mapKeys, mapValues } from 'lodash-es';
 
-// Ignoring TypeScript errors here because this import is disallowed for production builds, because
-// the `package.json` file is above the root directory.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import packageJson from '../package.json';
-import { SENTINEL_API_BASE_URL_MAP } from './constants.js';
 import type {
   SmartTransaction,
   SmartTransactionsStatus,
   SmartTransactionsNetworkConfig,
 } from './types.js';
 import {
-  APIType,
   SmartTransactionStatuses,
   cancellationReasonToStatusMap,
   ClientId,
@@ -39,45 +31,6 @@ export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
 export const isSmartTransactionStatusResolved = (
   stxStatus: SmartTransactionsStatus | string,
 ) => stxStatus === 'uuid_not_found';
-
-export function getAPIRequestURL(apiType: APIType, chainId: string): string {
-  const chainIdDec = parseInt(chainId, 16);
-
-  // Throw the error that would have been thrown by transaction-api on an unsupported chain.
-  if (!SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
-    throw new Error(`Chain ${chainIdDec} is not supported`);
-  }
-
-  switch (apiType) {
-    case APIType.GET_FEES: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/getFees`;
-    }
-
-    case APIType.ESTIMATE_GAS: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/estimateGas`;
-    }
-
-    case APIType.SUBMIT_TRANSACTIONS: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
-    }
-
-    case APIType.CANCEL: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/cancel`;
-    }
-
-    case APIType.BATCH_STATUS: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/batchStatus`;
-    }
-
-    case APIType.LIVENESS: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/network`;
-    }
-
-    default: {
-      throw new Error(`Invalid APIType`); // It can never get here thanks to TypeScript.
-    }
-  }
-}
 
 export const calculateStatus = (
   stxStatus: SmartTransactionsStatus,
@@ -133,36 +86,6 @@ export const getStxProcessingTime = (
   }
   return Math.round((Date.now() - smartTransactionSubmittedtime) / 1000);
 };
-
-export const mapKeysToCamel = (
-  obj: Record<string, any>,
-): Record<string, any> => {
-  if (!isObject(obj)) {
-    return obj;
-  }
-  const mappedValues = mapValues(obj, (val: Record<string, any>) => {
-    if (isArray(val)) {
-      return val.map(mapKeysToCamel);
-    } else if (isObject(val)) {
-      return mapKeysToCamel(val);
-    }
-    return val;
-  });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  return mapKeys(mappedValues, (value, key) => camelCase(key));
-};
-
-export async function handleFetch(request: string, options?: RequestInit) {
-  const response = await fetch(request, options);
-  const json = await response.json();
-  if (!response.ok) {
-    console.log(`response`, response);
-    throw Object.assign(new Error(`Fetch error: ${response.status}`), {
-      data: mapKeysToCamel(json),
-    });
-  }
-  return json;
-}
 
 export const getErrorData = (error: unknown): string => {
   if (error && typeof error === 'object' && hasProperty(error, 'data')) {

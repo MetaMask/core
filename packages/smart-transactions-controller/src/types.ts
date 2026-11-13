@@ -9,34 +9,7 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 
 import type { SmartTransactionsNetworkConfig } from './featureFlags/index.js';
 
-/** API */
-export enum APIType {
-  GET_FEES = 0,
-  ESTIMATE_GAS = 1,
-  SUBMIT_TRANSACTIONS = 2,
-  CANCEL = 3,
-  BATCH_STATUS = 4,
-  LIVENESS = 5,
-}
-
 /** SmartTransactions */
-export enum SmartTransactionMinedTx {
-  NOT_MINED = 'not_mined',
-  SUCCESS = 'success',
-  CANCELLED = 'cancelled',
-  REVERTED = 'reverted',
-  UNKNOWN = 'unknown',
-}
-
-export enum SmartTransactionCancellationReason {
-  WOULD_REVERT = 'would_revert',
-  TOO_CHEAP = 'too_cheap',
-  DEADLINE_MISSED = 'deadline_missed',
-  INVALID_NONCE = 'invalid_nonce',
-  USER_CANCELLED = 'user_cancelled',
-  NOT_CANCELLED = 'not_cancelled',
-}
-
 export enum SmartTransactionStatuses {
   PENDING = 'pending',
   SUCCESS = 'success',
@@ -50,29 +23,6 @@ export enum SmartTransactionStatuses {
 export enum ClientId {
   Mobile = 'mobile',
   Extension = 'extension',
-}
-
-export enum OriginalTransactionStatus {
-  PENDING = 'PENDING',
-  PENDING_CANCELLED = 'PENDING_CANCELLED',
-
-  VALIDATED = 'VALIDATED',
-  REVERTED = 'REVERTED',
-  NONCE_TOO_LOW = 'NONCE_TOO_LOW',
-  CANCELLED = 'CANCELLED',
-
-  FAILED = 'FAILED',
-  FAILED_WOULD_REVERT = 'FAILED_WOULD_REVERT',
-  FAILED_INSUFFICIENT_FUNDS = 'FAILED_INSUFFICIENT_FUNDS',
-  FAILED_UNKNOWN = 'FAILED_UNKNOWN',
-  FAILED_TIMEOUT = 'FAILED_TIMEOUT',
-  FAILED_GAS_TOO_LOW = 'FAILED_GAS_TOO_LOW',
-  FAILED_NONCE_TOO_HIGH = 'FAILED_NONCE_TOO_HIGH',
-
-  LEAKED_VALIDATED = 'LEAKED_VALIDATED',
-  LEAKED_REVERTED = 'LEAKED_REVERTED',
-  CANCELLED_LEAKED_VALIDATED = 'CANCELLED_LEAKED_VALIDATED',
-  CANCELLED_LEAKED_REVERTED = 'CANCELLED_LEAKED_REVERTED',
 }
 
 export const cancellationReasonToStatusMap = {

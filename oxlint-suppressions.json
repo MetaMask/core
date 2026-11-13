@@ -5005,9 +5005,6 @@
   "packages/smart-transactions-controller/src/utils.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
     }
   },
   "packages/smart-transactions-controller/src/utils.ts": {
@@ -5015,19 +5012,13 @@
       "count": 1
     },
     "typescript/explicit-function-return-type": {
-      "count": 9
+      "count": 8
     },
     "typescript/no-explicit-any": {
-      "count": 4
+      "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 4
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
+      "count": 3
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
