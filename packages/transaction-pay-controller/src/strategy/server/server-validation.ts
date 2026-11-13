@@ -104,10 +104,9 @@ function shouldSkipValidation(
   // Simulation rebuilds the submit calls, which signs a delegation through the
   // client payment-override callback. Skip that for an MPC Money payer so
   // quote refresh does not prompt for MFA ahead of the real submit.
-  if (isMpcMoneyAccountPayer(messenger, request)) {
+  if (isMpcMoneyAccountPayer(messenger, request, transaction.txParams.from)) {
     log('Skipping quote validation: MPC Money account payer', {
-      from: request.from,
-      refundTo: request.refundTo,
+      from: transaction.txParams.from,
     });
     return true;
   }

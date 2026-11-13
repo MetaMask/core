@@ -193,13 +193,13 @@ describe('validateRelayQuotes', () => {
     });
   });
 
-  it('skips validation when the Money Account payer is an MPC keyring', async () => {
+  it('skips validation when a Money Account payment is signed by an MPC keyring', async () => {
     keyringStateMock.mockReturnValue({
       isUnlocked: true,
       keyrings: [
         {
           type: 'MPC Money Keyring',
-          accounts: [REFUND_TO_MOCK],
+          accounts: [FROM_MOCK],
           metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
         },
       ],
@@ -207,7 +207,6 @@ describe('validateRelayQuotes', () => {
 
     const quote = buildQuote({
       paymentOverride: PaymentOverride.MoneyAccount,
-      refundTo: REFUND_TO_MOCK,
     });
 
     await validateRelayQuotes({
@@ -220,13 +219,13 @@ describe('validateRelayQuotes', () => {
     expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
   });
 
-  it('validates a Money Account quote when the payer keyring does not require MFA', async () => {
+  it('validates a Money Account quote when the signing keyring does not require MFA', async () => {
     keyringStateMock.mockReturnValue({
       isUnlocked: true,
       keyrings: [
         {
           type: 'Money Keyring',
-          accounts: [REFUND_TO_MOCK],
+          accounts: [FROM_MOCK],
           metadata: { id: 'money-keyring', name: 'Money Keyring' },
         },
       ],
@@ -234,7 +233,6 @@ describe('validateRelayQuotes', () => {
 
     const quote = buildQuote({
       paymentOverride: PaymentOverride.MoneyAccount,
-      refundTo: REFUND_TO_MOCK,
     });
 
     await validateRelayQuotes({

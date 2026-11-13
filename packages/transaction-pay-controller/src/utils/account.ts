@@ -3,7 +3,10 @@ import {
   KEYRING_TYPES_SUPPORTING_7702,
   PaymentOverride,
 } from '../constants.js';
-import type { TransactionPayControllerMessenger } from '../types.js';
+import type {
+  PayStrategyGetQuotesRequest,
+  TransactionPayControllerMessenger,
+} from '../types.js';
 
 /**
  * Check whether a given account supports EIP-7702 authorization signing.
@@ -48,27 +51,95 @@ export function accountRequiresMfa(
 }
 
 /**
- * Whether the quote payer is an MPC Money account.
+ * Keep a quote request non-atomic when the signing account requires MFA.
  *
- * Perps and Predict deposits funded by a Money Account set `paymentOverride`
- * and put that account on `refundTo`. The account signs the delegation inside
- * the client payment-override callback. Quote simulation calls that callback,
- * so an MPC keyring would prompt for MFA on every quote and again on submit.
+ * An atomic quote embeds the target calls and signs a delegation on every
+ * refresh. That signature is an MFA confirmation, so every request for these
+ * accounts stays non-atomic: partial amounts, max amounts, and requests a
+ * client or a later promotion marked atomic.
  *
- * @param messenger - Controller messenger used to resolve the payer keyring.
- * @param request - Quote request carrying the payment override and refund recipient.
- * @returns Whether the payer is an MPC Money account.
+ * @param messenger - Controller messenger used to resolve the keyring.
+ * @param signingAccount - Account that would sign the embedded calls.
+ * @param request - Quote request to adjust.
+ * @returns The same request, or a copy with `atomic` set to `false`.
+ */
+function forceNonAtomicRequest<Request extends { atomic?: boolean }>(
+  messenger: TransactionPayControllerMessenger,
+  signingAccount: string | undefined,
+  request: Request,
+): Request {
+  if (
+    request.atomic === false ||
+    !accountRequiresMfa(messenger, signingAccount)
+  ) {
+    return request;
+  }
+
+  return { ...request, atomic: false };
+}
+
+/**
+ * Apply {@link forceNonAtomicRequest} to every quote request in a strategy call.
+ *
+ * This is the single place strategies receive their requests, so Relay, Server,
+ * Across, and Fiat all stay non-atomic for an MFA signing account. Relay calls
+ * it again for requests built after that dispatch, such as fiat estimation.
+ * Max promotion still has to skip its atomic paths, because it builds a new
+ * request and would otherwise set `atomic` back to `true`.
+ *
+ * @param request - Quote request passed to a strategy.
+ * @returns The same request, or a copy whose quote requests are non-atomic.
+ */
+export function withNonAtomicRequests<
+  Request extends PayStrategyGetQuotesRequest,
+>(request: Request): Request {
+  const signingAccount = request.transaction.txParams.from;
+  let changed = false;
+
+  const requests = request.requests.map((quoteRequest) => {
+    const next = forceNonAtomicRequest(
+      request.messenger,
+      signingAccount,
+      quoteRequest,
+    );
+
+    if (next !== quoteRequest) {
+      changed = true;
+    }
+
+    return next;
+  });
+
+  if (!changed) {
+    return request;
+  }
+
+  return { ...request, requests };
+}
+
+/**
+ * Whether a Money Account payment is signed by an MPC keyring.
+ *
+ * Perps and Predict deposits funded by a Money Account set `paymentOverride`.
+ * The account that signs the delegation is `transaction.txParams.from`, not
+ * `refundTo`. Quote simulation calls the payment-override callback, so an MPC
+ * keyring would prompt for MFA on every quote and again on submit.
+ *
+ * @param messenger - Controller messenger used to resolve the signing keyring.
+ * @param request - Quote request carrying the payment override.
+ * @param signingAccount - Account that signs the embedded delegation.
+ * @returns Whether this Money Account payment is signed by an MPC keyring.
  */
 export function isMpcMoneyAccountPayer(
   messenger: TransactionPayControllerMessenger,
   request: {
     paymentOverride?: PaymentOverride;
-    refundTo?: string;
   },
+  signingAccount: string | undefined,
 ): boolean {
   return (
     request.paymentOverride === PaymentOverride.MoneyAccount &&
-    accountRequiresMfa(messenger, request.refundTo)
+    accountRequiresMfa(messenger, signingAccount)
   );
 }
 
