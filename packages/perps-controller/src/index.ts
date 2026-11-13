@@ -254,6 +254,7 @@ export type {
   Position,
   AccountState,
   CrossMarginSummary,
+  HyperLiquidAbstractionMode,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -599,6 +600,7 @@ export {
   calculateWeightedReturnOnEquity,
   aggregateAccountStates,
   getCrossCollateral,
+  getCrossMarginSpotCollateral,
   calculateAccountSummary,
 } from './utils/index.js';
 export type {

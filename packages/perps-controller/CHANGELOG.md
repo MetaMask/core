@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `AccountState.spotCollateral`, the spot USDC that counts as cross collateral, so clients can pass it to `calculateAccountSummary` instead of assuming spot collateral is `0` ([#11457](https://github.com/MetaMask/core/pull/11457))
+  - The value is a canonical USDC decimal string. It is absent while the spot state or the Hyperliquid abstraction mode is still unknown, and `calculateAccountSummary` then leaves `accountRatio` and `crossMarginUsage` undefined
+  - Hyperliquid Standard (`disabled` and `default`) reports `'0'`: spot is a separate ledger and is not collateral
+  - Hyperliquid Unified and portfolio margin report free spot USDC, `max(0, spot.total - spot.hold)`, counting USDC only. A USDC balance with a missing or non-finite `total` or `hold`, or a response whose `balances` is not a list, leaves the field absent instead of counting the bad amount as `0`. A response that lists no USDC balance is a genuine `'0'`
+  - `getCrossMarginSpotCollateral(spotState, abstractionMode)` is the same calculation. `addSpotBalanceToAccountState` writes it onto the account when callers pass `abstractionMode`, including `null` while the mode is unresolved
+  - The live account stream republishes when a previously unknown abstraction mode resolves to Standard (`disabled` or `default`). Unknown and Standard both keep spot out of spendable balance, so the stream compares the published `spotCollateral` and pushes `'0'` without waiting for the next balance tick
+  - A known Lighter account reports `'0'`. That venue has no separate spot ledger; its collateral is already in the account value. A failed Lighter read still omits the field
 - Add `PerpsController.setDefaultProvider` (messenger action `PerpsController:setDefaultProvider`) to save the default venue for aggregated-mode routing, and a persisted `defaultProvider` state field separate from `activeProvider` ([#11421](https://github.com/MetaMask/core/pull/11421))
   - Unlike `switchProvider`, changing the default never re-initializes the controller or reconnects provider transports: the live aggregated provider's routing default is updated in place and both venues stay connected
   - Default-routed streams (account, available to trade, candles, order book, open-interest caps, TWAP and connection-state listeners) move to the new venue, and the cached `accountState` snapshot is cleared until the new venue delivers matching data

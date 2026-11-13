@@ -539,6 +539,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(accountState).toBeDefined();
       expect(accountState.totalBalance).toBe('19500'); // 10500 (perps) + 10000 (spot.total) - 1000 (spot.hold, double-counted in accountValue)
+      expect(accountState.spotCollateral).toBe('9000');
       expect(
         mockClientService.getInfoClient().clearinghouseState,
       ).toHaveBeenCalled();
@@ -560,6 +561,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(accountState).toBeDefined();
       expect(accountState.totalBalance).toBe('10500');
+      expect(accountState.spotCollateral).toBe('0');
       expect(
         mockClientService.getInfoClient().spotClearinghouseState,
       ).toHaveBeenCalled();
@@ -603,6 +605,7 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.spendableBalance).toBe('0');
       expect(accountState.withdrawableBalance).toBe('0');
       expect(accountState.totalBalance).toBe('0');
+      expect(accountState.spotCollateral).toBe('0');
     });
 
     it('folds USDC spot balance into spendable/withdrawable in Unified Account mode', async () => {
@@ -640,6 +643,7 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.spendableBalance).toBe('90');
       expect(accountState.withdrawableBalance).toBe('90');
       expect(accountState.totalBalance).toBe('90');
+      expect(accountState.spotCollateral).toBe('90');
     });
 
     it('returns a decimal-safe unified balance with isolated positions across DEXs', async () => {
@@ -690,6 +694,7 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.spendableBalance).toBe('1.775183');
       expect(accountState.withdrawableBalance).toBe('1.775183');
       expect(accountState.totalBalance).toBe('1.775183');
+      expect(accountState.spotCollateral).toBe('1.475183');
       expect(clearinghouseState).toHaveBeenCalledWith({ user: '0x123' });
       expect(clearinghouseState).toHaveBeenCalledWith({
         user: '0x123',
@@ -736,6 +741,7 @@ describe('HyperLiquidProvider', () => {
         expect(accountState.spendableBalance).toBe('0');
         expect(accountState.withdrawableBalance).toBe('0');
         expect(accountState.totalBalance).toBe('90');
+        expect(accountState.spotCollateral).toBe('0');
       },
     );
 
