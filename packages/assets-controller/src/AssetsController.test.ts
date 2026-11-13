@@ -6609,7 +6609,7 @@ describe('AssetsController', () => {
         }
       ).publish('ClientController:stateChanged', { isUiOpen: true });
       messenger.publish('KeyringController:unlock');
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
@@ -6620,7 +6620,7 @@ describe('AssetsController', () => {
         {},
         [],
       );
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
@@ -6629,13 +6629,13 @@ describe('AssetsController', () => {
         'AccountTreeController:initialized',
         {},
       );
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
-      expect(getAssetsSpy).toHaveBeenCalledWith(
-        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-        expect.objectContaining({ forceUpdate: true }),
-      );
+      await waitFor(() => {
+        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          expect.objectContaining({ forceUpdate: true }),
+        );
+      });
 
       controller.destroy();
     });
