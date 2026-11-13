@@ -121,9 +121,9 @@ export type SentinelApiServiceCancelAction = {
  * @param request - The batch status request.
  * @returns The status of each requested transaction, keyed by UUID.
  */
-export type SentinelApiServiceBatchStatusAction = {
-  type: `SentinelApiService:batchStatus`;
-  handler: SentinelApiService['batchStatus'];
+export type SentinelApiServiceGetBatchStatusAction = {
+  type: `SentinelApiService:getBatchStatus`;
+  handler: SentinelApiService['getBatchStatus'];
 };
 
 /**
@@ -138,4 +138,4 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceGetFeesAction
   | SentinelApiServiceSubmitTransactionsAction
   | SentinelApiServiceCancelAction
-  | SentinelApiServiceBatchStatusAction;
+  | SentinelApiServiceGetBatchStatusAction;

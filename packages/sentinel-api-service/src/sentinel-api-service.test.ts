@@ -1566,7 +1566,7 @@ describe('SentinelApiService', () => {
     });
   });
 
-  describe('batchStatus', () => {
+  describe('getBatchStatus', () => {
     it('returns the status for each requested uuid', async () => {
       const { service } = createService();
       mockNetworks();
@@ -1581,7 +1581,7 @@ describe('SentinelApiService', () => {
       );
       expect(validationError).toBeUndefined();
 
-      const result = await service.batchStatus(MOCK_BATCH_STATUS_REQUEST);
+      const result = await service.getBatchStatus(MOCK_BATCH_STATUS_REQUEST);
 
       expect(result).toStrictEqual(BATCH_STATUS_RESPONSE_FIXTURE);
       expect(scope.isDone()).toBe(true);
@@ -1597,7 +1597,7 @@ describe('SentinelApiService', () => {
         .reply(200, { [UUID]: { unexpected: true } });
 
       await expect(
-        service.batchStatus(MOCK_BATCH_STATUS_REQUEST),
+        service.getBatchStatus(MOCK_BATCH_STATUS_REQUEST),
       ).rejects.toThrow(SentinelApiResponseValidationError);
       service.destroy();
     });
@@ -1607,7 +1607,7 @@ describe('SentinelApiService', () => {
       mockNetworks();
 
       await expect(
-        service.batchStatus({
+        service.getBatchStatus({
           ...MOCK_BATCH_STATUS_REQUEST,
           chainId: CHAIN_ID_UNKNOWN,
         }),
@@ -1620,7 +1620,7 @@ describe('SentinelApiService', () => {
       mockNetworks();
 
       await expect(
-        service.batchStatus({
+        service.getBatchStatus({
           ...MOCK_BATCH_STATUS_REQUEST,
           chainId: CHAIN_ID_NO_CONFIRMATIONS,
         }),
@@ -1641,7 +1641,7 @@ describe('SentinelApiService', () => {
         .query(true)
         .reply(200, BATCH_STATUS_RESPONSE_FIXTURE);
 
-      const result = await service.batchStatus({
+      const result = await service.getBatchStatus({
         ...MOCK_BATCH_STATUS_REQUEST,
         chainId: CHAIN_ID_SMART_TRANSACTIONS_DISABLED,
       });
@@ -1660,7 +1660,7 @@ describe('SentinelApiService', () => {
         .reply(404, { statusCode: 404, error: 'Not Found' });
 
       const error = await service
-        .batchStatus(MOCK_BATCH_STATUS_REQUEST)
+        .getBatchStatus(MOCK_BATCH_STATUS_REQUEST)
         .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(HttpError);
@@ -1680,7 +1680,7 @@ describe('SentinelApiService', () => {
         .reply(502, 'Bad Gateway');
 
       const error = await service
-        .batchStatus(MOCK_BATCH_STATUS_REQUEST)
+        .getBatchStatus(MOCK_BATCH_STATUS_REQUEST)
         .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(HttpError);
@@ -1698,7 +1698,7 @@ describe('SentinelApiService', () => {
         .reply(200, BATCH_STATUS_RESPONSE_FIXTURE);
 
       const result = await rootMessenger.call(
-        'SentinelApiService:batchStatus',
+        'SentinelApiService:getBatchStatus',
         MOCK_BATCH_STATUS_REQUEST,
       );
 
