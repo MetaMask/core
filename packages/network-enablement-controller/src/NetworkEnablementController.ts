@@ -778,7 +778,10 @@ export class NetworkEnablementController extends BaseController<
 
     const isNonActiveAddition = this.#nonActiveAdditions.has(chainId);
 
+    // Parse reference (decimal string from CAIP-2) to number for chainid.network lookup
     const numericChainId = parseInt(reference, 10);
+
+    // EVM networks: use getEvmSlip44 (chainid.network data)
     const slip44CoinType = await Slip44Service.getEvmSlip44(numericChainId);
 
     const isRegistryAutoAdded = selectEvmAutoEnabledNetworksChainIds(
@@ -786,6 +789,7 @@ export class NetworkEnablementController extends BaseController<
     ).includes(caipChainId);
 
     this.update((state) => {
+      // Ensure the namespace bucket exists
       this.#ensureNamespaceBucket(state, namespace);
 
       if (isNonActiveAddition) {
@@ -801,24 +805,33 @@ export class NetworkEnablementController extends BaseController<
       } else if (isRegistryAutoAdded) {
         state.enabledNetworkMap[namespace][storageKey] ??= false;
       } else {
+        // Check if popular networks mode is active (>2 popular networks enabled)
         const inPopularNetworksMode = this.#isInPopularNetworksMode();
+
+        // Check if the network being added is a popular network
         const isAddedNetworkPopular =
           this.#getPopularEvmChainIds().includes(chainId);
+
+        // Keep current selection only if in popular networks mode AND adding a popular network
         const shouldKeepCurrentSelection =
           inPopularNetworksMode && isAddedNetworkPopular;
 
         if (shouldKeepCurrentSelection) {
+          // Add the popular network but don't enable it (keep current selection)
           state.enabledNetworkMap[namespace][storageKey] = true;
         } else {
+          // Switch to the newly added network (disable all others, enable this one)
           Object.keys(state.enabledNetworkMap).forEach((ns) => {
             Object.keys(state.enabledNetworkMap[ns]).forEach((key) => {
               state.enabledNetworkMap[ns][key as CaipChainId | Hex] = false;
             });
           });
+          // Enable the newly added network
           state.enabledNetworkMap[namespace][storageKey] = true;
         }
       }
 
+      // Update nativeAssetIdentifiers with the CAIP-19-like identifier
       state.nativeAssetIdentifiers[caipChainId] = buildNativeAssetIdentifier(
         caipChainId,
         slip44CoinType,

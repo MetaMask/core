@@ -2349,11 +2349,9 @@ describe('NetworkEnablementController', () => {
     it('enables new popular network in popular mode when mode is non-active', async () => {
       const { controller, rootMessenger } = setupController();
 
-      // Mark as non-active addition
       const cleanup = controller.setNetworkAdditionMode('0xa86a', 'non-active');
 
       try {
-        // Add Avalanche (a popular network) while in popular mode
         rootMessenger.publish('NetworkController:networkAdded', {
           chainId: '0xa86a',
           blockExplorerUrls: [],
@@ -2371,7 +2369,6 @@ describe('NetworkEnablementController', () => {
 
         await vi.advanceTimersByTimeAsync(1);
 
-        // New popular network should be enabled, and all others stay enabled
         expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
         expect(controller.isNetworkEnabled('0x1')).toBe(true);
         expect(controller.isNetworkEnabled('0xe708')).toBe(true);
@@ -2389,13 +2386,11 @@ describe('NetworkEnablementController', () => {
     it('adds new non-popular network as disabled in single-network mode when mode is non-active', async () => {
       const { controller, rootMessenger } = setupController();
 
-      // Switch to single-network mode
       controller.enableNetwork('0x1');
 
       const cleanup = controller.setNetworkAdditionMode('0x999', 'non-active');
 
       try {
-        // Add a non-popular network
         rootMessenger.publish('NetworkController:networkAdded', {
           chainId: '0x999',
           blockExplorerUrls: [],
@@ -2413,10 +2408,8 @@ describe('NetworkEnablementController', () => {
 
         await vi.advanceTimersByTimeAsync(1);
 
-        // New network should be disabled, mainnet stays enabled
         expect(controller.isNetworkEnabled('0x999')).toBe(false);
         expect(controller.isNetworkEnabled('0x1')).toBe(true);
-        // All other networks should be disabled
         expect(controller.isNetworkEnabled('0xe708')).toBe(false);
       } finally {
         cleanup();
@@ -2426,11 +2419,9 @@ describe('NetworkEnablementController', () => {
     it('adds non-popular network as disabled in popular mode when mode is non-active', async () => {
       const { controller, rootMessenger } = setupController();
 
-      // Already in popular mode (default state)
       const cleanup = controller.setNetworkAdditionMode('0x999', 'non-active');
 
       try {
-        // Add a non-popular network
         rootMessenger.publish('NetworkController:networkAdded', {
           chainId: '0x999',
           blockExplorerUrls: [],
@@ -2448,7 +2439,6 @@ describe('NetworkEnablementController', () => {
 
         await vi.advanceTimersByTimeAsync(1);
 
-        // New non-popular network should be disabled, popular networks stay enabled
         expect(controller.isNetworkEnabled('0x999')).toBe(false);
         expect(controller.isNetworkEnabled('0x1')).toBe(true);
         expect(controller.isNetworkEnabled('0xe708')).toBe(true);
@@ -2461,7 +2451,6 @@ describe('NetworkEnablementController', () => {
     it('preserves non-EVM networks when adding EVM network in popular mode with non-active', async () => {
       const { controller, rootMessenger } = setupController();
 
-      // Already in popular mode with Solana enabled
       expect(
         controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
       ).toBe(true);
@@ -2469,7 +2458,6 @@ describe('NetworkEnablementController', () => {
       const cleanup = controller.setNetworkAdditionMode('0xa86a', 'non-active');
 
       try {
-        // Add Avalanche (a popular network)
         rootMessenger.publish('NetworkController:networkAdded', {
           chainId: '0xa86a',
           blockExplorerUrls: [],
@@ -2487,7 +2475,6 @@ describe('NetworkEnablementController', () => {
 
         await vi.advanceTimersByTimeAsync(1);
 
-        // New EVM network enabled, Solana and all EVM networks stay enabled
         expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
         expect(controller.isNetworkEnabled('0x1')).toBe(true);
         expect(
@@ -2503,7 +2490,6 @@ describe('NetworkEnablementController', () => {
     it('adds network as disabled when only non-EVM network selected and mode is non-active', async () => {
       const { controller, rootMessenger } = setupController();
 
-      // Switch to only Solana enabled (this disables all EVM and enables only Solana)
       controller.enableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
 
       expect(controller.isNetworkEnabled('0x1')).toBe(false);
@@ -2514,7 +2500,6 @@ describe('NetworkEnablementController', () => {
       const cleanup = controller.setNetworkAdditionMode('0xa86a', 'non-active');
 
       try {
-        // Add an EVM network
         rootMessenger.publish('NetworkController:networkAdded', {
           chainId: '0xa86a',
           blockExplorerUrls: [],
@@ -2531,8 +2516,6 @@ describe('NetworkEnablementController', () => {
         });
 
         await vi.advanceTimersByTimeAsync(1);
-
-        // New EVM network should be disabled, Solana stays enabled
         expect(controller.isNetworkEnabled('0xa86a')).toBe(false);
         expect(
           controller.isNetworkEnabled(
@@ -2548,13 +2531,11 @@ describe('NetworkEnablementController', () => {
     it('cleanup function removes the mode marker', async () => {
       const { controller, rootMessenger } = setupController();
 
-      // Switch to single-network mode
       controller.enableNetwork('0x1');
 
       const cleanup = controller.setNetworkAdditionMode('0x999', 'non-active');
       cleanup();
 
-      // Add network after cleanup - should behave as default (switch to new network)
       rootMessenger.publish('NetworkController:networkAdded', {
         chainId: '0x999',
         blockExplorerUrls: [],
@@ -2572,7 +2553,6 @@ describe('NetworkEnablementController', () => {
 
       await vi.advanceTimersByTimeAsync(1);
 
-      // Should switch to new network (default behavior)
       expect(controller.isNetworkEnabled('0x999')).toBe(true);
       expect(controller.isNetworkEnabled('0x1')).toBe(false);
     });
