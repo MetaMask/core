@@ -63,21 +63,6 @@ import { TRACES } from './types.js';
 const log = createModuleLogger(projectLogger, serviceName);
 const traceLogger = createModuleLogger(projectLogger, 'trace');
 
-/**
- * Default trace callback used when the client does not pass one. Records
- * nothing and runs `fn` so the callback contract still holds.
- *
- * @param _request - The trace request, ignored.
- * @param fn - Optional work to run.
- * @returns The value returned by `fn`.
- */
-async function noopTrace<ReturnType>(
-  _request: SentinelApiServiceTraceRequest,
-  fn?: (context?: TraceContext) => ReturnType,
-): Promise<ReturnType> {
-  return await Promise.resolve(fn?.() as ReturnType);
-}
-
 const MESSENGER_EXPOSED_METHODS = [
   'cancel',
   'getBatchStatus',
@@ -904,4 +889,19 @@ async function readJsonBody(response: Response): Promise<Json | undefined> {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Default trace callback used when the client does not pass one. Records
+ * nothing and runs `fn` so the callback contract still holds.
+ *
+ * @param _request - The trace request, ignored.
+ * @param fn - Optional work to run.
+ * @returns The value returned by `fn`.
+ */
+async function noopTrace<ReturnType>(
+  _request: SentinelApiServiceTraceRequest,
+  fn?: (context?: TraceContext) => ReturnType,
+): Promise<ReturnType> {
+  return await Promise.resolve(fn?.() as ReturnType);
 }
