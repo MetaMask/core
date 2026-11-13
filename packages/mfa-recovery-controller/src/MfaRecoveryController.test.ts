@@ -2614,6 +2614,31 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('keeps an expired writing mutation when signed in to another profile', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        options.authProvider.profileId = 'profile-2';
+
+        now += 10 * 60;
+        await expect(controller.abort()).rejects.toMatchObject({
+          code: 'invalid_pending_operation',
+        });
+
+        expect(await controller.getPhase()).toBe('writing');
+      });
+    });
+
     it('clears instead of resuming a writing mutation no escrow applied once its approval expires', async () => {
       let now = unixNow();
       await withController(async ({ escrowA, escrowB, options }) => {

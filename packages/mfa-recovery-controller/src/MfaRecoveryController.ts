@@ -624,7 +624,7 @@ export class MfaRecoveryController extends BaseController<
       return false;
     }
     const escrows = this.#getTargetEscrows(mutation);
-    const { approval } = await this.#authorizeRead(escrows);
+    const approval = await this.#authorizeProfileRead(mutation, escrows);
     const results = await Promise.allSettled(
       escrows.map(async (escrow) => await escrow.getIdentifiers(approval)),
     );
@@ -806,13 +806,7 @@ export class MfaRecoveryController extends BaseController<
     let approval = pending.authControllerToken;
     if (isApprovalExpired) {
       // Reads with a read-only approval, which needs no 2FA.
-      ({ approval } = await this.#authorizeRead(remainingEscrows));
-      if (decodeAuthControllerToken(approval)?.sub !== mutation.profileId) {
-        throw new MfaRecoveryError(
-          'Pending mutation is for another profile',
-          'invalid_pending_operation',
-        );
-      }
+      approval = await this.#authorizeProfileRead(mutation, remainingEscrows);
     }
     const escrowIdentifiers = await getEscrowIdentifiers(
       remainingEscrows,
@@ -931,6 +925,20 @@ export class MfaRecoveryController extends BaseController<
       requestHash: await hash({ operation: 'getIdentifiers' }),
       audiences: escrows.map((escrow) => escrow.authAudience),
     });
+  }
+
+  async #authorizeProfileRead(
+    mutation: Mutation,
+    escrows: RecoveryEscrowProvider[],
+  ): Promise<AuthControllerToken> {
+    const { approval } = await this.#authorizeRead(escrows);
+    if (decodeAuthControllerToken(approval)?.sub !== mutation.profileId) {
+      throw new MfaRecoveryError(
+        'Pending mutation is for another profile',
+        'invalid_pending_operation',
+      );
+    }
+    return approval;
   }
 
   // Reads the escrows with a read-only approval, which also returns Auth's
