@@ -2,7 +2,7 @@ import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
-import { waitUntilStable } from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { syncAusUserAssets } from './syncAusUserAssets.js';
 import type { AccountId, Caip19AssetId } from './types.js';
 import { normalizeAssetId } from './utils/index.js';
@@ -20,16 +20,6 @@ const GET_USER_ASSETS = 'AuthenticatedUserStorageService:getUserAssets';
 const SET_USER_ASSETS = 'AuthenticatedUserStorageService:setUserAssets';
 const IMPORT_TOKENS = 'AuthenticatedUserStorageService:importTokens';
 const HIDE_TOKENS = 'AuthenticatedUserStorageService:hideTokens';
-
-/**
- * Flush pending microtasks and timers so fire-and-forget AUS syncs settle
- * before Vitest tears down the test.
- */
-async function flushPromises(): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-}
 
 type AusFixtureMessenger = { call: Mock; captureException: Mock };
 
