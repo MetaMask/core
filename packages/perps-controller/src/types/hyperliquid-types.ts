@@ -19,6 +19,7 @@ import type {
   OrderParameters,
   SpotMetaResponse,
   UserAbstractionResponse,
+  RecentTradesResponse,
 } from '@nktkas/hyperliquid';
 
 /**
@@ -87,6 +88,10 @@ export type SpotBalance = SpotClearinghouseStateResponse['balances'][number];
 export type PerpsUniverse = MetaResponse['universe'][number];
 export type PerpsAssetCtx = MetaAndAssetCtxsResponse[1][number];
 export type PredictedFunding = PredictedFundingsResponse[number];
+
+// Public trade from `recentTrades` (REST) and the `trades` subscription (WS);
+// the SDK types both with the same shape.
+export type HyperLiquidPublicTrade = RecentTradesResponse[number];
 
 // Order Types
 export type FrontendOrder = FrontendOpenOrdersResponse[number];

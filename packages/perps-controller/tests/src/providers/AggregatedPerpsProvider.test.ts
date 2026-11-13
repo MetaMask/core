@@ -2525,6 +2525,114 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.subscribeToOrderBook).toHaveBeenCalled();
     });
 
+    describe('public trades', () => {
+      const trade = {
+        id: '1',
+        symbol: 'BTC',
+        price: '50000',
+        size: '0.1',
+        side: 'buy' as const,
+        timestamp: 1000,
+        providerId: 'lighter' as const,
+      };
+
+      it('reads from the default provider when no route is given', async () => {
+        mockHLProvider.getPublicTrades = vi.fn().mockResolvedValue([]);
+
+        await aggregatedProvider.getPublicTrades({ symbol: 'BTC', limit: 5 });
+
+        expect(mockHLProvider.getPublicTrades).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          limit: 5,
+          providerId: 'hyperliquid',
+        });
+      });
+
+      it('reads from the explicit provider', async () => {
+        mockLighterProvider.getPublicTrades = vi
+          .fn()
+          .mockResolvedValue([trade]);
+        mockHLProvider.getPublicTrades = vi.fn();
+
+        const trades = await aggregatedProvider.getPublicTrades({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        });
+
+        expect(trades).toStrictEqual([trade]);
+        expect(mockHLProvider.getPublicTrades).not.toHaveBeenCalled();
+      });
+
+      it('rejects a read from a provider without a public trade feed', async () => {
+        await expect(
+          aggregatedProvider.getPublicTrades({
+            symbol: 'BTC',
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow('Public trades not supported by provider lighter');
+      });
+
+      it('rejects a read from an unregistered route', async () => {
+        const providerWithoutLighter = new AggregatedPerpsProvider({
+          providers: new Map([['hyperliquid', mockHLProvider]]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+        });
+
+        await expect(
+          providerWithoutLighter.getPublicTrades({
+            symbol: 'BTC',
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      });
+
+      it('streams from the explicit provider, else the default one', () => {
+        const unsubscribe = vi.fn();
+        mockLighterProvider.subscribeToPublicTrades = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        mockHLProvider.subscribeToPublicTrades = vi
+          .fn()
+          .mockReturnValue(vi.fn());
+        const callback = vi.fn();
+
+        const cleanup = aggregatedProvider.subscribeToPublicTrades({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        aggregatedProvider.subscribeToPublicTrades({ symbol: 'ETH', callback });
+
+        expect(cleanup).toBe(unsubscribe);
+        expect(
+          mockLighterProvider.subscribeToPublicTrades,
+        ).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        expect(mockHLProvider.subscribeToPublicTrades).toHaveBeenCalledWith({
+          symbol: 'ETH',
+          providerId: 'hyperliquid',
+          callback,
+        });
+      });
+
+      it('returns a no-op stream for a route without a public trade feed', () => {
+        const callback = vi.fn();
+
+        const cleanup = aggregatedProvider.subscribeToPublicTrades({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        cleanup();
+
+        expect(callback).not.toHaveBeenCalled();
+      });
+    });
+
     describe('subscribeToAvailableToTrade', () => {
       it('routes to the default provider when no route is given', () => {
         const unsubscribe = vi.fn();
@@ -2876,6 +2984,93 @@ describe('AggregatedPerpsProvider', () => {
 
       cleanup();
       expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves an unrouted public-trades stream to the new venue and keeps a routed one', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      const routedCleanup = vi.fn();
+      mockHLProvider.subscribeToPublicTrades = vi
+        .fn()
+        .mockReturnValueOnce(hlCleanup)
+        .mockReturnValueOnce(routedCleanup);
+      mockLighterProvider.subscribeToPublicTrades = vi
+        .fn()
+        .mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback,
+      });
+      const routed = aggregatedProvider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        providerId: 'hyperliquid',
+        callback,
+      });
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(routedCleanup).not.toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToPublicTrades).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'lighter',
+        callback,
+      });
+
+      cleanup();
+      routed();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+      expect(routedCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps an unrouted public-trades stream as a no-op when the new default has no public trade feed', () => {
+      const hlCleanup = vi.fn();
+      mockHLProvider.subscribeToPublicTrades = vi
+        .fn()
+        .mockReturnValue(hlCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback,
+      });
+      aggregatedProvider.setDefaultProvider('lighter');
+      cleanup();
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('resolves an unrouted public-trades read to an empty list when the default changes in flight', async () => {
+      const trade = {
+        id: '1',
+        symbol: 'BTC',
+        price: '50000',
+        size: '0.1',
+        side: 'buy' as const,
+        timestamp: 1000,
+        providerId: 'hyperliquid' as const,
+      };
+      const pendingReads: ((trades: (typeof trade)[]) => void)[] = [];
+      mockHLProvider.getPublicTrades = vi.fn(
+        async () =>
+          new Promise<(typeof trade)[]>((resolve) => {
+            pendingReads.push(resolve);
+          }),
+      );
+
+      const unrouted = aggregatedProvider.getPublicTrades({ symbol: 'BTC' });
+      const routedRead = aggregatedProvider.getPublicTrades({
+        symbol: 'BTC',
+        providerId: 'hyperliquid',
+      });
+      aggregatedProvider.setDefaultProvider('lighter');
+      pendingReads.forEach((resolve) => resolve([trade]));
+
+      expect(await unrouted).toStrictEqual([]);
+      expect(await routedRead).toStrictEqual([trade]);
     });
 
     it('moves an OI-caps subscription to the new venue when the default changes', () => {

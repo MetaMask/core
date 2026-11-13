@@ -1951,6 +1951,65 @@ export type SubscribeCandlesParams = {
 };
 
 /**
+ * One public trade on a market (any user's), the same shape for every
+ * provider. Prices and sizes are decimal strings, as in `OrderFill`.
+ */
+export type PublicTrade = {
+  /**
+   * Venue trade id, compared for equality only. Unique within a provider and
+   * market, not across providers, so dedupe on `(providerId, symbol, id)`
+   * when trades from several providers share a list.
+   * Sources: Hyperliquid `coin:time:tid`, its documented trade identity
+   * (`tid` alone can repeat across block times), Lighter `trade_id`.
+   */
+  id: string;
+  /** Market symbol the trade belongs to, as the caller requested it. */
+  symbol: string;
+  /** Execution price. */
+  price: string;
+  /** Size in the base asset. */
+  size: string;
+  /** Side of the aggressor (taker): `buy` lifted an ask, `sell` hit a bid. */
+  side: 'buy' | 'sell';
+  /** Execution time, Unix milliseconds. */
+  timestamp: number;
+  /** Transaction hash, when the venue reports one. */
+  txHash?: string;
+  /** Provider whose venue reported the trade. */
+  providerId: PerpsProviderType;
+};
+
+export type GetPublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data reads. */
+  symbol: string;
+  /**
+   * Maximum number of trades, newest first (default 50). Must be a positive
+   * integer. Venues cap the count: Hyperliquid returns its last 10 trades
+   * and Lighter at most 100.
+   */
+  limit?: number;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+};
+
+export type SubscribePublicTradesParams = {
+  /** Market symbol (e.g. 'BTC'), as for the other market-data streams. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /**
+   * Receives each batch of new trades the venue pushes, newest first. Only a
+   * subscription that opens the venue channel may first receive the venue's
+   * recent trades; one that joins a market another subscription already
+   * streams receives only new trades. Seed the list with `getPublicTrades` and
+   * dedupe batches on `id`.
+   */
+  callback: (trades: PublicTrade[]) => void;
+  /** Receives a failure to open the stream. */
+  onError?: (error: Error) => void;
+};
+
+/**
  * Single price level in the order book
  */
 export type OrderBookLevel = {
@@ -2844,6 +2903,12 @@ export type PerpsProvider = {
   ): Promise<OrderFill[]>;
 
   /**
+   * A market's most recent public trades (every user's), newest first.
+   * Optional so providers without a public trade feed can omit it.
+   */
+  getPublicTrades?(params: GetPublicTradesParams): Promise<PublicTrade[]>;
+
+  /**
    * Get fills using WebSocket cache first, falling back to REST API.
    * OPTIMIZATION: Uses cached fills when available (0 API weight), only calls REST on cache miss.
    * Purpose: Prevent 429 errors during rapid market switching by reusing cached fills.
@@ -2945,6 +3010,11 @@ export type PerpsProvider = {
   subscribeToOICaps(params: SubscribeOICapsParams): () => void;
   subscribeToCandles(params: SubscribeCandlesParams): () => void;
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void;
+  /**
+   * Stream a market's public trades (every user's). Optional so providers
+   * without a public trade feed can omit it.
+   */
+  subscribeToPublicTrades?(params: SubscribePublicTradesParams): () => void;
   /**
    * Stream one market's per-side available to trade as the venue reports it.
    * Optional: a provider whose venue has no per-market value omits it, and the

@@ -113,6 +113,7 @@ import type {
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
+  GetPublicTradesParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
   GetPositionsParams,
@@ -144,6 +145,7 @@ import type {
   DirectProviderScalePriceLadderUnavailableReason,
   Position,
   PositionTriggerOrder,
+  PublicTrade,
   ReadyToTradeResult,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -155,6 +157,7 @@ import type {
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  SubscribePublicTradesParams,
   ToggleTestnetResult,
   TransferBetweenDexsParams,
   TransferBetweenDexsResult,
@@ -211,6 +214,7 @@ import {
   adaptOrderFromSDK,
   adaptPositionFromSDK,
   adaptPositionTriggerOrderFromSDK,
+  adaptPublicTradesFromHyperLiquid,
   adaptTpslLinkageToGrouping,
   buildAssetMapping,
   buildHyperLiquidFillId,
@@ -16794,6 +16798,70 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
     return this.#clientService.subscribeToCandles(params);
+  }
+
+  /**
+   * A coin's most recent public trades, newest first. The venue returns its
+   * last 10 trades, so `limit` only caps that count.
+   *
+   * @param params - Coin and optional limit.
+   * @returns The trades, newest first.
+   */
+  async getPublicTrades(params: GetPublicTradesParams): Promise<PublicTrade[]> {
+    await this.#ensureClientsInitialized();
+    const trades = await this.#clientService.fetchRecentTrades(params.symbol);
+    const adapted = adaptPublicTradesFromHyperLiquid(trades, params.symbol);
+    return params.limit === undefined
+      ? adapted
+      : adapted.slice(0, params.limit);
+  }
+
+  /**
+   * Stream a coin's public trades from the `trades` WebSocket channel. The
+   * SDK shares one subscription per coin, so only the listener that opens it
+   * may first receive the venue's recent trades. Like `subscribeToCandles`,
+   * the stream is not restored after the client service reconnects its
+   * WebSocket and `onError` is not called; resubscribe after a reconnect.
+   *
+   * @param params - Coin, callback and error handler.
+   * @returns A cleanup function; safe to call before the stream opens.
+   */
+  subscribeToPublicTrades(params: SubscribePublicTradesParams): () => void {
+    const { symbol, callback, onError } = params;
+    let released = false;
+    let release: (() => void) | null = null;
+    const open = async (): Promise<void> => {
+      try {
+        await this.#ensureClientsInitialized();
+        if (released) {
+          return;
+        }
+        release = this.#clientService.subscribeToTrades({
+          symbol,
+          callback: (trades) => {
+            const adapted = adaptPublicTradesFromHyperLiquid(trades, symbol);
+            if (adapted.length > 0) {
+              callback(adapted);
+            }
+          },
+          onError,
+        });
+      } catch (error) {
+        if (!released) {
+          onError?.(
+            ensureError(error, 'HyperLiquidProvider.subscribeToPublicTrades'),
+          );
+        }
+      }
+    };
+    open().catch(() => {
+      // Failures are reported to onError inside open().
+    });
+    return () => {
+      released = true;
+      release?.();
+      release = null;
+    };
   }
 
   /**

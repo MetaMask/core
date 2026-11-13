@@ -23,8 +23,12 @@ vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type {
   PerpsAvailableToTrade,
+  PerpsControllerGetPublicTradesAction,
   PerpsControllerSubscribeToAvailableToTradeAction,
+  PerpsControllerSubscribeToPublicTradesAction,
+  PublicTrade,
   SubscribeAvailableToTradeParams,
+  SubscribePublicTradesParams,
 } from '../../src/index.js';
 import {
   PerpsController,
@@ -724,6 +728,324 @@ describe('PerpsController', () => {
       cleanup();
 
       expect(received).toStrictEqual([venueValue]);
+      expect(providerCleanup).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('public trades', () => {
+    const publicTrade = (
+      id: string,
+      symbol = 'BTC',
+      providerId: PerpsProviderType = 'hyperliquid',
+    ): PublicTrade => ({
+      id,
+      symbol,
+      price: '50000',
+      size: '0.1',
+      side: 'buy',
+      timestamp: 1000,
+      providerId,
+    });
+
+    beforeEach(() => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+    });
+
+    describe('getPublicTrades', () => {
+      it('reads the active provider with the default limit and keeps the requested symbol', async () => {
+        mockProvider.getPublicTrades = vi
+          .fn()
+          .mockResolvedValue([publicTrade('1'), publicTrade('2', 'ETH')]);
+
+        const trades = await controller.getPublicTrades({ symbol: 'BTC' });
+
+        expect(mockProvider.getPublicTrades).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          limit: 50,
+        });
+        expect(trades).toStrictEqual([publicTrade('1')]);
+      });
+
+      it('passes an explicit limit and route through', async () => {
+        mockProvider.getPublicTrades = vi.fn().mockResolvedValue([]);
+
+        await controller.getPublicTrades({
+          symbol: 'BTC',
+          limit: 5,
+          providerId: 'hyperliquid',
+        });
+
+        expect(mockProvider.getPublicTrades).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          limit: 5,
+          providerId: 'hyperliquid',
+        });
+      });
+
+      it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+        'rejects limit %s before reaching the provider',
+        async (limit) => {
+          mockProvider.getPublicTrades = vi.fn().mockResolvedValue([]);
+
+          await expect(
+            controller.getPublicTrades({ symbol: 'BTC', limit }),
+          ).rejects.toThrow(`Invalid public trades limit: ${String(limit)}`);
+          expect(mockProvider.getPublicTrades).not.toHaveBeenCalled();
+        },
+      );
+
+      it('resolves to no trades when the active provider changes before the venue answers', async () => {
+        let answer: (trades: PublicTrade[]) => void = () => undefined;
+        mockProvider.getPublicTrades = vi.fn(
+          () =>
+            new Promise<PublicTrade[]>((resolve) => {
+              answer = resolve;
+            }),
+        );
+        const otherProvider = createMockHyperLiquidProvider();
+
+        const pending = controller.getPublicTrades({ symbol: 'BTC' });
+        controller.testSetProviders(new Map([['lighter', otherProvider]]));
+        answer([publicTrade('1')]);
+
+        expect(await pending).toStrictEqual([]);
+      });
+
+      it('rejects a route the active provider does not serve', async () => {
+        mockProvider.getPublicTrades = vi.fn();
+
+        await expect(
+          controller.getPublicTrades({ symbol: 'BTC', providerId: 'lighter' }),
+        ).rejects.toThrow('PROVIDER_NOT_FOUND');
+        expect(mockProvider.getPublicTrades).not.toHaveBeenCalled();
+      });
+
+      it('rejects when the provider has no public trade feed', async () => {
+        delete (mockProvider as { getPublicTrades?: unknown }).getPublicTrades;
+
+        await expect(
+          controller.getPublicTrades({ symbol: 'BTC' }),
+        ).rejects.toThrow('Public trades not supported by provider');
+      });
+
+      it('rejects before initialization', async () => {
+        controller.testSetInitialized(false);
+
+        await expect(
+          controller.getPublicTrades({ symbol: 'BTC' }),
+        ).rejects.toThrow('CLIENT_NOT_INITIALIZED');
+      });
+
+      it('logs and rethrows a venue failure', async () => {
+        mockProvider.getPublicTrades = vi
+          .fn()
+          .mockRejectedValue(new Error('venue down'));
+
+        await expect(
+          controller.getPublicTrades({ symbol: 'BTC' }),
+        ).rejects.toThrow('venue down');
+        expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'venue down' }),
+          expect.anything(),
+        );
+      });
+    });
+
+    describe('subscribeToPublicTrades', () => {
+      /**
+       * Make the provider stream controllable from the test.
+       *
+       * @returns The pushes into the provider callback and onError, and the
+       * provider cleanup.
+       */
+      const controllableStream = () => {
+        const stream = {
+          push: (_trades: PublicTrade[]) => undefined as void,
+          fail: (_error: Error) => undefined as void,
+          cleanup: vi.fn(),
+        };
+        mockProvider.subscribeToPublicTrades = vi.fn(
+          (params: SubscribePublicTradesParams) => {
+            stream.push = params.callback;
+            stream.fail = (error) => params.onError?.(error);
+            return stream.cleanup;
+          },
+        );
+        return stream;
+      };
+
+      it('streams the requested symbol and drops trades for another one', () => {
+        const stream = controllableStream();
+        const callback = vi.fn();
+
+        controller.subscribeToPublicTrades({ symbol: 'BTC', callback });
+        stream.push([publicTrade('1'), publicTrade('2', 'ETH')]);
+        stream.push([publicTrade('3', 'ETH')]);
+
+        expect(callback.mock.calls).toStrictEqual([[[publicTrade('1')]]]);
+      });
+
+      it('delivers nothing after cleanup and closes the provider stream', () => {
+        const stream = controllableStream();
+        const callback = vi.fn();
+        const onError = vi.fn();
+
+        const unsubscribe = controller.subscribeToPublicTrades({
+          symbol: 'BTC',
+          callback,
+          onError,
+        });
+        unsubscribe();
+        stream.push([publicTrade('1')]);
+        stream.fail(new Error('late'));
+
+        expect(callback).not.toHaveBeenCalled();
+        expect(onError).not.toHaveBeenCalled();
+        expect(stream.cleanup).toHaveBeenCalledTimes(1);
+      });
+
+      it('delivers nothing from the previous provider after a provider switch', () => {
+        const stream = controllableStream();
+        const callback = vi.fn();
+        const onError = vi.fn();
+
+        controller.subscribeToPublicTrades({
+          symbol: 'BTC',
+          callback,
+          onError,
+        });
+        controller.testSetProviders(
+          new Map([['lighter', createMockHyperLiquidProvider()]]),
+        );
+        stream.push([publicTrade('1')]);
+        stream.fail(new Error('closed'));
+
+        expect(callback).not.toHaveBeenCalled();
+        expect(onError).not.toHaveBeenCalled();
+      });
+
+      it('forwards stream errors while the stream is current', () => {
+        const stream = controllableStream();
+        const onError = vi.fn();
+
+        controller.subscribeToPublicTrades({
+          symbol: 'BTC',
+          callback: vi.fn(),
+          onError,
+        });
+        stream.fail(new Error('refused'));
+
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'refused' }),
+        );
+      });
+
+      it('passes no onError to the provider when the caller gave none', () => {
+        controllableStream();
+
+        controller.subscribeToPublicTrades({
+          symbol: 'BTC',
+          callback: vi.fn(),
+        });
+
+        expect(mockProvider.subscribeToPublicTrades).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          callback: expect.any(Function),
+        });
+      });
+
+      it.each([
+        [
+          'no provider is active',
+          () => controller.testSetInitialized(false),
+          {},
+        ],
+        [
+          'the route is not the active provider',
+          () => undefined,
+          { providerId: 'lighter' as const },
+        ],
+        [
+          'the provider has no public trade feed',
+          () => {
+            delete (mockProvider as { subscribeToPublicTrades?: unknown })
+              .subscribeToPublicTrades;
+          },
+          {},
+        ],
+      ])('returns a no-op stream when %s', (_case, arrange, route) => {
+        const stream = controllableStream();
+        arrange();
+        const callback = vi.fn();
+
+        const unsubscribe = controller.subscribeToPublicTrades({
+          symbol: 'BTC',
+          callback,
+          ...route,
+        });
+        unsubscribe();
+
+        expect(callback).not.toHaveBeenCalled();
+        expect(stream.cleanup).not.toHaveBeenCalled();
+      });
+
+      it('logs and returns a no-op stream when the provider throws', () => {
+        mockProvider.subscribeToPublicTrades = vi.fn(() => {
+          throw new Error('socket closed');
+        });
+
+        const unsubscribe = controller.subscribeToPublicTrades({
+          symbol: 'BTC',
+          callback: vi.fn(),
+        });
+        unsubscribe();
+
+        expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'socket closed' }),
+          expect.anything(),
+        );
+      });
+    });
+
+    it('serves package consumers through the registered messenger actions', async () => {
+      const { messenger } = createKeyringlessMessenger();
+      const consumerController = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      consumerController.testMarkInitialized();
+      // init() registers the messenger actions; already initialized, it stops there.
+      await consumerController.init();
+      consumerController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      const providerCleanup = vi.fn();
+      mockProvider.getPublicTrades = vi
+        .fn()
+        .mockResolvedValue([publicTrade('1')]);
+      mockProvider.subscribeToPublicTrades = vi.fn(
+        (params: SubscribePublicTradesParams) => {
+          params.callback([publicTrade('2')]);
+          return providerCleanup;
+        },
+      );
+      const readAction: PerpsControllerGetPublicTradesAction['type'] =
+        'PerpsController:getPublicTrades';
+      const streamAction: PerpsControllerSubscribeToPublicTradesAction['type'] =
+        'PerpsController:subscribeToPublicTrades';
+      const received: PublicTrade[][] = [];
+
+      const read = await messenger.call(readAction, { symbol: 'BTC' });
+      const cleanup = messenger.call(streamAction, {
+        symbol: 'BTC',
+        callback: (trades) => received.push(trades),
+      });
+      cleanup();
+
+      expect(read).toStrictEqual([publicTrade('1')]);
+      expect(received).toStrictEqual([[publicTrade('2')]]);
       expect(providerCleanup).toHaveBeenCalledTimes(1);
     });
   });

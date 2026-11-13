@@ -56,6 +56,7 @@ import type {
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
+  GetPublicTradesParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
   GetPositionsParams,
@@ -73,6 +74,7 @@ import type {
   MarketInfo,
   Order,
   OrderFill,
+  PublicTrade,
   OrderParams,
   OrderResult,
   PerpsMarketData,
@@ -100,6 +102,7 @@ import type {
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  SubscribePublicTradesParams,
   ToggleTestnetResult,
   TwapOrder,
   UpdateMarginParams,
@@ -1488,6 +1491,60 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#trackDefaultRoutedSubscription({
       open: (provider) => provider.subscribeToOrderBook(params),
     });
+  }
+
+  /**
+   * Read public trades from the explicit route, else the default provider.
+   * An unrouted read resolves to an empty list if the default changes before
+   * the venue answers.
+   *
+   * @param params - Market, optional limit and route.
+   * @returns The route's trades, newest first.
+   * @throws If the route is not registered or has no public trade feed.
+   */
+  async getPublicTrades(params: GetPublicTradesParams): Promise<PublicTrade[]> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
+    if (!provider.getPublicTrades) {
+      throw new Error(`Public trades not supported by provider ${providerId}`);
+    }
+    const trades = await provider.getPublicTrades({ ...params, providerId });
+    if (
+      params.providerId === undefined &&
+      providerId !== this.#defaultProvider
+    ) {
+      return [];
+    }
+    return trades;
+  }
+
+  /**
+   * Stream public trades from the explicit route, else the default provider.
+   * An unrouted stream follows the default and moves with it. A missing
+   * route or one without a public trade feed returns a no-op cleanup and
+   * never calls back.
+   *
+   * @param params - Market, optional route, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToPublicTrades(params: SubscribePublicTradesParams): () => void {
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (defaultProvider) =>
+          defaultProvider.subscribeToPublicTrades?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? (() => undefined),
+      });
+    }
+    const provider = this.#providers.get(params.providerId);
+    if (!provider?.subscribeToPublicTrades) {
+      return () => {
+        // No-op: route missing or without a public trade feed
+      };
+    }
+    return provider.subscribeToPublicTrades(params);
   }
 
   /**
