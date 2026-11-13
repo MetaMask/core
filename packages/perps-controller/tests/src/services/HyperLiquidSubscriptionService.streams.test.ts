@@ -2268,6 +2268,324 @@ describe('HyperLiquidSubscriptionService', () => {
         expect(opens[0].subscription.unsubscribe).toHaveBeenCalled();
       });
     });
+
+    describe('userFills delivery over a shared SDK subscription', () => {
+      type SdkLikeTransport = {
+        client: { userFills: Mock };
+        wire: ('subscribe' | 'unsubscribe')[];
+        listenerCount: () => number;
+        push: (event: unknown) => void;
+        confirm: () => void;
+        settleUnsubscribes: () => void;
+      };
+
+      // Mirrors the SDK's WebSocketSubscriptionManager: one server
+      // subscription per payload shared by every userFills() call, every
+      // listener receives every frame on the channel, and only the last
+      // listener's unsubscribe reaches the server.
+      const createSdkLikeTransport = ({
+        autoConfirm = true,
+        holdUnsubscribe = false,
+      }: {
+        autoConfirm?: boolean;
+        holdUnsubscribe?: boolean;
+      } = {}): SdkLikeTransport => {
+        const listeners = new Set<(event: unknown) => void>();
+        const wire: SdkLikeTransport['wire'] = [];
+        let confirmation: Promise<void> | undefined;
+        let confirmServer: () => void = () => undefined;
+        const heldUnsubscribes: (() => void)[] = [];
+
+        const userFills = vi.fn(
+          async (_params: unknown, listener: (event: unknown) => void) => {
+            if (!confirmation) {
+              wire.push('subscribe');
+              confirmation = autoConfirm
+                ? Promise.resolve()
+                : new Promise<void>((resolve) => {
+                    confirmServer = resolve;
+                  });
+            }
+            listeners.add(listener);
+            await confirmation;
+            return {
+              unsubscribe: vi.fn(async () => {
+                listeners.delete(listener);
+                if (listeners.size === 0 && confirmation) {
+                  confirmation = undefined;
+                  wire.push('unsubscribe');
+                  if (holdUnsubscribe) {
+                    await new Promise<void>((resolve) => {
+                      heldUnsubscribes.push(resolve);
+                    });
+                  }
+                }
+              }),
+            };
+          },
+        );
+
+        return {
+          client: { userFills },
+          wire,
+          listenerCount: () => listeners.size,
+          push: (event) =>
+            [...listeners].forEach((listener) => listener(event)),
+          confirm: () => confirmServer(),
+          settleUnsubscribes: () =>
+            heldUnsubscribes.splice(0).forEach((resolve) => resolve()),
+        };
+      };
+
+      const useTransport = (transport: SdkLikeTransport): void => {
+        mockClientService.getSubscriptionClient.mockReturnValue(
+          transport.client as any,
+        );
+      };
+
+      const fillFrame = (oid: number, isSnapshot: boolean): unknown => ({
+        user: '0x0000000000000000000000000000000000000000',
+        fills:
+          oid === 0
+            ? []
+            : [
+                {
+                  oid,
+                  coin: 'ETH',
+                  side: 'A',
+                  sz: '2.5',
+                  px: '2500.0',
+                  fee: '1.25',
+                  time: 1_700_000_000_000 + oid,
+                  closedPnl: '12.50',
+                  dir: 'Close Long',
+                  feeToken: 'USDC',
+                  startPosition: '2.5',
+                  hash: '0xabc',
+                  tid: oid + 1,
+                },
+              ],
+        isSnapshot,
+      });
+
+      it('delivers each frame once when restore runs on the transport that holds the original listener', async () => {
+        const transport = createSdkLikeTransport();
+        useTransport(transport);
+        const callback = vi.fn();
+        const unsubscribe = service.subscribeToOrderFills({ callback });
+        await vi.runAllTimersAsync();
+
+        await service.restoreSubscriptions();
+        await vi.runAllTimersAsync();
+
+        // Restore drops its reference to the first ISubscription without
+        // unsubscribing it, so the first open's listener stays attached
+        // alongside the replacement; its stale generation keeps it inert.
+        expect(transport.listenerCount()).toBe(2);
+        expect(transport.wire).toStrictEqual(['subscribe']);
+
+        transport.push(fillFrame(9_102_001, false));
+
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(callback).toHaveBeenCalledWith(
+          [expect.objectContaining({ orderId: '9102001' })],
+          false,
+        );
+        unsubscribe();
+      });
+
+      it('delivers frames from the replacement transport after a reconnect', async () => {
+        const originalTransport = createSdkLikeTransport();
+        useTransport(originalTransport);
+        const callback = vi.fn();
+        const unsubscribe = service.subscribeToOrderFills({ callback });
+        await vi.runAllTimersAsync();
+
+        const replacementTransport = createSdkLikeTransport();
+        useTransport(replacementTransport);
+        await service.restoreSubscriptions();
+        await vi.runAllTimersAsync();
+
+        originalTransport.push(fillFrame(1, false));
+        expect(callback).not.toHaveBeenCalled();
+
+        replacementTransport.push(fillFrame(9_102_001, false));
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(callback).toHaveBeenCalledWith(
+          [expect.objectContaining({ orderId: '9102001' })],
+          false,
+        );
+        unsubscribe();
+      });
+
+      it('delivers and caches snapshot-shaped live frames pushed after the initial snapshot', async () => {
+        const transport = createSdkLikeTransport();
+        useTransport(transport);
+        const callback = vi.fn();
+        const unsubscribe = service.subscribeToOrderFills({ callback });
+        await vi.runAllTimersAsync();
+
+        transport.push(fillFrame(0, true));
+        expect(callback).toHaveBeenLastCalledWith([], true);
+        expect(service.getFillsCacheIfInitialized()).toStrictEqual([]);
+
+        transport.push(fillFrame(9_102_001, true));
+        expect(callback).toHaveBeenLastCalledWith(
+          [expect.objectContaining({ orderId: '9102001' })],
+          true,
+        );
+        expect(service.getFillsCacheIfInitialized()).toStrictEqual([
+          expect.objectContaining({ orderId: '9102001' }),
+        ]);
+
+        transport.push(fillFrame(9_102_001, true));
+        expect(callback).toHaveBeenCalledTimes(3);
+        expect(callback).toHaveBeenLastCalledWith(
+          [expect.objectContaining({ orderId: '9102001' })],
+          true,
+        );
+        expect(service.getFillsCacheIfInitialized()).toStrictEqual([
+          expect.objectContaining({ orderId: '9102001' }),
+        ]);
+        unsubscribe();
+      });
+
+      it('keeps a live fill cached when a stale listener receives an empty snapshot', async () => {
+        const transport = createSdkLikeTransport();
+        useTransport(transport);
+        const callback = vi.fn();
+        const unsubscribe = service.subscribeToOrderFills({ callback });
+        await vi.runAllTimersAsync();
+        await service.restoreSubscriptions();
+        await vi.runAllTimersAsync();
+        const [[, staleListener], [, liveListener]] =
+          transport.client.userFills.mock.calls;
+
+        liveListener(fillFrame(9_102_001, false));
+        staleListener(fillFrame(0, true));
+
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(service.getFillsCacheIfInitialized()).toBeNull();
+        expect(service.getCachedFills()).toStrictEqual([
+          expect.objectContaining({ orderId: '9102001' }),
+        ]);
+        unsubscribe();
+      });
+
+      it('treats the snapshot of a re-subscribe as the authoritative fill history', async () => {
+        const transport = createSdkLikeTransport();
+        useTransport(transport);
+        const callback = vi.fn();
+        const unsubscribe = service.subscribeToOrderFills({ callback });
+        await vi.runAllTimersAsync();
+        transport.push(fillFrame(9_102_001, false));
+
+        await service.restoreSubscriptions();
+        await vi.runAllTimersAsync();
+        transport.push(fillFrame(0, true));
+
+        expect(callback).toHaveBeenLastCalledWith([], true);
+        expect(service.getFillsCacheIfInitialized()).toStrictEqual([]);
+        unsubscribe();
+      });
+
+      it('delivers to a subscriber that arrives before the previous teardown settles', async () => {
+        const transport = createSdkLikeTransport({ holdUnsubscribe: true });
+        useTransport(transport);
+        const leavingCallback = vi.fn();
+        const unsubscribeLeaving = service.subscribeToOrderFills({
+          callback: leavingCallback,
+        });
+        await vi.runAllTimersAsync();
+
+        unsubscribeLeaving();
+        const arrivingCallback = vi.fn();
+        const unsubscribeArriving = service.subscribeToOrderFills({
+          callback: arrivingCallback,
+        });
+        await vi.runAllTimersAsync();
+
+        expect(transport.wire).toStrictEqual([
+          'subscribe',
+          'unsubscribe',
+          'subscribe',
+        ]);
+        transport.push(fillFrame(9_102_001, false));
+        expect(leavingCallback).not.toHaveBeenCalled();
+        expect(arrivingCallback).toHaveBeenCalledTimes(1);
+
+        transport.settleUnsubscribes();
+        await vi.runAllTimersAsync();
+        transport.push(fillFrame(9_102_002, false));
+        expect(arrivingCallback).toHaveBeenCalledTimes(2);
+        expect(transport.listenerCount()).toBe(1);
+        unsubscribeArriving();
+      });
+
+      it('delivers to a subscriber that joins the in-flight open the previous subscriber abandoned', async () => {
+        const transport = createSdkLikeTransport({ autoConfirm: false });
+        useTransport(transport);
+        const leavingCallback = vi.fn();
+        const unsubscribeLeaving = service.subscribeToOrderFills({
+          callback: leavingCallback,
+        });
+        await vi.waitFor(() => {
+          expect(transport.client.userFills).toHaveBeenCalledTimes(1);
+        });
+
+        unsubscribeLeaving();
+        const arrivingCallback = vi.fn();
+        const unsubscribeArriving = service.subscribeToOrderFills({
+          callback: arrivingCallback,
+        });
+        await vi.waitFor(() => {
+          expect(transport.client.userFills).toHaveBeenCalledTimes(2);
+        });
+        transport.confirm();
+        await vi.runAllTimersAsync();
+
+        expect(transport.wire).toStrictEqual(['subscribe']);
+        expect(transport.listenerCount()).toBe(1);
+        transport.push(fillFrame(9_102_001, false));
+        expect(leavingCallback).not.toHaveBeenCalled();
+        expect(arrivingCallback).toHaveBeenCalledTimes(1);
+        unsubscribeArriving();
+      });
+
+      it('delivers to a subscriber that arrives after the abandoned open confirmed and tore itself down', async () => {
+        const transport = createSdkLikeTransport({ autoConfirm: false });
+        useTransport(transport);
+        const unsubscribeLeaving = service.subscribeToOrderFills({
+          callback: vi.fn(),
+        });
+        await vi.waitFor(() => {
+          expect(transport.client.userFills).toHaveBeenCalledTimes(1);
+        });
+        unsubscribeLeaving();
+        transport.confirm();
+        await vi.runAllTimersAsync();
+        expect(transport.wire).toStrictEqual(['subscribe', 'unsubscribe']);
+
+        const arrivingCallback = vi.fn();
+        const unsubscribeArriving = service.subscribeToOrderFills({
+          callback: arrivingCallback,
+        });
+        await vi.waitFor(() => {
+          expect(transport.client.userFills).toHaveBeenCalledTimes(2);
+        });
+        transport.confirm();
+        await vi.runAllTimersAsync();
+
+        expect(transport.wire).toStrictEqual([
+          'subscribe',
+          'unsubscribe',
+          'subscribe',
+        ]);
+        transport.push(fillFrame(9_102_001, false));
+        expect(arrivingCallback).toHaveBeenCalledTimes(1);
+        unsubscribeArriving();
+      });
+    });
   });
 
   describe('Shared WebData3 Subscription', () => {
