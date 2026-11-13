@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `setNetworkAdditionMode` method to control how networks are enabled when added without switching the active network ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `setNetworkAdditionMode` method to control how networks are enabled when added without switching the active network ([#11471](https://github.com/MetaMask/core/pull/11471))
   - When mode is 'non-active': in popular-networks mode, newly added popular networks are enabled alongside the existing selection; otherwise, the network is added as disabled
   - When mode is 'default': standard behavior where non-popular networks switch to the newly added network
 
