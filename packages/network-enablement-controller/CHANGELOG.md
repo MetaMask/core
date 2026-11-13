@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `restoreEnabledNetworkMap` now preserves newly added networks when restoring a snapshot that had all networks enabled
+- `restoreEnabledNetworkMap` keeps a newly added network enabled when every network enabled in the snapshot is still enabled ([#11477](https://github.com/MetaMask/core/pull/11477))
 
 ## [7.1.3]
 

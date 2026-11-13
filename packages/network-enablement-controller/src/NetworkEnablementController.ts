@@ -619,7 +619,7 @@ export class NetworkEnablementController extends BaseController<
    * map. Missing snapshot values default to `false`. Intended for callers with
    * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
    * switches when adding a network without changing the active selection.
-   * Networks not in the snapshot are preserved if the snapshot had all networks enabled (popular mode).
+   * Networks not in the snapshot keep their current value if every network enabled in the snapshot is still enabled; otherwise they are disabled.
    *
    * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
    */
@@ -627,7 +627,6 @@ export class NetworkEnablementController extends BaseController<
     enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
   ): void {
     this.update((state) => {
-      // Check if current state still has all networks that were enabled in snapshot
       const hasEnabledNetworks = Object.values(enabledNetworkMap).some(
         (networks) => Object.values(networks).some((enabled) => enabled),
       );
@@ -649,13 +648,8 @@ export class NetworkEnablementController extends BaseController<
             const previousValue = enabledNetworkMap[namespace]?.[storageKey];
 
             if (previousValue !== undefined) {
-              // Key existed in snapshot: restore its value
               state.enabledNetworkMap[namespace][storageKey] = previousValue;
-            } else if (previousSelectionKept) {
-              // Key not in snapshot, but snapshot was popular mode: keep current value
-              // (do nothing, preserve state.enabledNetworkMap[namespace][storageKey])
-            } else {
-              // Key not in snapshot and snapshot was single-network mode: disable it
+            } else if (!previousSelectionKept) {
               state.enabledNetworkMap[namespace][storageKey] = false;
             }
           });
