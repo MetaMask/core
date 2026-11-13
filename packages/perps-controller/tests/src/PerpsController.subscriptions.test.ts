@@ -928,6 +928,46 @@ describe('PerpsController', () => {
       });
     });
 
+    it('keeps a not-yet-reported venue\'s persisted balance entry until that venue reports', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+        .calls[0][0].callback;
+
+      // A persisted entry from a previous session, with 1d-ago history.
+      controller.testUpdate((state) => {
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          accountValue1dAgo: '190',
+          accountAddress: '0x1234567890123456789012345678901234567890',
+          isTestnet: false,
+          lastUpdated: Date.now(),
+        };
+      });
+
+      // Hyperliquid reports first: Lighter simply has not reported yet, so
+      // its persisted entry (and the history it carries) must survive.
+      hlCallback(accountState('100'));
+      expect(controller.state.perpsBalances.lighter).toMatchObject({
+        totalBalance: '200',
+        accountValue1dAgo: '190',
+      });
+
+      // Lighter then reports: the history carries forward.
+      lighterCallback({ ...accountState('250'), unrealizedPnl: '5' });
+      expect(controller.state.perpsBalances.lighter).toMatchObject({
+        totalBalance: '250',
+        accountValue1dAgo: '190',
+      });
+
+      // An explicit null is a real unavailability: the entry goes away.
+      lighterCallback(null);
+      expect(controller.state.perpsBalances.lighter).toBeUndefined();
+    });
+
     it('removes a venue balance entry when that venue reports unavailable', () => {
       setupAggregatedMode();
       controller.subscribeToAccount({ callback: vi.fn() });
