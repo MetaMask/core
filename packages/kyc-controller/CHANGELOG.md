@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
+### Fixed
+
+- `launchProviderFlow` no longer reports `submitted` when the applicant closes SumSub without submitting
+  - A review decision the SDK opens on (`TemporarilyDeclined`, `FinallyRejected` or `Approved`) now counts as a submission only when the SDK reported `Pending`, `Completed` or `ActionCompleted` earlier in the same launch
+  - A `Pending` that SumSub reports partway through a level is cleared by a later `Ready`, `Initial` or `Incomplete`
+  - After a close that looks like a submit, the session status is fetched up to three times, one second apart. If idOS still has the applicant on the `kyc` step with no decision, the launch reports `abandoned` and stores that status
+  - A stored `submitted` outcome becomes `abandoned` when a fetched session status shows the applicant still on the `kyc` step with no decision, so a session already stuck on `submitted` can resume
+
 ## [0.16.0]
 
 ### Changed
