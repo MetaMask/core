@@ -3155,6 +3155,25 @@ describe('PerpsController', () => {
       });
     });
 
+    it('forwards an explicit deposit venue to transaction preparation', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      await depositController.depositWithConfirmation({
+        amount: '100',
+        providerId: 'lighter',
+      });
+
+      expect(
+        mockDepositServiceInstance.prepareTransaction,
+      ).toHaveBeenCalledWith({
+        provider: mockProvider,
+        providerId: 'lighter',
+      });
+    });
+
     it('calls NetworkController:findNetworkClientIdByChainId with correct chainId', async () => {
       depositController.testMarkInitialized();
       depositController.testSetProviders(
@@ -3487,6 +3506,43 @@ describe('PerpsController', () => {
       await depositController.depositWithConfirmation({ amount: '100' });
 
       expect(depositController.state.depositRequests[0].id).toBe(mockDepositId);
+    });
+
+    it('attributes the deposit record to the venue whose route was chosen', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      vi.mocked(
+        mockDepositServiceInstance.prepareTransaction,
+      ).mockResolvedValueOnce({
+        transaction: mockTransaction,
+        assetChainId: mockAssetChainId,
+        currentDepositId: mockDepositId,
+        providerId: 'lighter' as const,
+      });
+
+      await depositController.depositWithConfirmation({ amount: '100' });
+
+      // The route's venue is captured on the record before any asynchronous
+      // preparation, and stays fixed through completion.
+      expect(depositController.state.depositRequests[0].providerId).toBe(
+        'lighter',
+      );
+    });
+
+    it('attributes a direct-mode deposit to the active direct provider when the route has no venue', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      await depositController.depositWithConfirmation({ amount: '100' });
+
+      // Direct mode: the active provider is the venue; there is no ambiguity.
+      expect(depositController.state.depositRequests[0].providerId).toBe(
+        'hyperliquid',
+      );
     });
 
     it('delegates to DepositService with provider', async () => {

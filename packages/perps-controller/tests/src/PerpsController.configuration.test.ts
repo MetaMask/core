@@ -634,6 +634,28 @@ describe('PerpsController', () => {
       expect(controller.state.isTestnet).toBe(!initialTestnetState);
     });
 
+    it('drops balance entries observed on the previous network', async () => {
+      await controller.init();
+      controller.testUpdate((state) => {
+        state.perpsBalances = {
+          hyperliquid: {
+            totalBalance: '100',
+            unrealizedPnl: '0',
+            accountValue1dAgo: '90',
+            accountAddress: '0x1234567890123456789012345678901234567890',
+            isTestnet: false,
+            lastUpdated: 1,
+          },
+        };
+      });
+
+      const result = await controller.toggleTestnet();
+
+      expect(result.success).toBe(true);
+      // A mainnet balance and its history are not testnet observations.
+      expect(controller.state.perpsBalances).toStrictEqual({});
+    });
+
     it('returns failure and rolls back isTestnet when init sets InitializationState.Failed', async () => {
       await controller.init();
       const initialTestnetState = controller.state.isTestnet;

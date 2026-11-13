@@ -14,6 +14,7 @@ import {
 } from '../types/index.js';
 import type {
   PerpsProvider,
+  PerpsProviderType,
   WithdrawParams,
   WithdrawResult,
   PerpsPlatformDependencies,
@@ -142,13 +143,29 @@ export class AccountService {
             },
           );
 
-          // Add withdrawal request to tracking
+          // Add withdrawal request to tracking. The initiating venue is
+          // captured now, before any asynchronous work, and is never
+          // relabeled by later default changes.
+          let withdrawalProviderId: PerpsProviderType | undefined;
+          if (typeof provider.getWriteProviderId === 'function') {
+            withdrawalProviderId = provider.getWriteProviderId(
+              params.providerId,
+            );
+          } else if (context.tracingContext.provider !== 'aggregated') {
+            withdrawalProviderId = context.tracingContext
+              .provider as PerpsProviderType;
+          }
           const withdrawalRequest = {
             id: currentWithdrawalId,
             timestamp: Date.now(),
             amount: netAmount.toString(), // Use net amount (after fees)
             asset: USDC_SYMBOL,
             accountAddress, // Track which account initiated withdrawal
+            // The aggregated wrapper resolves the write route; direct
+            // providers are their own venue.
+            ...(withdrawalProviderId !== undefined && {
+              providerId: withdrawalProviderId,
+            }),
             success: false, // Will be updated when transaction completes
             txHash: undefined,
             status: 'pending' as TransactionStatus,

@@ -858,9 +858,11 @@ describe('LighterProvider', () => {
       const state = await provider.getAccountState();
       expect(state.totalBalance).toBe('10500');
       expect(state).not.toHaveProperty('crossMarginSummary');
-      await expect(
-        provider.getAccountState({ throwOnUnavailable: true }),
-      ).rejects.toThrow('cross margin summary unavailable');
+      const strictState = await provider.getAccountState({
+        throwOnUnavailable: true,
+      });
+      expect(strictState.totalBalance).toBe('10500');
+      expect(strictState).not.toHaveProperty('crossMarginSummary');
     });
 
     it('keeps the account state without a summary when the response omits positions', async () => {
@@ -874,9 +876,11 @@ describe('LighterProvider', () => {
       expect(state.totalBalance).toBe('10000');
       expect(state).not.toHaveProperty('crossMarginSummary');
       expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
-      await expect(
-        provider.getAccountState({ throwOnUnavailable: true }),
-      ).rejects.toThrow('cross margin summary unavailable');
+      const strictState = await provider.getAccountState({
+        throwOnUnavailable: true,
+      });
+      expect(strictState.totalBalance).toBe('10000');
+      expect(strictState).not.toHaveProperty('crossMarginSummary');
     });
 
     describe('with throwOnUnavailable', () => {
@@ -911,12 +915,14 @@ describe('LighterProvider', () => {
         ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
       });
 
-      it('throws when margin metadata for the summary is unavailable', async () => {
+      it('keeps balances without a summary when margin metadata for the summary is unavailable', async () => {
         const { provider, clientInstance } = buildProvider();
         clientInstance.getOrderBookDetails.mockRejectedValue(new Error('down'));
-        await expect(
-          provider.getAccountState({ throwOnUnavailable: true }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+        const state = await provider.getAccountState({
+          throwOnUnavailable: true,
+        });
+        expect(state.totalBalance).toBe('10500');
+        expect(state).not.toHaveProperty('crossMarginSummary');
       });
 
       it('still reads a wallet without a Lighter account as empty', async () => {

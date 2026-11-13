@@ -11422,12 +11422,31 @@ export class HyperLiquidProvider implements PerpsProvider {
       // snapshot so a missed DEX cannot be reported as "nothing to close".
       // Per-DEX loads are independent: a requested xyz outage must not
       // abort a BTC close in the same symbols list.
-      const requestedSymbols =
-        params.closeAll === true ||
-        params.symbols === undefined ||
-        params.symbols.length === 0
-          ? undefined
-          : params.symbols;
+      //
+      // Tagged targets name exactly the positions to close and win over both
+      // `symbols` and `closeAll`. An empty match (every target names another
+      // venue) closes nothing: a missing symbol list is close-all, and a
+      // target list must not be read that way.
+      const taggedTargets =
+        params.targets && params.targets.length > 0
+          ? params.targets
+          : undefined;
+      let requestedSymbols: string[] | undefined;
+      if (taggedTargets) {
+        requestedSymbols = taggedTargets
+          .filter(
+            (target) =>
+              target.providerId === undefined ||
+              target.providerId === this.protocolId,
+          )
+          .map((target) => target.symbol);
+      } else if (
+        params.closeAll !== true &&
+        params.symbols !== undefined &&
+        params.symbols.length > 0
+      ) {
+        requestedSymbols = params.symbols;
+      }
       let positions: Position[];
       if (requestedSymbols === undefined) {
         positions = await this.#getPositionsForOperation();

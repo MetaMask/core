@@ -78,11 +78,62 @@ registered venue, including HyperLiquid-only fallback when Lighter is
 unavailable, accepts these writes without an explicit route because there is
 only one destination.
 
-`cancelOrders` and `closePositions` cannot name a venue yet, so while multiple
-venues are registered they always return `PROVIDER_ROUTE_REQUIRED` instead of
-reaching the default venue. Cancel-all and close-all therefore stay unavailable
-in multi-venue aggregated mode until a release routes each order or position to
-its own venue and Lighter implements `cancelOrders` and `closePositions`.
+`cancelOrders` and `closePositions` are venue-attributed rather than refused.
+`cancelOrders` resolves each target's venue from the order record that names
+it, so a filtered or cancel-all batch reaches every venue that actually holds
+an order. `closePositions` takes either `closeAll` (fans out to every enabled
+venue) or explicit `targets` of `{ symbol, providerId }`; a legacy
+symbols-only close without venue identity still returns
+`PROVIDER_ROUTE_REQUIRED` while multiple venues are registered, because closing
+a symbol that exists on both venues is ambiguous. Results carry a `providerId`
+per item, so identical symbols or order ids on different venues are never
+conflated: each venue's successes and failures are reported
+separately and one venue's failure never hides another venue's success.
+
+## Per-exchange account data
+
+In aggregated mode, `getAccountState` and `subscribeToAccount` query every
+enabled venue. The result keeps the top-level `AccountState` numeric fields as
+combined totals — `totalBalance`, `spendableBalance`, `withdrawableBalance`,
+`marginUsed` and `unrealizedPnl` are decimal-safe sums over the venues that
+reported data, and `returnOnEquity` is the margin-weighted combined rate
+(`100 × Σ unrealizedPnl ÷ Σ marginUsed`; `0` when no margin is used).
+
+Each venue's own snapshot is in `providerStates[providerId]`: either
+`{ status: 'available', state, providerId }` with that venue's balances,
+`crossMarginSummary` and `subAccountBreakdown` (never merged into the top
+level — cross-venue collateral is not mutually usable), or
+`{ status: 'unavailable', error?, providerId }` for a venue whose read failed
+or has not reported yet. `aggregate` metadata
+(`{ status: 'complete' | 'partial', availableProviders, unavailableProviders }`)
+says whether the totals cover every enabled venue. A `partial` total is a
+subtotal: never present it as the user's complete portfolio value. A failed
+read is never shown as a zero balance; a confirmed zero or nonexistent venue
+account is an `available` entry with zero balances. When no venue has usable
+data the read throws (REST) or the stream emits `null`.
+
+The controller writes `perpsBalances[providerId]` from live account updates —
+one entry per available venue with `totalBalance`, `unrealizedPnl` and
+`lastUpdated`. A venue whose data becomes unavailable has its entry removed
+rather than left looking live. Each entry records the `accountAddress` and
+`isTestnet` it was observed for; an optional `accountValue1dAgo` carries
+forward only within that same account and network, and entries for another
+account or network are dropped when the selected account changes or the
+network is toggled. Combined `spendableBalance` and
+`withdrawableBalance` span venues: neither is a limit any single venue will
+enforce on a new order or a withdrawal.
+
+Market streams (`subscribeToCandles`, `subscribeToOICaps`,
+`subscribeToOrderBook`) take an optional `providerId`. An explicit route
+reaches that venue — required when both venues list the same symbol — and
+stays pinned when the routing default changes. Omitting it keeps the
+default-routed behavior. `getDepositRoutes` and `getWithdrawalRoutes` return
+every active venue's routes, each tagged with a `providerId`; identical
+asset/chain routes from different venues are distinct entries.
+`depositWithConfirmation` funds the route for its `providerId`, or the
+routing default when that is omitted, and fails closed when that venue has
+no route. The chosen route's venue is captured on the deposit or withdrawal
+record it initiates.
 
 ## Rewards discounts and fee previews
 

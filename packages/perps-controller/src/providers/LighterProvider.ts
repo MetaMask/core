@@ -2357,7 +2357,7 @@ export class LighterProvider implements PerpsProvider {
       if (this.#boundAddress !== null) {
         // All accounts deselected while a session existed: invalidate so
         // nothing in flight can still act for the old account.
-        this.#emitAccountBindingReset();
+        this.#emitAccountBindingReset(null);
         this.#invalidateSessionState();
         this.#removeSignerResetListener();
         this.#teardownStream();
@@ -2393,7 +2393,7 @@ export class LighterProvider implements PerpsProvider {
     // #tpslUnsettled is NOT cleared: entries are keyed by
     // address+accountIndex+symbol, so B never consumes A's pending ids and
     // switching back to A retains its reconciliation obligation.
-    this.#emitAccountBindingReset();
+    this.#emitAccountBindingReset(null);
     this.#teardownStream();
     this.#rebuildStreamForSubscribers();
     this.#deps.debugLogger.log(
@@ -2401,11 +2401,17 @@ export class LighterProvider implements PerpsProvider {
     );
   };
 
-  /** Clear subscriber-visible account data before a wallet rebind. */
-  readonly #emitAccountBindingReset = (): void => {
+  /**
+   * Clear subscriber-visible account data for a changed wallet binding.
+   *
+   * @param account - `null` when the new binding's balance is not known yet
+   * (a switch or deselection), so no consumer reads it as a confirmed zero;
+   * the empty state only when the venue confirmed this wallet has no account.
+   */
+  readonly #emitAccountBindingReset = (account: AccountState | null): void => {
     for (const subscriber of this.#accountSubscribers) {
       try {
-        subscriber.callback(EMPTY_ACCOUNT_STATE);
+        subscriber.callback(account);
       } catch (error) {
         this.#logSubscriberError('account', error);
       }
@@ -10154,7 +10160,6 @@ export class LighterProvider implements PerpsProvider {
       const crossMarginSummary = await this.#readCrossMarginSummary(
         account,
         accountState,
-        throwOnUnavailable,
       );
       this.#assertSession(generation);
       return crossMarginSummary
@@ -10193,24 +10198,24 @@ export class LighterProvider implements PerpsProvider {
 
   /**
    * Cross-margin summary for an account read. Without positions or
-   * market-margin metadata, default callers keep the account state without
-   * a summary; opted-in callers get the failure.
+   * market-margin metadata, the account state is kept without a summary:
+   * the summary decorates real balances, and dropping it must never drop
+   * the balances themselves. Capability gates and venue-data integrity
+   * failures still surface.
    *
    * @param account - Validated sub-account payload.
    * @param accountState - The account's adapted state.
-   * @param throwOnUnavailable - Whether the caller opted in to failures.
    * @returns The summary, or undefined when its inputs are unavailable.
    */
   readonly #readCrossMarginSummary = async (
     account: LighterSubAccount,
     accountState: AccountState,
-    throwOnUnavailable: boolean,
   ): Promise<CrossMarginSummary | undefined> => {
     if (account.positions?.length) {
       try {
         await this.#ensureMarketMargins();
       } catch (error) {
-        if (throwOnUnavailable || this.#mustSurfaceReadError(error)) {
+        if (this.#mustSurfaceReadError(error)) {
           throw error;
         }
         this.#deps.debugLogger.log(
@@ -10228,11 +10233,6 @@ export class LighterProvider implements PerpsProvider {
       accountState.totalBalance,
       this.#maintenanceFractionFor,
     );
-    if (!summary && throwOnUnavailable) {
-      throw new Error(
-        `${LIGHTER_DATA_INTEGRITY_PREFIX} cross margin summary unavailable: positions or maintenance margin metadata missing`,
-      );
-    }
     return summary;
   };
 
@@ -18229,7 +18229,7 @@ export class LighterProvider implements PerpsProvider {
           error instanceof LighterAccountNotFoundError &&
           generation === this.#sessionGeneration
         ) {
-          this.#emitAccountBindingReset();
+          this.#emitAccountBindingReset(EMPTY_ACCOUNT_STATE);
         } else if (
           !this.#isDisconnected &&
           this.#boundAddress !== null &&

@@ -21,6 +21,8 @@ import type {
   FeeCalculationParams,
   ReconcileChaseOrderCancellationParams,
   ReconcileChaseOrderCancellationResult,
+  CancelOrdersResult,
+  CancelOrderParams,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
@@ -34,6 +36,8 @@ type MockPerpsProvider = Mocked<PerpsProvider> & {
   getAccountSupport: MockedFunction<
     NonNullable<PerpsProvider['getAccountSupport']>
   >;
+  cancelOrders: MockedFunction<NonNullable<PerpsProvider['cancelOrders']>>;
+  closePositions: MockedFunction<NonNullable<PerpsProvider['closePositions']>>;
 };
 
 // Create a comprehensive mock provider
@@ -632,43 +636,210 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('Read Operations - getAccountState', () => {
-    it('returns account state from default provider with providerId injected', async () => {
-      const mockState = {
-        spendableBalance: '1000',
-        withdrawableBalance: '1000',
-        totalBalance: '1000',
-        marginUsed: '0',
-        unrealizedPnl: '0',
-        returnOnEquity: '0',
-      };
-      mockHLProvider.getAccountState.mockResolvedValue(mockState);
+    // Worked fixture from the implementation spec. Expected aggregates are
+    // independent literals, not recomputed by the test.
+    const hlState: AccountState = {
+      totalBalance: '1000.10',
+      spendableBalance: '700.05',
+      withdrawableBalance: '600.02',
+      marginUsed: '200',
+      unrealizedPnl: '30',
+      returnOnEquity: '15',
+      crossMarginSummary: {
+        accountValue: '1000.10',
+        maintenanceMargin: '20',
+        marginUsed: '200',
+        notional: '4000',
+      },
+      subAccountBreakdown: {
+        main: {
+          totalBalance: '1000.10',
+          spendableBalance: '700.05',
+          withdrawableBalance: '600.02',
+        },
+      },
+    };
+    const lighterState: AccountState = {
+      totalBalance: '250.20',
+      spendableBalance: '150.15',
+      withdrawableBalance: '120.08',
+      marginUsed: '50',
+      unrealizedPnl: '-5',
+      returnOnEquity: '-10',
+      subAccountBreakdown: {
+        main: {
+          totalBalance: '250.20',
+          spendableBalance: '150.15',
+          withdrawableBalance: '120.08',
+        },
+      },
+    };
+
+    it('queries every provider and returns per-provider states plus decimal-safe combined totals', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+      mockLighterProvider.getAccountState.mockResolvedValue({
+        ...lighterState,
+      });
 
       const result = await aggregatedProvider.getAccountState();
 
-      expect(result).toEqual({ ...mockState, providerId: 'hyperliquid' });
+      expect(result.totalBalance).toBe('1250.3');
+      expect(result.spendableBalance).toBe('850.2');
+      expect(result.withdrawableBalance).toBe('720.1');
+      expect(result.marginUsed).toBe('250');
+      expect(result.unrealizedPnl).toBe('25');
+      // Rate semantics: combined RoE is 100 x sum(pnl) / sum(marginUsed) =
+      // 100 x 25 / 250 = 10. Neither summing rates (5) nor an unweighted
+      // average (2.5) may pass.
+      expect(result.returnOnEquity).toBe('10');
+      expect(result.providerStates?.hyperliquid).toStrictEqual({
+        status: 'available',
+        providerId: 'hyperliquid',
+        state: { ...hlState, providerId: 'hyperliquid' },
+      });
+      expect(result.providerStates?.lighter).toStrictEqual({
+        status: 'available',
+        providerId: 'lighter',
+        state: { ...lighterState, providerId: 'lighter' },
+      });
+      expect(result.aggregate).toStrictEqual({
+        status: 'complete',
+        availableProviders: ['hyperliquid', 'lighter'],
+        unavailableProviders: [],
+      });
     });
 
-    it('attributes a balance response to the provider that served it when the default changes mid-request', async () => {
-      const mockState: AccountState = {
-        spendableBalance: '1000',
-        withdrawableBalance: '1000',
-        totalBalance: '1000',
-        marginUsed: '0',
-        unrealizedPnl: '0',
-        returnOnEquity: '0',
-      };
+    it('keeps venue-local sub-account data under each provider entry without cross-venue key collisions', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+      mockLighterProvider.getAccountState.mockResolvedValue({
+        ...lighterState,
+      });
+
+      const result = await aggregatedProvider.getAccountState();
+
+      // Identical sub-account names at different venues must not collide: each
+      // venue's 'main' entry keeps its own balances.
+      expect(result.providerStates?.hyperliquid?.status).toBe('available');
+      expect(result.providerStates?.lighter?.status).toBe('available');
+      if (
+        result.providerStates?.hyperliquid?.status === 'available' &&
+        result.providerStates?.lighter?.status === 'available'
+      ) {
+        expect(
+          result.providerStates.hyperliquid.state.subAccountBreakdown?.main
+            .totalBalance,
+        ).toBe('1000.10');
+        expect(
+          result.providerStates.lighter.state.subAccountBreakdown?.main
+            .totalBalance,
+        ).toBe('250.20');
+      }
+      // The combined total does not carry a merged subAccountBreakdown or a
+      // merged crossMarginSummary: cross-venue collateral is not mutually usable.
+      expect(result.crossMarginSummary).toBeUndefined();
+      expect(result.subAccountBreakdown).toBeUndefined();
+    });
+
+    it('does not stamp the combined total with the default provider identity, even when the default changes mid-request', async () => {
       const pending = createDeferred<AccountState>();
       mockHLProvider.getAccountState.mockReturnValueOnce(pending.promise);
+      mockLighterProvider.getAccountState.mockResolvedValue({
+        ...lighterState,
+      });
 
       const request = aggregatedProvider.getAccountState();
       aggregatedProvider.setDefaultProvider('lighter');
-      pending.resolve(mockState);
+      pending.resolve({ ...hlState });
 
-      await expect(request).resolves.toEqual({
-        ...mockState,
-        providerId: 'hyperliquid',
+      const result = await request;
+      // Each entry is attributed to the provider that actually served it.
+      expect(result.providerStates?.hyperliquid?.status).toBe('available');
+      expect(result.providerStates?.lighter?.status).toBe('available');
+      // The combined total is not attributed to either venue.
+      expect(result.providerId).toBeUndefined();
+    });
+
+    it('marks the aggregate partial when a venue read fails and still sums the available venue', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+      mockLighterProvider.getAccountState.mockRejectedValue(
+        new Error('venue down'),
+      );
+
+      const result = await aggregatedProvider.getAccountState();
+
+      expect(result.totalBalance).toBe('1000.1');
+      expect(result.aggregate).toStrictEqual({
+        status: 'partial',
+        availableProviders: ['hyperliquid'],
+        unavailableProviders: ['lighter'],
       });
-      expect(mockLighterProvider.getAccountState).not.toHaveBeenCalled();
+      expect(result.providerStates?.lighter).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        error: 'venue down',
+      });
+    });
+
+    it('reports a confirmed zero balance as available, not unavailable', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+      mockLighterProvider.getAccountState.mockResolvedValue({
+        totalBalance: '0',
+        spendableBalance: '0',
+        withdrawableBalance: '0',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+
+      const result = await aggregatedProvider.getAccountState();
+
+      expect(result.aggregate?.status).toBe('complete');
+      expect(result.totalBalance).toBe('1000.1');
+    });
+
+    it('throws instead of manufacturing an all-zero total when every venue read fails', async () => {
+      mockHLProvider.getAccountState.mockRejectedValue(new Error('hl down'));
+      mockLighterProvider.getAccountState.mockRejectedValue(
+        new Error('lighter down'),
+      );
+
+      await expect(aggregatedProvider.getAccountState()).rejects.toThrow();
+    });
+
+    it('forces a strict read in the aggregated fan-out so a failed venue read cannot masquerade as zero', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+      mockLighterProvider.getAccountState.mockRejectedValue(
+        new Error('venue down'),
+      );
+
+      const result = await aggregatedProvider.getAccountState();
+
+      // Adapters with a lenient default (Lighter answers an infrastructure
+      // failure with an empty zero state) must be told to fail loudly here:
+      // otherwise the aggregate classifies the failure as available zero
+      // balances.
+      expect(mockHLProvider.getAccountState).toHaveBeenCalledWith(
+        expect.objectContaining({ throwOnUnavailable: true }),
+      );
+      expect(mockLighterProvider.getAccountState).toHaveBeenCalledWith(
+        expect.objectContaining({ throwOnUnavailable: true }),
+      );
+      expect(result.aggregate).toStrictEqual({
+        status: 'partial',
+        availableProviders: ['hyperliquid'],
+        unavailableProviders: ['lighter'],
+      });
+    });
+
+    it('keeps direct read defaults when only one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+
+      await aggregatedProvider.getAccountState();
+
+      // The single-venue passthrough forwards params untouched: each adapter
+      // keeps its own lenient/strict default for direct callers.
+      expect(mockHLProvider.getAccountState).toHaveBeenCalledWith(undefined);
     });
   });
 
@@ -1192,6 +1363,589 @@ describe('AggregatedPerpsProvider', () => {
         expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
       },
     );
+  });
+
+  describe('Mixed-venue batch routing', () => {
+    const cancelResult = (
+      orderId: string,
+      symbol: string,
+      success = true,
+    ): CancelOrdersResult => ({
+      success,
+      successCount: success ? 1 : 0,
+      failureCount: success ? 0 : 1,
+      results: [
+        { orderId, symbol, success, error: success ? undefined : 'nope' },
+      ],
+    });
+
+    it('sends each tagged cancel target to its own venue and attributes results', async () => {
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('hl-1', 'BTC'),
+      );
+      mockLighterProvider.cancelOrders.mockResolvedValue(
+        cancelResult('lt-1', 'BTC'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
+      ]);
+
+      // Each venue receives only its own targets — same symbol, different venue.
+      expect(mockHLProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect(mockLighterProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
+      ]);
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(2);
+      expect(result.failureCount).toBe(0);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('never hides one venue successes behind another venue failure', async () => {
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('hl-1', 'BTC'),
+      );
+      mockLighterProvider.cancelOrders.mockResolvedValue({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [
+          {
+            orderId: 'lt-1',
+            symbol: 'BTC',
+            success: false,
+            error: 'venue down',
+          },
+        ],
+      });
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
+      ]);
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'BTC',
+          success: false,
+          error: 'venue down',
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('reports a thrown venue batch as explicit per-target failures', async () => {
+      mockHLProvider.cancelOrders.mockRejectedValue(
+        new Error('batch rejected'),
+      );
+      mockLighterProvider.cancelOrders.mockResolvedValue(
+        cancelResult('lt-1', 'ETH'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: false,
+          error: 'batch rejected',
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: true,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('reports an explicit per-target failure for a venue without batch cancel support', async () => {
+      delete (mockHLProvider as Partial<MockPerpsProvider>).cancelOrders;
+      mockLighterProvider.cancelOrders.mockResolvedValue(
+        cancelResult('lt-1', 'BTC'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
+      ]);
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: false,
+          error: 'Batch cancel not supported',
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('refuses untagged targets while multiple venues are registered', async () => {
+      await expect(
+        aggregatedProvider.cancelOrders([{ orderId: '1', symbol: 'BTC' }]),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
+      expect(mockHLProvider.cancelOrders).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrders).not.toHaveBeenCalled();
+    });
+
+    it('routes untagged targets to the venue when only one is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('hl-1', 'BTC'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC' },
+      ]);
+
+      expect(mockHLProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC' },
+      ]);
+      expect(result.successCount).toBe(1);
+    });
+
+    it('fails a foreign-venue target on its own when only one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('hl-1', 'BTC'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      // The loaded venue sees only its own target: forwarding the Lighter
+      // order ID would let HyperLiquid cancel a colliding local ID.
+      expect(mockHLProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('does not lose the registered venue targets when a foreign venue appears first', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('hl-1', 'BTC'),
+      );
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+
+      // The first entry's venue must not pick the route for the whole batch:
+      // the registered venue's targets still execute.
+      expect(mockHLProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: true,
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('keeps the foreign-venue refusal code when the only venue cannot batch cancel', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      delete (mockHLProvider as Partial<MockPerpsProvider>).cancelOrders;
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.successCount).toBe(0);
+      expect(result.failureCount).toBe(2);
+      expect(result.results).toEqual([
+        {
+          orderId: 'hl-1',
+          symbol: 'BTC',
+          success: false,
+          error: 'Batch cancel not supported',
+          providerId: 'hyperliquid',
+        },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('refuses an all-foreign batch as not found even when the only venue cannot batch cancel', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      delete (mockHLProvider as Partial<MockPerpsProvider>).cancelOrders;
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      expect(result.results).toEqual([
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('fails every target without a venue call when all name other venues', async () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(mockHLProvider.cancelOrders).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      });
+      expect(result.results[0]).toMatchObject({
+        orderId: 'lt-1',
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+        providerId: 'lighter',
+      });
+    });
+
+    it('fans a mixed-venue close out to each named venue and attributes results', async () => {
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true }],
+      });
+      mockLighterProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [
+          { symbol: 'BTC', providerId: 'hyperliquid' },
+          { symbol: 'BTC', providerId: 'lighter' },
+        ],
+      });
+
+      // Identical symbols on both venues close independently.
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+      expect(mockLighterProvider.closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+      expect(result.successCount).toBe(2);
+      expect(result.results).toEqual([
+        { symbol: 'BTC', success: true, providerId: 'hyperliquid' },
+        { symbol: 'BTC', success: true, providerId: 'lighter' },
+      ]);
+    });
+
+    it('fans closeAll out to every enabled venue', async () => {
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 2,
+        failureCount: 0,
+        results: [
+          { symbol: 'BTC', success: true },
+          { symbol: 'ETH', success: true },
+        ],
+      });
+      mockLighterProvider.closePositions.mockResolvedValue({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [{ symbol: 'BTC', success: false, error: 'rejected' }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        closeAll: true,
+      });
+
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
+      });
+      expect(mockLighterProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
+      });
+      // Hyperliquid's two successes are not hidden by Lighter's failure.
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(2);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual([
+        { symbol: 'BTC', success: true, providerId: 'hyperliquid' },
+        { symbol: 'ETH', success: true, providerId: 'hyperliquid' },
+        {
+          symbol: 'BTC',
+          success: false,
+          error: 'rejected',
+          providerId: 'lighter',
+        },
+      ]);
+    });
+
+    it('refuses a legacy symbols-only close while multiple venues are registered', async () => {
+      await expect(
+        aggregatedProvider.closePositions({ symbols: ['BTC'] }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
+      expect(mockHLProvider.closePositions).not.toHaveBeenCalled();
+      expect(mockLighterProvider.closePositions).not.toHaveBeenCalled();
+    });
+
+    it('lets closeAll override a legacy symbols list while multiple venues are registered', async () => {
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true }],
+      });
+      mockLighterProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'ETH', success: true }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        closeAll: true,
+        symbols: ['BTC'],
+      });
+
+      // Same request succeeds on the direct path, so the aggregator must not
+      // refuse it: closeAll wins over symbols in every layer.
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
+      });
+      expect(mockLighterProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
+      });
+      expect(result.successCount).toBe(2);
+    });
+
+    it('records a per-symbol failure when a tagged venue close throws', async () => {
+      mockHLProvider.closePositions.mockRejectedValue(
+        new Error('batch rejected'),
+      );
+      mockLighterProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'ETH', success: true }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [
+          { symbol: 'BTC', providerId: 'hyperliquid' },
+          { symbol: 'ETH', providerId: 'lighter' },
+        ],
+      });
+
+      // The thrown venue's target stays in the result. A partial close is
+      // not reported as fully successful.
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.error).toBe('hyperliquid: batch rejected');
+      expect(result.results).toEqual([
+        {
+          symbol: 'BTC',
+          success: false,
+          error: 'batch rejected',
+          providerId: 'hyperliquid',
+        },
+        { symbol: 'ETH', success: true, providerId: 'lighter' },
+      ]);
+    });
+
+    it('closes only the tagged symbols when one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true }],
+      });
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }],
+      });
+
+      // The venue must see a symbol list. Forwarding `targets` alone is
+      // close-all on a provider that only reads `symbols` and `closeAll`.
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+      expect(result.results).toEqual([
+        { symbol: 'BTC', success: true, providerId: 'hyperliquid' },
+      ]);
+    });
+
+    it('does not close the loaded venue when the only target names another venue', async () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'lighter' }],
+      });
+
+      expect(mockHLProvider.closePositions).not.toHaveBeenCalled();
+      expect(mockHLProvider.closePosition).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [
+          {
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+            providerId: 'lighter',
+          },
+        ],
+      });
+    });
+
+    it('closes tagged symbols one by one when the only venue has no batch close', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      delete (mockHLProvider as Partial<MockPerpsProvider>).closePositions;
+      mockHLProvider.closePosition.mockResolvedValue({ success: true });
+
+      const result = await aggregatedProvider.closePositions({
+        targets: [{ symbol: 'BTC', providerId: 'hyperliquid' }],
+      });
+
+      expect(mockHLProvider.closePosition).toHaveBeenCalledTimes(1);
+      expect(mockHLProvider.closePosition).toHaveBeenCalledWith({
+        symbol: 'BTC',
+      });
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+    });
+
+    it('passes a legacy symbols-only close through when only one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'BTC', success: true }],
+      });
+
+      await expect(
+        aggregatedProvider.closePositions({ symbols: ['BTC'] }),
+      ).resolves.toMatchObject({ successCount: 1 });
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        symbols: ['BTC'],
+      });
+    });
+
+    it('passes closeAll through over a symbols list when only one venue is registered', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 2,
+        failureCount: 0,
+        results: [
+          { symbol: 'BTC', success: true },
+          { symbol: 'ETH', success: true },
+        ],
+      });
+
+      await expect(
+        aggregatedProvider.closePositions({ closeAll: true, symbols: ['BTC'] }),
+      ).resolves.toMatchObject({ successCount: 2 });
+      // Same precedence as the direct path: the venue decides closeAll.
+      expect(mockHLProvider.closePositions).toHaveBeenCalledWith({
+        closeAll: true,
+        symbols: ['BTC'],
+      });
+    });
   });
 
   describe('Write Operations - replacePositionTPSLLeg', () => {
@@ -1723,6 +2477,45 @@ describe('AggregatedPerpsProvider', () => {
       );
     });
 
+    it('applies a venue-scoped fee resolution to that venue only', () => {
+      const resolution = {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant' as const,
+        subscription: { eligible: false, reason: 'no-source' as const },
+      };
+
+      aggregatedProvider.setUserFeeResolution(resolution, 'lighter');
+
+      expect(mockLighterProvider.setUserFeeResolution).toHaveBeenCalledWith(
+        resolution,
+      );
+      expect(mockHLProvider.setUserFeeResolution).not.toHaveBeenCalled();
+      expect(mockHLProvider.setUserFeeDiscount).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the discount for a venue-scoped resolution', () => {
+      const resolution = {
+        feeBips: 2,
+        discountBips: 8000,
+        source: 'grant' as const,
+        subscription: { eligible: false, reason: 'no-source' as const },
+      };
+      mockLighterProvider.setUserFeeResolution = undefined;
+
+      aggregatedProvider.setUserFeeResolution(resolution, 'lighter');
+
+      expect(mockLighterProvider.setUserFeeDiscount).toHaveBeenCalledWith(8000);
+      expect(mockHLProvider.setUserFeeResolution).not.toHaveBeenCalled();
+    });
+
+    it('ignores a venue-scoped resolution for an unregistered venue', () => {
+      aggregatedProvider.setUserFeeResolution(undefined, 'unknown' as never);
+
+      expect(mockHLProvider.setUserFeeResolution).not.toHaveBeenCalled();
+      expect(mockLighterProvider.setUserFeeResolution).not.toHaveBeenCalled();
+    });
+
     it('delegates subscription builder approval to the default provider', async () => {
       await expect(
         aggregatedProvider.approveSubscriptionBuilderFee(),
@@ -1839,16 +2632,54 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('Asset Routes', () => {
-    it('delegates getDepositRoutes to default provider', () => {
-      aggregatedProvider.getDepositRoutes();
-
-      expect(mockHLProvider.getDepositRoutes).toHaveBeenCalled();
+    const route = (contractAddress: string) => ({
+      assetId:
+        'eip155:42161/erc20:0x0000000000000000000000000000000000000000/default' as const,
+      chainId: 'eip155:42161' as const,
+      contractAddress: contractAddress as never,
     });
 
-    it('delegates getWithdrawalRoutes to default provider', () => {
-      aggregatedProvider.getWithdrawalRoutes();
+    it('lists deposit routes from every venue, each tagged with its provider', () => {
+      mockHLProvider.getDepositRoutes.mockReturnValue([route('0xhl')]);
+      mockLighterProvider.getDepositRoutes.mockReturnValue([route('0xlt')]);
 
-      expect(mockHLProvider.getWithdrawalRoutes).toHaveBeenCalled();
+      const routes = aggregatedProvider.getDepositRoutes({
+        symbol: 'USDC',
+      });
+
+      // Identical asset/chain routes belonging to different venues are not
+      // collapsed: the venue is who settles the money movement.
+      expect(routes).toEqual([
+        { ...route('0xhl'), providerId: 'hyperliquid' },
+        { ...route('0xlt'), providerId: 'lighter' },
+      ]);
+      expect(mockHLProvider.getDepositRoutes).toHaveBeenCalledWith({
+        symbol: 'USDC',
+      });
+      expect(mockLighterProvider.getDepositRoutes).toHaveBeenCalledWith({
+        symbol: 'USDC',
+      });
+    });
+
+    it('lists withdrawal routes from every venue and keeps venue-unmatched routes distinct', () => {
+      mockHLProvider.getWithdrawalRoutes.mockReturnValue([route('0xhl')]);
+      mockLighterProvider.getWithdrawalRoutes.mockReturnValue([route('0xhl')]);
+
+      const routes = aggregatedProvider.getWithdrawalRoutes();
+
+      expect(routes).toEqual([
+        { ...route('0xhl'), providerId: 'hyperliquid' },
+        { ...route('0xhl'), providerId: 'lighter' },
+      ]);
+    });
+
+    it('keeps listing routes when one venue contributes none', () => {
+      mockHLProvider.getDepositRoutes.mockReturnValue([route('0xhl')]);
+      mockLighterProvider.getDepositRoutes.mockReturnValue([]);
+
+      expect(aggregatedProvider.getDepositRoutes()).toEqual([
+        { ...route('0xhl'), providerId: 'hyperliquid' },
+      ]);
     });
   });
 
@@ -2490,11 +3321,323 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.subscribeToPrices).toHaveBeenCalled();
     });
 
-    it('delegates account subscription to default provider', () => {
+    it('fans the account subscription out to every enabled venue', () => {
       const callback = vi.fn();
       aggregatedProvider.subscribeToAccount({ callback });
 
-      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalled();
+      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards account identity through the multiplexer', () => {
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({
+        callback,
+        accountId: 'eip155:1:0xabc',
+      });
+
+      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: 'eip155:1:0xabc' }),
+      );
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: 'eip155:1:0xabc' }),
+      );
+    });
+
+    it('aggregates per-venue emissions into combined totals and marks the aggregate incomplete before every venue reports', () => {
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback =
+        mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      // First venue emits: the aggregate is explicitly incomplete. The venue
+      // that has not reported yet is `pending` — no verdict about its
+      // balances — not `unavailable`.
+      hlCallback({
+        totalBalance: '1000.10',
+        spendableBalance: '700.05',
+        withdrawableBalance: '600.02',
+        marginUsed: '200',
+        unrealizedPnl: '30',
+        returnOnEquity: '15',
+      });
+      expect(callback).toHaveBeenCalledTimes(1);
+      const first = callback.mock.calls[0][0] as AccountState | null;
+      expect(first?.totalBalance).toBe('1000.1');
+      expect(first?.aggregate?.status).toBe('partial');
+      expect(first?.aggregate?.availableProviders).toEqual(['hyperliquid']);
+      expect(first?.aggregate?.unavailableProviders).toEqual([]);
+      expect(first?.aggregate?.pendingProviders).toEqual(['lighter']);
+      expect(first?.providerStates?.lighter?.status).toBe('pending');
+
+      // Second venue emits: totals cover every venue.
+      lighterCallback({
+        totalBalance: '250.20',
+        spendableBalance: '150.15',
+        withdrawableBalance: '120.08',
+        marginUsed: '50',
+        unrealizedPnl: '-5',
+        returnOnEquity: '-10',
+      });
+      expect(callback).toHaveBeenCalledTimes(2);
+      const second = callback.mock.calls[1][0] as AccountState | null;
+      expect(second?.totalBalance).toBe('1250.3');
+      expect(second?.aggregate?.status).toBe('complete');
+      expect(second?.providerStates?.hyperliquid?.status).toBe('available');
+      expect(second?.providerStates?.lighter?.status).toBe('available');
+    });
+
+    it('invalidates a venue whose update is null instead of keeping its previous value as current', () => {
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback =
+        mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback({
+        totalBalance: '1000.10',
+        spendableBalance: '700.05',
+        withdrawableBalance: '600.02',
+        marginUsed: '200',
+        unrealizedPnl: '30',
+        returnOnEquity: '15',
+      });
+      lighterCallback({
+        totalBalance: '250.20',
+        spendableBalance: '150.15',
+        withdrawableBalance: '120.08',
+        marginUsed: '50',
+        unrealizedPnl: '-5',
+        returnOnEquity: '-10',
+      });
+      expect(callback.mock.calls[1][0].totalBalance).toBe('1250.3');
+
+      // Lighter's balance is no longer known: it must not stay in the total,
+      // and must not become a zero either. Having reported before, it is
+      // explicitly `unavailable`, not `pending`.
+      lighterCallback(null);
+      const invalid = callback.mock.calls[2][0] as AccountState | null;
+      expect(invalid?.totalBalance).toBe('1000.1');
+      expect(invalid?.aggregate?.status).toBe('partial');
+      expect(invalid?.aggregate?.unavailableProviders).toEqual(['lighter']);
+      expect(invalid?.aggregate?.pendingProviders).toBeUndefined();
+      expect(invalid?.providerStates?.lighter?.status).toBe('unavailable');
+    });
+
+    it('keeps a pending venue pending after another venue reports, then marks it available when it reports', () => {
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback =
+        mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback({
+        totalBalance: '1000.10',
+        spendableBalance: '700.05',
+        withdrawableBalance: '600.02',
+        marginUsed: '200',
+        unrealizedPnl: '30',
+        returnOnEquity: '15',
+      });
+      expect(callback.mock.calls[0][0].providerStates?.lighter?.status).toBe(
+        'pending',
+      );
+
+      lighterCallback(null);
+      // A null before the venue ever reported data leaves no verdict: it is
+      // still pending, not unavailable.
+      expect(callback.mock.calls[1][0].providerStates?.lighter?.status).toBe(
+        'pending',
+      );
+
+      lighterCallback({
+        totalBalance: '250.20',
+        spendableBalance: '150.15',
+        withdrawableBalance: '120.08',
+        marginUsed: '50',
+        unrealizedPnl: '-5',
+        returnOnEquity: '-10',
+      });
+      expect(callback.mock.calls[2][0].providerStates?.lighter?.status).toBe(
+        'available',
+      );
+    });
+
+    it('emits null when no enabled venue has usable data', () => {
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallback =
+        mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback(null);
+      lighterCallback(null);
+
+      expect(callback).toHaveBeenCalledWith(null);
+    });
+
+    it('keeps the direct stream shape when only one venue is registered', () => {
+      aggregatedProvider.removeProvider('lighter');
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      expect(mockLighterProvider.subscribeToAccount).not.toHaveBeenCalled();
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback({
+        totalBalance: '1000.10',
+        spendableBalance: '700.05',
+        withdrawableBalance: '600.02',
+        marginUsed: '200',
+        unrealizedPnl: '30',
+        returnOnEquity: '15',
+        crossMarginSummary: {
+          accountValue: '1000.10',
+          maintenanceMargin: '20',
+          marginUsed: '200',
+          notional: '4000',
+        },
+        subAccountBreakdown: {
+          main: {
+            totalBalance: '1000.10',
+            spendableBalance: '700.05',
+            withdrawableBalance: '600.02',
+          },
+        },
+      });
+
+      // REST/stream parity: top-level venue identity and venue-local fields
+      // survive, they are not folded under `providerStates`.
+      const emitted = callback.mock.calls[0][0] as AccountState | null;
+      expect(emitted?.providerId).toBe('hyperliquid');
+      expect(emitted?.totalBalance).toBe('1000.10');
+      expect(emitted?.crossMarginSummary?.notional).toBe('4000');
+      expect(emitted?.subAccountBreakdown?.main.totalBalance).toBe('1000.10');
+      expect(emitted?.providerStates).toBeUndefined();
+      expect(emitted?.aggregate).toBeUndefined();
+    });
+
+    it('passes a null single-venue update through as no data, not zero', () => {
+      aggregatedProvider.removeProvider('lighter');
+      const callback = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback });
+
+      const hlCallback =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback(null);
+
+      expect(callback).toHaveBeenCalledWith(null);
+    });
+
+    it('keeps both venue subscriptions when the routing default changes', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToAccount.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToAccount({ callback });
+      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      // The other venue's account subscription is not dropped and no null
+      // invalidation is emitted: the all-venue total remains valid.
+      expect(hlCleanup).not.toHaveBeenCalled();
+      expect(lighterCleanup).not.toHaveBeenCalled();
+      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(callback).not.toHaveBeenCalled();
+
+      cleanup();
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('cleans up every venue subscription when setup fails partway', () => {
+      const hlCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToAccount.mockImplementation(() => {
+        throw new Error('CLIENT_NOT_INITIALIZED');
+      });
+
+      expect(() =>
+        aggregatedProvider.subscribeToAccount({ callback: vi.fn() }),
+      ).toThrow('CLIENT_NOT_INITIALIZED');
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not let one account subscription cleanup erase another subscription venue data', () => {
+      const callbackA = vi.fn();
+      const callbackB = vi.fn();
+      aggregatedProvider.subscribeToAccount({ callback: callbackA });
+      aggregatedProvider.subscribeToAccount({ callback: callbackB });
+
+      const hlCallbackA =
+        mockHLProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const hlCallbackB =
+        mockHLProvider.subscribeToAccount.mock.calls[1][0].callback;
+      const lighterCallbackA =
+        mockLighterProvider.subscribeToAccount.mock.calls[0][0].callback;
+      const lighterCallbackB =
+        mockLighterProvider.subscribeToAccount.mock.calls[1][0].callback;
+
+      hlCallbackA({
+        totalBalance: '1000.10',
+        spendableBalance: '700.05',
+        withdrawableBalance: '600.02',
+        marginUsed: '200',
+        unrealizedPnl: '30',
+        returnOnEquity: '15',
+      });
+      hlCallbackB({
+        totalBalance: '500',
+        spendableBalance: '500',
+        withdrawableBalance: '500',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+      lighterCallbackA({
+        totalBalance: '250.20',
+        spendableBalance: '150.15',
+        withdrawableBalance: '120.08',
+        marginUsed: '50',
+        unrealizedPnl: '-5',
+        returnOnEquity: '-10',
+      });
+      lighterCallbackB({
+        totalBalance: '100',
+        spendableBalance: '100',
+        withdrawableBalance: '100',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+
+      // Subscription A tears down; subscription B must keep both venues.
+      // (Order of teardown does not matter: each subscription owns its cache.)
+      const cleanupA1 = mockHLProvider.subscribeToAccount.mock.results[0]
+        .value as () => void;
+      const cleanupA2 = mockLighterProvider.subscribeToAccount.mock.results[0]
+        .value as () => void;
+      cleanupA1();
+      cleanupA2();
+
+      lighterCallbackB(null);
+      // B's last emission: hyperliquid still available at 500, lighter gone.
+      const lastB = callbackB.mock.calls.at(-1)?.[0] as AccountState | null;
+      expect(lastB?.totalBalance).toBe('500');
+      expect(lastB?.aggregate?.status).toBe('partial');
     });
 
     it('delegates subscribeToOICaps to default provider', () => {
@@ -2503,6 +3646,93 @@ describe('AggregatedPerpsProvider', () => {
       aggregatedProvider.subscribeToOICaps({ callback });
 
       expect(mockHLProvider.subscribeToOICaps).toHaveBeenCalled();
+    });
+
+    it('sends an explicitly routed candle subscription to that venue, even for a symbol both venues list', () => {
+      const params = {
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+        providerId: 'lighter' as const,
+      };
+      aggregatedProvider.subscribeToCandles(params);
+
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledWith(
+        params,
+      );
+      expect(mockHLProvider.subscribeToCandles).not.toHaveBeenCalled();
+    });
+
+    it('pins an explicitly routed candle subscription when the default changes', () => {
+      const cleanup = vi.fn();
+      mockLighterProvider.subscribeToCandles.mockReturnValue(cleanup);
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+        providerId: 'lighter',
+      });
+
+      aggregatedProvider.setDefaultProvider('hyperliquid');
+
+      // Pinned: the stream is not torn down or rebound to the new default.
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(mockHLProvider.subscribeToCandles).not.toHaveBeenCalled();
+    });
+
+    it('keeps default-routed candle behavior when no explicit route is supplied', () => {
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+      });
+      expect(mockHLProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToCandles).not.toHaveBeenCalled();
+
+      aggregatedProvider.setDefaultProvider('lighter');
+      expect(mockHLProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+    });
+
+    it('routes order-book and OI-cap subscriptions to the explicit venue', () => {
+      aggregatedProvider.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        providerId: 'lighter',
+      });
+      aggregatedProvider.subscribeToOICaps({
+        callback: vi.fn(),
+        providerId: 'lighter',
+      });
+
+      expect(mockLighterProvider.subscribeToOrderBook).toHaveBeenCalledTimes(1);
+      expect(mockHLProvider.subscribeToOrderBook).not.toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
+      expect(mockHLProvider.subscribeToOICaps).not.toHaveBeenCalled();
+    });
+
+    it('reports an invalid explicit stream route and never subscribes to a different venue', () => {
+      aggregatedProvider.removeProvider('hyperliquid');
+      const onError = vi.fn();
+
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+        onError,
+        providerId: 'hyperliquid',
+      });
+      aggregatedProvider.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+        providerId: 'hyperliquid',
+      });
+
+      // Each invalid route reports once: no silent fallback to another venue.
+      expect(onError).toHaveBeenCalledTimes(2);
+      expect(mockLighterProvider.subscribeToCandles).not.toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToOrderBook).not.toHaveBeenCalled();
     });
 
     it('delegates subscribeToCandles to default provider', () => {
@@ -2916,32 +4146,7 @@ describe('AggregatedPerpsProvider', () => {
       expect(callback).toHaveBeenCalledTimes(2);
     });
 
-    it('moves an account subscription to the new venue without reconnecting transports', () => {
-      const hlCleanup = vi.fn();
-      const lighterCleanup = vi.fn();
-      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
-      mockLighterProvider.subscribeToAccount.mockReturnValue(lighterCleanup);
-      const callback = vi.fn();
-
-      const cleanup = aggregatedProvider.subscribeToAccount({ callback });
-      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledWith({
-        callback,
-      });
-
-      aggregatedProvider.setDefaultProvider('lighter');
-
-      expect(hlCleanup).toHaveBeenCalledTimes(1);
-      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledWith({
-        callback,
-      });
-      expect(mockHLProvider.disconnect).not.toHaveBeenCalled();
-      expect(mockLighterProvider.disconnect).not.toHaveBeenCalled();
-
-      cleanup();
-      expect(lighterCleanup).toHaveBeenCalledTimes(1);
-    });
-
-    it('moves a candles subscription to the new venue when the default changes', () => {
+    it('moves a candles subscription to the new venue without reconnecting transports', () => {
       const hlCleanup = vi.fn();
       const lighterCleanup = vi.fn();
       mockHLProvider.subscribeToCandles.mockReturnValue(hlCleanup);
@@ -3092,25 +4297,9 @@ describe('AggregatedPerpsProvider', () => {
       expect(lighterCleanup).toHaveBeenCalledTimes(1);
     });
 
-    it('emits an unavailable account snapshot before the new venue delivers data', () => {
-      mockHLProvider.subscribeToAccount.mockReturnValue(vi.fn());
-      mockLighterProvider.subscribeToAccount.mockReturnValue(vi.fn());
-      const callback = vi.fn();
-
-      aggregatedProvider.subscribeToAccount({ callback });
-      expect(callback).not.toHaveBeenCalled();
-
-      aggregatedProvider.setDefaultProvider('lighter');
-
-      // The consumer's cached balance is invalidated before the new venue's
-      // first snapshot is accepted.
-      expect(callback).toHaveBeenCalledWith(null);
-      expect(callback).toHaveBeenCalledTimes(1);
-    });
-
     it('continues rerouting after one subscription throws and retries it later', () => {
-      mockHLProvider.subscribeToAccount.mockReturnValue(vi.fn());
-      mockLighterProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      mockHLProvider.subscribeToOICaps.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToOICaps.mockReturnValue(vi.fn());
       mockHLProvider.subscribeToCandles.mockReturnValue(vi.fn());
       const candleCleanup = vi.fn();
       mockLighterProvider.subscribeToCandles
@@ -3119,7 +4308,7 @@ describe('AggregatedPerpsProvider', () => {
         })
         .mockReturnValueOnce(candleCleanup);
 
-      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+      aggregatedProvider.subscribeToOICaps({ callback: vi.fn() });
       aggregatedProvider.subscribeToCandles({
         symbol: 'BTC',
         interval: CandlePeriod.OneHour,
@@ -3128,49 +4317,47 @@ describe('AggregatedPerpsProvider', () => {
 
       aggregatedProvider.setDefaultProvider('lighter');
 
-      // The account stream still moved even though candles threw, and the
+      // The OI-caps stream still moved even though candles threw, and the
       // failure was reported rather than aborting the loop.
-      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
       expect(mockInfrastructure.logger.error).toHaveBeenCalledTimes(1);
 
       // A later call retries only the failed candles stream.
       aggregatedProvider.setDefaultProvider('lighter');
       expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(2);
-      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
     });
 
     it('continues rerouting after the previous venue fails to unsubscribe', () => {
-      const hlAccountCleanup = vi.fn(() => {
+      const hlCandleCleanup = vi.fn(() => {
         throw new Error('unsubscribe failed');
       });
-      const lighterAccountCleanup = vi.fn();
-      mockHLProvider.subscribeToAccount.mockReturnValue(hlAccountCleanup);
-      mockLighterProvider.subscribeToAccount.mockReturnValue(
-        lighterAccountCleanup,
+      const lighterCandleCleanup = vi.fn();
+      mockHLProvider.subscribeToCandles.mockReturnValue(hlCandleCleanup);
+      mockLighterProvider.subscribeToCandles.mockReturnValue(
+        lighterCandleCleanup,
       );
-      mockHLProvider.subscribeToCandles.mockReturnValue(vi.fn());
-      mockLighterProvider.subscribeToCandles.mockReturnValue(vi.fn());
+      mockHLProvider.subscribeToOICaps.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToOICaps.mockReturnValue(vi.fn());
 
-      const accountCleanup = aggregatedProvider.subscribeToAccount({
-        callback: vi.fn(),
-      });
-      aggregatedProvider.subscribeToCandles({
+      const candleCleanup = aggregatedProvider.subscribeToCandles({
         symbol: 'BTC',
         interval: CandlePeriod.OneHour,
         callback: vi.fn(),
       });
+      aggregatedProvider.subscribeToOICaps({ callback: vi.fn() });
 
       expect(() =>
         aggregatedProvider.setDefaultProvider('lighter'),
       ).not.toThrow();
 
-      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
       expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
       expect(mockInfrastructure.logger.error).toHaveBeenCalledTimes(1);
 
-      accountCleanup();
-      expect(lighterAccountCleanup).toHaveBeenCalledTimes(1);
-      expect(hlAccountCleanup).toHaveBeenCalledTimes(1);
+      candleCleanup();
+      expect(lighterCandleCleanup).toHaveBeenCalledTimes(1);
+      expect(hlCandleCleanup).toHaveBeenCalledTimes(1);
     });
 
     it('moves a connection-state listener to the new venue and detaches the old one', () => {
@@ -3220,13 +4407,17 @@ describe('AggregatedPerpsProvider', () => {
 
     it('is a no-op when the default does not change', () => {
       const hlCleanup = vi.fn();
-      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+      mockHLProvider.subscribeToCandles.mockReturnValue(hlCleanup);
 
-      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+      });
       aggregatedProvider.setDefaultProvider('hyperliquid');
 
       expect(hlCleanup).not.toHaveBeenCalled();
-      expect(mockLighterProvider.subscribeToAccount).not.toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToCandles).not.toHaveBeenCalled();
     });
   });
 
