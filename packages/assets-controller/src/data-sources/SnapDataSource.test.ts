@@ -1027,7 +1027,6 @@ describe('SnapDataSource', () => {
         },
         isBalanceV6Enabled: () => true,
       });
-    await new Promise(process.nextTick);
     assetsUpdateHandler.mockClear();
 
     triggerBalancesUpdated({
@@ -1038,16 +1037,16 @@ describe('SnapDataSource', () => {
       },
     });
 
-    await new Promise(process.nextTick);
-
-    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
-    expect(assetsUpdateHandler).toHaveBeenCalledWith({
-      updateMode: 'merge',
-      assetsBalance: {
-        'account-1': {
-          [MOCK_SOL_ASSET]: { amount: '1000000000' },
+    await waitFor(() => {
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+      expect(assetsUpdateHandler).toHaveBeenCalledWith({
+        updateMode: 'merge',
+        assetsBalance: {
+          'account-1': {
+            [MOCK_SOL_ASSET]: { amount: '1000000000' },
+          },
         },
-      },
+      });
     });
 
     cleanup();
@@ -1065,7 +1064,6 @@ describe('SnapDataSource', () => {
           [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
         },
       });
-    await new Promise(process.nextTick);
 
     triggerBalancesUpdated({
       balances: {
@@ -1079,20 +1077,20 @@ describe('SnapDataSource', () => {
       },
     });
 
-    await new Promise(process.nextTick);
-
-    expect(assetsUpdateHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assetsBalance: {
-          'account-1': {
-            [MOCK_STELLAR_ASSET]: {
-              amount: '1000000000',
-              metadata: balanceMetadata,
+    await waitFor(() => {
+      expect(assetsUpdateHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assetsBalance: {
+            'account-1': {
+              [MOCK_STELLAR_ASSET]: {
+                amount: '1000000000',
+                metadata: balanceMetadata,
+              },
             },
           },
-        },
-      }),
-    );
+        }),
+      );
+    });
 
     cleanup();
   });
@@ -1104,7 +1102,6 @@ describe('SnapDataSource', () => {
           [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
         },
       });
-    await new Promise(process.nextTick);
 
     const evmAsset = 'eip155:1/slip44:60' as Caip19AssetId;
 
@@ -1117,17 +1114,17 @@ describe('SnapDataSource', () => {
       },
     });
 
-    await new Promise(process.nextTick);
-
-    expect(assetsUpdateHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assetsBalance: {
-          'account-1': {
-            [MOCK_SOL_ASSET]: { amount: '1000000000' },
+    await waitFor(() => {
+      expect(assetsUpdateHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assetsBalance: {
+            'account-1': {
+              [MOCK_SOL_ASSET]: { amount: '1000000000' },
+            },
           },
-        },
-      }),
-    );
+        }),
+      );
+    });
 
     cleanup();
   });
@@ -1139,7 +1136,6 @@ describe('SnapDataSource', () => {
           [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
         },
       });
-    await new Promise(process.nextTick);
 
     triggerBalancesUpdated({
       balances: {
@@ -1150,17 +1146,17 @@ describe('SnapDataSource', () => {
       },
     });
 
-    await new Promise(process.nextTick);
-
-    expect(assetsUpdateHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assetsBalance: {
-          'account-1': {
-            [MOCK_SOL_ASSET]: { amount: '1000000000' },
+    await waitFor(() => {
+      expect(assetsUpdateHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assetsBalance: {
+            'account-1': {
+              [MOCK_SOL_ASSET]: { amount: '1000000000' },
+            },
           },
-        },
-      }),
-    );
+        }),
+      );
+    });
 
     cleanup();
   });
@@ -1172,7 +1168,6 @@ describe('SnapDataSource', () => {
           [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
         },
       });
-    await new Promise(process.nextTick);
 
     const evmAsset = 'eip155:1/slip44:60' as Caip19AssetId;
 
@@ -1185,7 +1180,7 @@ describe('SnapDataSource', () => {
       },
     });
 
-    await new Promise(process.nextTick);
+    await waitUntilStable(() => [assetsUpdateHandler.mock.calls.length]);
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
 
