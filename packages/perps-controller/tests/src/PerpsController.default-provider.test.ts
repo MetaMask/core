@@ -1110,6 +1110,66 @@ describe('PerpsController default provider', () => {
       },
     );
 
+    const batchRouteRefusal = {
+      success: false,
+      successCount: 0,
+      failureCount: 0,
+      results: [],
+      error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+    };
+
+    it.each([
+      [
+        'cancelOrders',
+        () => controller.cancelOrders({ cancelAll: true }),
+        () => mockTradingServiceInstance.cancelOrders,
+        batchRouteRefusal,
+      ],
+      [
+        'closePositions',
+        () => controller.closePositions({ closeAll: true }),
+        () => mockTradingServiceInstance.closePositions,
+        batchRouteRefusal,
+      ],
+      [
+        'withdraw',
+        () => controller.withdraw({ amount: '10' }),
+        () => mockAccountServiceInstance.withdraw,
+        { success: false, error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED },
+      ],
+    ])(
+      'refuses an unrouted %s only while multiple providers are registered',
+      async (_name, invoke, getService, expectedRefusal) => {
+        const service = getService();
+
+        await expect(invoke()).resolves.toStrictEqual(expectedRefusal);
+        // A batch cannot name a venue, so it must not reach the default venue.
+        expect(service).not.toHaveBeenCalled();
+
+        aggregatedProvider.removeProvider('lighter');
+        service.mockResolvedValue({ success: true });
+
+        await expect(invoke()).resolves.toEqual({ success: true });
+
+        expect(service).toHaveBeenCalledTimes(1);
+        expect(service.mock.calls[0][0].provider).toBe(aggregatedProvider);
+      },
+    );
+
+    it('withdraws from the venue a multi-venue withdrawal names', async () => {
+      mockAccountServiceInstance.withdraw.mockResolvedValue({ success: true });
+
+      await expect(
+        controller.withdraw({ amount: '10', providerId: 'lighter' }),
+      ).resolves.toEqual({ success: true });
+
+      expect(mockAccountServiceInstance.withdraw).toHaveBeenCalledTimes(1);
+      const [{ provider, params }] =
+        mockAccountServiceInstance.withdraw.mock.calls[0];
+      expect(provider).toBe(aggregatedProvider);
+      expect(params.providerId).toBe('lighter');
+    });
+
     it('routes a write that names a venue through the aggregator', async () => {
       await controller.placeOrder({
         symbol: 'BTC',

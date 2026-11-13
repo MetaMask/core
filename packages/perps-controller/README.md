@@ -71,20 +71,18 @@ preference without switching modes or reconnecting providers.
 
 When an aggregated provider has multiple registered venues, `placeOrder`,
 `editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`,
-`replacePositionTPSLLeg` and `updateMargin` must name a `providerId`, and
-`flipPosition` must name `position.providerId`. Without a route they return
-`PROVIDER_ROUTE_REQUIRED`. An aggregated wrapper with only one registered venue,
-including HyperLiquid-only fallback when Lighter is unavailable, accepts these
-writes without an explicit route because there is only one destination.
+`replacePositionTPSLLeg`, `updateMargin` and `withdraw` must name a
+`providerId`, and `flipPosition` must name `position.providerId`. Without a
+route they return `PROVIDER_ROUTE_REQUIRED`. An aggregated wrapper with only one
+registered venue, including HyperLiquid-only fallback when Lighter is
+unavailable, accepts these writes without an explicit route because there is
+only one destination.
 
-`cancelOrders`, `closePositions` and `withdraw` are not covered by this check.
-In aggregated mode, `cancelOrders` sends every matching open order, from every
-venue, to the default venue; `closePositions` closes only the default venue's
-positions; and `withdraw` uses the default venue unless it is given a
-`providerId`. Do not enable `perpsMultiProviderModeEnabled` while Lighter is
-enabled until a release routes batch cancel and close-all to each order's or
-position's own venue, and Lighter implements `cancelOrders` and
-`closePositions`.
+`cancelOrders` and `closePositions` cannot name a venue yet, so while multiple
+venues are registered they always return `PROVIDER_ROUTE_REQUIRED` instead of
+reaching the default venue. Cancel-all and close-all therefore stay unavailable
+in multi-venue aggregated mode until a release routes each order or position to
+its own venue and Lighter implements `cancelOrders` and `closePositions`.
 
 ## Rewards discounts and fee previews
 

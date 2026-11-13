@@ -1372,6 +1372,13 @@ export type CancelOrdersResult = {
   success: boolean; // Overall success (true if at least one order cancelled)
   successCount: number; // Number of orders cancelled successfully
   failureCount: number; // Number of orders that failed to cancel
+  /**
+   * Batch-level operation error.
+   *
+   * Set when the cancel is refused as a whole before any order is submitted,
+   * such as `PROVIDER_ROUTE_REQUIRED`.
+   */
+  error?: string;
   results: {
     orderId: string;
     symbol: string;

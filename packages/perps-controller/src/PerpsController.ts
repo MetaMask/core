@@ -3617,6 +3617,33 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Structured refusal for an aggregated-mode batch write.
+   *
+   * Batch cancel and close cannot name a venue, so while multiple venues are
+   * registered they are refused instead of being sent to the default venue.
+   *
+   * @param provider - Resolved provider, when initialization has settled.
+   * @returns The batch refusal result, or undefined when the batch may proceed.
+   */
+  #getUnroutedAggregatedBatchRefusal(provider?: PerpsProvider):
+    | {
+        success: false;
+        successCount: 0;
+        failureCount: 0;
+        results: [];
+        error: string;
+      }
+    | undefined {
+    const refusal = this.#getUnroutedAggregatedWriteRefusal(
+      undefined,
+      provider,
+    );
+    return (
+      refusal && { ...refusal, successCount: 0, failureCount: 0, results: [] }
+    );
+  }
+
+  /**
    * Resolve one routed order operation after any in-flight initialization.
    *
    * @param params - Routed operation context.
@@ -3966,7 +3993,16 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#getActiveProviderWhenReady();
+    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
 
     return this.#tradingService.cancelOrders({
       provider,
@@ -4030,7 +4066,16 @@ export class PerpsController extends BaseController<
   async closePositions(
     params: ClosePositionsParams,
   ): Promise<ClosePositionsResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#getActiveProviderWhenReady();
+    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.closePositions({
@@ -4742,7 +4787,21 @@ export class PerpsController extends BaseController<
    * @returns WithdrawResult with withdrawal ID and tracking info
    */
   async withdraw(params: WithdrawParams): Promise<WithdrawResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#getActiveProviderWhenReady();
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
 
     return this.#accountService.withdraw({
       provider,

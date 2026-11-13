@@ -31,8 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing Core subscriptions are rebound to the replacement provider during automatic rollback and subsequent initialization retries, keeping their original cleanup functions until successful recovery, unsubscribe or an explicit context change
   - Mobile rollout requires removing navigation-driven `switchProvider` calls before the flag's minimum supported version; see the README's multi-provider rollout prerequisites
 - Add a structured `PROVIDER_ROUTE_REQUIRED` error code: in aggregated mode with multiple registered venues, a write that does not name a venue is refused with it instead of silently falling back to the default provider ([#11421](https://github.com/MetaMask/core/pull/11421))
-  - Applies to `placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`, `replacePositionTPSLLeg`, `updateMargin` and `flipPosition` (a flip names its venue through `position.providerId`)
-  - `cancelOrders`, `closePositions` and `withdraw` are not covered: in aggregated mode they still use the default venue
+  - Applies to `placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`, `replacePositionTPSLLeg`, `updateMargin`, `withdraw` and `flipPosition` (a flip names its venue through `position.providerId`)
+  - `cancelOrders` and `closePositions` cannot name a venue, so they are always refused while multiple venues are registered instead of reaching the default venue. The refusal has zero counts, empty `results` and the code in a batch-level `error`
+  - `CancelOrdersResult` has a new optional batch-level `error` field, matching `ClosePositionsResult`
   - Direct single-provider modes and aggregated wrappers with one registered venue, including HyperLiquid-only fallback when Lighter is unavailable, accept writes without an explicit route: they already have exactly one destination
   - A write queued across a cold-start migration to aggregated mode is checked against the provider it actually reaches
   - `PROVIDER_ROUTE_REQUIRED` widens the exported `PerpsErrorCode` union. Clients that key an exhaustive `Record<PerpsErrorCode, …>` must add an entry when they upgrade
