@@ -22,9 +22,9 @@ import {
   getTokenFiatRate,
   getTokenInfo,
 } from '../../utils/token.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import type { RelayQuote } from '../relay/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
+import type { FiatCryptoLeg, FiatCryptoLegQuote } from './fiat-crypto-leg.js';
+import { getFiatCryptoLeg } from './fiat-crypto-leg.js';
 import { getDirectMusdFiatQuote } from './fiat-direct-musd.js';
 import type { FiatQuote } from './types.js';
 import {
@@ -44,7 +44,10 @@ type FiatQuotePipelineOptions = {
 };
 
 /**
- * Fetches MM Pay fiat strategy quotes using a relay-first estimation flow.
+ * Fetches MM Pay fiat strategy quotes using a crypto-leg-first estimation flow.
+ *
+ * The crypto leg is quoted by the relay strategy, or by the server strategy
+ * when enabled by feature flag.
  *
  * When the direct-to-mUSD flag is enabled and the transaction is a Money
  * Account deposit, uses direct mUSD params (asset, wallet, recipient).
@@ -117,11 +120,12 @@ async function executeFiatQuotePipeline(
     requiredTokens,
   } = options;
   const transactionId = transaction.id;
+  const leg = getFiatCryptoLeg(messenger);
 
   try {
     const requiredToken = requiredTokens[0];
 
-    const relayRequest = buildRelayRequestFromAmountFiat({
+    const cryptoRequest = buildCryptoRequestFromAmountFiat({
       amountFiat,
       fiatAsset,
       messenger,
@@ -129,54 +133,65 @@ async function executeFiatQuotePipeline(
       walletAddress,
     });
 
-    if (!relayRequest) {
-      throw new Error('Failed to build relay request from fiat amount');
+    if (!cryptoRequest) {
+      throw new Error(
+        `Failed to build ${leg.name.toLowerCase()} request from fiat amount`,
+      );
     }
 
-    const relayQuotes = await getRelayQuotes({
+    const cryptoQuotes = await leg.getQuotes({
       accountSupports7702,
       from: walletAddress,
       messenger,
-      requests: [relayRequest],
+      requests: [cryptoRequest],
       transaction,
     });
 
-    const relayQuote = relayQuotes[0];
-    if (!relayQuote) {
-      throw new Error('No relay quote available for fiat estimation');
+    const cryptoQuote = cryptoQuotes[0];
+    if (!cryptoQuote) {
+      throw new Error(
+        `No ${leg.name.toLowerCase()} quote available for fiat estimation`,
+      );
     }
 
     const isSourceNative =
       fiatAsset.address.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
     const gasDeductedFromSource =
-      isSourceNative || relayQuote.fees.isSourceGasFeeToken === true;
+      isSourceNative || cryptoQuote.fees.isSourceGasFeeToken === true;
 
-    const relayTotalFeeUsd = gasDeductedFromSource
-      ? getRelayTotalFeeUsd(relayQuote)
-      : getNonGasRelayFeeUsd(relayQuote);
-    const adjustedAmountFiat = new BigNumber(amountFiat).plus(relayTotalFeeUsd);
+    const cryptoTotalFeeUsd = gasDeductedFromSource
+      ? getCryptoTotalFeeUsd(cryptoQuote)
+      : getNonGasCryptoFeeUsd(cryptoQuote);
+    const adjustedAmountFiat = new BigNumber(amountFiat).plus(
+      cryptoTotalFeeUsd,
+    );
 
     if (
       !adjustedAmountFiat.isFinite() ||
       !adjustedAmountFiat.gt(0) ||
-      !relayTotalFeeUsd.isFinite() ||
-      !relayTotalFeeUsd.gte(0)
+      !cryptoTotalFeeUsd.isFinite() ||
+      !cryptoTotalFeeUsd.gte(0)
     ) {
-      throw new Error('Invalid fiat amount after relay fee adjustment');
+      throw new Error(
+        `Invalid fiat amount after ${leg.name.toLowerCase()} fee adjustment`,
+      );
     }
 
     const adjustedAmount = adjustedAmountFiat.toNumber();
 
     if (!Number.isFinite(adjustedAmount) || adjustedAmount <= 0) {
-      throw new Error('Invalid fiat amount after relay fee adjustment');
+      throw new Error(
+        `Invalid fiat amount after ${leg.name.toLowerCase()} fee adjustment`,
+      );
     }
 
     log('Fiat quote flow', {
       adjustedAmountFiat: adjustedAmountFiat.toString(10),
       amountFiat,
+      cryptoLeg: leg.name,
+      cryptoTotalFeeUsd: cryptoTotalFeeUsd.toString(10),
       rampsWalletAddress,
-      relayTotalFeeUsd: relayTotalFeeUsd.toString(10),
-      sourceAmountRaw: relayRequest.sourceTokenAmount,
+      sourceAmountRaw: cryptoRequest.sourceTokenAmount,
       transactionId,
     });
 
@@ -203,8 +218,9 @@ async function executeFiatQuotePipeline(
       combineQuotes({
         adjustedAmountFiat: adjustedAmountFiat.toString(10),
         amountFiat,
+        cryptoQuote,
         fiatQuote,
-        relayQuote,
+        leg,
       }),
     ];
   } catch (error) {
@@ -221,7 +237,7 @@ async function executeFiatQuotePipeline(
   return [];
 }
 
-function buildRelayRequestFromAmountFiat({
+function buildCryptoRequestFromAmountFiat({
   amountFiat,
   fiatAsset,
   messenger,
@@ -270,7 +286,7 @@ function buildRelayRequestFromAmountFiat({
   return {
     from: walletAddress,
     // Force EXACT_INPUT mode: source amount is pre-calculated from the fiat
-    // amount, so the relay should treat it as a fixed input rather than
+    // amount, so the crypto leg should treat it as a fixed input rather than
     // computing it from the target.
     isPostQuote: true,
     sourceBalanceRaw: sourceAmountRaw,
@@ -284,22 +300,23 @@ function buildRelayRequestFromAmountFiat({
 }
 
 /**
- * Combines fiat and relay legs into a single MM Pay fiat strategy quote.
+ * Combines fiat and crypto legs into a single MM Pay fiat strategy quote.
  *
  * @param params - Combined quote inputs.
- * @param params.adjustedAmountFiat - Fiat amount sent to ramps after adding relay fee estimate.
+ * @param params.adjustedAmountFiat - Fiat amount sent to ramps after adding crypto leg fee estimate.
  * @param params.amountFiat - User-entered fiat amount.
+ * @param params.cryptoQuote - Estimated crypto leg quote.
  * @param params.fiatQuote - Selected ramps quote, with fees already reconciled
  * to the resolved provider by `RampsController:getQuoteWithFees`.
- * @param params.relayQuote - Estimated relay quote.
+ * @param params.leg - Strategy that provided the crypto leg quote.
  * @returns A single fiat strategy quote with split fee buckets.
  * @remarks
  * Fee mapping contract for MM Pay Fiat strategy:
- * - `fees.provider`: Total provider fee (relay provider/swap fee + ramps provider/network fee).
+ * - `fees.provider`: Total provider fee (crypto leg provider/swap fee + ramps provider/network fee).
  *   Consumed by UI transaction fee row and tooltip provider fee.
  * - `fees.providerFiat`: Fiat on-ramp provider fees only (`providerFee + networkFee` from ramps quote).
- *   Optional breakdown; client can derive relay portion via `provider - providerFiat`.
- * - `fees.sourceNetwork` / `fees.targetNetwork`: Relay settlement network fees.
+ *   Optional breakdown; client can derive crypto leg portion via `provider - providerFiat`.
+ * - `fees.sourceNetwork` / `fees.targetNetwork`: Crypto leg settlement network fees.
  *   Consumed by UI transaction fee row and tooltip network fee.
  * - `fees.metaMask`: MM Pay fee (currently 100 bps over `amountFiat + adjustedAmountFiat`).
  *   Consumed by UI transaction fee row and tooltip MetaMask fee.
@@ -308,16 +325,18 @@ function buildRelayRequestFromAmountFiat({
 function combineQuotes({
   adjustedAmountFiat,
   amountFiat,
+  cryptoQuote,
   fiatQuote,
-  relayQuote,
+  leg,
 }: {
   adjustedAmountFiat: string;
   amountFiat: string;
+  cryptoQuote: TransactionPayQuote<FiatCryptoLegQuote>;
   fiatQuote: RampsQuote;
-  relayQuote: TransactionPayQuote<RelayQuote>;
+  leg: FiatCryptoLeg;
 }): TransactionPayQuote<FiatQuote> {
   const rampsProviderFee = getRampsProviderFee(fiatQuote);
-  const totalProviderFee = new BigNumber(relayQuote.fees.provider.usd)
+  const totalProviderFee = new BigNumber(cryptoQuote.fees.provider.usd)
     .plus(rampsProviderFee)
     .toString(10);
   const rampsProviderFeeStr = rampsProviderFee.toString(10);
@@ -327,9 +346,9 @@ function combineQuotes({
   }).toString(10);
 
   return {
-    ...relayQuote,
+    ...cryptoQuote,
     fees: {
-      ...relayQuote.fees,
+      ...cryptoQuote.fees,
       metaMask: {
         fiat: metaMaskFee,
         usd: metaMaskFee,
@@ -345,7 +364,7 @@ function combineQuotes({
     },
     original: {
       rampsQuote: fiatQuote,
-      relayQuote: relayQuote.original,
+      ...leg.toFiatOriginal(cryptoQuote.original),
     },
     strategy: TransactionPayStrategy.Fiat,
   };
@@ -365,21 +384,21 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   );
 }
 
-function getRelayTotalFeeUsd(
-  relayQuote: TransactionPayQuote<RelayQuote>,
+function getCryptoTotalFeeUsd(
+  cryptoQuote: TransactionPayQuote<FiatCryptoLegQuote>,
 ): BigNumber {
-  return new BigNumber(relayQuote.fees.provider.usd)
-    .plus(relayQuote.fees.sourceNetwork.estimate.usd)
-    .plus(relayQuote.fees.targetNetwork.usd)
-    .plus(relayQuote.fees.metaMask.usd);
+  return new BigNumber(cryptoQuote.fees.provider.usd)
+    .plus(cryptoQuote.fees.sourceNetwork.estimate.usd)
+    .plus(cryptoQuote.fees.targetNetwork.usd)
+    .plus(cryptoQuote.fees.metaMask.usd);
 }
 
-function getNonGasRelayFeeUsd(
-  relayQuote: TransactionPayQuote<RelayQuote>,
+function getNonGasCryptoFeeUsd(
+  cryptoQuote: TransactionPayQuote<FiatCryptoLegQuote>,
 ): BigNumber {
-  return new BigNumber(relayQuote.fees.provider.usd)
-    .plus(relayQuote.fees.targetNetwork.usd)
-    .plus(relayQuote.fees.metaMask.usd);
+  return new BigNumber(cryptoQuote.fees.provider.usd)
+    .plus(cryptoQuote.fees.targetNetwork.usd)
+    .plus(cryptoQuote.fees.metaMask.usd);
 }
 
 function getMetaMaskFee({
