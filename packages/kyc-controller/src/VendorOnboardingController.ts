@@ -23,6 +23,7 @@ import type {
   OnboardingVendor,
   KycSessionDisclaimers,
   KycStep,
+  KycStepInfo,
 } from './types.js';
 import {
   createAuthorizedSession,
@@ -49,6 +50,12 @@ export const vendorOnboardingControllerName = 'VendorOnboardingController';
 export type OnboardingVendorState = {
   /** The last step kyc-api answered with. */
   step: KycStep;
+  /**
+   * idOS's own step for the session, from the same answer. While the step is
+   * `identity_verification` it says which code idOS is waiting for. `null`
+   * when there is no session.
+   */
+  relayStep: string | null;
   /** The vendor's UKYC session id, once one exists. */
   sessionId: string | null;
 };
@@ -101,9 +108,16 @@ export type KycAccountLinkAdapter = {
    *
    * @returns The MFA method the vendor wants next, if it wants one.
    */
-  verifyLink: (params: {
-    code: string;
-  }) => Promise<{ mfaMethod?: KycAccountLinkMfaMethod }>;
+  verifyLink: (params: { code: string }) => Promise<{
+    mfaMethod?: KycAccountLinkMfaMethod;
+    /**
+     * The step kyc-api decided once the link was verified, when its answer
+     * carries one. Saves asking again.
+     */
+    nextStep?: KycStep;
+    /** idOS's own step, from the same answer. */
+    relayStep?: string;
+  }>;
 };
 
 // === MESSENGER ===
@@ -289,13 +303,13 @@ export class VendorOnboardingController extends BaseController<
     disclaimerIds: string[];
     country?: string;
   }): Promise<KycStep> {
-    const step = await this.messenger.call('KycService:acceptVendorTerms', {
+    const info = await this.messenger.call('KycService:acceptVendorTerms', {
       vendor: params.vendor,
       disclaimerIds: params.disclaimerIds,
       ...(params.country ? { country: params.country } : {}),
     });
-    this.#writeStep(params.vendor, step);
-    return step;
+    this.#writeStep(params.vendor, info);
+    return info.step;
   }
 
   /**
@@ -332,10 +346,20 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
     code: string;
   }): Promise<{ step: KycStep; mfaMethod?: KycAccountLinkMfaMethod }> {
-    const { mfaMethod } = await this.#requireAdapter(params.vendor).verifyLink({
-      code: params.code,
-    });
-    const step = await this.#readStep(params.vendor, { join: false });
+    const { mfaMethod, nextStep, relayStep } = await this.#requireAdapter(
+      params.vendor,
+    ).verifyLink({ code: params.code });
+    let step: KycStep;
+    if (nextStep) {
+      // kyc-api answered with the step, so there is no need to ask again.
+      step = nextStep;
+      this.#writeStep(params.vendor, {
+        step,
+        ...(relayStep ? { relayStep } : {}),
+      });
+    } else {
+      step = await this.#readStep(params.vendor, { join: false });
+    }
     return { step, ...(mfaMethod ? { mfaMethod } : {}) };
   }
 
@@ -605,11 +629,11 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(vendor);
-    const step = await this.messenger.call('KycService:markProviderSubmitted', {
+    const info = await this.messenger.call('KycService:markProviderSubmitted', {
       sessionId,
     });
-    this.#writeStep(vendor, step);
-    return step;
+    this.#writeStep(vendor, info);
+    return info.step;
   }
 
   /**
@@ -670,11 +694,16 @@ export class VendorOnboardingController extends BaseController<
     body?: Record<string, string>,
   ): Promise<KycStep> {
     const sessionId = await this.#getSessionId(vendor);
-    await this.messenger.call('KycService:postOnboardingStep', {
+    const result = await this.messenger.call('KycService:postOnboardingStep', {
       sessionId,
       step,
       ...(body ? { body } : {}),
     });
+    if (result.step) {
+      // kyc-api answered with the step, so there is no need to ask again.
+      this.#writeStep(vendor, result.step);
+      return result.step.step;
+    }
     return this.#readStep(vendor, { join: false });
   }
 
@@ -738,12 +767,15 @@ export class VendorOnboardingController extends BaseController<
     this.#stepRequests[vendor] = request;
     const read = (async (): Promise<KycStep> => {
       try {
-        const step = await this.messenger.call('KycService:getStep', vendor);
+        const info = await this.messenger.call('KycService:getStep', vendor);
         // The phone learned a newer step while this read was in flight.
         if (this.#stepRequests[vendor] === request) {
-          this.#write(vendor, { step });
+          this.#write(vendor, {
+            step: info.step,
+            relayStep: info.relayStep ?? null,
+          });
         }
-        return step;
+        return info.step;
       } finally {
         // A newer read, or a step that came back with an action, has taken
         // over from this one.
@@ -762,12 +794,15 @@ export class VendorOnboardingController extends BaseController<
    * joins it.
    *
    * @param vendor - The vendor.
-   * @param step - The step.
+   * @param info - The step, and idOS's own step when there is one.
    */
-  #writeStep(vendor: OnboardingVendor, step: KycStep): void {
+  #writeStep(vendor: OnboardingVendor, info: KycStepInfo): void {
     this.#stepRequests[vendor] = (this.#stepRequests[vendor] ?? 0) + 1;
     delete this.#stepReads[vendor];
-    this.#write(vendor, { step });
+    this.#write(vendor, {
+      step: info.step,
+      relayStep: info.relayStep ?? null,
+    });
   }
 
   #write(
@@ -777,6 +812,7 @@ export class VendorOnboardingController extends BaseController<
     this.update((state) => {
       const entry = state.vendors[vendor] ?? {
         step: 'vendor_terms' as KycStep,
+        relayStep: null,
         sessionId: null,
       };
       state.vendors[vendor] = { ...entry, ...patch };

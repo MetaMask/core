@@ -300,7 +300,7 @@ export type KycServiceGetSessionStatusForVendorAction = {
  * about the user, so the answer is the same on every device.
  *
  * @param vendor - The vendor to get the step for.
- * @returns The step.
+ * @returns The step, and idOS's own step for the session when there is one.
  */
 export type KycServiceGetStepAction = {
   type: `KycService:getStep`;
@@ -347,7 +347,8 @@ export type KycServiceMarkProviderSubmittedAction = {
  * @param params.sessionId - UKYC session id.
  * @param params.step - The onboarding step.
  * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
- * @returns The session status after the step.
+ * @returns The session status after the step, and the step kyc-api decided
+ * with it. The step is missing when kyc-api does not send one.
  */
 export type KycServicePostOnboardingStepAction = {
   type: `KycService:postOnboardingStep`;
