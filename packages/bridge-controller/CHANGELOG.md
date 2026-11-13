@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 - Bump `@metamask/assets-controller` from `^20.3.1` to `^20.4.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- `appendFeesToQuotes` now sets `nonEvmFeesInNative` from `quote.feeData.network` when present, skipping the `SnapController:handleRequest` fee computation for non-EVM quotes ([#11466](https://github.com/MetaMask/core/pull/11466))
 
 ## [83.1.4]
 
