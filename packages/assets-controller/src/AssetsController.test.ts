@@ -63,19 +63,6 @@ const formatExchangeRatesForBridgeMock = vi.mocked(
   formatExchangeRatesForBridge,
 );
 
-/**
- * Flush pending microtasks so fire-and-forget background pipelines settle
- * before the test runner tears down the test.  Multiple rounds are needed because the
- * background pipeline chains several async steps.
- *
- * @returns A promise that resolves after pending callbacks.
- */
-async function flushPromises(): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-}
-
 function createMockQueryApiClient(): ApiPlatformClient {
   const cache = new Map<string, unknown>();
   return {
@@ -216,8 +203,8 @@ const OTHER_ASSET_ID =
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
- * the account tree initialized, then flushing the async startup so the
- * controller is in its running state.
+ * the account tree initialized, then waiting until controller state settles
+ * so the controller is in its running state.
  *
  * @param messenger - The root messenger used to publish lifecycle events.
  */
@@ -233,7 +220,7 @@ async function activateTracking(messenger: RootMessenger): Promise<void> {
     'AccountTreeController:initialized',
     {},
   );
-  await flushPromises();
+  await waitUntilStable(() => messenger.call('AssetsController:getState'));
 }
 
 function createMockInternalAccount(
@@ -511,7 +498,6 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller, messenger, getSelectedAccountsMock });
   } finally {
-    await flushPromises();
     controller.destroy();
   }
 }
@@ -6338,7 +6324,9 @@ describe('AssetsController', () => {
           );
 
           release();
-          await flushPromises();
+          await waitUntilStable(
+            () => controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID],
+          );
 
           expect(controller.state.assetsLoadingStatus?.[MOCK_ACCOUNT_ID]).toBe(
             'loaded',
@@ -6515,15 +6503,16 @@ describe('AssetsController', () => {
               chainIds: ['eip155:1'],
               forceUpdate: true,
             });
-            await flushPromises();
 
             // assert: the initial load settled, and no background fetch ran.
-            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
-              'loaded',
-            );
-            expect(
-              controller.state.assetsBackgroundLoadingStatus?.[account.id],
-            ).toBeUndefined();
+            await waitFor(() => {
+              expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+                'loaded',
+              );
+              expect(
+                controller.state.assetsBackgroundLoadingStatus?.[account.id],
+              ).toBeUndefined();
+            });
           },
         );
       });

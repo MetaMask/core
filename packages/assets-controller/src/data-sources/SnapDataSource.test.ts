@@ -9,6 +9,7 @@ import type {
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { waitFor, waitUntilStable } from '../__fixtures__/test-utils.js';
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type {
@@ -433,16 +434,15 @@ describe('SnapDataSource helper functions', () => {
 });
 
 describe('SnapDataSource', () => {
-  it('initializes with correct name', async () => {
+  it('initializes with correct name', () => {
     const { controller, cleanup } = setupController();
     expect(controller.getName()).toBe('SnapDataSource');
-    await new Promise(process.nextTick);
     cleanup();
   });
 
   it('initializes with empty chains when no keyring snaps discovered', async () => {
     const { controller, cleanup } = setupController();
-    await new Promise(process.nextTick);
+    await waitUntilStable(() => controller.getActiveChainsSync());
 
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([]);
@@ -457,18 +457,18 @@ describe('SnapDataSource', () => {
         [BITCOIN_SNAP_ID]: { version: '2.0.0', chainIds: [BITCOIN_MAINNET] },
       },
     });
-    await new Promise(process.nextTick);
 
-    const chains = await controller.getActiveChains();
-    expect(chains).toContain(SOLANA_MAINNET);
-    expect(chains).toContain(BITCOIN_MAINNET);
+    await waitFor(async () => {
+      const chains = await controller.getActiveChains();
+      expect(chains).toContain(SOLANA_MAINNET);
+      expect(chains).toContain(BITCOIN_MAINNET);
+    });
 
     cleanup();
   });
 
-  it('exposes assetsMiddleware on instance', async () => {
+  it('exposes assetsMiddleware on instance', () => {
     const { controller, cleanup } = setupController();
-    await new Promise(process.nextTick);
 
     const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
@@ -484,10 +484,11 @@ describe('SnapDataSource', () => {
           [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
         },
       });
-    await new Promise(process.nextTick);
 
-    expect(mockGetRunnableSnaps).toHaveBeenCalled();
-    expect(mockGetPermissions).toHaveBeenCalledWith(SOLANA_SNAP_ID);
+    await waitFor(() => {
+      expect(mockGetRunnableSnaps).toHaveBeenCalled();
+      expect(mockGetPermissions).toHaveBeenCalledWith(SOLANA_SNAP_ID);
+    });
 
     cleanup();
   });
@@ -498,7 +499,6 @@ describe('SnapDataSource', () => {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
     });
-    await new Promise(process.nextTick);
 
     // Create account without snap metadata (non-snap account)
     const nonSnapAccount = createMockAccount({
@@ -526,7 +526,6 @@ describe('SnapDataSource', () => {
 
   it('fetch returns empty response when request is undefined', async () => {
     const { controller, cleanup } = setupController();
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       undefined as unknown as DataRequest,
@@ -543,7 +542,6 @@ describe('SnapDataSource', () => {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       createDataRequest({ accounts: [] }),
@@ -569,7 +567,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -625,7 +622,6 @@ describe('SnapDataSource', () => {
         },
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -672,7 +668,6 @@ describe('SnapDataSource', () => {
         hiddenAssetIds: [],
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -708,7 +703,6 @@ describe('SnapDataSource', () => {
         hiddenAssetIds: [],
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       createDataRequest({
@@ -759,7 +753,6 @@ describe('SnapDataSource', () => {
         hiddenAssetIds: [],
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -798,7 +791,6 @@ describe('SnapDataSource', () => {
         return Promise.resolve(null);
       },
     );
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -834,7 +826,6 @@ describe('SnapDataSource', () => {
         },
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -878,7 +869,6 @@ describe('SnapDataSource', () => {
         },
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -914,7 +904,6 @@ describe('SnapDataSource', () => {
         },
       }),
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -953,7 +942,6 @@ describe('SnapDataSource', () => {
         },
       },
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       createDataRequest({
@@ -993,7 +981,6 @@ describe('SnapDataSource', () => {
       },
       accountAssets: [],
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(createDataRequest());
 
@@ -1020,7 +1007,6 @@ describe('SnapDataSource', () => {
         [MOCK_BTC_ASSET]: { amount: '100000000', unit: 'BTC' },
       },
     });
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
       createDataRequest({
