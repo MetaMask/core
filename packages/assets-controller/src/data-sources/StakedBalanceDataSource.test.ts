@@ -9,6 +9,7 @@ import {
   createMockWeb3Provider,
   registerStakedMessengerActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
+import { waitUntilStable } from '../__fixtures__/test-utils.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type { ChainId, Context, DataRequest } from '../types.js';
 import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource.js';
@@ -338,9 +339,6 @@ describe('StakedBalanceDataSource', () => {
           isUpdate: false,
           onAssetsUpdate,
         });
-        await new Promise((resolve) => {
-          setTimeout(resolve, 100);
-        });
         expect(await controller.getActiveChains()).toContain(
           MAINNET_CHAIN_ID_CAIP,
         );
@@ -393,7 +391,7 @@ describe('StakedBalanceDataSource', () => {
         isUpdate: false,
         onAssetsUpdate,
       });
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await waitUntilStable(() => [onAssetsUpdate.mock.calls.length]);
       onAssetsUpdate.mockClear();
 
       return onAssetsUpdate;
@@ -418,7 +416,9 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length], {
+          stableForMs: 300,
+        });
         expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
     });
@@ -442,7 +442,9 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length], {
+          stableForMs: 300,
+        });
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
     });
@@ -463,7 +465,9 @@ describe('StakedBalanceDataSource', () => {
         });
 
         // Assert
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length], {
+          stableForMs: 300,
+        });
         expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
     });
