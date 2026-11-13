@@ -89,7 +89,7 @@
   },
   "devDependencies": {
     "@metamask/account-tree-controller": "^11.2.0",
-    "@metamask/authenticated-user-storage": "^4.1.0",
+    "@metamask/authenticated-user-storage": "^4.2.0",
     "@metamask/auto-changelog": "^7.1.0",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/keyring-api": "^24.3.0",

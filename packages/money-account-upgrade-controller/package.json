@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@metamask/abi-utils": "^3.0.0",
-    "@metamask/authenticated-user-storage": "^4.1.0",
+    "@metamask/authenticated-user-storage": "^4.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/chomp-api-service": "^7.1.0",
     "@metamask/delegation-controller": "^4.0.0",
