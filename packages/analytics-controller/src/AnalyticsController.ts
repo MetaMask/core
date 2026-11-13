@@ -137,7 +137,7 @@ export type AnalyticsControllerState = {
    *
    * Set by {@link AnalyticsController.optInToMarketing} and
    * {@link AnalyticsController.optOutOfMarketing}, cleared by
-   * {@link AnalyticsController.clearPendingMarketingConsent} and
+   * {@link AnalyticsController.clearMarketingConsentSyncPending} and
    * {@link AnalyticsController.resetMarketingConsentDecision}. A value applied
    * from the profile with
    * {@link AnalyticsController.applyRemoteMarketingConsent} never sets it.
@@ -396,7 +396,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'optOutOfMarketing',
   'resetMarketingConsentDecision',
   'applyRemoteMarketingConsent',
-  'clearPendingMarketingConsent',
+  'clearMarketingConsentSyncPending',
   'setMarketingCampaignCookieId',
   'createEventFragment',
   'upsertEventFragment',
@@ -2534,7 +2534,7 @@ export class AnalyticsController extends BaseController<
    *
    * @param optedIn - The consent value that was saved or dropped.
    */
-  clearPendingMarketingConsent(optedIn: boolean): void {
+  clearMarketingConsentSyncPending(optedIn: boolean): void {
     if (this.state.marketingConsentSyncPending !== true) {
       return;
     }

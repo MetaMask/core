@@ -3442,7 +3442,7 @@ describe('AnalyticsController', () => {
       });
     });
 
-    describe('clearPendingMarketingConsent', () => {
+    describe('clearMarketingConsentSyncPending', () => {
       it('clears the flag when local consent matches the saved value', async () => {
         const { controller } = await setupController({
           state: { analyticsId },
@@ -3450,7 +3450,7 @@ describe('AnalyticsController', () => {
         });
         controller.optOutOfMarketing();
 
-        controller.clearPendingMarketingConsent(false);
+        controller.clearMarketingConsentSyncPending(false);
 
         expect(controller.state.marketingConsentSyncPending).toBe(false);
       });
@@ -3463,7 +3463,7 @@ describe('AnalyticsController', () => {
         await controller.optInToMarketing();
         controller.optOutOfMarketing();
 
-        controller.clearPendingMarketingConsent(true);
+        controller.clearMarketingConsentSyncPending(true);
 
         expect(controller.state).toMatchObject({
           optedInToMarketing: false,
@@ -3483,7 +3483,7 @@ describe('AnalyticsController', () => {
         const listener = vi.fn();
         messenger.subscribe('AnalyticsController:stateChange', listener);
 
-        controller.clearPendingMarketingConsent(true);
+        controller.clearMarketingConsentSyncPending(true);
 
         expect(listener).not.toHaveBeenCalled();
       });
@@ -3496,7 +3496,7 @@ describe('AnalyticsController', () => {
         await controller.optInToMarketing();
 
         messenger.call(
-          'AnalyticsController:clearPendingMarketingConsent',
+          'AnalyticsController:clearMarketingConsentSyncPending',
           true,
         );
 

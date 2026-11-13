@@ -296,9 +296,9 @@ export type AnalyticsControllerApplyRemoteMarketingConsentAction = {
  *
  * @param optedIn - The consent value that was saved or dropped.
  */
-export type AnalyticsControllerClearPendingMarketingConsentAction = {
-  type: `AnalyticsController:clearPendingMarketingConsent`;
-  handler: AnalyticsController['clearPendingMarketingConsent'];
+export type AnalyticsControllerClearMarketingConsentSyncPendingAction = {
+  type: `AnalyticsController:clearMarketingConsentSyncPending`;
+  handler: AnalyticsController['clearMarketingConsentSyncPending'];
 };
 
 /**
@@ -338,5 +338,5 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerOptOutOfMarketingAction
   | AnalyticsControllerResetMarketingConsentDecisionAction
   | AnalyticsControllerApplyRemoteMarketingConsentAction
-  | AnalyticsControllerClearPendingMarketingConsentAction
+  | AnalyticsControllerClearMarketingConsentSyncPendingAction
   | AnalyticsControllerSetMarketingCampaignCookieIdAction;

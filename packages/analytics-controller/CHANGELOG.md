@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `applyRemoteMarketingConsent` method and `AnalyticsController:applyRemoteMarketingConsent` action ([#11469](https://github.com/MetaMask/core/pull/11469))
   - Applies a marketing consent value read from the user's account, with the same side effects as `optInToMarketing` / `optOutOfMarketing`, without marking it as waiting to be saved.
   - Does nothing while a local choice is waiting to be saved, or if the same value is already decided.
-- Add `clearPendingMarketingConsent` method and `AnalyticsController:clearPendingMarketingConsent` action ([#11469](https://github.com/MetaMask/core/pull/11469))
+- Add `clearMarketingConsentSyncPending` method and `AnalyticsController:clearMarketingConsentSyncPending` action ([#11469](https://github.com/MetaMask/core/pull/11469))
   - Clears `marketingConsentSyncPending` if local marketing consent still matches the given value, so a newer local choice stays pending.
 
 ### Changed
