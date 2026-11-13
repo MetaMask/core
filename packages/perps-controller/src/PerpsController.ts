@@ -7555,8 +7555,8 @@ export class PerpsController extends BaseController<
    *
    * The callback receives each batch of new trades the venue pushes, newest
    * first. Only a subscription that opens the venue channel may first
-   * receive the venue's recent trades; a second or returning subscriber on
-   * the same market receives only new trades. Seed the list with
+   * receive the venue's recent trades; one that joins a market another
+   * subscription already streams receives only new trades. Seed the list with
    * `getPublicTrades` and dedupe batches on `id`. Nothing is delivered
    * after the returned cleanup runs, after the provider that opened the
    * stream stops being the active one (provider

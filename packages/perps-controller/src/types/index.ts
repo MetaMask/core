@@ -1959,7 +1959,8 @@ export type PublicTrade = {
    * Venue trade id, compared for equality only. Unique within a provider and
    * market, not across providers, so dedupe on `(providerId, symbol, id)`
    * when trades from several providers share a list.
-   * Sources: Hyperliquid `tid`, Lighter `trade_id`.
+   * Sources: Hyperliquid `coin:time:tid`, its documented trade identity
+   * (`tid` alone can repeat across block times), Lighter `trade_id`.
    */
   id: string;
   /** Market symbol the trade belongs to, as the caller requested it. */
@@ -1999,8 +2000,8 @@ export type SubscribePublicTradesParams = {
   /**
    * Receives each batch of new trades the venue pushes, newest first. Only a
    * subscription that opens the venue channel may first receive the venue's
-   * recent trades; a second or returning subscriber on the same market
-   * receives only new trades. Seed the list with `getPublicTrades` and
+   * recent trades; one that joins a market another subscription already
+   * streams receives only new trades. Seed the list with `getPublicTrades` and
    * dedupe batches on `id`.
    */
   callback: (trades: PublicTrade[]) => void;

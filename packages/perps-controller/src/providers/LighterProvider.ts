@@ -19232,7 +19232,20 @@ export class LighterProvider implements PerpsProvider {
     return () => {
       released = true;
       if (marketId !== null) {
-        this.#publicTradeSubscribers.get(marketId)?.delete(params);
+        const subscribers = this.#publicTradeSubscribers.get(marketId);
+        if (subscribers?.delete(params) && subscribers.size === 0) {
+          // Release the market's venue channel even while other streams keep
+          // the socket open, so it stops pushing trades and is not
+          // resubscribed on a reconnect or account rebind.
+          this.#publicTradeSubscribers.delete(marketId);
+          const channel = `trade/${marketId}`;
+          this.#wsWantedChannels.delete(channel);
+          if (this.#priceWs?.readyState === 1) {
+            this.#priceWs.send(
+              JSON.stringify({ type: 'unsubscribe', channel }),
+            );
+          }
+        }
       }
       this.#releaseChannelIfUnused();
     };

@@ -612,7 +612,7 @@ describe('HyperLiquidProvider', () => {
       expect(mockClientService.fetchRecentTrades).toHaveBeenCalledWith('BTC');
       expect(trades).toStrictEqual([
         {
-          id: '2',
+          id: 'BTC:3000:2',
           symbol: 'BTC',
           price: '50000.5',
           size: '0.25',
@@ -622,7 +622,7 @@ describe('HyperLiquidProvider', () => {
           providerId: 'hyperliquid',
         },
         {
-          id: '1',
+          id: 'BTC:1000:1',
           symbol: 'BTC',
           price: '50000.5',
           size: '0.25',
@@ -644,7 +644,29 @@ describe('HyperLiquidProvider', () => {
         limit: 1,
       });
 
-      expect(trades.map((trade) => trade.id)).toStrictEqual(['2']);
+      expect(trades.map((trade) => trade.id)).toStrictEqual(['BTC:2000:2']);
+    });
+
+    it('gives an execution the same id over REST and the WebSocket', async () => {
+      let push: ((trades: unknown[]) => void) | undefined;
+      mockClientService.fetchRecentTrades = vi
+        .fn()
+        .mockResolvedValue([sdkTrade(5, 5000)]);
+      mockClientService.subscribeToTrades = vi.fn(({ callback }) => {
+        push = callback as (trades: unknown[]) => void;
+        return vi.fn();
+      });
+      const callback = vi.fn();
+
+      const [read] = await provider.getPublicTrades({ symbol: 'BTC' });
+      provider.subscribeToPublicTrades({ symbol: 'BTC', callback });
+      await vi.waitFor(() =>
+        expect(mockClientService.subscribeToTrades).toHaveBeenCalled(),
+      );
+      push?.([sdkTrade(5, 5000)]);
+
+      expect(read.id).toBe('BTC:5000:5');
+      expect(callback.mock.calls[0][0][0].id).toBe(read.id);
     });
 
     it('streams adapted batches for the coin and stops after cleanup', async () => {
@@ -669,7 +691,11 @@ describe('HyperLiquidProvider', () => {
 
       expect(callback).toHaveBeenCalledTimes(1);
       expect(callback.mock.calls[0][0]).toStrictEqual([
-        expect.objectContaining({ id: '1', symbol: 'BTC', side: 'buy' }),
+        expect.objectContaining({
+          id: 'BTC:1000:1',
+          symbol: 'BTC',
+          side: 'buy',
+        }),
       ]);
       expect(release).toHaveBeenCalledTimes(1);
     });

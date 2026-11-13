@@ -769,7 +769,9 @@ const HYPERLIQUID_TRADE_SIDE = { B: 'buy', A: 'sell' } as const;
 /**
  * Adapt Hyperliquid public trades (REST `recentTrades` or WS `trades`) to
  * {@link PublicTrade}, newest first. Trades for another coin and malformed
- * trades are dropped. `side` is the aggressor's: `B` bought, `A` sold.
+ * trades are dropped. `side` is the aggressor's: `B` bought, `A` sold. The id
+ * comes from {@link buildHyperLiquidFillId}, so both transports give one
+ * execution the same id.
  *
  * @param trades - SDK trades.
  * @param symbol - Requested coin; other coins are dropped.
@@ -785,7 +787,10 @@ export function adaptPublicTradesFromHyperLiquid(
       continue;
     }
     const publicTrade = buildPublicTrade({
-      id: typeof trade.tid === 'number' ? String(trade.tid) : undefined,
+      id:
+        typeof trade.tid === 'number'
+          ? buildHyperLiquidFillId(trade)
+          : undefined,
       symbol,
       price: trade.px,
       size: trade.sz,

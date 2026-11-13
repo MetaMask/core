@@ -92,7 +92,7 @@ describe('adaptPublicTradesFromHyperLiquid', () => {
     ...overrides,
   });
 
-  it('maps tid, price, size, aggressor side, time and hash, newest first', () => {
+  it('maps the coin, time and tid identity, price, size, aggressor side, time and hash, newest first', () => {
     const trades = adaptPublicTradesFromHyperLiquid(
       [sdkTrade(), sdkTrade({ side: 'A', tid: 2, time: 2000 })],
       'BTC',
@@ -100,7 +100,7 @@ describe('adaptPublicTradesFromHyperLiquid', () => {
 
     expect(trades).toStrictEqual([
       {
-        id: '2',
+        id: 'BTC:2000:2',
         symbol: 'BTC',
         price: '50000.5',
         size: '0.25',
@@ -110,7 +110,7 @@ describe('adaptPublicTradesFromHyperLiquid', () => {
         providerId: 'hyperliquid',
       },
       {
-        id: '14439441413857',
+        id: 'BTC:1000:14439441413857',
         symbol: 'BTC',
         price: '50000.5',
         size: '0.25',
@@ -119,6 +119,18 @@ describe('adaptPublicTradesFromHyperLiquid', () => {
         txHash: `0x${'ab'.repeat(32)}`,
         providerId: 'hyperliquid',
       },
+    ]);
+  });
+
+  it('gives a tid repeated at another block time a distinct id', () => {
+    const trades = adaptPublicTradesFromHyperLiquid(
+      [sdkTrade({ tid: 7, time: 1000 }), sdkTrade({ tid: 7, time: 2000 })],
+      'BTC',
+    );
+
+    expect(trades.map((trade) => trade.id)).toStrictEqual([
+      'BTC:2000:7',
+      'BTC:1000:7',
     ]);
   });
 

@@ -249,7 +249,34 @@ describe('LighterProvider public trades', () => {
       await provider.disconnect();
     });
 
-    it('delivers only new trades to a subscriber that returns to a market while the stream stays open', async () => {
+    it('keeps a market channel open while it still has a subscriber', async () => {
+      const { provider } = buildTradesProvider();
+      const stays = vi.fn();
+
+      provider.subscribeToPublicTrades({ symbol: 'BTC', callback: stays });
+      const leaves = provider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      const socket = await openSocket();
+      await vi.advanceTimersByTimeAsync(0);
+      leaves();
+      receive(socket, {
+        type: 'update/trade',
+        channel: 'trade:1',
+        trades: [wireTrade(9, 9000)],
+      });
+
+      expect(socket.sent).not.toContain(
+        JSON.stringify({ type: 'unsubscribe', channel: 'trade/1' }),
+      );
+      expect(stays.mock.calls).toStrictEqual([
+        [[expectedTrade(9, 9000, 'buy')]],
+      ]);
+      await provider.disconnect();
+    });
+
+    it('releases a market channel when its last subscriber leaves while another stream keeps the socket open', async () => {
       const { provider } = buildTradesProvider();
       const btcSubscribe = JSON.stringify({
         type: 'subscribe',
@@ -267,19 +294,27 @@ describe('LighterProvider public trades', () => {
       const socket = await openSocket();
       await vi.waitFor(() => expect(socket.sent).toContain(btcSubscribe));
       leaveBtc();
+      receive(socket, {
+        type: 'update/trade',
+        channel: 'trade:1',
+        trades: [wireTrade(8, 8000)],
+      });
       provider.subscribeToPublicTrades({ symbol: 'BTC', callback: returning });
       await vi.advanceTimersByTimeAsync(0);
       receive(socket, {
-        type: 'update/trade',
+        type: 'subscribed/trade',
         channel: 'trade:1',
         trades: [wireTrade(9, 9000)],
       });
 
-      // The channel is still subscribed, so no new subscribe frame and no
-      // venue snapshot: the returning subscriber seeds via getPublicTrades.
+      expect(socket.readyState).toBe(1);
+      expect(socket.sent).toContain(
+        JSON.stringify({ type: 'unsubscribe', channel: 'trade/1' }),
+      );
+      // The returning subscriber opens the channel again.
       expect(
         socket.sent.filter((frame) => frame === btcSubscribe),
-      ).toHaveLength(1);
+      ).toHaveLength(2);
       expect(left).not.toHaveBeenCalled();
       expect(returning.mock.calls).toStrictEqual([
         [[expectedTrade(9, 9000, 'buy')]],
@@ -365,6 +400,52 @@ describe('LighterProvider public trades', () => {
       );
       expect(callback.mock.calls).toStrictEqual([
         [[expectedTrade(9, 9000, 'buy')]],
+      ]);
+      await provider.disconnect();
+    });
+
+    it('does not resubscribe a released market on the stream rebuilt for a new wallet account', async () => {
+      const { provider, clientInstance, getUserAddressMock } =
+        buildTradesProvider({ configuredAccountIndex: null });
+      const accountB = { ...ACCOUNT, index: 900, l1Address: '0xbbbb' };
+      const accountsByAddress: Record<string, unknown> = {
+        [ACCOUNT.l1Address.toLowerCase()]: {
+          code: 200,
+          l1Address: ACCOUNT.l1Address,
+          subAccounts: [ACCOUNT],
+        },
+        '0xbbbb': { code: 200, l1Address: '0xbbbb', subAccounts: [accountB] },
+      };
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        async (address: string) => accountsByAddress[address.toLowerCase()],
+      );
+
+      // ETH outlives the account switch; BTC leaves before it.
+      provider.subscribeToPublicTrades({ symbol: 'ETH', callback: vi.fn() });
+      const leaveBtc = provider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      const first = await openSocket();
+      await vi.waitFor(() =>
+        expect(first.sent).toContain(
+          JSON.stringify({ type: 'subscribe', channel: 'trade/1' }),
+        ),
+      );
+      leaveBtc();
+      await provider.getAccountState();
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      await provider.getAccountState();
+      await vi.waitFor(() =>
+        expect(StreamFakeWebSocket.instances.length).toBeGreaterThan(1),
+      );
+      const replacement = await openSocket();
+
+      expect(replacement).not.toBe(first);
+      expect(
+        replacement.sent.filter((frame) => frame.includes('"trade/')),
+      ).toStrictEqual([
+        JSON.stringify({ type: 'subscribe', channel: 'trade/0' }),
       ]);
       await provider.disconnect();
     });
