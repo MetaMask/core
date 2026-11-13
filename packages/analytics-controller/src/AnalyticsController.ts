@@ -2535,10 +2535,13 @@ export class AnalyticsController extends BaseController<
    * @param optedIn - The consent value that was saved or dropped.
    */
   clearPendingMarketingConsent(optedIn: boolean): void {
-    if (
-      this.state.marketingConsentSyncPending !== true ||
-      (this.state.optedInToMarketing === true) !== optedIn
-    ) {
+    if (this.state.marketingConsentSyncPending !== true) {
+      return;
+    }
+
+    const consentChangedSince =
+      (this.state.optedInToMarketing === true) !== optedIn;
+    if (consentChangedSince) {
       return;
     }
 
