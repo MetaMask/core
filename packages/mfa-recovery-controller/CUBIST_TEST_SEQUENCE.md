@@ -122,7 +122,7 @@ each SIWE identifier the escrow has not enrolled:
 
 The proof private keys never leave the controller/caller; read sessions keep
 theirs in memory. A `register` without SIWE identifiers sends no proofs. Implementation:
-`requestKeyBoundIdentifierToken` and `authorizeEscrowsWithToken` in `src/identifier-auth.ts`.
+`requestIdentifierLogin` and `authorizeEscrowsWithToken` in `src/identifier-auth.ts`.
 
 ## Read: `authenticateIdentifier`, `getRecoverySecret`
 

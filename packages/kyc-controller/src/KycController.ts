@@ -15,7 +15,6 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 import { stringToBytes, wrapError } from '@metamask/utils';
-import { x25519 } from '@noble/curves/ed25519';
 
 import type {
   KycAnalyticsStatus,
@@ -23,6 +22,7 @@ import type {
   KycAnalyticsVerificationOutcomePayload,
 } from './analytics.js';
 import { getKycAnalyticsStatus } from './analytics.js';
+import { generateKeyPair } from './crypto.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
@@ -932,10 +932,9 @@ export class KycController extends BaseController<
     // private half stays on the device; the public half is registered on the
     // session so the server can open later authorizations. Each encryption
     // schema from session creation supplies the matching server public key.
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
     // Residence is the ISO 3166-1 alpha-3 country already resolved for
     // disclaimers / KYC-required; fetch it if this sub-flow started without
     // that earlier step.
@@ -1030,10 +1029,9 @@ export class KycController extends BaseController<
       throw new Error('No session was found');
     }
 
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
 
     const {
       encryptionDataKey: encryptionDataKeySchema,
@@ -1312,10 +1310,9 @@ export class KycController extends BaseController<
       );
     }
 
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-    const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
-    );
+    const keyPair = await generateKeyPair();
+    const sessionClientPrivateKey = keyPair.privateKey;
+    const sessionClientPublicKey = toBase64Url(keyPair.publicKey);
 
     const { deletionId, ukycCapabilityToken: capabilityTokenSchema } =
       await this.messenger.call('KycService:createDeletion', {
@@ -1326,7 +1323,7 @@ export class KycController extends BaseController<
     await this.#verifyCapabilityTokenSchema(capabilityTokenSchema);
 
     const clientMaterial = await this.#getClientMaterial();
-    const wrappedUkycCapabilityToken = this.#wrapCapabilityToken({
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
       clientMaterial,
       sessionClientPrivateKey,
       serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
@@ -1500,7 +1497,7 @@ export class KycController extends BaseController<
     }
 
     try {
-      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+      await assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
     } catch (error) {
       throw wrapError(
         error,
@@ -1543,8 +1540,10 @@ export class KycController extends BaseController<
     }
 
     try {
-      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+      await Promise.all([
+        assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey),
+        assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema),
+      ]);
     } catch (error) {
       throw wrapError(
         error,
@@ -1581,7 +1580,7 @@ export class KycController extends BaseController<
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
     );
-    const wrappedUkycCapabilityToken = this.#wrapCapabilityToken({
+    const wrappedUkycCapabilityToken = await this.#wrapCapabilityToken({
       clientMaterial,
       sessionClientPrivateKey,
       serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
@@ -1626,14 +1625,14 @@ export class KycController extends BaseController<
    * @param params.expiresAt - Token expiry. Must be after the issue time.
    * @returns The wrapped capability token.
    */
-  #wrapCapabilityToken(params: {
+  async #wrapCapabilityToken(params: {
     clientMaterial: UkycClientMaterial;
     sessionClientPrivateKey: Uint8Array;
     serverPublicKeyX: string;
     operations: UkycStorageOperation[];
     expiresAt: Date;
-  }): CapabilityAuthorization {
-    const ukycCapabilityToken = signStorageAccessToken({
+  }): Promise<CapabilityAuthorization> {
+    const ukycCapabilityToken = await signStorageAccessToken({
       material: params.clientMaterial,
       operations: params.operations,
       expiresAt: params.expiresAt,

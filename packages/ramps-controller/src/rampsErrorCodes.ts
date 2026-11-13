@@ -4,6 +4,7 @@
  */
 export const RAMPS_ERROR_CODES = {
   CIRCUIT_BREAKER_OPEN: 'CIRCUIT_BREAKER_OPEN',
+  NETWORK_ACCESS_DENIED: 'NETWORK_ACCESS_DENIED',
 } as const;
 
 export type RampsErrorCode =

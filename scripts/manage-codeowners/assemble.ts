@@ -75,23 +75,29 @@ function buildPackageRules(
   const owners = [...packageInfo.teams].sort();
 
   const rules: CodeownersRule[] = [
-    { pattern: `/packages/${packageDirectoryName}`, owners },
+    { pattern: `/packages/${packageDirectoryName}`, primaryOwners: owners },
   ];
 
   if (packageDirectoryName === 'wallet') {
     rules.push(...initializationRules);
   }
 
-  const releaseOwners = [
-    ...new Set([...packageInfo.teams, CORE_PLATFORM_TEAM]),
-  ].sort();
+  const isOwnedByCorePlatform = packageInfo.teams.includes(CORE_PLATFORM_TEAM);
   const workspacePath = `/packages/${packageDirectoryName}`;
   rules.push(
-    { pattern: `${workspacePath}/CHANGELOG.md`, owners: releaseOwners },
-    { pattern: `${workspacePath}/package.json`, owners: releaseOwners },
-    { pattern: `${workspacePath}/tsconfig.*`, owners: releaseOwners },
-    { pattern: `${workspacePath}/typedoc.json`, owners: releaseOwners },
-    { pattern: `${workspacePath}/vitest.config.*`, owners: releaseOwners },
+    ...[
+      'CHANGELOG.md',
+      'package.json',
+      'tsconfig.*',
+      'typedoc.json',
+      'vitest.config.*',
+    ].map((fileName) => ({
+      pattern: `${workspacePath}/${fileName}`,
+      primaryOwners: owners,
+      ...(isOwnedByCorePlatform
+        ? {}
+        : { maintenanceOwners: [CORE_PLATFORM_TEAM] }),
+    })),
   );
 
   return rules;
@@ -120,7 +126,7 @@ function buildInitializationRules(
 
       return {
         pattern: `/packages/wallet/src/initialization/instances/${packageInfo.initializationPath}/`,
-        owners: [...packageInfo.teams].sort(),
+        primaryOwners: [...packageInfo.teams].sort(),
       };
     });
 }

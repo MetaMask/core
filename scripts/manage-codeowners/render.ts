@@ -1,4 +1,4 @@
-import type { CodeownersSection } from './types.ts';
+import type { CodeownersRule, CodeownersSection } from './types.ts';
 
 /**
  * Renders a section in the CODEOWNERS file. This can either be a team section,
@@ -9,7 +9,8 @@ import type { CodeownersSection } from './types.ts';
  * CODEOWNERS file). A package/overrides section is a series of rules, where
  * each rule has a glob pattern followed by the teams or users that own the
  * files or directories which match that pattern. For each rule, there will be
- * four spaces between the pattern and owners.
+ * four spaces between the pattern and owners, and between the owners and any
+ * maintenance owner comment.
  *
  * @param section - The section to render.
  * @param headingLevel - The Markdown heading level to use.
@@ -30,7 +31,8 @@ export function renderCodeownersSection(
         .map(
           (rule) =>
             rule.pattern.padEnd(patternLengthWithPadding) +
-            rule.owners.join(' '),
+            assembleOwners(rule).join(' ') +
+            renderMaintenanceOwnersComment(rule),
         )
         .join('\n'),
     );
@@ -71,4 +73,34 @@ function renderHeading(
   }
 
   return `${'#'.repeat(headingLevel)} ${section.title}`;
+}
+
+/**
+ * Assembles the owners that will be used to construct a rule line.
+ *
+ * @param rule - The rule.
+ * @returns The rule's primary and maintenance owners, sorted and unique.
+ */
+function assembleOwners(rule: CodeownersRule): string[] {
+  return [
+    ...new Set([...rule.primaryOwners, ...(rule.maintenanceOwners ?? [])]),
+  ].sort();
+}
+
+/**
+ * Builds a comment which documents the "maintenance owners" for the files
+ * a rule represents. This is not used by GitHub (it's a comment, after all),
+ * but rather other processes which read CODEOWNERS (e.g. the "Post
+ * codeownership summary" workflow).
+ *
+ * @param rule - The rule whose comment should be rendered.
+ * @returns The comment, preceded by four spaces, or an empty string if the
+ * rule has no maintenance owners.
+ */
+function renderMaintenanceOwnersComment(rule: CodeownersRule): string {
+  if (rule.maintenanceOwners === undefined) {
+    return '';
+  }
+
+  return `    # maintenance-owner: ${rule.maintenanceOwners.join(' ')}`;
 }

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.22.0]
+
+### Added
+
+- Add optional `profileId` to `Position` and `PositionStruct` ([#11455](https://github.com/MetaMask/core/pull/11455))
+  - `profileId` is the profile ID of the trader who owns the position, so a client can confirm a position belongs to a trader before attributing it to them.
+  - `fetchPositionById`, `fetchOpenPositions`, `fetchClosedPositions` and `fetchFeed` return it unchanged when social-api sends it. Responses without it still validate.
+  - A `profileId` that is not a string fails validation like any other malformed position field.
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+
 ## [3.21.0]
 
 ### Added
@@ -436,7 +449,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.21.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.22.0...HEAD
+[3.22.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.21.0...@metamask/social-controllers@3.22.0
 [3.21.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.20.0...@metamask/social-controllers@3.21.0
 [3.20.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.19.0...@metamask/social-controllers@3.20.0
 [3.19.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.18.0...@metamask/social-controllers@3.19.0

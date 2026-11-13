@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.2.0]
+
 ### Added
 
 - Add `confirmations_pay_extended.payStrategies.server.gaslessEnabled` feature flag to disable gasless quotes in `ServerStrategy`, enabled by default ([#11432](https://github.com/MetaMask/core/pull/11432))
 
 ### Changed
 
+- Skip Relay and Server quote simulation when the payer is an MPC Money account ([#11408](https://github.com/MetaMask/core/pull/11408))
+  - Perps and Predict deposits funded by a Money Account set `paymentOverride` to `moneyAccount` and put that account on `refundTo`. Simulation rebuilds the submit calls, which signs a delegation and prompts for MFA. Submit still signs once.
 - Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
   - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
   - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
@@ -20,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make the max-amount gas station in `RelayStrategy` tolerate small gas cost changes between the probe and adjusted quotes ([#11434](https://github.com/MetaMask/core/pull/11434))
   - Reserve a buffer on top of the probe's gas cost when reducing the source amount, configurable with the `confirmations_pay_extended.gasStationCostBuffer` feature flag (defaults to `1.0`, no buffer).
   - Remove the gas limit checks on the adjusted quote, since the affordability check already covers any gas cost change.
+- Bump `@metamask/assets-controller` from `^20.3.1` to `^20.4.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 
 ## [31.1.0]
 
@@ -1863,7 +1869,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.0...HEAD
+[31.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.1.0...@metamask/transaction-pay-controller@31.2.0
 [31.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.0.0...@metamask/transaction-pay-controller@31.1.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.3...@metamask/transaction-pay-controller@31.0.0
 [30.4.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.2...@metamask/transaction-pay-controller@30.4.3

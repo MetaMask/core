@@ -24,6 +24,10 @@ const ERC20Interface = new Interface(abiERC20);
 const ERC721Interface = new Interface(abiERC721);
 const ERC1155Interface = new Interface(abiERC1155);
 const USDCInterface = new Interface(abiFiatTokenV2);
+// Only `approve`, so other Permit2 methods are not typed as token methods.
+const Permit2Interface = new Interface([
+  'function approve(address token, address spender, uint160 amount, uint48 expiration)',
+]);
 
 /**
  * Determines the type of the transaction by analyzing the txParams.
@@ -104,9 +108,9 @@ export async function determineTransactionType(
 }
 
 /**
- * Parses transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155 and USDC.
+ * Parses transaction data using the ERC20, ERC721, ERC1155, USDC and Permit2 `approve` ABIs.
  * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
- * contract standards
+ * ABIs.
  *
  * @param data - Encoded transaction data.
  * @param options - Options bag.
@@ -130,6 +134,7 @@ export function decodeTransactionData(
     ERC721Interface,
     ERC1155Interface,
     USDCInterface,
+    Permit2Interface,
   ]) {
     try {
       if (options?.getMethodName) {

@@ -890,6 +890,23 @@ export type PerpsControllerSwitchProviderAction = {
 };
 
 /**
+ * Set the default provider used by aggregated-mode routing.
+ *
+ * Persists the choice and, when the active provider is the aggregated
+ * wrapper, updates its routing default in place. Unlike `switchProvider`
+ * this never re-initializes the controller or reconnects provider transports:
+ * default-routed streams move, but both venues stay connected and per-venue
+ * writes are unaffected.
+ *
+ * @param providerId - The provider to use as the aggregated default.
+ * @returns The result with the new default provider.
+ */
+export type PerpsControllerSetDefaultProviderAction = {
+  type: `PerpsController:setDefaultProvider`;
+  handler: PerpsController['setDefaultProvider'];
+};
+
+/**
  * Get current network (mainnet/testnet)
  *
  * @returns Either 'mainnet' or 'testnet' based on the current configuration.
@@ -1287,9 +1304,12 @@ export type PerpsControllerClearPendingTransactionRequestsAction = {
 };
 
 /**
- * Get saved trade configuration for a market
+ * Get saved trade configuration for a market on a venue
  *
  * @param symbol - The trading pair symbol.
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  * @returns The resulting string value.
  */
 export type PerpsControllerGetTradeConfigurationAction = {
@@ -1298,10 +1318,13 @@ export type PerpsControllerGetTradeConfigurationAction = {
 };
 
 /**
- * Save trade configuration for a market
+ * Save trade configuration for a market on a venue
  *
  * @param symbol - Market symbol
  * @param leverage - Leverage value
+ * @param providerId - Optional venue to key the configuration under.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerSaveTradeConfigurationAction = {
   type: `PerpsController:saveTradeConfiguration`;
@@ -1323,6 +1346,9 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.reduceOnly - Whether the order may only reduce a position.
  * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
+ * @param providerId - Optional venue to key the configuration under.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
   type: `PerpsController:savePendingTradeConfiguration`;
@@ -1334,6 +1360,9 @@ export type PerpsControllerSavePendingTradeConfigurationAction = {
  * Returns undefined if config doesn't exist or has expired.
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  * @returns Pending trade configuration or undefined
  */
 export type PerpsControllerGetPendingTradeConfigurationAction = {
@@ -1342,9 +1371,12 @@ export type PerpsControllerGetPendingTradeConfigurationAction = {
 };
 
 /**
- * Clear pending trade configuration for a market
+ * Clear pending trade configuration for a market on a venue
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerClearPendingTradeConfigurationAction = {
   type: `PerpsController:clearPendingTradeConfiguration`;
@@ -1511,6 +1543,8 @@ export type PerpsControllerResetSelectedPaymentTokenAction = {
  * Get saved order book grouping for a market
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the grouping was saved for. Defaults to
+ * the live effective venue (active/saved default before initialization).
  * @returns The saved grouping value or undefined if not set
  */
 export type PerpsControllerGetOrderBookGroupingAction = {
@@ -1519,10 +1553,12 @@ export type PerpsControllerGetOrderBookGroupingAction = {
 };
 
 /**
- * Save order book grouping for a market
+ * Save order book grouping for a market on a venue
  *
  * @param symbol - Market symbol
  * @param grouping - Price grouping value
+ * @param providerId - Optional venue to key the grouping under. Defaults to
+ * the live effective venue (active/saved default before initialization).
  */
 export type PerpsControllerSaveOrderBookGroupingAction = {
   type: `PerpsController:saveOrderBookGrouping`;
@@ -1534,6 +1570,8 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
  * network. Clients should still let a venue-enforced mode take priority.
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the mode was saved for. Defaults to the
+ * live effective venue (active/saved default before initialization).
  * @returns The saved margin mode or undefined if not set
  */
 export type PerpsControllerGetMarginModeAction = {
@@ -1542,11 +1580,13 @@ export type PerpsControllerGetMarginModeAction = {
 };
 
 /**
- * Save the margin mode (Isolated/Cross) picked for a market on the current
- * network. Values other than `isolated` or `cross` are ignored.
+ * Save the margin mode (Isolated/Cross) picked for a market on a venue on
+ * the current network. Values other than `isolated` or `cross` are ignored.
  *
  * @param symbol - Market symbol
  * @param marginMode - Margin mode to persist
+ * @param providerId - Optional venue to key the mode under. Defaults to the
+ * live effective venue (active/saved default before initialization).
  */
 export type PerpsControllerSaveMarginModeAction = {
   type: `PerpsController:saveMarginMode`;
@@ -1707,6 +1747,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerClearAttributionContextAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
+  | PerpsControllerSetDefaultProviderAction
   | PerpsControllerGetCurrentNetworkAction
   | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetWebSocketConnectionStateAction

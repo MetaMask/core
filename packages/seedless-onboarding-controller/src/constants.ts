@@ -16,6 +16,16 @@ export enum AuthConnection {
   Telegram = 'telegram',
 }
 
+/**
+ * OIDC issuer namespaces for the social login providers in
+ * {@link AuthConnection}.
+ */
+export const AUTH_CONNECTION_BY_NAMESPACE: Record<string, AuthConnection> = {
+  'https://accounts.google.com': AuthConnection.Google,
+  'https://appleid.apple.com': AuthConnection.Apple,
+  'https://oauth.telegram.org': AuthConnection.Telegram,
+};
+
 export enum SecretType {
   Mnemonic = 'mnemonic',
   PrivateKey = 'privateKey',

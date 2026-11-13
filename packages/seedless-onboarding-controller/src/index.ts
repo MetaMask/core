@@ -42,6 +42,7 @@ export type {
 } from './SeedlessOnboardingController-method-action-types.js';
 export type {
   AuthenticatedUserDetails,
+  SeedlessAuthData,
   SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
   ToprfKeyDeriver,
@@ -53,6 +54,7 @@ export {
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
+  AUTH_CONNECTION_BY_NAMESPACE,
   SecretType,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
@@ -63,3 +65,4 @@ export {
 } from './errors.js';
 
 export { EncAccountDataType } from '@metamask/toprf-secure-backup';
+export { parseSeedlessAuthData } from './seedless-auth-data.js';
