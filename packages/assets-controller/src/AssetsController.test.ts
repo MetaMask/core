@@ -6513,9 +6513,11 @@ describe('AssetsController', () => {
             expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
               'loaded',
             );
-            expect(
-              controller.state.assetsBackgroundLoadingStatus?.[account.id],
-            ).toBeUndefined();
+            await waitFor(() =>
+              expect(
+                controller.state.assetsBackgroundLoadingStatus?.[account.id],
+              ).toBeUndefined(),
+            );
           },
         );
       });
