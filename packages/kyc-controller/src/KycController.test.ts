@@ -911,6 +911,76 @@ describe('KycController', () => {
       vi.useRealTimers();
     });
 
+    it('resets a stored submitted outcome when idOS still has the applicant on the kyc step', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionStatus: sessionStatus('pending'),
+              providerFlowStatus: 'submitted',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('new', { currentStep: KYC_CURRENT_STEPS.kyc }),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+        },
+      );
+    });
+
+    it.each([
+      ['idOS is processing', sessionStatus('pending')],
+      [
+        'idOS decided on the kyc step',
+        sessionStatus('retry', { currentStep: KYC_CURRENT_STEPS.kyc }),
+      ],
+    ])('keeps a stored submitted outcome when %s', async (_case, latest) => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionStatus: sessionStatus('pending'),
+              providerFlowStatus: 'submitted',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(latest);
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+        },
+      );
+    });
+
+    it('leaves other outcomes alone when idOS has the applicant on the kyc step', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionStatus: sessionStatus('pending'),
+              providerFlowStatus: 'not_started',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('new', { currentStep: KYC_CURRENT_STEPS.kyc }),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(controller.state.providerFlowStatus).toBe('not_started');
+        },
+      );
+    });
+
     it('writes one session-status GET and does not poll', async () => {
       vi.useFakeTimers();
       await withController(
@@ -1539,6 +1609,10 @@ describe('KycController', () => {
   });
 
   describe('launchProviderFlow', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('launches SumSub when a session exists', async () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('pending') } } },
@@ -1638,6 +1712,175 @@ describe('KycController', () => {
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
+        },
+      );
+    });
+
+    it.each(['TemporarilyDeclined', 'FinallyRejected', 'Approved'])(
+      'records abandonment when SumSub opens on %s and closes without a submission',
+      async (decision) => {
+        await withController(
+          { options: { state: { sessionStatus: sessionStatus('retry') } } },
+          async ({ controller, handlers, launcher }) => {
+            launcher.launch.mockImplementation(
+              async (params: {
+                onStatusChange: (previous: string, next: string) => void;
+              }) => {
+                params.onStatusChange('Ready', decision);
+                return { status: decision };
+              },
+            );
+
+            const result = await controller.launchProviderFlow({});
+
+            expect(result).toBe('abandoned');
+            expect(controller.state.providerFlowStatus).toBe('abandoned');
+            expect(controller.state.sessionStatus?.finalStatus).toBe('retry');
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('records a submission when SumSub reports a review decision after the applicant submits', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('retry') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'TemporarilyDeclined');
+              params.onStatusChange('TemporarilyDeclined', 'Incomplete');
+              params.onStatusChange('Incomplete', 'Pending');
+              params.onStatusChange('Pending', 'TemporarilyDeclined');
+              return { status: 'TemporarilyDeclined' };
+            },
+          );
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+        },
+      );
+    });
+
+    it('records abandonment when SumSub reports Pending partway through and the applicant leaves on a later step', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Ready', 'Incomplete');
+              params.onStatusChange('Incomplete', 'Pending');
+              params.onStatusChange('Pending', 'Initial');
+              return { status: 'Initial' };
+            },
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('abandoned');
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('records abandonment when SumSub closes on Pending but idOS still has the applicant on the kyc step', async () => {
+      vi.useFakeTimers();
+      const collecting = sessionStatus('new', {
+        currentStep: KYC_CURRENT_STEPS.kyc,
+      });
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+            }) => {
+              params.onStatusChange('Incomplete', 'Pending');
+              return { status: 'Pending' };
+            },
+          );
+          handlers.getSessionStatus.mockResolvedValue(collecting);
+
+          const launched = controller.launchProviderFlow({});
+          await vi.advanceTimersByTimeAsync(2_000);
+          const result = await launched;
+
+          expect(result).toBe('abandoned');
+          expect(controller.state.providerFlowStatus).toBe('abandoned');
+          expect(controller.state.sessionStatus).toStrictEqual(collecting);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+
+          await vi.advanceTimersByTimeAsync(30_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
+        },
+      );
+    });
+
+    it('records a submission once idOS moves the applicant past the kyc step', async () => {
+      vi.useFakeTimers();
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Pending' });
+          handlers.getSessionStatus
+            .mockResolvedValueOnce(
+              sessionStatus('new', { currentStep: KYC_CURRENT_STEPS.kyc }),
+            )
+            .mockResolvedValue(sessionStatus('pending'));
+
+          const launched = controller.launchProviderFlow({});
+          await vi.advanceTimersByTimeAsync(1_000);
+          const result = await launched;
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessionStatus?.currentStep).toBe(
+            KYC_CURRENT_STEPS.processing,
+          );
+        },
+      );
+    });
+
+    it('records a submission when idOS already decided while the applicant is on the kyc step', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Pending' });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('retry', { currentStep: KYC_CURRENT_STEPS.kyc }),
+          );
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+        },
+      );
+    });
+
+    it('records failure when the session is cleared while idOS is checked', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Pending' });
+          handlers.getSessionStatus.mockImplementation(async () => {
+            await controller.reset();
+            return sessionStatus('pending');
+          });
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('failed');
+          expect(controller.state.sessionStatus).toBeNull();
         },
       );
     });

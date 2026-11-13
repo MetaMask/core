@@ -24,6 +24,7 @@ import {
 } from '../../utils/feature-flags.js';
 import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
+import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
 import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
 import type { MaxQuotesRequest } from '../../utils/max-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
@@ -55,6 +56,7 @@ vi.mock(import('../../utils/gas-payment.js'), async (importOriginal) => ({
   resolveGasStationCost: vi.fn(),
 }));
 vi.mock(import('../../utils/gas.js'));
+vi.mock(import('../../utils/hyperliquid-activation.js'));
 vi.mock(import('../../utils/max-quote.js'));
 vi.mock(import('../../utils/quote-gas.js'));
 vi.mock(import('../../utils/token.js'));
@@ -238,6 +240,9 @@ describe('server-quotes', () => {
         getQuotes(request, fullRequest.transaction),
     );
     vi.mocked(isAtomicMaxSupported).mockReturnValue(false);
+    vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+      async (request) => request,
+    );
   });
 
   it('validates the normalized quotes', async () => {
@@ -657,7 +662,11 @@ describe('server-quotes', () => {
           provider: FULFILLED_RESULT_MOCK.provider,
           steps: quote.steps,
         },
-        request: { ...QUOTE_REQUEST_MOCK, recipient: FROM_MOCK },
+        request: {
+          ...QUOTE_REQUEST_MOCK,
+          hyperliquidActivationFeeUsd: undefined,
+          recipient: FROM_MOCK,
+        },
         requiresSecondLeg: false,
         sourceAmount: {
           fiat: '0',
@@ -2466,6 +2475,117 @@ describe('server-quotes', () => {
         });
 
         expect(fetchServerQuoteMock.mock.calls[0][1].calls).toBeUndefined();
+      });
+    });
+  });
+
+  describe('HyperLiquid activation fee', () => {
+    const HYPERLIQUID_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      isHyperliquidSource: true,
+      isPostQuote: true,
+      sourceChainId: CHAIN_ID_ARBITRUM,
+      sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+      sourceTokenAmount: '4800000',
+      targetAmountMinimum: '0',
+    };
+
+    const reserveFeeMock = async (
+      request: QuoteRequest,
+    ): Promise<QuoteRequest> => ({
+      ...request,
+      hyperliquidActivationFeeUsd: '1',
+      sourceTokenAmount: '380000000',
+    });
+
+    it('applies the fee to the HyperCore-normalized request', async () => {
+      const abortController = new AbortController();
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        signal: abortController.signal,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(vi.mocked(applyHyperliquidActivationFee)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceChainId: CHAIN_ID_HYPERCORE,
+          sourceTokenAmount: '480000000',
+        }),
+        messenger,
+        TRANSACTION_META_MOCK,
+        abortController.signal,
+      );
+    });
+
+    it('quotes the amount remaining after the fee is reserved', async () => {
+      vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+        reserveFeeMock,
+      );
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock.mock.calls[0][1].amount).toBe('380000000');
+    });
+
+    it('adds the reserved fee to the provider fee', async () => {
+      vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+        reserveFeeMock,
+      );
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '1.25',
+        usd: '1.25',
+      });
+      expect(result[0].request.hyperliquidActivationFeeUsd).toBe('1');
+    });
+
+    it('keeps the original source amount on the quote request', async () => {
+      vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+        reserveFeeMock,
+      );
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].request.sourceTokenAmount).toBe('4800000');
+    });
+
+    it('does not set the fee on the quote request when none is reserved', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].request.hyperliquidActivationFeeUsd).toBeUndefined();
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '0.25',
+        usd: '0.25',
       });
     });
   });
