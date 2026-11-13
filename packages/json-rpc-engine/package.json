@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^5.1.0",
-    "@lavamoat/preinstall-always-fail": "^3.0.0",
+    "@lavamoat/preinstall-always-fail": "^3.0.1",
     "@metamask/auto-changelog": "^7.1.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.3",
