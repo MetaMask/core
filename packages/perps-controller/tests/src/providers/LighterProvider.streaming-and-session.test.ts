@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { LIGHTER_SOCKET_IDLE_CLOSE_MS } from '../../../src/constants/lighterConfig.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
 import type { Order, OrderFill } from '../../../src/types/index.js';
 import type {
@@ -1124,7 +1125,7 @@ describe('LighterProvider', () => {
     it('keeps the previous orders snapshot when a new snapshot is malformed', async () => {
       const { provider } = buildProvider({
         webSocketCtor: fakeCtor,
-        registeredKey: 'a'.repeat(80),
+        registeredKey: '9c'.repeat(40),
       });
       const callback = vi.fn();
       const unsubscribe = provider.subscribeToOrders({ callback });
@@ -1132,6 +1133,10 @@ describe('LighterProvider', () => {
       await new Promise((resolveTick) => setImmediate(resolveTick));
       const socket = FakeWebSocket.instances[0];
       socket.open();
+      // The venue streams orders only on the authed subscription.
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(socket.sent.join('\n')).toContain('account_all_orders/28');
       const validOrder = {
         order_index: 555,
         client_order_index: 1,
@@ -1388,7 +1393,7 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
-    it('tears down the socket when the last subscriber unsubscribes', async () => {
+    it('closes the socket once it has had no subscriber for the idle period', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeCtor });
       const unsubscribe = provider.subscribeToPrices({
         symbols: [],
@@ -1397,7 +1402,11 @@ describe('LighterProvider', () => {
       const socket = FakeWebSocket.instances[0];
       socket.open();
       unsubscribe();
+      await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_IDLE_CLOSE_MS - 1);
+      expect(socket.readyState).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
       expect(socket.readyState).toBe(3);
+      expect(provider.getWebSocketConnectionState()).toBe('disconnected');
       await provider.disconnect();
     });
 
@@ -1436,6 +1445,7 @@ describe('LighterProvider', () => {
 
       unsubscribeState();
       unsubscribe();
+      await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_IDLE_CLOSE_MS);
       expect(provider.getWebSocketConnectionState()).toBe('disconnected');
     });
 

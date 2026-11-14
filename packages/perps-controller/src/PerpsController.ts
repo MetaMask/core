@@ -154,6 +154,8 @@ import type {
   SubscribePositionsParams,
   SubscribePricesParams,
   SubscribePublicTradesParams,
+  SubscribeProviderHealthParams,
+  PerpsProviderHealth,
   ReadyToTradeResult,
   SwitchProviderResult,
   SetDefaultProviderResult,
@@ -225,6 +227,10 @@ import {
   persistUserEntriesToDisk,
 } from './utils/perpsDiskPersistence.js';
 import type { DiskCacheUserEntry } from './utils/perpsDiskPersistence.js';
+import {
+  getProviderHealthOf,
+  subscribeToProviderHealthOf,
+} from './utils/providerHealth.js';
 import { wait } from './utils/wait.js';
 
 /**
@@ -1087,6 +1093,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPendingManualRecoveries',
   'getPendingTradeConfiguration',
   'getPositions',
+  'getProviderHealth',
   'getPublicTrades',
   'getSelectedOrderType',
   'getRecoveredDispatches',
@@ -1153,6 +1160,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToOrders',
   'subscribeToPositions',
   'subscribeToPrices',
+  'subscribeToProviderHealth',
   'subscribeToPublicTrades',
   'subscribeToTwapOrders',
   'suspendChaseOrders',
@@ -2895,6 +2903,7 @@ export class PerpsController extends BaseController<
       messenger: PerpsControllerMessenger;
       lighterAuthConfig: LighterAuthConfig;
       signerBridge?: LighterSignerBridge;
+      socketIdleCloseMs?: number;
     }) => PerpsProvider,
   ): void {
     const lighterIsTestnet = isProviderOnTestnet(
@@ -2911,6 +2920,9 @@ export class PerpsController extends BaseController<
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       signerBridge: lighter.signerBridge,
+      ...(lighter.socketIdleCloseMs === undefined
+        ? {}
+        : { socketIdleCloseMs: lighter.socketIdleCloseMs }),
       lighterAuthConfig: {
         enabled: lighter.enabled,
         accountIndex: lighterIsTestnet
@@ -7052,6 +7064,44 @@ export class PerpsController extends BaseController<
         // No-op
       };
     }
+  }
+
+  /**
+   * Get one provider's health, in any mode: aggregated mode reports each
+   * venue separately, so a Lighter outage never reads as HyperLiquid's.
+   *
+   * @param providerId - Provider to report on.
+   * @returns Its health; `unavailable` when it is not registered.
+   */
+  getProviderHealth(providerId: PerpsProviderType): PerpsProviderHealth {
+    return getProviderHealthOf(providerId, this.providers.get(providerId));
+  }
+
+  /**
+   * Watch one provider's health. The callback receives the current value at
+   * once, then each change. In an aggregated session a controller
+   * re-initialization rebinds it to the replacement provider; otherwise
+   * callers resubscribe after re-initialization, as with other streams.
+   *
+   * @param params - Provider to watch and the callback.
+   * @param params.providerId - Provider to watch.
+   * @param params.callback - Receives each health snapshot.
+   * @returns Cleanup function.
+   */
+  subscribeToProviderHealth({
+    providerId,
+    callback,
+  }: SubscribeProviderHealthParams): () => void {
+    const open = (): (() => void) =>
+      subscribeToProviderHealthOf(
+        providerId,
+        this.providers.get(providerId),
+        callback,
+      );
+    if (!this.activeProviderInstance) {
+      return open();
+    }
+    return this.#trackProviderSubscription(this.activeProviderInstance, open);
   }
 
   /**

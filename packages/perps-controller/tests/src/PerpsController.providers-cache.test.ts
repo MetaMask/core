@@ -904,7 +904,7 @@ describe('PerpsController', () => {
       },
     );
 
-    it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
+    it('registerLighterProvider registers the provider and forwards the signer bridge and idle close from the Lighter credentials', () => {
       // Arrange — the client (mobile WebView / headless WASM) supplies the
       // bridge through the Lighter credentials bag; the controller must
       // forward it (the shared platform surface stays venue-agnostic).
@@ -920,7 +920,9 @@ describe('PerpsController', () => {
         messenger: createMockMessenger(),
         state: getDefaultPerpsControllerState(),
         clientConfig: {
-          providerCredentials: { lighter: { signerBridge: mockBridge } },
+          providerCredentials: {
+            lighter: { signerBridge: mockBridge, socketIdleCloseMs: 12_000 },
+          },
         },
         infrastructure: mockInfrastructure,
       });
@@ -941,6 +943,7 @@ describe('PerpsController', () => {
           // mainnet writes are blocked inside LighterProvider instead.
           isTestnet: false,
           signerBridge: mockBridge,
+          socketIdleCloseMs: 12_000,
         }),
       );
     });

@@ -1442,6 +1442,120 @@ describe('PerpsController', () => {
       expect(() => unsubscribe()).not.toThrow();
     });
 
+    it('getProviderHealth reports each registered provider and unavailable for the rest', () => {
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockProvider.getWebSocketConnectionState.mockReturnValue(
+        WebSocketConnectionState.Connected,
+      );
+
+      expect(controller.getProviderHealth('hyperliquid')).toMatchObject({
+        providerId: 'hyperliquid',
+        status: 'healthy',
+        connectionState: WebSocketConnectionState.Connected,
+      });
+      expect(controller.getProviderHealth('lighter')).toMatchObject({
+        providerId: 'lighter',
+        status: 'unavailable',
+      });
+    });
+
+    it('getProviderHealth reports unavailable after the controller disconnects the provider', async () => {
+      let state: WebSocketConnectionState = WebSocketConnectionState.Connected;
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      markControllerAsInitialized();
+      mockProvider.subscribeToConnectionState.mockImplementation((listener) => {
+        listener(state, 0);
+        return () => undefined;
+      });
+      mockProvider.disconnect.mockImplementation(async () => {
+        state = WebSocketConnectionState.Disconnected;
+        return { success: true };
+      });
+      const before = controller.getProviderHealth('hyperliquid');
+
+      await controller.disconnect();
+
+      expect(before).toMatchObject({ status: 'healthy' });
+      expect(mockProvider.disconnect).toHaveBeenCalledOnce();
+      expect(controller.getProviderHealth('hyperliquid')).toMatchObject({
+        providerId: 'hyperliquid',
+        status: 'unavailable',
+        reasons: [],
+        connectionState: WebSocketConnectionState.Disconnected,
+      });
+    });
+
+    it('getProviderHealth reports a registered HyperLiquid that never connected as unavailable in a direct Lighter session', () => {
+      const lighterProvider = createMockHyperLiquidProvider();
+      lighterProvider.getWebSocketConnectionState.mockReturnValue(
+        WebSocketConnectionState.Connected,
+      );
+      mockProvider.subscribeToConnectionState.mockImplementation((listener) => {
+        listener(WebSocketConnectionState.Disconnected, 0);
+        return () => undefined;
+      });
+      controller.testSetProviders(
+        new Map([
+          ['lighter', lighterProvider],
+          ['hyperliquid', mockProvider],
+        ]),
+      );
+      markControllerAsInitialized();
+
+      expect(controller.getProviderHealth('lighter')).toMatchObject({
+        status: 'healthy',
+      });
+      expect(controller.getProviderHealth('hyperliquid')).toMatchObject({
+        providerId: 'hyperliquid',
+        status: 'unavailable',
+        reasons: [],
+      });
+    });
+
+    it('subscribeToProviderHealth maps the provider connection state to health', () => {
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const mockUnsubscribe = vi.fn();
+      mockProvider.subscribeToConnectionState.mockImplementation((listener) => {
+        listener(WebSocketConnectionState.Connecting, 1);
+        return mockUnsubscribe;
+      });
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToProviderHealth({
+        providerId: 'hyperliquid',
+        callback,
+      });
+
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerId: 'hyperliquid',
+          status: 'degraded',
+          reasons: ['socket_down'],
+        }),
+      );
+      unsubscribe();
+      expect(mockUnsubscribe).toHaveBeenCalledOnce();
+    });
+
+    it('subscribeToProviderHealth reports unavailable once when no provider is active', () => {
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToProviderHealth({
+        providerId: 'lighter',
+        callback,
+      });
+
+      expect(callback).toHaveBeenCalledOnce();
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerId: 'lighter',
+          status: 'unavailable',
+        }),
+      );
+      expect(unsubscribe()).toBeUndefined();
+    });
+
     it('reconnect delegates to active provider', async () => {
       // Arrange
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

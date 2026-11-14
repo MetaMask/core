@@ -952,6 +952,34 @@ export type PerpsControllerSubscribeToConnectionStateAction = {
 };
 
 /**
+ * Get one provider's health, in any mode: aggregated mode reports each
+ * venue separately, so a Lighter outage never reads as HyperLiquid's.
+ *
+ * @param providerId - Provider to report on.
+ * @returns Its health; `unavailable` when it is not registered.
+ */
+export type PerpsControllerGetProviderHealthAction = {
+  type: `PerpsController:getProviderHealth`;
+  handler: PerpsController['getProviderHealth'];
+};
+
+/**
+ * Watch one provider's health. The callback receives the current value at
+ * once, then each change. In an aggregated session a controller
+ * re-initialization rebinds it to the replacement provider; otherwise
+ * callers resubscribe after re-initialization, as with other streams.
+ *
+ * @param params - Provider to watch and the callback.
+ * @param params.providerId - Provider to watch.
+ * @param params.callback - Receives each health snapshot.
+ * @returns Cleanup function.
+ */
+export type PerpsControllerSubscribeToProviderHealthAction = {
+  type: `PerpsController:subscribeToProviderHealth`;
+  handler: PerpsController['subscribeToProviderHealth'];
+};
+
+/**
  * Manually trigger a WebSocket reconnection attempt.
  * Used by the UI retry button when connection is lost.
  */
@@ -1804,6 +1832,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetWebSocketConnectionStateAction
   | PerpsControllerSubscribeToConnectionStateAction
+  | PerpsControllerGetProviderHealthAction
+  | PerpsControllerSubscribeToProviderHealthAction
   | PerpsControllerReconnectAction
   | PerpsControllerSubscribeToPricesAction
   | PerpsControllerSubscribeToPositionsAction
