@@ -295,6 +295,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   readonly #getUseAssetsControllerForRates: () => boolean;
 
+  readonly #getShouldYieldAfterFirstQuote?: () => boolean;
+
   constructor({
     messenger,
     state,
@@ -306,6 +308,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     trackMetaMetricsFn,
     traceFn,
     getUseAssetsControllerForRates,
+    getShouldYieldAfterFirstQuote,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -327,6 +330,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
      * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
      */
     getUseAssetsControllerForRates?: () => boolean;
+    /**
+     * When it returns true, the quote stream yields one macrotask after the first quote is written to state.
+     */
+    getShouldYieldAfterFirstQuote?: () => boolean;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -350,6 +357,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trace = traceFn;
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
+    this.#getShouldYieldAfterFirstQuote = getShouldYieldAfterFirstQuote;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -1106,6 +1114,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               }
               state.quotes = [...state.quotes, ...quotesWithFees];
             });
+            if (
+              validQuotesCounter === 1 &&
+              quotesWithFees.length > 0 &&
+              this.#getShouldYieldAfterFirstQuote?.()
+            ) {
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
           })();
           pendingFeeAppendPromises.add(feeAppendPromise);
           feeAppendPromise

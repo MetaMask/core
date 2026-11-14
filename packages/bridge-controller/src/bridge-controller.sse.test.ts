@@ -2023,4 +2023,36 @@ describe('BridgeController SSE', function () {
       );
     });
   });
+
+  it.each([
+    { getShouldYieldAfterFirstQuote: undefined, quotesBeforeTick: 2 },
+    { getShouldYieldAfterFirstQuote: (): boolean => true, quotesBeforeTick: 1 },
+  ])(
+    'should yield one macrotask after the first quote only when getShouldYieldAfterFirstQuote returns true',
+    async ({ getShouldYieldAfterFirstQuote, quotesBeforeTick }) => {
+      await withController(
+        { options: { getShouldYieldAfterFirstQuote } },
+        async ({ controller: bridgeController }) => {
+          mockFetchFn.mockImplementationOnce(async () =>
+            mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+          );
+          await bridgeController.updateBridgeQuoteRequestParams(
+            quoteRequest,
+            metricsContext,
+          );
+          vi.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          vi.advanceTimersByTime(3000);
+          await flushPromises();
+
+          expect(bridgeController.state.quotes).toHaveLength(quotesBeforeTick);
+
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+
+          expect(bridgeController.state.quotes).toHaveLength(2);
+        },
+      );
+    },
+  );
 });
