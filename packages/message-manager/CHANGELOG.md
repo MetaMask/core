@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#10531](https://github.com/MetaMask/core/pull/10531))
+
 ## [15.0.1]
 
 ### Added
