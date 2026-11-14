@@ -621,10 +621,16 @@ export {
   isStopLossSafeFromLiquidation,
   validateTPSLPrices,
   formatRoePercent,
+  calculateExpectedTriggerPnl,
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
 } from './utils/index.js';
 export type {
   TpslCalculationParams,
   TpslValidationResult,
+  ExpectedTriggerPnlParams,
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
 } from './utils/index.js';
 export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
 export type {
@@ -787,6 +793,7 @@ export type {
   PerpsCompactFormatOptions,
   PerpsDisplayFormatOptions,
   PerpsFiatFormatOptions,
+  PerpsFundingDirection,
   PerpsFundingRateFormatOptions,
   PerpsIntlFormatters,
   PerpsOrderBookLadderOptions,
@@ -807,6 +814,9 @@ export {
   formatPnl,
   formatPercentage,
   formatFundingRate,
+  formatPositionFunding,
+  getPositionFundingDirection,
+  formatFundingPayment,
   formatFeeBps,
   formatLiquidationDistance,
   formatPerpsCompact,

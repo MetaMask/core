@@ -979,6 +979,158 @@ export const formatFundingRate = (
 };
 
 /**
+ * Funding since open below this magnitude shows as zero: under half a cent.
+ */
+const FUNDING_SINCE_OPEN_ZERO_THRESHOLD = 0.005;
+
+/**
+ * A single funding payment below this magnitude shows its sub-cent digits
+ * instead of the fiat ranges, which would round it to `<$0.01`.
+ */
+const FUNDING_PAYMENT_CENT_THRESHOLD = 0.01;
+
+/** Most fraction digits of a funding payment below a cent. */
+const FUNDING_PAYMENT_SUB_CENT_DECIMALS = 6;
+
+/**
+ * How funding since open reads for the trader: `cost` (paid), `payment`
+ * (received) or `none` (under half a cent, or missing).
+ */
+export type PerpsFundingDirection = 'cost' | 'payment' | 'none';
+
+/**
+ * Formats a zero USD amount with two decimals: `$0.00`, `0,00 $`.
+ *
+ * @param formatters - Locale-bound formatters.
+ * @returns The formatted zero.
+ */
+function _formatZeroUsd(formatters: PerpsIntlFormatters): string {
+  return _formatCurrency(formatters, 0, {
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    strip: 'none',
+  });
+}
+
+/**
+ * Classifies funding since a position opened, with the venue's sign
+ * (positive = the trader paid), so clients colour it without copying the
+ * half-cent threshold.
+ *
+ * @param sinceOpen - Funding since open (venue field `cumulativeFunding.sinceOpen`).
+ * @returns `cost` from $0.005 up, `payment` from -$0.005 down, `none`
+ * otherwise or for a missing value.
+ * @example getPositionFundingDirection('1.25') => "cost"
+ * @example getPositionFundingDirection(-0.8) => "payment"
+ * @example getPositionFundingDirection(0.004) => "none"
+ * @example getPositionFundingDirection(undefined) => "none"
+ */
+export const getPositionFundingDirection = (
+  sinceOpen: string | number | null | undefined,
+): PerpsFundingDirection => {
+  const value = _parseDisplayNumber(sinceOpen);
+  if (
+    value === undefined ||
+    Math.abs(value) < FUNDING_SINCE_OPEN_ZERO_THRESHOLD
+  ) {
+    return 'none';
+  }
+  return value > 0 ? 'cost' : 'payment';
+};
+
+/**
+ * Formats funding since a position opened, as Mobile and Extension show it.
+ * The venue reports funding the trader paid as a positive number, so a cost
+ * shows with `-` and a payment received with `+`. Under half a cent it shows
+ * as zero.
+ *
+ * @param sinceOpen - Funding since open (venue field `cumulativeFunding.sinceOpen`).
+ * @param options - `formatters` (default `en-US`) and `sign` (default
+ * `exceptZero`). The amount's precision comes from
+ * `PRICE_RANGES_MINIMAL_VIEW`, so `decimals` is not used.
+ * @returns `-` or `+` with the amount on `PRICE_RANGES_MINIMAL_VIEW`, `$0.00`
+ * under half a cent, or `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`) for a
+ * missing value.
+ * @example formatPositionFunding('1.2345') => "-$1.23"
+ * @example formatPositionFunding(-1234.5) => "+$1,234.50"
+ * @example formatPositionFunding(0.005) => "-<$0.01"
+ * @example formatPositionFunding(0.0049) => "$0.00"
+ * @example formatPositionFunding(1234.5, { formatters: createFormatters({ locale: 'de' }) }) => "-1.234,50 $"
+ * @example formatPositionFunding(-1.2345, { sign: 'never' }) => "$1.23"
+ * @example formatPositionFunding(undefined) => "$---"
+ */
+export const formatPositionFunding = (
+  sinceOpen: string | number | null | undefined,
+  options: PerpsDisplayFormatOptions = {},
+): string => {
+  const { formatters = _fallbackFormatters, sign = 'exceptZero' } = options;
+  const value = _parseDisplayNumber(sinceOpen);
+  if (value === undefined) {
+    return PERPS_CONSTANTS.FallbackPriceDisplay;
+  }
+  if (getPositionFundingDirection(value) === 'none') {
+    return `${_signPrefix(0, true, sign)}${_formatZeroUsd(formatters)}`;
+  }
+  // A cost (venue-positive) reads as money out: "-"
+  return `${_signPrefix(-value, false, sign)}${formatPerpsFiat(
+    Math.abs(value),
+    { ranges: PRICE_RANGES_MINIMAL_VIEW, formatters },
+  )}`;
+};
+
+/**
+ * Formats a single funding payment (a history row or its detail), with the
+ * trader's sign: positive = received. From a cent up it matches Mobile's
+ * `formatPerpsFiat`; below a cent it keeps up to 6 fraction digits, trailing
+ * zeros dropped and never in exponent notation.
+ *
+ * @param amount - Funding payment in USD (positive = received).
+ * @param options - `formatters` (default `en-US`) and `sign` (default
+ * `exceptZero`). The precision is fixed by the rules above, so `decimals` is
+ * not used.
+ * @returns The signed amount, `$0.00` without a sign when it rounds to zero
+ * at 6 digits, or `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`) for a
+ * missing value.
+ * @example formatFundingPayment(1.234) => "+$1.23"
+ * @example formatFundingPayment(-12.5) => "-$12.50"
+ * @example formatFundingPayment(0.003421) => "+$0.003421"
+ * @example formatFundingPayment(0.0000004) => "$0.00"
+ * @example formatFundingPayment(0.003421, { formatters: createFormatters({ locale: 'de' }) }) => "+0,003421 $"
+ * @example formatFundingPayment(undefined) => "$---"
+ */
+export const formatFundingPayment = (
+  amount: string | number | null | undefined,
+  options: PerpsDisplayFormatOptions = {},
+): string => {
+  const { formatters = _fallbackFormatters, sign = 'exceptZero' } = options;
+  const value = _parseDisplayNumber(amount);
+  if (value === undefined) {
+    return PERPS_CONSTANTS.FallbackPriceDisplay;
+  }
+  const magnitude = Math.abs(value);
+  if (magnitude >= FUNDING_PAYMENT_CENT_THRESHOLD) {
+    return `${_signPrefix(value, false, sign)}${formatPerpsFiat(magnitude, {
+      formatters,
+    })}`;
+  }
+  // Below a cent, a value that rounds to zero at 6 digits shows as zero
+  if (_roundsToWhole(magnitude, FUNDING_PAYMENT_SUB_CENT_DECIMALS)) {
+    return `${_signPrefix(value, true, sign)}${_formatZeroUsd(formatters)}`;
+  }
+  return `${_signPrefix(value, false, sign)}${_formatCurrency(
+    formatters,
+    magnitude,
+    {
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: FUNDING_PAYMENT_SUB_CENT_DECIMALS,
+      strip: 'all',
+    },
+  )}`;
+};
+
+/**
  * Formats a fee rate in basis points with the locale's separators.
  *
  * @param rate - Fee rate as a decimal (0.00045 for 0.045%).
@@ -1370,11 +1522,44 @@ export type PerpsUsdInputFormatOptions = {
   maxDigits?: number;
   /**
    * What `input` is: `typed` text in the locale's format, e.g. the field's
-   * display plus a keystroke (default), or a stored canonical `value` with a
-   * `.` decimal separator, e.g. a preset amount.
+   * display plus a keystroke (default), a stored canonical `value` with a
+   * `.` decimal separator, e.g. a preset amount, or `pasted` clipboard text,
+   * whose decimal point may be `.` or `,` whatever the locale.
    */
-  source?: 'typed' | 'value';
+  source?: 'typed' | 'value' | 'pasted';
 };
+
+/**
+ * One separator splitting 1-3 digits from exactly 3: `12.345`, `$1,234`. A
+ * USD amount has 2 decimals, so this separator groups thousands.
+ */
+const PASTED_SINGLE_GROUPING = /^\D*[1-9]\d{0,2}[.,]\d{3}\D*$/u;
+
+/**
+ * Rewrites pasted text with a `.` decimal point and no grouping, for a locale
+ * whose decimal separator is not `.`. The decimal point is the last `.` or
+ * `,` followed by a digit, unless every separator is that same character and
+ * there are several (`1.234.567`) or the only one groups thousands
+ * (`12.345`). A separator not followed by a digit is dropped.
+ *
+ * @param text - Pasted text, digits already in ASCII.
+ * @returns The text with `.` as its only separator, or none.
+ */
+function _normalizePastedDecimal(text: string): string {
+  const separators = [...text.matchAll(/[.,](?=\d)/gu)];
+  const last = separators[separators.length - 1];
+  let point = -1;
+  if (last !== undefined) {
+    const alike = separators.filter(([char]) => char === last[0]).length;
+    const isGrouping =
+      alike === separators.length &&
+      (alike > 1 || PASTED_SINGLE_GROUPING.test(text));
+    point = isGrouping ? -1 : last.index;
+  }
+  return text.replace(/[.,]/gu, (_char, index: number) =>
+    index === point ? '.' : '',
+  );
+}
 
 /** Most digits a USD input keeps exact when grouped through a number. */
 const MAX_EXACT_INPUT_DIGITS = 15;
@@ -1451,7 +1636,15 @@ function _getLocaleNumberSymbols(
  * 12.5); where `.` groups thousands (`de`, `es`), it stays a separator, so
  * `1.2345` is 12345.
  *
- * @param input - Typed text, or a stored canonical value with `source: 'value'`.
+ * Pasted text (`source: 'pasted'`) is often written with a `.` decimal point
+ * whatever the locale. Where the locale's decimal is not `.`, the last `.` or
+ * `,` followed by a digit is the decimal point, so `1234.56` and `1.234,56`
+ * are both 1234.56. Separators group thousands instead when they repeat
+ * (`1.234.567`), or when one splits 1-3 digits from exactly 3 (`12.345`,
+ * `$1,234`). Where the locale's decimal is `.`, pasted text reads as typed.
+ *
+ * @param input - Typed text, a stored canonical value with `source: 'value'`,
+ * or clipboard text with `source: 'pasted'`.
  * @param options - `formatters` (default `en-US`), `decimals` (default
  * `PERPS_DISPLAY_PRECISION.UsdInput`, 2), `maxDigits` (default
  * `PERPS_DISPLAY_PRECISION.UsdInputMaxDigits`, 9) and `source` (default
@@ -1462,6 +1655,7 @@ function _getLocaleNumberSymbols(
  * @example formatPerpsUsdInput('1234.') => { value: '1234.', display: '1,234.' }
  * @example formatPerpsUsdInput('1.2345', { formatters: createFormatters({ locale: 'de' }) }) => { value: '12345', display: '12.345' }
  * @example formatPerpsUsdInput('1234567.5', { formatters: createFormatters({ locale: 'de' }), source: 'value' }) => { value: '1234567.5', display: '1.234.567,5' }
+ * @example formatPerpsUsdInput('1234.56', { formatters: createFormatters({ locale: 'es' }), source: 'pasted' }) => { value: '1234.56', display: '1234,56' }
  */
 export const formatPerpsUsdInput = (
   input: string,
@@ -1475,13 +1669,22 @@ export const formatPerpsUsdInput = (
   } = options;
   const maxDigits = Math.min(requestedMaxDigits, MAX_EXACT_INPUT_DIGITS);
   const symbols = _getLocaleNumberSymbols(formatters);
-  const text = Array.from(input, (character) => {
+  let text = Array.from(input, (character) => {
     const digit = symbols.digits.indexOf(character);
     return digit === -1 ? character : String(digit);
   }).join('');
+  // Pasted text reads as typed where "." is the locale's decimal, or where it
+  // holds the locale's own decimal that is neither "." nor "," ("٫")
+  const isPastedElsewhere =
+    source === 'pasted' &&
+    symbols.decimal !== '.' &&
+    (symbols.decimal === ',' || !text.includes(symbols.decimal));
+  if (isPastedElsewhere) {
+    text = _normalizePastedDecimal(text);
+  }
 
   let decimalSeparator: string | undefined;
-  if (source === 'value') {
+  if (source === 'value' || isPastedElsewhere) {
     decimalSeparator = '.';
   } else if (symbols.decimal && text.includes(symbols.decimal)) {
     decimalSeparator = symbols.decimal;

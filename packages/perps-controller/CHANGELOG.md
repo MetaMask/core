@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add funding display formatters, so Mobile, Extension and Terminal stop formatting funding locally. Each formatter takes the same `formatters` and `sign` (default `exceptZero`) options as the other display formatters and renders `$---` for a missing value ([#11529](https://github.com/MetaMask/core/pull/11529))
+  - `formatPositionFunding(sinceOpen, options)` formats funding since a position opened, with the venue's sign (positive = paid), as Mobile and Extension show it: `formatPositionFunding('1.2345')` returns `-$1.23`, `formatPositionFunding(-1234.5)` returns `+$1,234.50`, and under half a cent `formatPositionFunding(0.0049)` returns `$0.00`
+  - `getPositionFundingDirection(sinceOpen)` returns `cost`, `payment` or `none` with the same half-cent threshold, for colouring: `getPositionFundingDirection(0.005)` returns `cost`
+  - `formatFundingPayment(amount, options)` formats one funding payment with the trader's sign (positive = received). From a cent up it matches Mobile: `formatFundingPayment(-12.5)` returns `-$12.50`. Below a cent it keeps up to 6 fraction digits, never in exponent notation: `formatFundingPayment(0.003421)` returns `+$0.003421`, and `formatFundingPayment(0.0000004)` returns `$0.00`
+  - Type `PerpsFundingDirection`
+- Add `PERPS_DISPLAY_PRECISION` values for Terminal's depth chart and TWAP summary: `OrderBookDepthRangePercent` 4, `OrderBookDepthZoomRangePercentMax` 5 and `TwapSuborderSize` 5 ([#11529](https://github.com/MetaMask/core/pull/11529))
+- Add `source: 'pasted'` to `formatPerpsUsdInput` for clipboard text, whose decimal point may be `.` in any locale: `formatPerpsUsdInput('1234.56', { formatters: createFormatters({ locale: 'es' }), source: 'pasted' })` returns `{ value: '1234.56', display: '1234,56' }`, where typed text reads `123456` ([#11529](https://github.com/MetaMask/core/pull/11529))
+  - Repeated separators or one that splits 3 digits still group thousands: `1.234.567` and `12.345` stay 1234567 and 12345
+  - Where the locale's decimal is `.`, pasted text reads as typed
+- Add margin adjustment calculations for an isolated position, following Mobile's margin utilities, so Mobile and Terminal stop keeping their own copies ([#11529](https://github.com/MetaMask/core/pull/11529))
+  - `calculateMaxRemovableMargin(params)` returns the margin that can be removed: the margin above `max(notional / positionLeverage, notional × MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer)`, less a price-move headroom (`priceMoveBufferRatio`). `calculateMaxRemovableMargin({ currentMargin: 3000, positionLeverage: 50, positionSize: 10, currentPrice: 2000 })` returns `800`
+  - `estimateLiquidationPriceAfterMarginChange(params)` estimates the liquidation price after adding or removing margin, anchored on the venue's current one. Adding $1,000 to a 0.5 BTC long liquidating at 80,000 with max leverage 20 returns about `77948.72`
+  - `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalPriceMoveBuffer` (0.01), the default headroom
+  - Types `MaxRemovableMarginParams` and `LiquidationPriceAfterMarginChangeParams`
+- Add `calculateExpectedTriggerPnl({ triggerPrice, entryPrice, size, closingFee })`, the expected PnL when a take profit or stop loss closes a position, net of the closing fee, as Mobile's TP/SL form shows it: `calculateExpectedTriggerPnl({ triggerPrice: 110, entryPrice: 100, size: 2, closingFee: 0.1 })` returns `19.9`. Type `ExpectedTriggerPnlParams` ([#11529](https://github.com/MetaMask/core/pull/11529))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
