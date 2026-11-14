@@ -4,10 +4,19 @@
  * liquidation estimate.
  */
 import { MARGIN_ADJUSTMENT_CONFIG } from '../constants/perpsConfig.js';
-import { isPositiveFinite } from './tpslCalculations.js';
 
 /** Below this magnitude the maintenance adjustment factor is treated as 1. */
 const MIN_ADJUSTMENT_DENOMINATOR = 0.0001;
+
+/**
+ * Whether a value is a finite number above zero.
+ *
+ * @param value - The value to check.
+ * @returns True for a finite number above zero.
+ */
+function isPositiveFinite(value: number | undefined): value is number {
+  return value !== undefined && Number.isFinite(value) && value > 0;
+}
 
 /**
  * Parameters for `calculateMaxRemovableMargin`.
@@ -29,7 +38,7 @@ export type MaxRemovableMarginParams = {
   /**
    * Share of notional kept back for price movement (default
    * `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalPriceMoveBuffer`, 0.01); 0 returns
-   * the exact venue boundary.
+   * the exact venue boundary. A negative or non-finite ratio is invalid input.
    */
   priceMoveBufferRatio?: number;
 };
@@ -55,7 +64,12 @@ export function calculateMaxRemovableMargin(
     currentPrice,
     priceMoveBufferRatio = MARGIN_ADJUSTMENT_CONFIG.MarginRemovalPriceMoveBuffer,
   } = params;
-  if (!isPositiveFinite(currentMargin) || !isPositiveFinite(positionLeverage)) {
+  if (
+    !isPositiveFinite(currentMargin) ||
+    !isPositiveFinite(positionLeverage) ||
+    !Number.isFinite(priceMoveBufferRatio) ||
+    priceMoveBufferRatio < 0
+  ) {
     return 0;
   }
 
