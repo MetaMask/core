@@ -60,7 +60,7 @@
     "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.2",
-    "@tanstack/query-core": "^5.103.2"
+    "@tanstack/query-core": "^5.107.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
