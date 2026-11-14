@@ -88,7 +88,7 @@
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
     "@signinwithethereum/siwe": "^4.2.1",
-    "immer": "^11.1.18",
+    "immer": "^11.2.10",
     "loglevel": "^1.9.2"
   },
   "devDependencies": {

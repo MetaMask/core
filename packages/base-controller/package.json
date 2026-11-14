@@ -52,7 +52,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.2",
-    "immer": "^11.1.18"
+    "immer": "^11.2.10"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
