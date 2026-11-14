@@ -749,7 +749,7 @@ describe('LighterProvider stream lifecycle', () => {
       await provider.disconnect();
     });
 
-    it('stops reporting socket_down once the last stream listener leaves, and reports it again when streams return to a down socket', async () => {
+    it('reports socket_down only while streams wait on a socket that is down past its grace', async () => {
       const { provider } = buildStreamProvider();
       const health: PerpsProviderHealth[] = [];
       provider.subscribeToProviderHealth((snapshot) => health.push(snapshot));
@@ -760,14 +760,30 @@ describe('LighterProvider stream lifecycle', () => {
       latestSocket().open();
       latestSocket().close();
       await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_DOWN_GRACE_MS);
-      expect(provider.getProviderHealth()).toMatchObject({
+      // The first reconnect fails too, so the next one waits on its backoff.
+      latestSocket().close();
+      expect(health.at(-1)).toMatchObject({
         status: 'degraded',
         reasons: ['socket_down'],
       });
 
       leave();
       expect(health.at(-1)).toMatchObject({ status: 'healthy', reasons: [] });
-      // The reconnect in flight fails with nothing listening.
+
+      // Streams return while that reconnect still waits.
+      const leaveAgain = provider.subscribeToPrices({
+        symbols: [],
+        callback: vi.fn(),
+      });
+      expect(health.at(-1)).toMatchObject({
+        status: 'degraded',
+        reasons: ['socket_down'],
+      });
+
+      // The second reconnect waits at most 2 s, then fails with nothing
+      // listening.
+      await vi.advanceTimersByTimeAsync(2_000);
+      leaveAgain();
       latestSocket().close();
       expect(provider.getProviderHealth()).toMatchObject({
         status: 'healthy',
@@ -775,13 +791,30 @@ describe('LighterProvider stream lifecycle', () => {
         connectionState: 'disconnected',
         reconnectionAttempt: 0,
       });
+      await provider.disconnect();
+    });
+
+    it('reports socket_down at once when streams return to a socket that stayed down past its grace while nothing listened', async () => {
+      const { provider } = buildStreamProvider();
+      const leave = provider.subscribeToPrices({
+        symbols: [],
+        callback: vi.fn(),
+      });
+      latestSocket().open();
+      latestSocket().close();
+      leave();
+      await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_DOWN_GRACE_MS);
+      expect(provider.getProviderHealth().status).toBe('healthy');
 
       provider.subscribeToPrices({ symbols: [], callback: vi.fn() });
-      latestSocket().close();
-      await vi.advanceTimersByTimeAsync(LIGHTER_SOCKET_DOWN_GRACE_MS);
-      expect(health.at(-1)).toMatchObject({
+      expect(provider.getProviderHealth()).toMatchObject({
         status: 'degraded',
         reasons: ['socket_down'],
+      });
+      latestSocket().open();
+      expect(provider.getProviderHealth()).toMatchObject({
+        status: 'healthy',
+        reasons: [],
       });
       await provider.disconnect();
     });

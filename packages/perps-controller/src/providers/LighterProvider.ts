@@ -1941,7 +1941,10 @@ export class LighterProvider implements PerpsProvider {
 
   readonly #socketIdleCloseMs: number;
 
-  /** Set once the socket has stayed down past the grace period. */
+  /**
+   * Set once the socket has stayed down past the grace period. Health
+   * reports it only while streams wait on the socket.
+   */
   #isSocketDown = false;
 
   #socketDownTimer: ReturnType<typeof setTimeout> | null = null;
@@ -18569,7 +18572,6 @@ export class LighterProvider implements PerpsProvider {
     }
     if (this.#isSocketDown && !this.#hasAnySubscriber()) {
       // A down socket degrades health only while streams wait on it.
-      this.#isSocketDown = false;
       this.#emitHealth();
     }
     this.#scheduleIdleClose();
@@ -18727,6 +18729,10 @@ export class LighterProvider implements PerpsProvider {
       return;
     }
     this.#cancelIdleClose();
+    if (this.#isSocketDown) {
+      // Streams are back on a socket that is still down past its grace.
+      this.#emitHealth();
+    }
     // A pending reconnect keeps its backoff; it resubscribes every channel.
     if (this.#priceWs || this.#pricePollTimer || this.#wsReconnectTimer) {
       return;
@@ -19748,7 +19754,7 @@ export class LighterProvider implements PerpsProvider {
     const { consecutiveServerErrors, cooldownUntil } =
       this.#clientService.getRequestHealth();
     const reasons: PerpsProviderHealthReason[] = [];
-    if (this.#isSocketDown) {
+    if (this.#isSocketDown && this.#hasAnySubscriber()) {
       reasons.push('socket_down');
     }
     if (consecutiveServerErrors >= LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD) {
@@ -19820,10 +19826,9 @@ export class LighterProvider implements PerpsProvider {
     }
     this.#socketDownTimer = setTimeout(() => {
       this.#socketDownTimer = null;
-      if (
-        this.#connectionState !== WebSocketConnectionState.Connected &&
-        this.#hasAnySubscriber()
-      ) {
+      // Recorded even while nothing listens, so streams that return to the
+      // still-down socket report it at once.
+      if (this.#connectionState !== WebSocketConnectionState.Connected) {
         this.#isSocketDown = true;
         this.#deps.debugLogger.log('[LighterProvider] stream down past grace', {
           graceMs: LIGHTER_SOCKET_DOWN_GRACE_MS,
