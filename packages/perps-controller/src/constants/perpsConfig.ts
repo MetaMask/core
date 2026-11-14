@@ -770,6 +770,13 @@ export const PERPS_DISPLAY_PRECISION = {
   OrderBookCompact: 1,
   // Most decimals of an abbreviated order book price: "$61.47K"
   OrderBookAbbreviatedPriceMax: 3,
+  // Distance of an order book depth level from the mid price as a
+  // percentage: "+0.0125%"
+  OrderBookDepthRangePercent: 4,
+  // Most decimals of the depth chart zoom range as a percentage: "0.00125"
+  OrderBookDepthZoomRangePercentMax: 5,
+  // Most decimals of a TWAP sub-order's base-asset size: "0.00012"
+  TwapSuborderSize: 5,
 } as const;
 
 /**

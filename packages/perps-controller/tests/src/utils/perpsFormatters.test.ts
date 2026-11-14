@@ -9,6 +9,7 @@ import {
 import * as PackageEntry from '../../../src/index.js';
 import {
   formatFeeBps,
+  formatFundingPayment,
   formatFundingRate,
   formatLiquidationDistance,
   formatPercentage,
@@ -17,9 +18,11 @@ import {
   formatPerpsOrderBookPrice,
   formatPerpsUsdInput,
   formatPnl,
+  formatPositionFunding,
   formatPositionSize,
   formatWithSignificantDigits,
   getPerpsOrderBookPriceFormat,
+  getPositionFundingDirection,
   PRICE_RANGES_MINIMAL_VIEW,
   PRICE_RANGES_UNIVERSAL,
   PRICE_THRESHOLD,
@@ -409,6 +412,9 @@ describe('display formatter options', () => {
         VolumeCompactThousands: 0,
         OrderBookCompact: 1,
         OrderBookAbbreviatedPriceMax: 3,
+        OrderBookDepthRangePercent: 4,
+        OrderBookDepthZoomRangePercentMax: 5,
+        TwapSuborderSize: 5,
       });
     });
 
@@ -1562,6 +1568,263 @@ describe('TAT-4574 display formatters', () => {
       }
 
       expect(constructor).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('TAT-4584 funding formatters, depth and TWAP precision, pasted USD input', () => {
+  const NBSP = String.fromCharCode(0xa0);
+  /**
+   * Same shape and caching as `createFormatters({ locale })` from
+   * `@metamask/client-utils`, which clients inject as `formatters`.
+   *
+   * @param locale - BCP 47 locale.
+   * @returns Locale-bound formatters.
+   */
+  const intl = (locale: string): PerpsIntlFormatters => {
+    const cache = new Map<string, Intl.NumberFormat>();
+    const get = (options: Intl.NumberFormatOptions): Intl.NumberFormat => {
+      const key = JSON.stringify(options);
+      let format = cache.get(key);
+      if (!format) {
+        format = new Intl.NumberFormat(locale, options);
+        cache.set(key, format);
+      }
+      return format;
+    };
+    return {
+      formatNumber: (value, options = {}) => get(options).format(value),
+      formatCurrency: (value, currency, options = {}) =>
+        get({ style: 'currency', currency, ...options }).format(value),
+    };
+  };
+  const de = intl('de');
+  const es = intl('es');
+
+  it('exports the funding formatters from the package entry', () => {
+    expect(PackageEntry.formatPositionFunding).toBe(formatPositionFunding);
+    expect(PackageEntry.getPositionFundingDirection).toBe(
+      getPositionFundingDirection,
+    );
+    expect(PackageEntry.formatFundingPayment).toBe(formatFundingPayment);
+  });
+
+  /*
+   * Funding since open, characterized from the clients' current code
+   * (Mobile PerpsPositionCard, Extension perps-market-detail-page):
+   * |v| < 0.005 shows "$0.00", a cost (v > 0) "-" and a payment "+" with
+   * formatPerpsFiat on PRICE_RANGES_MINIMAL_VIEW. Missing values show the
+   * price placeholder, as formatPnl does.
+   */
+  const positionFundingCases: [
+    string | number | null | undefined,
+    string,
+    'cost' | 'payment' | 'none',
+  ][] = [
+    [0, '$0.00', 'none'],
+    [0.004, '$0.00', 'none'],
+    [-0.004, '$0.00', 'none'],
+    [0.0049, '$0.00', 'none'],
+    [-0.0049, '$0.00', 'none'],
+    [0.005, '-<$0.01', 'cost'],
+    [-0.005, '+<$0.01', 'payment'],
+    [0.0123, '-$0.01', 'cost'],
+    [-0.0123, '+$0.01', 'payment'],
+    [1.2345, '-$1.23', 'cost'],
+    [-1.2345, '+$1.23', 'payment'],
+    [1234.5, '-$1,234.50', 'cost'],
+    [-1234.5, '+$1,234.50', 'payment'],
+    [98765.4321, '-$98,765.43', 'cost'],
+    [-98765.4321, '+$98,765.43', 'payment'],
+    ['1.2345', '-$1.23', 'cost'],
+    [null, PERPS_CONSTANTS.FallbackPriceDisplay, 'none'],
+    [undefined, PERPS_CONSTANTS.FallbackPriceDisplay, 'none'],
+    ['abc', PERPS_CONSTANTS.FallbackPriceDisplay, 'none'],
+  ];
+
+  describe('formatPositionFunding', () => {
+    it.each(positionFundingCases)(
+      'formats funding since open %p as %s',
+      (input, expected) => {
+        expect(formatPositionFunding(input)).toBe(expected);
+      },
+    );
+
+    it.each([
+      [1234.5, `-1.234,50${NBSP}$`],
+      [-0.0123, `+0,01${NBSP}$`],
+      [0, `0,00${NBSP}$`],
+    ])('formats %p in de', (input, expected) => {
+      expect(formatPositionFunding(input, { formatters: de })).toBe(expected);
+    });
+  });
+
+  describe('formatPositionFunding sign option', () => {
+    it.each([
+      ['never', 1.2345, '$1.23'],
+      ['never', -1.2345, '$1.23'],
+      ['always', 0, '+$0.00'],
+      ['auto', -1.2345, '$1.23'],
+      ['auto', 1.2345, '-$1.23'],
+    ] as const)('applies sign %s to %p', (sign, input, expected) => {
+      expect(formatPositionFunding(input, { sign })).toBe(expected);
+    });
+  });
+
+  describe('getPositionFundingDirection', () => {
+    it.each(positionFundingCases)(
+      'classifies funding since open %p (%s) as %s',
+      (input, _display, expected) => {
+        expect(getPositionFundingDirection(input)).toBe(expected);
+      },
+    );
+  });
+
+  describe('formatFundingPayment', () => {
+    it.each([
+      // Below a cent: up to 6 fraction digits, trailing zeros dropped
+      [0.003421, '+$0.003421'],
+      [-0.003421, '-$0.003421'],
+      [0.005, '+$0.005'],
+      ['0.003421', '+$0.003421'],
+      // Rounds to zero at 6 digits: no sign, no exponent
+      [0.0000004, '$0.00'],
+      [-0.0000004, '$0.00'],
+      [0.0000005, '+$0.000001'],
+      [0.00000123456, '+$0.000001'],
+      [0, '$0.00'],
+      // From a cent up: formatPerpsFiat, as Mobile's funding detail shows it
+      [0.01, '+$0.01'],
+      [-0.01, '-$0.01'],
+      [12.5, '+$12.50'],
+      [-12.5, '-$12.50'],
+      [1234.5, '+$1,234.50'],
+      [null, PERPS_CONSTANTS.FallbackPriceDisplay],
+      [undefined, PERPS_CONSTANTS.FallbackPriceDisplay],
+      ['abc', PERPS_CONSTANTS.FallbackPriceDisplay],
+    ])('formats a funding payment of %p as %s', (input, expected) => {
+      expect(formatFundingPayment(input)).toBe(expected);
+    });
+
+    it.each([0.01, -0.01, 12.5, -12.5, 1234.5, 98765.4321])(
+      'matches Mobile for %p, from a cent up',
+      (fee) => {
+        // Mobile PerpsFundingTransactionView, sign from fundingAmount.isPositive
+        const mobile = `${fee > 0 ? '+' : '-'}${formatPerpsFiat(Math.abs(fee))}`;
+        expect(formatFundingPayment(fee)).toBe(mobile);
+      },
+    );
+
+    it('never uses exponent notation below a cent', () => {
+      for (const value of [1e-7, 4.2e-6, 9.99e-5, 0.0099]) {
+        expect(formatFundingPayment(value)).not.toMatch(/e/u);
+        expect(
+          formatFundingPayment(value).split('.')[1]?.length ?? 0,
+        ).toBeLessThanOrEqual(6);
+      }
+    });
+
+    it.each([
+      [0.003421, `+0,003421${NBSP}$`],
+      [-12.5, `-12,50${NBSP}$`],
+      [0.0000004, `0,00${NBSP}$`],
+    ])('formats %p in de', (input, expected) => {
+      expect(formatFundingPayment(input, { formatters: de })).toBe(expected);
+    });
+  });
+
+  describe('formatFundingPayment sign option', () => {
+    it.each([
+      ['never', -12.5, '$12.50'],
+      ['never', 0.003421, '$0.003421'],
+      ['always', 0, '+$0.00'],
+      ['auto', 12.5, '$12.50'],
+    ] as const)('applies sign %s to %p', (sign, input, expected) => {
+      expect(formatFundingPayment(input, { sign })).toBe(expected);
+    });
+  });
+
+  describe('PERPS_DISPLAY_PRECISION depth and TWAP values', () => {
+    it('gives the depth chart range, its zoom range and the TWAP sub-order size', () => {
+      expect(PERPS_DISPLAY_PRECISION.OrderBookDepthRangePercent).toBe(4);
+      expect(PERPS_DISPLAY_PRECISION.OrderBookDepthZoomRangePercentMax).toBe(5);
+      expect(PERPS_DISPLAY_PRECISION.TwapSuborderSize).toBe(5);
+    });
+
+    it('formats a depth level range and a TWAP sub-order size with them', () => {
+      expect(
+        formatPercentage(0.0125, {
+          decimals: PERPS_DISPLAY_PRECISION.OrderBookDepthRangePercent,
+        }),
+      ).toBe('+0.0125%');
+      expect(
+        formatPositionSize(0.000123456, {
+          decimals: PERPS_DISPLAY_PRECISION.TwapSuborderSize,
+        }),
+      ).toBe('0.00012');
+    });
+  });
+
+  describe('formatPerpsUsdInput pasted text', () => {
+    it.each([
+      ['es', '1234.56', '1234.56', '1234,56'],
+      ['de', '1234.56', '1234.56', '1.234,56'],
+      ['de', '1.234,56', '1234.56', '1.234,56'],
+      ['de', '1,234.56', '1234.56', '1.234,56'],
+      ['de', '$1,234.5', '1234.5', '1.234,5'],
+      ['de', '1,5', '1.5', '1,5'],
+      ['de', '0.5', '0.5', '0,5'],
+      // Grouping: repeated separators, or one splitting 1-3 digits from 3
+      ['es', '1.234.567', '1234567', '1.234.567'],
+      ['de', '12.345', '12345', '12.345'],
+      ['de', '$1,234', '1234', '1.234'],
+      // A separator not followed by a digit is dropped
+      ['de', '1234.', '1234', '1.234'],
+      ['de', 'abc', '', ''],
+    ])(
+      'reads pasted %s text %s as value %s, display %s',
+      (locale, input, value, display) => {
+        expect(
+          formatPerpsUsdInput(input, {
+            formatters: locale === 'es' ? es : de,
+            source: 'pasted',
+          }),
+        ).toStrictEqual({ value, display });
+      },
+    );
+
+    it('reads pasted text as typed where the decimal is "."', () => {
+      for (const input of ['1234.56', '1,234.56', '1.234']) {
+        expect(formatPerpsUsdInput(input, { source: 'pasted' })).toStrictEqual(
+          formatPerpsUsdInput(input),
+        );
+      }
+    });
+
+    it("keeps the locale's own decimal that is neither a dot nor a comma", () => {
+      const ar = intl('ar-EG');
+      const pasted = formatPerpsUsdInput('١٫٥', {
+        formatters: ar,
+        source: 'pasted',
+      });
+      expect(pasted).toStrictEqual(
+        formatPerpsUsdInput('١٫٥', { formatters: ar }),
+      );
+      expect(pasted.value).toBe('1.5');
+      expect(
+        formatPerpsUsdInput('1234.56', { formatters: ar, source: 'pasted' })
+          .value,
+      ).toBe('1234.56');
+    });
+
+    it('fixes the paste that typed text reads as grouping in es', () => {
+      expect(formatPerpsUsdInput('1234.56', { formatters: es }).value).toBe(
+        '123456',
+      );
+      expect(
+        formatPerpsUsdInput('1234.56', { formatters: es, source: 'pasted' })
+          .value,
+      ).toBe('1234.56');
     });
   });
 });
