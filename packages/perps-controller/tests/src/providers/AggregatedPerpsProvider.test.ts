@@ -23,6 +23,10 @@ import type {
   ReconcileChaseOrderCancellationResult,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
+import {
+  attachProviderErrorCause,
+  getProviderErrorCause,
+} from '../../../src/utils/errorContext.js';
 import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
 /* eslint-disable */
 import {
@@ -1239,6 +1243,28 @@ describe('AggregatedPerpsProvider', () => {
       });
 
       expect(mockLighterProvider.closePosition).toHaveBeenCalled();
+    });
+
+    it('keeps the provider-attached error cause on the routed result', async () => {
+      const cause = new Error(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      mockLighterProvider.closePosition.mockResolvedValueOnce(
+        attachProviderErrorCause(
+          { success: false, error: PERPS_ERROR_CODES.UNKNOWN_ERROR },
+          cause,
+        ),
+      );
+
+      const result = await aggregatedProvider.closePosition({
+        symbol: 'BTC',
+        providerId: 'lighter',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        providerId: 'lighter',
+      });
+      expect(getProviderErrorCause(result)).toBe(cause);
     });
   });
 

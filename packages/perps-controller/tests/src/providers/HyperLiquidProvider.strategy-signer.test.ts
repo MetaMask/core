@@ -266,6 +266,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: '987',
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(twapCancel.mock.calls).toStrictEqual([[{ a: 1, t: 987 }]]);
           expect(onAgentRejected.mock.calls).toStrictEqual(rejectedAgents);
@@ -300,6 +305,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(retry).toStrictEqual({
             success: true,
@@ -375,6 +385,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(retry).toStrictEqual({
             success: true,
@@ -433,6 +448,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           expect(placement).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+            errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE,
+              provider: 'hyperliquid',
+            },
             acceptedChildren: [
               { state: 'waitingForFill' },
               { state: 'waitingForFill' },
@@ -446,6 +466,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           const cloidCancels = {
             cancels: orders.map(({ c }) => ({ asset: 1, cloid: c })),
@@ -481,6 +506,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
             success: false,
             orderId: placed.orderId,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(cancel.mock.calls).toStrictEqual([
             [{ cancels: [{ a: 1, o: RESTING_ORDER_ID }] }],
@@ -550,6 +580,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           expect(placed).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+              provider: 'hyperliquid',
+            },
             submittedSize: '1',
             orderId: '987',
           });
@@ -612,6 +647,11 @@ describe('HyperLiquidProvider with accountSigner: strategy cancels', () => {
           expect(placed).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+            errorCode: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+              provider: 'hyperliquid',
+            },
             submittedSize: '1',
             childOrderIds: [String(RESTING_ORDER_ID)],
           });

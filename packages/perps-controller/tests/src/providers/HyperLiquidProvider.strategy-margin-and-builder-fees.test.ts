@@ -506,6 +506,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.approveBuilderFee).toHaveBeenCalled();
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
@@ -545,6 +550,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['456'],
       });
       expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -594,6 +604,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['456', '457'],
       });
       expect(exchangeClient.order).not.toHaveBeenCalled();
@@ -958,9 +973,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(orderRequests).toBe(mode === 'partial-error' ? 2 : 1);
         expect(result.error).toBe(
           mode === 'partial-error'
-            ? 'order 1: SL rejected'
+            ? PERPS_ERROR_CODES.UNKNOWN_ERROR
             : PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
         );
+        expect(result.error).not.toContain('SL rejected');
       },
     );
 
@@ -1112,7 +1128,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'order',
           ]);
           expect(result.success).toBe(false);
-          expect(result.error).toContain('Too many cumulative requests sent');
+          expect(result).toMatchObject({
+            error: PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+            errorCode: PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+              provider: 'hyperliquid',
+            },
+          });
+          expect(result.error).not.toContain('Too many cumulative requests');
           expect(result.childOrderIds).toStrictEqual(['901']);
         },
       );
@@ -1320,6 +1344,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+              provider: 'hyperliquid',
+            },
             childOrderIds: ['777'],
           });
           expect(actions.map((action) => action.type)).toStrictEqual(
@@ -1365,6 +1394,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         expect(errorLog.mock.calls).toMatchObject([
@@ -1413,6 +1447,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+              provider: 'hyperliquid',
+            },
             childOrderIds: [],
           });
           expect(actions.map((action) => action.type)).toStrictEqual(
@@ -1618,6 +1657,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         expect(order).toHaveBeenCalledTimes(2);
@@ -1699,6 +1743,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['789'],
       });
       expect(order).toHaveBeenCalledTimes(2);
@@ -2348,6 +2397,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['123'],
       });
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
@@ -2448,6 +2502,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          provider: 'hyperliquid',
+        },
         childOrderIds: ['457', '123'],
       });
       expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
@@ -2705,6 +2764,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          provider: 'hyperliquid',
+        },
         childOrderIds: [],
       });
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
@@ -2763,6 +2827,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         expect(exchangeClient.cancel).toHaveBeenCalledWith({

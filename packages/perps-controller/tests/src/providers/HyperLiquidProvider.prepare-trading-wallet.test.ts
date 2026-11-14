@@ -380,11 +380,19 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
 
       expect(result).toStrictEqual({
         ready: false,
-        error: 'transport unavailable',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
       expect(loggerError.mock.calls).toStrictEqual([
         [
-          failure,
+          expect.objectContaining({
+            message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            cause: failure,
+          }),
           {
             tags: {
               feature: PERPS_CONSTANTS.FeatureName,
@@ -423,6 +431,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       expect(infoClient.userNonFundingLedgerUpdates).toHaveBeenCalledTimes(4);
       expect(loggerError).not.toHaveBeenCalled();
@@ -443,6 +456,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();
@@ -480,6 +498,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
         expect(result).toStrictEqual({
           ready: false,
           error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            provider: 'hyperliquid',
+          },
         });
         expect(loggerError).not.toHaveBeenCalled();
       },
@@ -781,6 +804,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(failed).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorCode: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+          provider: 'hyperliquid',
+        },
       });
       expect(order.success).toBe(true);
       expect(referralCallsAfterOrder).toStrictEqual([]);
@@ -890,6 +918,11 @@ describe('HyperLiquidProvider with accountSigner: prepareTradingWallet', () => {
       expect(result).toStrictEqual({
         ready: false,
         error: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorCode: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED,
+          provider: 'hyperliquid',
+        },
       });
       expect(accountSigner.signTypedData).not.toHaveBeenCalled();
       expect(loggerError).not.toHaveBeenCalled();

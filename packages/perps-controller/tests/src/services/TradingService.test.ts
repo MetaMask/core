@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
+import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import { TradingService } from '../../../src/services/TradingService.js';
@@ -21,6 +22,8 @@ import type {
   PerpsPlatformDependencies,
   PerpsFeeResolution,
 } from '../../../src/types/index.js';
+import { getProviderErrorCause } from '../../../src/utils/errorContext.js';
+import { createErrorResult } from '../../../src/utils/hyperLiquidValidation.js';
 import { resolveSubscriptionWaiverRate } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
@@ -2920,6 +2923,47 @@ describe('TradingService', () => {
           },
         }),
       );
+    });
+
+    it('logs the provider-attached cause of a normalized close failure without exposing raw text', async () => {
+      const rawSetupError = new Error('unexpected setup detail 0xdeadbeef');
+      const providerResult: OrderResult = createErrorResult(rawSetupError, {
+        success: false,
+      });
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.closePosition.mockResolvedValue(providerResult);
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain('0xdeadbeef');
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(getProviderErrorCause(providerResult));
+      expect(loggedError).toBeInstanceOf(PerpsControllerError);
+      expect(loggedError.message).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(loggedError.cause).toBe(rawSetupError);
+      expect(loggedOptions.context.data.providerError).toBe(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      );
+      expect(JSON.stringify(loggedOptions)).not.toContain('0xdeadbeef');
     });
 
     it('does not log a close the signer could not sign', async () => {

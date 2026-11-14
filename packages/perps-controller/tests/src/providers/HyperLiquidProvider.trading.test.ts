@@ -30,6 +30,7 @@ import type {
   OrderParams,
   Position,
 } from '../../../src/types/index.js';
+import { getProviderErrorCause } from '../../../src/utils/errorContext.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
@@ -816,8 +817,16 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.editOrder(editParams);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Asset UNKNOWN not found');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('not found');
     });
 
     it('handles editOrder when no price is available', async () => {
@@ -840,7 +849,16 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.editOrder(editParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid price for BTC');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('Invalid price');
     });
 
     it('falls back to REST API when cached price is zero', async () => {
@@ -968,7 +986,16 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.editOrder(editParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid price for BTC');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('Invalid price');
     });
 
     it('throws error when REST price is Infinity', async () => {
@@ -992,8 +1019,56 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.editOrder(editParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid price for BTC');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('Invalid price');
     });
+
+    it.each([
+      [
+        'a post-only edit that would cross the spread',
+        'Error placing new order during modify: Post only order would have immediately matched, bbo was 2503.1@2503.2.',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      ],
+      [
+        'an edit during the post-only network-upgrade window',
+        'order 0: Only post-only orders allowed immediately after network upgrade',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+      ],
+    ])(
+      'returns a stable post-only code without venue text for %s',
+      async (_description, venueMessage, expectedCode) => {
+        (
+          mockClientService.getExchangeClient().modify as Mock
+        ).mockRejectedValueOnce(new Error(venueMessage));
+
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            price: '52000',
+            orderType: 'limit',
+            timeInForce: 'ALO',
+          } as OrderParams,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: expectedCode,
+          errorCode: expectedCode,
+          errorDetails: { code: expectedCode, provider: 'hyperliquid' },
+        });
+      },
+    );
 
     it('handles editOrder when asset ID is not found', async () => {
       const editParams = {
@@ -1009,8 +1084,12 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.editOrder(editParams);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('UNKNOWN_ASSET not found');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(result.error).not.toContain('UNKNOWN_ASSET');
     });
 
     it('cancels an order successfully', async () => {
@@ -1075,7 +1154,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Insufficient margin');
+      expect(result.error).toBe(PERPS_ERROR_CODES.INSUFFICIENT_MARGIN);
     });
 
     it('returns ORDER_SIZE_MIN instead of resubmitting a USD-based order rejected for the $10 minimum', async () => {
@@ -1143,13 +1222,12 @@ describe('HyperLiquidProvider', () => {
         currentPrice: 0.003918,
       };
 
+      const venueError = new Error('Order must have minimum value of $10');
       mockClientService.getExchangeClient = vi.fn().mockReturnValue({
         ...createMockExchangeClient(),
         order: vi
           .fn()
-          .mockRejectedValueOnce(
-            new Error('Order must have minimum value of $10'),
-          )
+          .mockRejectedValueOnce(venueError)
           .mockResolvedValueOnce({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 456 } }] } },
@@ -1158,11 +1236,16 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.placeOrder(orderParams);
 
-      expect(result).toMatchObject({
+      expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
         errorCode: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+          provider: 'hyperliquid',
+        },
       });
+      expect(getProviderErrorCause(result)?.cause).toBe(venueError);
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
@@ -1900,6 +1983,32 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
+    });
+
+    it('retains an unknown setup failure as the reporting cause without exposing it', async () => {
+      const setupError = new Error('unexpected setup detail 0xdeadbeef');
+      mockClientService.ensureInitialized = vi.fn(() => {
+        throw setupError;
+      });
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain('0xdeadbeef');
+      const reportedError = getProviderErrorCause(result);
+      expect(reportedError?.message).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(reportedError?.cause).toBe(setupError);
     });
 
     it('handles short position close with TP/SL', async () => {
@@ -2738,6 +2847,11 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          provider: 'hyperliquid',
+        },
       });
       expect(
         mockClientService.getExchangeClient().order,
@@ -2863,6 +2977,11 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          provider: 'hyperliquid',
+        },
       });
       expect(mockOrder).not.toHaveBeenCalled();
     });
@@ -2958,8 +3077,8 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('minimum value of $10');
-      expect(result.errorCode).toBeUndefined();
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
@@ -2988,8 +3107,8 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('minimum value of $10');
-      expect(result.errorCode).toBeUndefined();
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
@@ -3090,6 +3209,11 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          provider: 'hyperliquid',
+        },
       });
       expect(
         mockClientService.getExchangeClient().order,
@@ -3847,9 +3971,23 @@ describe('HyperLiquidProvider', () => {
         success: false,
         successCount: 0,
         failureCount: 2,
-        error: 'batch failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
         results: [
-          { symbol: 'BTC', success: false, error: 'batch failed' },
+          {
+            symbol: 'BTC',
+            success: false,
+            error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+              provider: 'hyperliquid',
+            },
+          },
           {
             symbol: 'xyz:STOCK1',
             success: false,
@@ -3857,6 +3995,7 @@ describe('HyperLiquidProvider', () => {
           },
         ],
       });
+      expect(JSON.stringify(result)).not.toContain('batch failed');
     });
 
     it('rejects a main-only REST snapshot when HIP-3 DEX discovery fails', async () => {
@@ -3887,6 +4026,11 @@ describe('HyperLiquidProvider', () => {
         failureCount: 0,
         results: [],
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          provider: 'hyperliquid',
+        },
       });
       expect(mockSubscriptionService.updateFeatureFlags).toHaveBeenCalledWith(
         true,
@@ -4028,9 +4172,21 @@ describe('HyperLiquidProvider', () => {
         amount: '1',
       });
 
-      expect(result).toStrictEqual({ success: false, error: 'API error' });
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('API error');
       expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
-        expect.any(Error),
+        expect.objectContaining({
+          message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          cause: expect.objectContaining({ message: 'API error' }),
+        }),
         expect.objectContaining({
           tags: expect.objectContaining({
             operation: 'position_management',
@@ -4051,6 +4207,11 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+        errorCode: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          provider: 'hyperliquid',
+        },
       });
       expect(updateIsolatedMargin).not.toHaveBeenCalled();
     });
@@ -4092,6 +4253,11 @@ describe('HyperLiquidProvider', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          provider: 'hyperliquid',
+        },
       });
       expect(updateIsolatedMargin).not.toHaveBeenCalled();
     });
@@ -4228,7 +4394,7 @@ describe('HyperLiquidProvider', () => {
         expect(result.successCount).toBe(0);
         expect(result.failureCount).toBe(1);
         expect(result.results[0].success).toBe(false);
-        expect(result.results[0].error).toBe('API error');
+        expect(result.results[0].error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
         expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
           expect.any(Error),
           expect.objectContaining({
@@ -4842,7 +5008,8 @@ describe('HyperLiquidProvider', () => {
         expect(result.successCount).toBe(0);
         expect(result.failureCount).toBe(1);
         expect(result.results[0].success).toBe(false);
-        expect(result.results[0].error).toBe('Order failed');
+        expect(result.results[0].error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+        expect(result.results[0].error).not.toContain('Order failed');
       });
     });
   });

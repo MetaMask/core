@@ -91,6 +91,9 @@ export const PERPS_ERROR_CODES = {
   ORDER_CHASE_ABANDONED: 'ORDER_CHASE_ABANDONED', // The provider was torn down while the chase was being placed; its order rests but no strategy runs
   ORDER_CHASE_LIMIT_REACHED: 'ORDER_CHASE_LIMIT_REACHED', // The venue's cap on simultaneously active chase orders is already in use
   ORDER_CHASE_TOUCH_UNAVAILABLE: 'ORDER_CHASE_TOUCH_UNAVAILABLE', // The order book returned no price on the side the chase must rest at
+  // HyperLiquid post-only rejections
+  ORDER_POST_ONLY_WOULD_CROSS: 'ORDER_POST_ONLY_WOULD_CROSS', // A post-only order was refused because its price would cross the spread. When it replaced a resting order via editOrder, HyperLiquid has already cancelled the original.
+  ORDER_POST_ONLY_WINDOW: 'ORDER_POST_ONLY_WINDOW', // HyperLiquid accepts only post-only orders for a while after a network upgrade
   // HyperLiquid client/service errors
   EXCHANGE_CLIENT_NOT_AVAILABLE: 'EXCHANGE_CLIENT_NOT_AVAILABLE',
   INFO_CLIENT_NOT_AVAILABLE: 'INFO_CLIENT_NOT_AVAILABLE',
