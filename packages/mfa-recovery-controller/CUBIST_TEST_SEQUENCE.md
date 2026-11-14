@@ -71,6 +71,8 @@ sequenceDiagram
   Auth-->>C: JWT bound to requestHash
   C->>Cubist: isAvailable
 
+  C->>Cubist: getIdentifiers(JWT)
+  Cubist-->>C: version and enrolled identifiers
   opt updateIdentifiers adding SIWE identifiers
     C->>Cubist: getIdentifiers(JWT)
     Cubist-->>C: enrolled identifiers, version
@@ -96,10 +98,12 @@ Auth does not vouch for SIWE wallets, so `approvedIdentifiers` need not
 include them; each new wallet proves control instead. In step 1 the primary
 account signs a SIWE proof for `register`.
 
-If an escrow refuses the mutation (`MutationRejectedError`) and every replica
-does the same, the controller clears the pending mutation. A transport failure
-or a partial receipt keeps it and throws `incomplete_mutation`; call `resume()`
-to finish that write.
+If every remaining replica refuses the mutation (`MutationRejectedError`), the
+controller clears the pending mutation. Any other failure keeps it and throws
+`incomplete_mutation`; call `resume()` to finish that write. Before a retry, the
+controller calls `getMutationReceipt` on each replica that has moved past
+`expectedVersion`. If a replica has no receipt for this mutation, the controller
+clears it and throws `mutation_superseded`; reread state.
 
 ## Proof of possession
 
