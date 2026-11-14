@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/perps-controller/constants` and `@metamask/perps-controller/constants/lighterConfig`: `LIGHTER_REST_REQUESTS_PER_MINUTE`, `LIGHTER_REST_BUDGET_WINDOW_MS`, `LIGHTER_RATE_LIMIT_BASE_COOLDOWN_MS`, `LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS`, `LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD`, `LIGHTER_CHANNEL_RELEASE_DELAY_MS`, `LIGHTER_SOCKET_IDLE_CLOSE_MS`, `LIGHTER_RECONNECT_BASE_DELAY_MS`, `LIGHTER_RECONNECT_MAX_DELAY_MS` and `LIGHTER_SOCKET_DOWN_GRACE_MS`
   - `@metamask/perps-controller/utils/providerHealth`: `getHealthFromConnectionState`, `getProviderHealthOf`, `subscribeToProviderHealthOf` and the `ProviderHealthSource` type
   - `@metamask/perps-controller/providers/lighter`: `getLighterReconnectDelayMs`
+- Add funding display formatters, so Mobile, Extension and Terminal stop formatting funding locally. Each formatter takes the same `formatters` and `sign` (default `exceptZero`) options as the other display formatters and renders `$---` for a missing value
+  - `formatPositionFunding(sinceOpen, options)` formats funding since a position opened, with the venue's sign (positive = paid), as Mobile and Extension show it: `formatPositionFunding('1.2345')` returns `-$1.23`, `formatPositionFunding(-1234.5)` returns `+$1,234.50`, and under half a cent `formatPositionFunding(0.0049)` returns `$0.00`
+  - `getPositionFundingDirection(sinceOpen)` returns `cost`, `payment` or `none` with the same half-cent threshold, for colouring: `getPositionFundingDirection(0.005)` returns `cost`
+  - `formatFundingPayment(amount, options)` formats one funding payment with the trader's sign (positive = received). From a cent up it matches Mobile: `formatFundingPayment(-12.5)` returns `-$12.50`. Below a cent it keeps up to 6 fraction digits, never in exponent notation: `formatFundingPayment(0.003421)` returns `+$0.003421`, and `formatFundingPayment(0.0000004)` returns `$0.00`
+  - Type `PerpsFundingDirection`
+- Add `PERPS_DISPLAY_PRECISION` values for Terminal's depth chart and TWAP summary: `OrderBookDepthRangePercent` 4, `OrderBookDepthZoomRangePercentMax` 5 and `TwapSuborderSize` 5
+- Add `source: 'pasted'` to `formatPerpsUsdInput` for clipboard text, whose decimal point may be `.` in any locale: `formatPerpsUsdInput('1234.56', { formatters: createFormatters({ locale: 'es' }), source: 'pasted' })` returns `{ value: '1234.56', display: '1234,56' }`, where typed text reads `123456`
+  - Repeated separators or one that splits 3 digits still group thousands: `1.234.567` and `12.345` stay 1234567 and 12345
+  - Where the locale's decimal is `.`, pasted text reads as typed
 
 ### Changed
 
