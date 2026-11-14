@@ -56,7 +56,7 @@
     "@metamask/utils": "^12.0.2",
     "@signinwithethereum/siwe-parser": "^4.2.1",
     "@types/bn.js": "^5.2.0",
-    "bignumber.js": "^9.1.2",
+    "bignumber.js": "^11.1.5",
     "bn.js": "^5.2.5",
     "cockatiel": "^3.2.1",
     "eth-ens-namehash": "^2.0.8",
