@@ -35,7 +35,14 @@ export {
 export * from './hyperLiquidOrderBookProcessor.js';
 export * from './hyperLiquidPositionPreview.js';
 export * from './hyperLiquidValidation.js';
-export * from './marginAdjustment.js';
+export {
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
+} from './marginAdjustment.js';
+export type {
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
+} from './marginAdjustment.js';
 export * from './idUtils.js';
 export * from './marketDataTransform.js';
 export * from './marketSearch.js';

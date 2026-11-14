@@ -169,6 +169,25 @@ describe('marginAdjustment', () => {
         positionLeverage: 5,
       },
       { currentMargin: 3000, positionLeverage: 5 },
+      // An invalid price-move buffer must not add removable margin
+      {
+        currentMargin: 3000,
+        positionLeverage: 50,
+        notionalValue: 20000,
+        priceMoveBufferRatio: -0.01,
+      },
+      {
+        currentMargin: 3000,
+        positionLeverage: 50,
+        notionalValue: 20000,
+        priceMoveBufferRatio: Number.NaN,
+      },
+      {
+        currentMargin: 3000,
+        positionLeverage: 50,
+        notionalValue: 20000,
+        priceMoveBufferRatio: Number.POSITIVE_INFINITY,
+      },
     ])('returns 0 for invalid input %o', (params) => {
       expect(calculateMaxRemovableMargin(params)).toBe(0);
     });

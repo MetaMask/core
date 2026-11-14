@@ -67,7 +67,7 @@ function isAboveReference(
  * @param value - The value to check.
  * @returns True for a finite number above zero.
  */
-export function isPositiveFinite(value: number | undefined): value is number {
+function isPositiveFinite(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value) && value > 0;
 }
 
