@@ -621,10 +621,16 @@ export {
   isStopLossSafeFromLiquidation,
   validateTPSLPrices,
   formatRoePercent,
+  calculateExpectedTriggerPnl,
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
 } from './utils/index.js';
 export type {
   TpslCalculationParams,
   TpslValidationResult,
+  ExpectedTriggerPnlParams,
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
 } from './utils/index.js';
 export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
 export type {

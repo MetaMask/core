@@ -67,7 +67,7 @@ function isAboveReference(
  * @param value - The value to check.
  * @returns True for a finite number above zero.
  */
-function isPositiveFinite(value: number | undefined): value is number {
+export function isPositiveFinite(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value) && value > 0;
 }
 
@@ -531,4 +531,34 @@ export function formatRoePercent(
     return `-${magnitude}`;
   }
   return signed ? `+${magnitude}` : magnitude;
+}
+
+/**
+ * Parameters for `calculateExpectedTriggerPnl`.
+ */
+export type ExpectedTriggerPnlParams = {
+  /** Take profit or stop loss trigger price. */
+  triggerPrice: number;
+  /** Position entry price, or the price an order is expected to fill at. */
+  entryPrice: number;
+  /** Signed position size: positive for a long, negative for a short. */
+  size: number;
+  /** Fee (USD) of the order that closes the position at the trigger price. */
+  closingFee: number;
+};
+
+/**
+ * Expected profit or loss (USD) when a take profit or stop loss closes the
+ * position: the price move on the signed size, less the closing fee.
+ *
+ * @param params - Trigger price, entry price, signed size and closing fee.
+ * @returns The expected net PnL; positive for a gain.
+ * @example calculateExpectedTriggerPnl({ triggerPrice: 110, entryPrice: 100, size: 2, closingFee: 0.1 }) => 19.9
+ * @example calculateExpectedTriggerPnl({ triggerPrice: 110, entryPrice: 100, size: -2, closingFee: 0.1 }) => -20.1
+ */
+export function calculateExpectedTriggerPnl(
+  params: ExpectedTriggerPnlParams,
+): number {
+  const { triggerPrice, entryPrice, size, closingFee } = params;
+  return (triggerPrice - entryPrice) * size - closingFee;
 }

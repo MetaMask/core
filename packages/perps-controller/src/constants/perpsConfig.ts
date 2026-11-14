@@ -386,6 +386,11 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
   // See: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/margin-and-pnl
   MarginRemovalSafetyBuffer: 0.1,
 
+  // Share of notional kept back from a margin removal for the mark price
+  // moving before the venue processes it; the exact boundary is rejected on
+  // any adverse tick
+  MarginRemovalPriceMoveBuffer: 0.01,
+
   // Fallback max leverage when market data is unavailable
   // Conservative value to prevent over-removal of margin
   // Most HyperLiquid assets support at least 50x leverage

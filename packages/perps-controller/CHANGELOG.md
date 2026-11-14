@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `source: 'pasted'` to `formatPerpsUsdInput` for clipboard text, whose decimal point may be `.` in any locale: `formatPerpsUsdInput('1234.56', { formatters: createFormatters({ locale: 'es' }), source: 'pasted' })` returns `{ value: '1234.56', display: '1234,56' }`, where typed text reads `123456`
   - Repeated separators or one that splits 3 digits still group thousands: `1.234.567` and `12.345` stay 1234567 and 12345
   - Where the locale's decimal is `.`, pasted text reads as typed
+- Add margin adjustment calculations for an isolated position, following Mobile's margin utilities, so Mobile and Terminal stop keeping their own copies
+  - `calculateMaxRemovableMargin(params)` returns the margin that can be removed: the margin above `max(notional / positionLeverage, notional × MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer)`, less a price-move headroom (`priceMoveBufferRatio`). `calculateMaxRemovableMargin({ currentMargin: 3000, positionLeverage: 50, positionSize: 10, currentPrice: 2000 })` returns `800`
+  - `estimateLiquidationPriceAfterMarginChange(params)` estimates the liquidation price after adding or removing margin, anchored on the venue's current one. Adding $1,000 to a 0.5 BTC long liquidating at 80,000 with max leverage 20 returns about `77948.72`
+  - `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalPriceMoveBuffer` (0.01), the default headroom
+  - Types `MaxRemovableMarginParams` and `LiquidationPriceAfterMarginChangeParams`
+- Add `calculateExpectedTriggerPnl({ triggerPrice, entryPrice, size, closingFee })`, the expected PnL when a take profit or stop loss closes a position, net of the closing fee, as Mobile's TP/SL form shows it: `calculateExpectedTriggerPnl({ triggerPrice: 110, entryPrice: 100, size: 2, closingFee: 0.1 })` returns `19.9`. Type `ExpectedTriggerPnlParams`
 
 ### Changed
 
