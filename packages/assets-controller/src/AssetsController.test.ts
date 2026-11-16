@@ -11,7 +11,11 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { describe, expect, it, vi } from 'vitest';
@@ -5619,64 +5623,64 @@ describe('AssetsController', () => {
         selectedNetworkClientId,
       });
 
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const { rootMessenger: messenger, assetsControllerMessenger } =
+        createMockMessengers({
+          registerCustomRootActions: (rootMessenger): void => {
+            registerKeyringUnlockMock(rootMessenger);
 
-      registerKeyringUnlockMock(messenger);
-
-      messenger.registerActionHandler(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        () => [createMockInternalAccount()],
-      );
-      let isAccountTreeInitialized = false;
-      messenger.registerActionHandler(
-        'AccountTreeController:isInitialized',
-        () => isAccountTreeInitialized,
-      );
-      messenger.subscribe('AccountTreeController:initialized', () => {
-        isAccountTreeInitialized = true;
-      });
-      messenger.subscribe('AccountTreeController:uninitialized', () => {
-        isAccountTreeInitialized = false;
-      });
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
-          nativeAssetIdentifiers: {
-            'eip155:1': MOCK_NATIVE_ASSET_ID,
-            'eip155:11155111': 'eip155:11155111/slip44:60',
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:getAccountsFromSelectedAccountGroup',
+              () => [createMockInternalAccount()],
+            );
+            let isAccountTreeInitialized = false;
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:isInitialized',
+              () => isAccountTreeInitialized,
+            );
+            rootMessenger.subscribe('AccountTreeController:initialized', () => {
+              isAccountTreeInitialized = true;
+            });
+            rootMessenger.subscribe(
+              'AccountTreeController:uninitialized',
+              () => {
+                isAccountTreeInitialized = false;
+              },
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkEnablementController:getState',
+              () => ({
+                enabledNetworkMap: {
+                  eip155: { '1': true, '11155111': true },
+                } as NetworkEnablementControllerState['enabledNetworkMap'],
+                nativeAssetIdentifiers: {
+                  'eip155:1': 'eip155:1/slip44:60',
+                  'eip155:11155111': 'eip155:11155111/slip44:60',
+                },
+              }),
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getState',
+              getNetworkState,
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getNetworkClientById',
+              (networkClientId) =>
+                ({
+                  provider: {},
+                  configuration: {
+                    chainId:
+                      networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+                  },
+                }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+            );
+            rootMessenger.registerActionHandler(
+              'ClientController:getState',
+              () => ({
+                isUiOpen: true,
+              }),
+            );
           },
-        }),
-      );
-      messenger.registerActionHandler(
-        'NetworkController:getState',
-        getNetworkState,
-      );
-      (
-        messenger as {
-          registerActionHandler: (
-            a: string,
-            h: (id: string) => unknown,
-          ) => void;
-        }
-      ).registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        (networkClientId: string) => ({
-          provider: {},
-          configuration: {
-            chainId: networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
-          },
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('ClientController:getState', () => ({
-        isUiOpen: true,
-      }));
+        });
 
       const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
         fullSupport: [1, 11155111],
@@ -5695,7 +5699,7 @@ describe('AssetsController', () => {
       } as unknown as ApiPlatformClient;
 
       const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
+        messenger: assetsControllerMessenger,
         queryApiClient,
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
@@ -5711,9 +5715,9 @@ describe('AssetsController', () => {
           [],
         );
         messenger.publish('KeyringController:unlock');
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:initialized',
-          {},
+          getDefaultAccountTreeControllerState(),
         );
         await waitFor(() => {
           expect(fetchV2SupportedNetworks).toHaveBeenCalled();
@@ -5728,7 +5732,7 @@ describe('AssetsController', () => {
         fetchV2SupportedNetworks.mockClear();
 
         selectedNetworkClientId = 'mainnet';
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
@@ -5763,67 +5767,64 @@ describe('AssetsController', () => {
         selectedNetworkClientId,
       });
 
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const { rootMessenger: messenger, assetsControllerMessenger } =
+        createMockMessengers({
+          registerCustomRootActions: (rootMessenger): void => {
+            registerKeyringUnlockMock(rootMessenger);
 
-      registerKeyringUnlockMock(messenger);
-
-      messenger.registerActionHandler(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        () => selectedAccounts,
-      );
-      let isAccountTreeInitialized = false;
-      messenger.registerActionHandler(
-        'AccountTreeController:isInitialized',
-        () => isAccountTreeInitialized,
-      );
-      messenger.subscribe('AccountTreeController:initialized', () => {
-        isAccountTreeInitialized = true;
-      });
-      messenger.subscribe('AccountTreeController:uninitialized', () => {
-        isAccountTreeInitialized = false;
-      });
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
-          nativeAssetIdentifiers: {
-            'eip155:1': 'eip155:1/slip44:60',
-            'eip155:11155111': 'eip155:11155111/slip44:60',
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:getAccountsFromSelectedAccountGroup',
+              () => selectedAccounts,
+            );
+            let isAccountTreeInitialized = false;
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:isInitialized',
+              () => isAccountTreeInitialized,
+            );
+            rootMessenger.subscribe('AccountTreeController:initialized', () => {
+              isAccountTreeInitialized = true;
+            });
+            rootMessenger.subscribe(
+              'AccountTreeController:uninitialized',
+              () => {
+                isAccountTreeInitialized = false;
+              },
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkEnablementController:getState',
+              () => ({
+                enabledNetworkMap: {
+                  eip155: { '1': true, '11155111': true },
+                } as NetworkEnablementControllerState['enabledNetworkMap'],
+                nativeAssetIdentifiers: {
+                  'eip155:1': 'eip155:1/slip44:60',
+                  'eip155:11155111': 'eip155:11155111/slip44:60',
+                },
+              }),
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getState',
+              getNetworkState,
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getNetworkClientById',
+              (networkClientId) =>
+                ({
+                  provider: {},
+                  configuration: {
+                    chainId:
+                      networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+                  },
+                }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+            );
+            rootMessenger.registerActionHandler(
+              'ClientController:getState',
+              () => ({
+                isUiOpen: true,
+              }),
+            );
           },
-        }),
-      );
-      messenger.registerActionHandler(
-        'NetworkController:getState',
-        getNetworkState,
-      );
-      (
-        messenger as {
-          registerActionHandler: (
-            actionName: string,
-            handler: (id: string) => unknown,
-          ) => void;
-        }
-      ).registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        (networkClientId: string) => ({
-          provider: {},
-          configuration: {
-            chainId: networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
-          },
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (
-            actionName: string,
-            handler: () => unknown,
-          ) => void;
-        }
-      ).registerActionHandler('ClientController:getState', () => ({
-        isUiOpen: true,
-      }));
+        });
 
       const queryApiClient = {
         ...createMockQueryApiClient(),
@@ -5840,7 +5841,7 @@ describe('AssetsController', () => {
       } as unknown as ApiPlatformClient;
 
       const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
+        messenger: assetsControllerMessenger,
         queryApiClient,
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
@@ -5866,9 +5867,9 @@ describe('AssetsController', () => {
           [],
         );
         messenger.publish('KeyringController:unlock');
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:initialized',
-          {},
+          getDefaultAccountTreeControllerState(),
         );
         await waitFor(() => {
           expect(fetchSpy).toHaveBeenCalled();
@@ -5883,7 +5884,7 @@ describe('AssetsController', () => {
           createMockInternalAccount({ id: switchedAccountId }),
         ];
         selectedNetworkClientId = 'mainnet';
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
