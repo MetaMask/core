@@ -4405,4 +4405,232 @@ describe('BridgeController', function () {
       });
     });
   });
+
+  describe('getShouldFetchFirstQuoteImmediately', function () {
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    const setUpQuoteFetch = (): MockInstance<
+      typeof fetchUtils.fetchBridgeQuotes
+    > => {
+      vi.useFakeTimers();
+      vi.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+      vi.spyOn(selectors, 'selectIsAssetExchangeRateInState').mockReturnValue(
+        true,
+      );
+      messengerCallMock.mockImplementation(
+        (...args: Parameters<BridgeControllerMessenger['call']>) => {
+          if (args[0] === 'AuthenticationController:getBearerToken') {
+            return 'AUTH_TOKEN';
+          }
+          return {
+            address: '0x123',
+            provider: vi.fn(),
+            currencyRates: {},
+            marketData: {},
+            conversionRates: {},
+            remoteFeatureFlags: {
+              bridgeConfig: {
+                ...bridgeConfig,
+                maxRefreshCount: 5,
+                refreshRate: 30000,
+                sse: { enabled: false, minimumVersion: '13.8.0' },
+              },
+            },
+          } as never;
+        },
+      );
+      return vi.spyOn(fetchUtils, 'fetchBridgeQuotes').mockImplementation(
+        async () =>
+          await new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  quotes: mockBridgeQuotesNativeErc20EthV1,
+                  validationFailures: [],
+                }),
+              5000,
+            ),
+          ),
+      );
+    };
+
+    it.each([
+      { getShouldFetchFirstQuoteImmediately: undefined, fetchesBeforeTick: 0 },
+      {
+        getShouldFetchFirstQuoteImmediately: (): boolean => false,
+        fetchesBeforeTick: 0,
+      },
+      {
+        getShouldFetchFirstQuoteImmediately: (): boolean => true,
+        fetchesBeforeTick: 1,
+      },
+    ])(
+      'fetches the first quote before the first poll tick only when enabled ($fetchesBeforeTick fetches before tick)',
+      async ({ getShouldFetchFirstQuoteImmediately, fetchesBeforeTick }) => {
+        const fetchBridgeQuotesSpy = setUpQuoteFetch();
+        await withController(
+          { options: { getShouldFetchFirstQuoteImmediately } },
+          async ({ controller }) => {
+            await controller.updateBridgeQuoteRequestParams(
+              quoteParams,
+              metricsContext,
+            );
+            await flushPromises();
+            expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(
+              fetchesBeforeTick,
+            );
+
+            vi.advanceTimersByTime(0);
+            await flushPromises();
+            expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+          },
+        );
+      },
+    );
+
+    it('does not fetch again on the first poll and refreshes 30s after the first fetch finishes', async function () {
+      const fetchBridgeQuotesSpy = setUpQuoteFetch();
+      await withController(
+        { options: { getShouldFetchFirstQuoteImmediately: () => true } },
+        async ({ controller }) => {
+          await controller.updateBridgeQuoteRequestParams(
+            quoteParams,
+            metricsContext,
+          );
+          await flushPromises();
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+
+          vi.advanceTimersByTime(5000);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+          expect(controller.state.quotesRefreshCount).toBe(1);
+          expect(controller.state.quotesLoadingStatus).toBe(
+            RequestStatus.FETCHED,
+          );
+
+          vi.advanceTimersByTime(29999);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+
+          vi.advanceTimersByTime(1);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+
+          vi.advanceTimersByTime(5000);
+          await flushPromises();
+          expect(controller.state.quotesRefreshCount).toBe(2);
+        },
+      );
+    });
+
+    it('clears the pending first fetch on reset so the next session still fetches on its first poll', async function () {
+      const fetchBridgeQuotesSpy = setUpQuoteFetch();
+      const getShouldFetchFirstQuoteImmediately = vi
+        .fn()
+        .mockReturnValueOnce(true)
+        .mockReturnValue(false);
+      await withController(
+        { options: { getShouldFetchFirstQuoteImmediately } },
+        async ({ controller }) => {
+          await controller.updateBridgeQuoteRequestParams(
+            quoteParams,
+            metricsContext,
+          );
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+
+          controller.resetState();
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+
+          await controller.updateBridgeQuoteRequestParams(
+            { ...quoteParams, srcTokenAmount: '2000000000000000000' },
+            metricsContext,
+          );
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('does not let a poll for a different polling input consume the pending first fetch', async function () {
+      const fetchBridgeQuotesSpy = setUpQuoteFetch();
+      await withController(
+        { options: { getShouldFetchFirstQuoteImmediately: () => true } },
+        async ({ controller }) => {
+          const startPollingSpy = vi.spyOn(controller, 'startPolling');
+          await controller.updateBridgeQuoteRequestParams(
+            quoteParams,
+            metricsContext,
+          );
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+
+          const [pollingInput] = startPollingSpy.mock.calls[0];
+          const otherPoll = controller._executePoll({ ...pollingInput });
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+
+          vi.advanceTimersByTime(5000);
+          await otherPoll;
+        },
+      );
+    });
+
+    it('handles a failed first fetch like a failed poll and keeps polling', async function () {
+      const fetchBridgeQuotesSpy = setUpQuoteFetch();
+      fetchBridgeQuotesSpy.mockRejectedValueOnce(new Error('Network error'));
+      const consoleLogSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementationOnce(vi.fn());
+      await withController(
+        { options: { getShouldFetchFirstQuoteImmediately: () => true } },
+        async ({ controller }) => {
+          await controller.updateBridgeQuoteRequestParams(
+            quoteParams,
+            metricsContext,
+          );
+          await flushPromises();
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+          expect(consoleLogSpy).toHaveBeenCalledWith(
+            'Failed to fetch bridge quotes',
+            new Error('Network error'),
+          );
+          expect(controller.state).toStrictEqual(
+            expect.objectContaining({
+              quotesLoadingStatus: RequestStatus.ERROR,
+              quoteFetchError: 'Network error',
+              quotesRefreshCount: 1,
+            }),
+          );
+
+          vi.advanceTimersByTime(30000);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+  });
 });

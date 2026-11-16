@@ -295,6 +295,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   readonly #getUseAssetsControllerForRates: () => boolean;
 
+  readonly #getShouldFetchFirstQuoteImmediately?: () => boolean;
+
+  /**
+   * The first quote fetch of the current polling session, started directly by
+   * updateBridgeQuoteRequestParams. The first poll awaits it instead of fetching again.
+   */
+  #initialFetch:
+    | { pollingInput: BridgePollingInput; promise: Promise<void> }
+    | undefined;
+
   constructor({
     messenger,
     state,
@@ -306,6 +316,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     trackMetaMetricsFn,
     traceFn,
     getUseAssetsControllerForRates,
+    getShouldFetchFirstQuoteImmediately,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -327,6 +338,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
      * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
      */
     getUseAssetsControllerForRates?: () => boolean;
+    /**
+     * When it returns true, the first quote fetch starts as soon as polling starts instead of
+     * waiting for the polling controller's 0ms timer.
+     */
+    getShouldFetchFirstQuoteImmediately?: () => boolean;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -350,6 +366,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trace = traceFn;
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
+    this.#getShouldFetchFirstQuoteImmediately =
+      getShouldFetchFirstQuoteImmediately;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -358,6 +376,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
+    const initialFetch = this.#initialFetch;
+    // The polling controller passes the same input object to every poll of a session
+    if (initialFetch?.pollingInput === pollingInput) {
+      this.#initialFetch = undefined;
+      await initialFetch.promise;
+      return;
+    }
     await this.#fetchBridgeQuotes(pollingInput);
   };
 
@@ -419,10 +444,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
       // Set refresh rate based on the source chain before starting polling
       this.setChainIntervalLength();
-      this.startPolling({
-        quoteRequests: this.state.quoteRequest,
-        context,
-      });
+      const pollingInput = { quoteRequests: this.state.quoteRequest, context };
+      this.startPolling(pollingInput);
+      if (this.#getShouldFetchFirstQuoteImmediately?.()) {
+        this.#initialFetch = {
+          pollingInput,
+          // Matches StaticIntervalPollingController's handling of _executePoll errors
+          promise: this.#fetchBridgeQuotes(pollingInput).catch(console.error),
+        };
+      }
     }
   };
 
@@ -717,6 +747,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ) => {
     this.stopAllPolling();
+    this.#initialFetch = undefined;
     // If polling is stopped before quotes finish loading, track QuotesReceived
     if (this.state.quotesLoadingStatus === RequestStatus.LOADING && context) {
       this.trackUnifiedSwapBridgeEvent(
