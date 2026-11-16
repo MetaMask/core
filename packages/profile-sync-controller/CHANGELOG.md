@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))
+
 ## [36.1.2]
 
 ### Changed

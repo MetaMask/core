@@ -48,6 +48,7 @@ import { WebSocketConnectionState } from '../../src/types/index.js';
 import type {
   AccountState,
   PerpsProvider,
+  PerpsProviderHealth,
   PerpsProviderType,
 } from '../../src/types/index.js';
 
@@ -1704,6 +1705,93 @@ describe('PerpsController default provider', () => {
         expect(oldListeners.size).toBe(0);
       },
     );
+
+    it('rebinds a provider health subscription to the replacement provider', async () => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(true);
+      createController({ activeProvider: 'hyperliquid' }, true);
+      const replacement = createMockHyperLiquidProvider();
+      type ConnectionListener = (
+        state: WebSocketConnectionState,
+        attempt: number,
+      ) => void;
+      const listenersOf = (
+        provider: Mocked<HyperLiquidProvider>,
+      ): Set<ConnectionListener> => {
+        const listeners = new Set<ConnectionListener>();
+        provider.subscribeToConnectionState.mockImplementation((listener) => {
+          listeners.add(listener);
+          listener(WebSocketConnectionState.Connected, 0);
+          return () => {
+            listeners.delete(listener);
+          };
+        });
+        return listeners;
+      };
+      const emit = (
+        listeners: Set<ConnectionListener>,
+        attempt: number,
+      ): void => {
+        for (const listener of listeners) {
+          listener(WebSocketConnectionState.Connecting, attempt);
+        }
+      };
+      const oldListeners = listenersOf(mockProvider);
+      const newListeners = listenersOf(replacement);
+      (HyperLiquidProvider as Mock)
+        .mockImplementationOnce(function () {
+          return mockProvider;
+        })
+        .mockImplementationOnce(function () {
+          return replacement;
+        });
+      await controller.init();
+      expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
+        'aggregated',
+      );
+      const callback = vi.fn<(health: PerpsProviderHealth) => void>();
+      const cleanup = controller.subscribeToProviderHealth({
+        providerId: 'hyperliquid',
+        callback,
+      });
+      emit(oldListeners, 2);
+      expect(callback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'degraded', reconnectionAttempt: 2 }),
+      );
+
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: false,
+        minimumVersion: '1.0.0',
+      };
+      const onFlagsChanged = mockMessenger.subscribe.mock.calls.find(
+        ([event]) => event === 'RemoteFeatureFlagController:stateChange',
+      )?.[1] as (state: {
+        remoteFeatureFlags: Record<string, unknown>;
+      }) => void;
+      onFlagsChanged({ remoteFeatureFlags });
+      await controller.init();
+
+      expect(controller.getActiveProviderOrNull()).toBe(replacement);
+      expect(oldListeners.size).toBe(0);
+      expect(callback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'healthy', reconnectionAttempt: 0 }),
+      );
+      emit(newListeners, 1);
+      expect(callback).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          providerId: 'hyperliquid',
+          status: 'degraded',
+          reconnectionAttempt: 1,
+        }),
+      );
+      cleanup();
+      expect(newListeners.size).toBe(0);
+    });
 
     describe('subscription restoration edge cases', () => {
       let replacement: ReturnType<typeof createMockHyperLiquidProvider>;

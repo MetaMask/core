@@ -199,14 +199,7 @@ describe('AssetsController spam cleanup', () => {
 
     await withController({}, async ({ messenger }) => {
       const stateChanges: AssetsControllerState[] = [];
-      (
-        messenger as unknown as {
-          subscribe: (
-            topic: string,
-            handler: (state: AssetsControllerState) => void,
-          ) => void;
-        }
-      ).subscribe('AssetsController:stateChanged', (state) => {
+      messenger.subscribe('AssetsController:stateChanged', (state) => {
         stateChanges.push(state);
       });
 
@@ -375,11 +368,7 @@ describe('AssetsController spam cleanup', () => {
     mockV3Assets();
 
     await withController({}, async ({ controller, messenger }) => {
-      (
-        messenger as unknown as {
-          publish: (topic: string, payload?: unknown) => void;
-        }
-      ).publish('ClientController:stateChanged', { isUiOpen: true });
+      messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
       messenger.publish('KeyringController:unlock');
       (messenger.publish as CallableFunction)(
         'AccountTreeController:initialized',
