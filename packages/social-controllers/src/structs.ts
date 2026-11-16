@@ -85,6 +85,7 @@ export const PositionStruct = structType({
   positionAmountWithLeverage: optional(nullable(number())),
   // Open set: a flag this package does not know yet must still validate.
   flags: optional(nullable(array(string()))),
+  profileId: optional(string()),
 });
 
 export const CommentTranslationStruct = structType({

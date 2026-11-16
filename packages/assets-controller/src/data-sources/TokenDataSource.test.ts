@@ -1,6 +1,4 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
 import type {
   BulkTokenScanResponse,
   PhishingControllerBulkScanTokensAction,
@@ -9,6 +7,7 @@ import { TokenScanResultType } from '@metamask/phishing-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type {
   AssetsControllerState,
@@ -19,9 +18,6 @@ import type {
 } from '../types.js';
 import type { TokenDataSourceOptions } from './TokenDataSource.js';
 import { TokenDataSource } from './TokenDataSource.js';
-
-type AllActions = PhishingControllerBulkScanTokensAction;
-type AllEvents = never;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
@@ -59,14 +55,16 @@ type SetupResult = {
 function createTestMessenger(
   bulkScanTokens: PhishingControllerBulkScanTokensAction['handler'] = async (): Promise<BulkTokenScanResponse> => ({}),
 ): AssetsControllerMessenger {
-  const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
-    namespace: MOCK_ANY_NAMESPACE,
+  const { assetsControllerMessenger } = createMockMessengers({
+    registerCustomRootActions: (rootMessenger): void => {
+      rootMessenger.registerActionHandler(
+        'PhishingController:bulkScanTokens',
+        bulkScanTokens,
+      );
+    },
   });
-  rootMessenger.registerActionHandler(
-    'PhishingController:bulkScanTokens',
-    bulkScanTokens,
-  );
-  return rootMessenger as unknown as AssetsControllerMessenger;
+
+  return assetsControllerMessenger;
 }
 
 function createMockApiClient(

@@ -72,7 +72,7 @@ export class RecoveryRegistrationLockProvider implements RecoveryLockProvider {
         method,
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
       },
