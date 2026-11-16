@@ -320,7 +320,7 @@ jobs:
         run: echo 'RUN=yarn audit-script --verbose' >> "$GITHUB_ENV"
       - name: Test
         run: |
-          ARGS=(--silent --coverage --reporter blob --reporter default --shard "$SHARD/$SHARD_COUNT" --passWithNoTests)
+          ARGS=(--coverage --reporter blob --reporter default --shard "$SHARD/$SHARD_COUNT" --passWithNoTests)
 
           # Unless a root file changed, only run the changed packages and their
           # dependants, using a temporary config that lists just those packages.
@@ -382,7 +382,7 @@ jobs:
         # only be done on the merged data, because a package's files are split
         # over shards.
         run: |
-          ARGS=(--merge-reports --coverage --reporter ./scripts/vitest/sorted-reporter.ts --reporter github-actions --silent)
+          ARGS=(--merge-reports --coverage --reporter ./scripts/vitest/sorted-reporter.ts --reporter github-actions)
 
           # Use the same packages as the test shards.
           if [[ "$CHANGED_PATHS" != "full" ]]; then
