@@ -1,7 +1,7 @@
 import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -182,6 +182,14 @@ type SetupResult = {
   activeChainsUpdateHandler: Mock;
 };
 
+const teardowns: (() => void)[] = [];
+
+function registerController(controller: AccountsApiDataSource): void {
+  teardowns.push(() => {
+    controller.destroy();
+  });
+}
+
 function createTestMessenger(remoteFeatureFlags: FeatureFlags = {}): {
   rootMessenger: MockRootMessenger;
   assetsControllerMessenger: AssetsControllerMessenger;
@@ -260,6 +268,7 @@ async function setupController(
     ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
     ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
   });
+  registerController(controller);
 
   await waitUntilStable(() => controller.getActiveChainsSync());
 
@@ -273,44 +282,20 @@ async function setupController(
 }
 
 describe('AccountsApiDataSource', () => {
-  const originalSetInterval = globalThis.setInterval;
-  const originalClearInterval = globalThis.clearInterval;
-  const activeTimers = new Set<ReturnType<typeof originalSetInterval>>();
-
-  beforeEach(() => {
-    vi.stubGlobal('setInterval', (callback: () => void, ms: number) => {
-      const timer = originalSetInterval(callback, ms);
-      timer.unref();
-      activeTimers.add(timer);
-      return timer;
-    });
-
-    vi.stubGlobal(
-      'clearInterval',
-      (timer: ReturnType<typeof originalSetInterval>) => {
-        activeTimers.delete(timer);
-        return originalClearInterval(timer);
-      },
-    );
-  });
-
   afterEach(() => {
-    for (const timer of activeTimers) {
-      originalClearInterval(timer);
-    }
-    activeTimers.clear();
+    teardowns.splice(0).forEach((teardown) => teardown());
     vi.clearAllMocks();
   });
 
   it('initializes with correct name', async () => {
     const { controller } = await setupController();
     expect(controller.getName()).toBe('AccountsApiDataSource');
-    controller.destroy();
   });
 
   it('fetches active chains on initialization', async () => {
-    const { controller, apiClient, activeChainsUpdateHandler } =
-      await setupController({ supportedChains: [1, 137, 42161] });
+    const { apiClient, activeChainsUpdateHandler } = await setupController({
+      supportedChains: [1, 137, 42161],
+    });
 
     expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalled();
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
@@ -318,8 +303,6 @@ describe('AccountsApiDataSource', () => {
       [CHAIN_MAINNET, CHAIN_POLYGON, CHAIN_ARBITRUM],
       [],
     );
-
-    controller.destroy();
   });
 
   it('refreshActiveChains re-fetches supported networks and updates activeChains', async () => {
@@ -347,13 +330,11 @@ describe('AccountsApiDataSource', () => {
       CHAIN_MAINNET,
       CHAIN_POLYGON,
     ]);
-
-    controller.destroy();
   });
 
   describe('RemoteFeatureFlagController:stateChange subscription', () => {
     it('refreshes active chains when a migration stage changes', async () => {
-      const { controller, apiClient, messenger } = await setupController({
+      const { apiClient, messenger } = await setupController({
         remoteFeatureFlags: {},
       });
 
@@ -375,12 +356,10 @@ describe('AccountsApiDataSource', () => {
       expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
         1,
       );
-
-      controller.destroy();
     });
 
     it('does not refresh active chains when an unrelated flag changes', async () => {
-      const { controller, apiClient, messenger } = await setupController({
+      const { apiClient, messenger } = await setupController({
         remoteFeatureFlags: {},
       });
 
@@ -406,8 +385,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV2SupportedNetworks,
       ).not.toHaveBeenCalled();
-
-      controller.destroy();
     });
   });
 
@@ -419,8 +396,6 @@ describe('AccountsApiDataSource', () => {
 
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([CHAIN_MAINNET, CHAIN_POLYGON]);
-
-    controller.destroy();
   });
 
   it('filters out migration networks from active chains when the migration FF is unset', async () => {
@@ -437,8 +412,6 @@ describe('AccountsApiDataSource', () => {
 
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([CHAIN_MAINNET]);
-
-    controller.destroy();
   });
 
   it('filters out migration networks whose migration stage is Off', async () => {
@@ -460,8 +433,6 @@ describe('AccountsApiDataSource', () => {
 
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([CHAIN_MAINNET]);
-
-    controller.destroy();
   });
 
   it.each([
@@ -496,8 +467,6 @@ describe('AccountsApiDataSource', () => {
 
       const chains = await controller.getActiveChains();
       expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
-
-      controller.destroy();
     },
   );
 
@@ -519,8 +488,6 @@ describe('AccountsApiDataSource', () => {
     // Solana is staged on, Stellar is Off — only Solana joins EVM chains.
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
-
-    controller.destroy();
   });
 
   it('treats v2 CAIP-2 fullSupport and partialSupport arrays as active chains', async () => {
@@ -558,8 +525,6 @@ describe('AccountsApiDataSource', () => {
       SOLANA_DEVNET,
       STELLAR_PUBNET,
     ]);
-
-    controller.destroy();
   });
 
   it.each([
@@ -567,7 +532,7 @@ describe('AccountsApiDataSource', () => {
     { input: '137', expected: 'eip155:137' },
     { input: 'eip155:42161', expected: 'eip155:42161' },
   ])('converts chain ID $input to $expected', async ({ input, expected }) => {
-    const { controller, activeChainsUpdateHandler } = await setupController({
+    const { activeChainsUpdateHandler } = await setupController({
       supportedChains: [input],
     });
 
@@ -576,8 +541,6 @@ describe('AccountsApiDataSource', () => {
       [expected],
       [],
     );
-
-    controller.destroy();
   });
 
   it('fetch returns error for unsupported chain', async () => {
@@ -589,8 +552,6 @@ describe('AccountsApiDataSource', () => {
     expect(response.errors?.[CHAIN_POLYGON]).toBe(
       'Chain not supported by Accounts API',
     );
-
-    controller.destroy();
   });
 
   it('fetch calls API with correct account IDs', async () => {
@@ -603,8 +564,6 @@ describe('AccountsApiDataSource', () => {
       undefined,
       undefined,
     );
-
-    controller.destroy();
   });
 
   it('fetch bypasses TanStack cache when forceUpdate is true', async () => {
@@ -617,8 +576,6 @@ describe('AccountsApiDataSource', () => {
       undefined,
       { staleTime: 0, gcTime: 0 },
     );
-
-    controller.destroy();
   });
 
   it('fetch requests a full cache bypass when request.bypassServerCache is true', async () => {
@@ -633,8 +590,6 @@ describe('AccountsApiDataSource', () => {
       undefined,
       { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
-
-    controller.destroy();
   });
 
   it('fetch bypasses caches when bypassServerCache is set without forceUpdate', async () => {
@@ -647,8 +602,6 @@ describe('AccountsApiDataSource', () => {
       undefined,
       { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
-
-    controller.destroy();
   });
 
   it('fetch processes balance response', async () => {
@@ -673,8 +626,6 @@ describe('AccountsApiDataSource', () => {
       response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
         ?.amount,
     ).toBe('1000000000000000000');
-
-    controller.destroy();
   });
 
   it('fetch persists Stellar native and trustline metadata from v5 balances', async () => {
@@ -748,8 +699,6 @@ describe('AccountsApiDataSource', () => {
       amount: '0',
       metadata: trustlineMetadata,
     });
-
-    controller.destroy();
   });
 
   it('excludes staking contract asset IDs from v5 balance response', async () => {
@@ -775,8 +724,6 @@ describe('AccountsApiDataSource', () => {
         id.toLowerCase().includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
       ),
     ).toBe(false);
-
-    controller.destroy();
   });
 
   it('fetch marks unprocessed networks as errors', async () => {
@@ -789,8 +736,6 @@ describe('AccountsApiDataSource', () => {
     expect(response.errors?.[CHAIN_MAINNET]).toBe(
       'Unprocessed by Accounts API',
     );
-
-    controller.destroy();
   });
 
   it('fetch handles API errors', async () => {
@@ -803,8 +748,6 @@ describe('AccountsApiDataSource', () => {
     const response = await controller.fetch(createDataRequest());
 
     expect(response.errors?.[CHAIN_MAINNET]).toContain('Fetch failed');
-
-    controller.destroy();
   });
 
   describe('assetsAccountsApiV6 feature flag', () => {
@@ -819,8 +762,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).not.toHaveBeenCalled();
-
-      controller.destroy();
     });
 
     it('uses the v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
@@ -836,8 +777,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
       ).not.toHaveBeenCalled();
-
-      controller.destroy();
     });
 
     it('sets updateMode to full for v6 fetches', async () => {
@@ -848,8 +787,6 @@ describe('AccountsApiDataSource', () => {
       const response = await controller.fetch(createDataRequest());
 
       expect(response.updateMode).toBe('full');
-
-      controller.destroy();
     });
 
     it('uses the v5 endpoint when the assetsAccountsApiV6 remote flag is disabled', async () => {
@@ -865,8 +802,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).not.toHaveBeenCalled();
-
-      controller.destroy();
     });
 
     it('calls the v6 endpoint with default tracked assets as includeAssetIds when enabled', async () => {
@@ -886,8 +821,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
       ).not.toHaveBeenCalled();
-
-      controller.destroy();
     });
 
     it('reads the flag per fetch so it can revert to v5 at runtime', async () => {
@@ -908,8 +841,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
       ).toHaveBeenCalledTimes(1);
-
-      controller.destroy();
     });
 
     it('processes v6 token balances grouped by account', async () => {
@@ -933,8 +864,6 @@ describe('AccountsApiDataSource', () => {
         response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
           ?.amount,
       ).toBe('1000000000000000000');
-
-      controller.destroy();
     });
 
     it('persists Stellar native and trustline metadata from v6 balances', async () => {
@@ -1013,8 +942,6 @@ describe('AccountsApiDataSource', () => {
         amount: '914.4803018',
         metadata: nativeMetadata,
       });
-
-      controller.destroy();
     });
 
     it('ignores v6 defi positions', async () => {
@@ -1043,8 +970,6 @@ describe('AccountsApiDataSource', () => {
       const accountBalances = response.assetsBalance?.['mock-account-id'] ?? {};
       expect(accountBalances).toHaveProperty('eip155:1/slip44:60');
       expect(accountBalances).not.toHaveProperty('eip155:1/erc20:0xdefi');
-
-      controller.destroy();
     });
 
     it('excludes staking contract asset IDs from v6 balance response', async () => {
@@ -1076,8 +1001,6 @@ describe('AccountsApiDataSource', () => {
             .includes('0x4fef9d741011476750a243ac70b9789a63dd47df'),
         ),
       ).toBe(false);
-
-      controller.destroy();
     });
 
     it('omits v6 balances from unprocessed networks', async () => {
@@ -1112,8 +1035,6 @@ describe('AccountsApiDataSource', () => {
       expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
         'eip155:137/slip44:966': { amount: '2000000000000000000' },
       });
-
-      controller.destroy();
     });
 
     it('handles v6 API errors', async () => {
@@ -1128,8 +1049,6 @@ describe('AccountsApiDataSource', () => {
       const response = await controller.fetch(createDataRequest());
 
       expect(response.errors?.[CHAIN_MAINNET]).toContain('Fetch failed');
-
-      controller.destroy();
     });
 
     it('passes EVM custom assets on requested chains to v6 as includeAssetIds', async () => {
@@ -1154,8 +1073,6 @@ describe('AccountsApiDataSource', () => {
         },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('omits custom assets that are not on a requested chain from includeAssetIds', async () => {
@@ -1178,8 +1095,6 @@ describe('AccountsApiDataSource', () => {
         { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('errors a chain that came back without every requested include asset id', async () => {
@@ -1208,8 +1123,6 @@ describe('AccountsApiDataSource', () => {
         'Unresolved includeAssetIds',
       );
       expect(response.assetsBalance).toBeUndefined();
-
-      controller.destroy();
     });
 
     it('errors only the chain of the unresolved include asset id', async () => {
@@ -1238,8 +1151,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         response.assetsBalance?.['mock-account-id']?.[POLYGON_NATIVE],
       ).toStrictEqual({ amount: '5000000000000000000' });
-
-      controller.destroy();
     });
 
     it('omits pins not on a requested chain from includeAssetIds', async () => {
@@ -1264,8 +1175,6 @@ describe('AccountsApiDataSource', () => {
         { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('ignores malformed unprocessed include asset ids', async () => {
@@ -1280,8 +1189,6 @@ describe('AccountsApiDataSource', () => {
       // both axes (no error, no asset-axis entry).
       expect(response.errors).toBeUndefined();
       expect(response.unprocessedCustomAssets).toBeUndefined();
-
-      controller.destroy();
     });
 
     it('passes EVM hidden assets on requested chains to v6 as excludeAssetIds', async () => {
@@ -1307,8 +1214,6 @@ describe('AccountsApiDataSource', () => {
         },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('omits hidden assets that are not on a requested chain from excludeAssetIds', async () => {
@@ -1331,8 +1236,6 @@ describe('AccountsApiDataSource', () => {
         { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('omits hidden assets not on a requested chain from excludeAssetIds', async () => {
@@ -1359,8 +1262,6 @@ describe('AccountsApiDataSource', () => {
         { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('passes Solana pins on requested Solana chains to v6 as includeAssetIds', async () => {
@@ -1392,8 +1293,6 @@ describe('AccountsApiDataSource', () => {
         { includeAssetIds: [solanaNative, solanaToken] },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('passes hidden Solana assets on requested Solana chains to v6 as excludeAssetIds', async () => {
@@ -1428,8 +1327,6 @@ describe('AccountsApiDataSource', () => {
         },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('reads natives, visible pins, and default tracked assets as includeAssetIds, not detected ERC-20 balances', async () => {
@@ -1460,8 +1357,6 @@ describe('AccountsApiDataSource', () => {
         expect.arrayContaining([pinnedToken, native, MAINNET_MUSD]),
       );
       expect(params?.includeAssetIds ?? []).not.toContain(trackedToken);
-
-      controller.destroy();
     });
 
     it('includes map-encoded erc20 natives in includeAssetIds, not synthetic slip44 ids', async () => {
@@ -1491,8 +1386,6 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances.mock.calls[0];
       expect(params?.includeAssetIds ?? []).toContain(gnosisNative);
       expect(params?.includeAssetIds ?? []).not.toContain(syntheticSlip44);
-
-      controller.destroy();
     });
 
     it('ignores request.customAssets when building v6 includeAssetIds', async () => {
@@ -1518,8 +1411,6 @@ describe('AccountsApiDataSource', () => {
         expect.arrayContaining([statePin, MAINNET_MUSD]),
       );
       expect(params?.includeAssetIds).not.toContain(requestOnlyToken);
-
-      controller.destroy();
     });
 
     it('does not include a state pin that is also hidden', async () => {
@@ -1546,8 +1437,6 @@ describe('AccountsApiDataSource', () => {
         },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('excludes hidden native and default tracked assets from includeAssetIds', async () => {
@@ -1573,8 +1462,6 @@ describe('AccountsApiDataSource', () => {
         },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('sends both includeAssetIds and excludeAssetIds when pins and hidden assets differ', async () => {
@@ -1603,8 +1490,6 @@ describe('AccountsApiDataSource', () => {
         },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('includes default tracked assets as includeAssetIds even with no pins or native in state', async () => {
@@ -1621,8 +1506,6 @@ describe('AccountsApiDataSource', () => {
         { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
-
-      controller.destroy();
     });
 
     it('sends the same includeAssetIds on subscribe polls as on fetch', async () => {
@@ -1653,8 +1536,6 @@ describe('AccountsApiDataSource', () => {
         },
         { staleTime: 0, gcTime: 0 },
       );
-
-      controller.destroy();
     });
   });
 
@@ -1672,8 +1553,6 @@ describe('AccountsApiDataSource', () => {
     );
 
     expect(response.errors?.[CHAIN_MAINNET]).toContain('timed out');
-
-    controller.destroy();
   });
 
   it('fetch skips API when no valid account-chain combinations', async () => {
@@ -1690,8 +1569,6 @@ describe('AccountsApiDataSource', () => {
     expect(
       apiClient.accounts.fetchV5MultiAccountBalances,
     ).not.toHaveBeenCalled();
-
-    controller.destroy();
   });
 
   it('middleware passes to next when no chains requested', async () => {
@@ -1705,8 +1582,6 @@ describe('AccountsApiDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(next).toHaveBeenCalledWith(context);
-
-    controller.destroy();
   });
 
   it('middleware merges balance response into context', async () => {
@@ -1730,8 +1605,6 @@ describe('AccountsApiDataSource', () => {
     expect(context.response.assetsBalance?.['mock-account-id']).toHaveProperty(
       'eip155:1/slip44:60',
     );
-
-    controller.destroy();
   });
 
   it('middleware copies v5 unprocessed-chain errors onto the pipeline context', async () => {
@@ -1750,8 +1623,6 @@ describe('AccountsApiDataSource', () => {
       'Unprocessed by Accounts API',
     );
     expect(context.response.errors?.[CHAIN_POLYGON]).toBe('existing');
-
-    controller.destroy();
   });
 
   it('middleware copies timed-out v5 chains onto the pipeline context', async () => {
@@ -1769,8 +1640,6 @@ describe('AccountsApiDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(context.response.errors?.[CHAIN_MAINNET]).toContain('timed out');
-
-    controller.destroy();
   });
 
   it('middleware forwards full updateMode from v6 fetches', async () => {
@@ -1784,8 +1653,6 @@ describe('AccountsApiDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(context.response.updateMode).toBe('full');
-
-    controller.destroy();
   });
 
   it('middleware skips Accounts API when balance is not requested', async () => {
@@ -1812,8 +1679,6 @@ describe('AccountsApiDataSource', () => {
       apiClient.accounts.fetchV5MultiAccountBalances,
     ).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(context);
-
-    controller.destroy();
   });
 
   it('middleware keeps every requested chain for later lane stages', async () => {
@@ -1833,8 +1698,6 @@ describe('AccountsApiDataSource', () => {
         }),
       }),
     );
-
-    controller.destroy();
   });
 
   it('subscribe performs initial fetch', async () => {
@@ -1848,8 +1711,6 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
-
-    controller.destroy();
   });
 
   it('subscribe polling fetch always bypasses the TanStack cache', async () => {
@@ -1868,8 +1729,6 @@ describe('AccountsApiDataSource', () => {
       undefined,
       { staleTime: 0, gcTime: 0 },
     );
-
-    controller.destroy();
   });
 
   it('subscribe skips initial fetch when skipInitialFetch is true', async () => {
@@ -1890,8 +1749,6 @@ describe('AccountsApiDataSource', () => {
     expect(
       apiClient.accounts.fetchV5MultiAccountBalances,
     ).not.toHaveBeenCalled();
-
-    controller.destroy();
   });
 
   it('subscribe does nothing when no chains', async () => {
@@ -1905,8 +1762,6 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
-
-    controller.destroy();
   });
 
   it('subscribe update immediately fetches newly added chains', async () => {
@@ -1934,8 +1789,6 @@ describe('AccountsApiDataSource', () => {
       expect.objectContaining({ chainIds: [CHAIN_POLYGON] }),
     );
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(2);
-
-    controller.destroy();
   });
 
   it('subscribe update does not fetch when no chains are added', async () => {
@@ -1958,8 +1811,6 @@ describe('AccountsApiDataSource', () => {
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
-
-    controller.destroy();
   });
 
   describe('tokenDetectionEnabled', () => {
@@ -2018,6 +1869,7 @@ describe('AccountsApiDataSource', () => {
       }
 
       const controller = new AccountsApiDataSource(controllerOptions);
+      registerController(controller);
 
       await waitUntilStable(() => controller.getActiveChainsSync());
 
@@ -2066,8 +1918,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         Object.keys(response.assetsBalance?.[ACCOUNT_ID] ?? {}),
       ).toHaveLength(2);
-
-      controller.destroy();
     });
 
     it('filters out unknown tokens when tokenDetectionEnabled is false', async () => {
@@ -2110,8 +1960,6 @@ describe('AccountsApiDataSource', () => {
       expect(Object.keys(accountBalances)).toHaveLength(1);
       expect(accountBalances[KNOWN_ASSET]).toStrictEqual({ amount: '1000' });
       expect(accountBalances[UNKNOWN_ASSET]).toBeUndefined();
-
-      controller.destroy();
     });
 
     it('returns empty balance when no tokens are known and tokenDetectionEnabled is false', async () => {
@@ -2139,8 +1987,6 @@ describe('AccountsApiDataSource', () => {
       const response = assetsUpdateHandler.mock.calls[0][0];
       // No balances should be returned
       expect(response.assetsBalance).toBeUndefined();
-
-      controller.destroy();
     });
 
     it('filters unknown tokens in middleware when tokenDetectionEnabled is false', async () => {
@@ -2181,8 +2027,6 @@ describe('AccountsApiDataSource', () => {
         amount: '1000',
       });
       expect(accountBalances[UNKNOWN_ASSET as never]).toBeUndefined();
-
-      controller.destroy();
     });
 
     it('middleware does not remove chains when tokenDetectionEnabled is false and filter removes all balance data (bootstrap for RPC)', async () => {
@@ -2216,8 +2060,6 @@ describe('AccountsApiDataSource', () => {
           }),
         }),
       );
-
-      controller.destroy();
     });
 
     it('does not filter unknown tokens on the v6 path when tokenDetectionEnabled is false', async () => {
@@ -2250,8 +2092,6 @@ describe('AccountsApiDataSource', () => {
       expect(Object.keys(accountBalances)).toHaveLength(2);
       expect(accountBalances[KNOWN_ASSET as Caip19AssetId]).toBeDefined();
       expect(accountBalances[UNKNOWN_ASSET as Caip19AssetId]).toBeDefined();
-
-      controller.destroy();
     });
 
     it('keeps requested chains on v6 when tokenDetectionEnabled is false', async () => {
@@ -2286,8 +2126,6 @@ describe('AccountsApiDataSource', () => {
           }),
         }),
       );
-
-      controller.destroy();
     });
   });
 });
