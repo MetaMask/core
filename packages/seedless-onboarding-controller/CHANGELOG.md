@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.3.1` ([#11072](https://github.com/MetaMask/core/pull/11072), [#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/auth-network-utils` from `^0.3.0` to `^0.4.0` ([#11494](https://github.com/MetaMask/core/pull/11494))
 
 ## [12.0.0]
 
