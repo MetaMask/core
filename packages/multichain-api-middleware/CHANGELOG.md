@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add the `.js` extension to the `@metamask/eth-json-rpc-filters/subscriptionManager` import, which could not be resolved by strict ESM consumers such as Node.js and webpack
-- Use `parseOpenRPCDocument` instead of `dereferenceDocument` to dereference the Multichain API specification, because the browser entry of `@open-rpc/schema-utils-js` does not export `dereferenceDocument`
+- Add the `.js` extension to the `@metamask/eth-json-rpc-filters/subscriptionManager` import, which could not be resolved by strict ESM consumers such as Node.js and webpack ([#11536](https://github.com/MetaMask/core/pull/11536))
+- Use `parseOpenRPCDocument` instead of `dereferenceDocument` to dereference the Multichain API specification, because the browser entry of `@open-rpc/schema-utils-js` does not export `dereferenceDocument` ([#11536](https://github.com/MetaMask/core/pull/11536))
 
 ## [5.1.0]
 
