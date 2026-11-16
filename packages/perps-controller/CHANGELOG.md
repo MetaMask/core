@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Type `PerpsFundingDirection`
 - Add `PERPS_DISPLAY_PRECISION` values for Terminal's depth chart and TWAP summary: `OrderBookDepthRangePercent` 4, `OrderBookDepthZoomRangePercentMax` 5 and `TwapSuborderSize` 5 ([#11529](https://github.com/MetaMask/core/pull/11529))
 - Add `source: 'pasted'` to `formatPerpsUsdInput` for clipboard text, whose decimal point may be `.` in any locale: `formatPerpsUsdInput('1234.56', { formatters: createFormatters({ locale: 'es' }), source: 'pasted' })` returns `{ value: '1234.56', display: '1234,56' }`, where typed text reads `123456` ([#11529](https://github.com/MetaMask/core/pull/11529))
-  - Repeated separators or one that splits 3 digits still group thousands: `1.234.567` and `12.345` stay 1234567 and 12345
+  - Separators still group thousands when 1-3 digits are followed by groups of exactly 3: `1.234.567` and `12.345` stay 1234567 and 12345. Uneven groups keep the last separator as the decimal point: `1.234.5` reads 1234.5
   - Where the locale's decimal is `.`, pasted text reads as typed
 - Add margin adjustment calculations for an isolated position, following Mobile's margin utilities, so Mobile and Terminal stop keeping their own copies ([#11529](https://github.com/MetaMask/core/pull/11529))
   - `calculateMaxRemovableMargin(params)` returns the margin that can be removed: the margin above `max(notional / positionLeverage, notional × MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer)`, less a price-move headroom (`priceMoveBufferRatio`). `calculateMaxRemovableMargin({ currentMargin: 3000, positionLeverage: 50, positionSize: 10, currentPrice: 2000 })` returns `800`

@@ -27,8 +27,8 @@ export type MaxRemovableMarginParams = {
   /** The position's own leverage, not the asset's max leverage. */
   positionLeverage: number;
   /**
-   * Position value (USD), e.g. `position.positionValue`. When missing or not
-   * positive, `positionSize × currentPrice` is used.
+   * Position value (USD), e.g. `position.positionValue`. When missing or zero,
+   * `positionSize × currentPrice` is used; a negative value is invalid input.
    */
   notionalValue?: number;
   /** Absolute position size, for the notional fallback. */
@@ -74,6 +74,9 @@ export function calculateMaxRemovableMargin(
   }
 
   let { notionalValue } = params;
+  if (notionalValue !== undefined && notionalValue < 0) {
+    return 0;
+  }
   if (!isPositiveFinite(notionalValue)) {
     if (!isPositiveFinite(positionSize) || !isPositiveFinite(currentPrice)) {
       return 0;

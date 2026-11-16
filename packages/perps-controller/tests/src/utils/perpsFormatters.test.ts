@@ -1572,7 +1572,7 @@ describe('TAT-4574 display formatters', () => {
   });
 });
 
-describe('TAT-4584 funding formatters, depth and TWAP precision, pasted USD input', () => {
+describe('funding formatters, depth and TWAP precision, pasted USD input', () => {
   const NBSP = String.fromCharCode(0xa0);
   /**
    * Same shape and caching as `createFormatters({ locale })` from
@@ -1656,6 +1656,15 @@ describe('TAT-4584 funding formatters, depth and TWAP precision, pasted USD inpu
       [0, `0,00${NBSP}$`],
     ])('formats %p in de', (input, expected) => {
       expect(formatPositionFunding(input, { formatters: de })).toBe(expected);
+    });
+  });
+
+  describe('funding formatter options', () => {
+    it('rejects decimals, since the precision is fixed', () => {
+      // @ts-expect-error `decimals` is not an option of formatPositionFunding
+      expect(formatPositionFunding(1.2345, { decimals: 4 })).toBe('-$1.23');
+      // @ts-expect-error `decimals` is not an option of formatFundingPayment
+      expect(formatFundingPayment(12.5, { decimals: 4 })).toBe('+$12.50');
     });
   });
 
@@ -1774,10 +1783,14 @@ describe('TAT-4584 funding formatters, depth and TWAP precision, pasted USD inpu
       ['de', '$1,234.5', '1234.5', '1.234,5'],
       ['de', '1,5', '1.5', '1,5'],
       ['de', '0.5', '0.5', '0,5'],
-      // Grouping: repeated separators, or one splitting 1-3 digits from 3
+      // Grouping: 1-3 digits, then groups of exactly 3
       ['es', '1.234.567', '1234567', '1.234.567'],
       ['de', '12.345', '12345', '12.345'],
       ['de', '$1,234', '1234', '1.234'],
+      // Uneven groups: the last separator is the decimal point
+      ['de', '12.34.56', '1234.56', '1.234,56'],
+      ['de', '1.000.5', '1000.5', '1.000,5'],
+      ['es', '1.234.5', '1234.5', '1234,5'],
       // A separator not followed by a digit is dropped
       ['de', '1234.', '1234', '1.234'],
       ['de', 'abc', '', ''],

@@ -1048,7 +1048,7 @@ export const getPositionFundingDirection = (
  * @param sinceOpen - Funding since open (venue field `cumulativeFunding.sinceOpen`).
  * @param options - `formatters` (default `en-US`) and `sign` (default
  * `exceptZero`). The amount's precision comes from
- * `PRICE_RANGES_MINIMAL_VIEW`, so `decimals` is not used.
+ * `PRICE_RANGES_MINIMAL_VIEW`.
  * @returns `-` or `+` with the amount on `PRICE_RANGES_MINIMAL_VIEW`, `$0.00`
  * under half a cent, or `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`) for a
  * missing value.
@@ -1062,7 +1062,7 @@ export const getPositionFundingDirection = (
  */
 export const formatPositionFunding = (
   sinceOpen: string | number | null | undefined,
-  options: PerpsDisplayFormatOptions = {},
+  options: Omit<PerpsDisplayFormatOptions, 'decimals'> = {},
 ): string => {
   const { formatters = _fallbackFormatters, sign = 'exceptZero' } = options;
   const value = _parseDisplayNumber(sinceOpen);
@@ -1087,8 +1087,7 @@ export const formatPositionFunding = (
  *
  * @param amount - Funding payment in USD (positive = received).
  * @param options - `formatters` (default `en-US`) and `sign` (default
- * `exceptZero`). The precision is fixed by the rules above, so `decimals` is
- * not used.
+ * `exceptZero`). The precision is fixed by the rules above.
  * @returns The signed amount, `$0.00` without a sign when it rounds to zero
  * at 6 digits, or `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`) for a
  * missing value.
@@ -1101,7 +1100,7 @@ export const formatPositionFunding = (
  */
 export const formatFundingPayment = (
   amount: string | number | null | undefined,
-  options: PerpsDisplayFormatOptions = {},
+  options: Omit<PerpsDisplayFormatOptions, 'decimals'> = {},
 ): string => {
   const { formatters = _fallbackFormatters, sign = 'exceptZero' } = options;
   const value = _parseDisplayNumber(amount);
@@ -1530,17 +1529,18 @@ export type PerpsUsdInputFormatOptions = {
 };
 
 /**
- * One separator splitting 1-3 digits from exactly 3: `12.345`, `$1,234`. A
- * USD amount has 2 decimals, so this separator groups thousands.
+ * Separators splitting 1-3 digits from groups of exactly 3: `12.345`,
+ * `1.234.567`, `$1,234`. A USD amount has 2 decimals, so these group
+ * thousands; uneven groups (`1.234.5`) end with a decimal point.
  */
-const PASTED_SINGLE_GROUPING = /^\D*[1-9]\d{0,2}[.,]\d{3}\D*$/u;
+const PASTED_THOUSANDS_GROUPING = /^\D*[1-9]\d{0,2}(?:[.,]\d{3})+\D*$/u;
 
 /**
  * Rewrites pasted text with a `.` decimal point and no grouping, for a locale
  * whose decimal separator is not `.`. The decimal point is the last `.` or
  * `,` followed by a digit, unless every separator is that same character and
- * there are several (`1.234.567`) or the only one groups thousands
- * (`12.345`). A separator not followed by a digit is dropped.
+ * they group thousands (`1.234.567`, `12.345`). A separator not followed by a
+ * digit is dropped.
  *
  * @param text - Pasted text, digits already in ASCII.
  * @returns The text with `.` as its only separator, or none.
@@ -1552,8 +1552,7 @@ function _normalizePastedDecimal(text: string): string {
   if (last !== undefined) {
     const alike = separators.filter(([char]) => char === last[0]).length;
     const isGrouping =
-      alike === separators.length &&
-      (alike > 1 || PASTED_SINGLE_GROUPING.test(text));
+      alike === separators.length && PASTED_THOUSANDS_GROUPING.test(text);
     point = isGrouping ? -1 : last.index;
   }
   return text.replace(/[.,]/gu, (_char, index: number) =>

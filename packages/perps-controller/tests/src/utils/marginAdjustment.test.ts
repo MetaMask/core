@@ -122,7 +122,7 @@ describe('marginAdjustment', () => {
         { currentMargin: 3000, positionLeverage: 50, notionalValue: 20000 },
         800,
       ],
-      // A non-positive provided notional falls back to size × price
+      // A zero provided notional falls back to size × price
       [
         {
           currentMargin: 3000,
@@ -169,6 +169,14 @@ describe('marginAdjustment', () => {
         positionLeverage: 5,
       },
       { currentMargin: 3000, positionLeverage: 5 },
+      // A negative provided notional is invalid, even with size and price
+      {
+        currentMargin: 3000,
+        positionSize: 10,
+        currentPrice: 2000,
+        positionLeverage: 50,
+        notionalValue: -20000,
+      },
       // An invalid price-move buffer must not add removable margin
       {
         currentMargin: 3000,

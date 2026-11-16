@@ -549,7 +549,9 @@ export type ExpectedTriggerPnlParams = {
 
 /**
  * Expected profit or loss (USD) when a take profit or stop loss closes the
- * position: the price move on the signed size, less the closing fee.
+ * position: the price move on the signed size, less the closing fee. Inputs
+ * are not validated, as in Mobile's `calculateExpectedPnL`: callers pass
+ * finite numbers, and a non-finite input gives a non-finite result.
  *
  * @param params - Trigger price, entry price, signed size and closing fee.
  * @returns The expected net PnL; positive for a gain.
