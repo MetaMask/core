@@ -81,7 +81,7 @@ const MESSENGER_EXPOSED_METHODS = [
  *
  * It exposes one method per Sentinel endpoint:
  * - {@link SentinelApiService.getNetwork} — the configuration of a single
- * network (`/network`), cached since it is stable.
+ * network (`/network`). Not cached since it is the sentinel live capabilities endpoint.
  * - {@link SentinelApiService.getNetworks} — the supported-network registry
  * (`/networks`), cached since it is stable and identical across subdomains.
  * - {@link SentinelApiService.simulateTransactions} — transaction simulation
@@ -186,8 +186,7 @@ export class SentinelApiService extends BaseDataService<
   /**
    * Fetches the configuration of a single network from the `/network`
    * endpoint of that network's subdomain. The subdomain is resolved from the
-   * supported-network registry. The result is cached, as the configuration is
-   * stable.
+   * supported-network registry. Not cached as it is the sentinel live capabilities endpoint.
    *
    * @param chainId - The chain ID of the network.
    * @returns The network configuration.

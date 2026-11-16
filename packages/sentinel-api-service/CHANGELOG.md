@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Stop caching `getNetwork` (`staleTime: 0`) so live liveness and killswitch flags from `GET /network` propagate immediately ([#11505](https://github.com/MetaMask/core/pull/11505))
+
 ## [2.2.0]
 
 ### Added

@@ -14,7 +14,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BASE_URL_TEMPLATE,
   ENVIRONMENT_DOMAIN,
-  NETWORK_STALE_TIME_MS,
   NETWORKS_STALE_TIME_MS,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
@@ -569,18 +568,18 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
-    it('caches the network configuration across calls', async () => {
+    it('requests a fresh network configuration on every call', async () => {
       const { service } = createService();
       mockNetworks();
       const scope = nock(OPTIMISM_URL)
         .get('/network')
-        .once()
+        .twice()
         .reply(200, MOCK_NETWORK);
 
-      const first = await service.getNetwork(CHAIN_ID_OPTIMISM);
-      const second = await service.getNetwork(CHAIN_ID_OPTIMISM);
-      expect(first).toStrictEqual(second);
-      scope.done();
+      await service.getNetwork(CHAIN_ID_OPTIMISM);
+      await service.getNetwork(CHAIN_ID_OPTIMISM);
+
+      expect(scope.isDone()).toBe(true);
       service.destroy();
     });
 
@@ -597,29 +596,6 @@ describe('SentinelApiService', () => {
       expect(await service.getNetwork(CHAIN_ID_OPTIMISM)).toStrictEqual(
         MOCK_NETWORK,
       );
-      service.destroy();
-    });
-
-    it('refetches the network configuration once the cache is stale', async () => {
-      const { service } = createService();
-      const now = Date.now();
-      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
-      mockNetworks(2);
-      const scope = nock(OPTIMISM_URL)
-        .get('/network')
-        .twice()
-        .reply(200, MOCK_NETWORK);
-
-      await service.getNetwork(CHAIN_ID_OPTIMISM);
-      dateNowSpy.mockReturnValue(now + NETWORK_STALE_TIME_MS - 1);
-      await service.getNetwork(CHAIN_ID_OPTIMISM);
-      expect(scope.pendingMocks()).toHaveLength(1);
-
-      dateNowSpy.mockReturnValue(now + NETWORK_STALE_TIME_MS + 1);
-      await service.getNetwork(CHAIN_ID_OPTIMISM);
-      scope.done();
-
-      dateNowSpy.mockRestore();
       service.destroy();
     });
 

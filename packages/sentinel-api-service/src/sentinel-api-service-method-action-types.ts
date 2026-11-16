@@ -8,8 +8,7 @@ import type { SentinelApiService } from './sentinel-api-service.js';
 /**
  * Fetches the configuration of a single network from the `/network`
  * endpoint of that network's subdomain. The subdomain is resolved from the
- * supported-network registry. The result is cached, as the configuration is
- * stable.
+ * supported-network registry. Not cached as it is the sentinel live capabilities endpoint.
  *
  * @param chainId - The chain ID of the network.
  * @returns The network configuration.
