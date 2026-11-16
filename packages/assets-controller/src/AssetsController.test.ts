@@ -5,12 +5,6 @@ import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type {
-  Messenger,
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
 import { RpcEndpointType } from '@metamask/network-controller';
 import type {
   AutoManagedNetworkClient,
@@ -36,10 +30,7 @@ import {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController.js';
-import type {
-  AssetsControllerMessenger,
-  AssetsControllerState,
-} from './AssetsController.js';
+import type { AssetsControllerState } from './AssetsController.js';
 import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
@@ -198,11 +189,6 @@ function createFailingQueryApiClient(): ApiPlatformClient {
   } as unknown as ApiPlatformClient;
 }
 
-type AllActions = MessengerActions<AssetsControllerMessenger>;
-type AllEvents = MessengerEvents<AssetsControllerMessenger>;
-
-type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
-
 const MOCK_ACCOUNT_ID = 'mock-account-id-1';
 const MOCK_ASSET_ID =
   'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
@@ -289,7 +275,7 @@ type AusUserAssetsActionMocks = {
  * @returns The mock handlers, for call assertions.
  */
 function registerAusUserAssetsActionMocks(
-  messenger: RootMessenger,
+  messenger: MockRootMessenger,
   options: {
     blob?: UserAssetsBlob | null;
     rejectWith?: Error;
