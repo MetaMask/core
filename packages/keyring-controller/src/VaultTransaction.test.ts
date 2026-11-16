@@ -303,6 +303,21 @@ describe('VaultTransaction', () => {
         created: false,
       });
     });
+
+    it('exposes the atomic scope with its entry and created flag', () => {
+      const entry = buildEntry(buildFakeKeyring());
+      const { transaction } = buildTransaction({
+        type: 'atomic',
+        entry,
+        created: true,
+      });
+
+      expect(transaction.scope).toStrictEqual({
+        type: 'atomic',
+        entry,
+        created: true,
+      });
+    });
   });
 
   describe('destroy', () => {
@@ -484,6 +499,35 @@ describe('VaultTransaction', () => {
       await transaction.begin();
 
       expect(serialize).not.toHaveBeenCalled();
+    });
+
+    it('takes no snapshot for the atomic scope, created or selected', async () => {
+      const serializeCreated = vi.fn(async (): Promise<Json> => ({}));
+      const serializeSelected = vi.fn(async (): Promise<Json> => ({}));
+      const createdEntry = buildEntry(
+        buildFakeKeyring({ serialize: serializeCreated }),
+      );
+      const selectedEntry = buildEntry(
+        buildFakeKeyring({ serialize: serializeSelected }),
+      );
+      const { transaction: createdTransaction } = buildTransaction({
+        type: 'atomic',
+        entry: createdEntry,
+        created: true,
+      });
+      const { transaction: selectedTransaction } = buildTransaction(
+        { type: 'atomic', entry: selectedEntry, created: false },
+        { keyrings: [selectedEntry] },
+      );
+
+      await createdTransaction.begin();
+      await selectedTransaction.begin();
+
+      // The atomic keyring serializes its own operations and persists its
+      // own state through its `update` commits: the transaction has
+      // nothing to snapshot.
+      expect(serializeCreated).not.toHaveBeenCalled();
+      expect(serializeSelected).not.toHaveBeenCalled();
     });
 
     it('clones the snapshot data, so aliased serialize output cannot corrupt the restore point', async () => {
@@ -972,7 +1016,68 @@ describe('VaultTransaction', () => {
     });
   });
 
+  describe('rollback (atomic scope)', () => {
+    it('restores nothing for a selected keyring', async () => {
+      const destroy = vi.fn(async (): Promise<void> => undefined);
+      const entry = buildEntry(buildFakeKeyring({ destroy }));
+      const { transaction, session, updateVault } = buildTransaction(
+        { type: 'atomic', entry, created: false },
+        { keyrings: [entry] },
+      );
+      await transaction.begin();
+
+      await transaction.rollback();
+
+      // The atomic keyring serializes its own operations and persists its
+      // own state through its `update` commits: the transaction restores
+      // nothing, destroys nothing, and persists nothing.
+      expect(session.getKeyrings()).toStrictEqual([entry]);
+      expect(destroy).not.toHaveBeenCalled();
+      expect(updateVault).not.toHaveBeenCalled();
+    });
+
+    it('restores nothing for a keyring the transaction created', async () => {
+      const destroy = vi.fn(async (): Promise<void> => undefined);
+      const entry = buildEntry(buildFakeKeyring({ destroy }));
+      const { transaction, session, updateVault } = buildTransaction(
+        { type: 'atomic', entry, created: true },
+        { keyrings: [entry] },
+      );
+      await transaction.begin();
+
+      await transaction.rollback();
+
+      expect(session.getKeyrings()).toStrictEqual([entry]);
+      expect(destroy).not.toHaveBeenCalled();
+      expect(updateVault).not.toHaveBeenCalled();
+    });
+  });
+
   describe('hasChanged', () => {
+    describe('atomic scope', () => {
+      it('reports the registration of a keyring the transaction created as its only change', async () => {
+        const entry = buildEntry(buildFakeKeyring());
+        const { transaction } = buildTransaction(
+          { type: 'atomic', entry, created: true },
+          { keyrings: [entry] },
+        );
+        await transaction.begin();
+
+        expect(await transaction.hasChanged()).toBe(true);
+      });
+
+      it('reports no change for a selected keyring, which the transaction did not touch', async () => {
+        const entry = buildEntry(buildFakeKeyring());
+        const { transaction } = buildTransaction(
+          { type: 'atomic', entry, created: false },
+          { keyrings: [entry] },
+        );
+        await transaction.begin();
+
+        expect(await transaction.hasChanged()).toBe(false);
+      });
+    });
+
     describe('wallet scope', () => {
       it('reports no change for an unchanged session', async () => {
         const entryA = buildEntry(
@@ -1195,6 +1300,34 @@ describe('VaultTransaction', () => {
   });
 
   describe('commit', () => {
+    describe('atomic scope', () => {
+      it('persists the registration of a keyring the transaction created', async () => {
+        const entry = buildEntry(buildFakeKeyring());
+        const { transaction, updateVault } = buildTransaction(
+          { type: 'atomic', entry, created: true },
+          { keyrings: [entry] },
+        );
+        await transaction.begin();
+
+        await transaction.commit();
+
+        expect(updateVault).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not persist a selected keyring, which the transaction did not touch', async () => {
+        const entry = buildEntry(buildFakeKeyring());
+        const { transaction, updateVault } = buildTransaction(
+          { type: 'atomic', entry, created: false },
+          { keyrings: [entry] },
+        );
+        await transaction.begin();
+
+        await transaction.commit();
+
+        expect(updateVault).not.toHaveBeenCalled();
+      });
+    });
+
     describe('wallet scope', () => {
       it('persists the vault when the session changed', async () => {
         const aData: Json = { a: true };
