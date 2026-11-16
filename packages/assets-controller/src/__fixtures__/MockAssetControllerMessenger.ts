@@ -1,5 +1,6 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { KeyringControllerMessenger } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -30,9 +31,13 @@ type TestMockType = any;
 type GlobalActions = MessengerActions<
   AssetsControllerMessenger | KeyringControllerMessenger
 >;
-type GlobalEvents = MessengerEvents<
-  AssetsControllerMessenger | KeyringControllerMessenger
+type AssetsControllerStateChangedEvent = ControllerStateChangedEvent<
+  'AssetsController',
+  AssetsControllerState
 >;
+type GlobalEvents =
+  | MessengerEvents<AssetsControllerMessenger | KeyringControllerMessenger>
+  | AssetsControllerStateChangedEvent;
 
 export type MockRootMessenger = Messenger<
   MockAnyNamespace,
