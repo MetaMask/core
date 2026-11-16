@@ -2,8 +2,10 @@ import type { Json } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEPOSIT_CONFIG_FLAG_KEY,
   HEADLESS_ALL_PROVIDERS_FEATURE_VERSION,
   MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
+  getDepositProviderApiKey,
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
@@ -325,6 +327,72 @@ describe('featureVersion gating', () => {
         },
       }),
     ).toBe(true);
+  });
+});
+
+describe('getDepositProviderApiKey', () => {
+  it('matches the depositConfig flag key', () => {
+    expect(DEPOSIT_CONFIG_FLAG_KEY).toBe('depositConfig');
+  });
+
+  it('returns the trimmed providerApiKey', () => {
+    expect(
+      getDepositProviderApiKey({
+        remoteFeatureFlags: {
+          [DEPOSIT_CONFIG_FLAG_KEY]: { providerApiKey: '  partner-key  ' },
+        },
+      }),
+    ).toBe('partner-key');
+  });
+
+  it('returns undefined for null or undefined state and a missing flag', () => {
+    expect(getDepositProviderApiKey(null)).toBeUndefined();
+    expect(getDepositProviderApiKey(undefined)).toBeUndefined();
+    expect(
+      getDepositProviderApiKey({ remoteFeatureFlags: {} }),
+    ).toBeUndefined();
+  });
+
+  it.each([
+    ['a string', 'partner-key'],
+    ['a number', 1],
+    ['an array', [{ providerApiKey: 'partner-key' }]],
+    ['null', null],
+    ['an object without providerApiKey', { active: true }],
+    ['an empty providerApiKey', { providerApiKey: '' }],
+    ['a blank providerApiKey', { providerApiKey: '   ' }],
+    ['a non-string providerApiKey', { providerApiKey: 42 }],
+    ['a null providerApiKey', { providerApiKey: null }],
+  ])('returns undefined when depositConfig is %s', (_description, value) => {
+    expect(
+      getDepositProviderApiKey({
+        remoteFeatureFlags: { [DEPOSIT_CONFIG_FLAG_KEY]: value as Json },
+      }),
+    ).toBeUndefined();
+  });
+
+  it('lets a localOverrides key replace the remote key', () => {
+    expect(
+      getDepositProviderApiKey({
+        remoteFeatureFlags: {
+          [DEPOSIT_CONFIG_FLAG_KEY]: { providerApiKey: 'remote-key' },
+        },
+        localOverrides: {
+          [DEPOSIT_CONFIG_FLAG_KEY]: { providerApiKey: 'override-key' },
+        },
+      }),
+    ).toBe('override-key');
+  });
+
+  it('lets a local override without a key hide the remote key', () => {
+    expect(
+      getDepositProviderApiKey({
+        remoteFeatureFlags: {
+          [DEPOSIT_CONFIG_FLAG_KEY]: { providerApiKey: 'remote-key' },
+        },
+        localOverrides: { [DEPOSIT_CONFIG_FLAG_KEY]: {} },
+      }),
+    ).toBeUndefined();
   });
 });
 

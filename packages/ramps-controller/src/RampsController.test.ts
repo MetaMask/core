@@ -773,6 +773,200 @@ describe('RampsController', () => {
       });
     });
 
+    /**
+     * Registers the deposit flag and a `TransakService:setApiKey` spy.
+     *
+     * @param rootMessenger - The root messenger to register the handlers on.
+     * @param depositConfig - `depositConfig` remote flag value. Omit for a
+     * missing flag.
+     * @param localOverride - Optional `depositConfig` local override.
+     * @returns The `setApiKey` spy.
+     */
+    function registerDepositApiKey(
+      rootMessenger: RootMessenger,
+      depositConfig?: Json,
+      localOverride?: Json,
+    ): Mock {
+      const setApiKey = vi.fn();
+      rootMessenger.registerActionHandler(
+        'TransakService:setApiKey',
+        setApiKey,
+      );
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({
+          remoteFeatureFlags:
+            depositConfig === undefined ? {} : { depositConfig },
+          ...(localOverride === undefined
+            ? {}
+            : { localOverrides: { depositConfig: localOverride } }),
+          cacheTimestamp: 0,
+        }),
+      );
+      return setApiKey;
+    }
+
+    it('sets the Transak API key from depositConfig before the native lookup', async () => {
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        const setApiKey = registerDepositApiKey(rootMessenger, {
+          providerApiKey: 'partner-key',
+        });
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(setApiKey).toHaveBeenCalledWith('partner-key');
+        expect(setApiKey.mock.invocationCallOrder[0]).toBeLessThan(
+          getBuyQuote.mock.invocationCallOrder[0],
+        );
+        expect(quote?.quote.providerFee).toBe('0.7');
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.totalFees).toBe('0.9');
+      });
+    });
+
+    it('uses the local override key instead of the remote key', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        const setApiKey = registerDepositApiKey(
+          rootMessenger,
+          { providerApiKey: 'remote-key' },
+          { providerApiKey: 'override-key' },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        expect(setApiKey).toHaveBeenCalledWith('override-key');
+      });
+    });
+
+    it.each([
+      ['the flag is missing', undefined],
+      ['the key is empty', { providerApiKey: '' }],
+      ['depositConfig is not an object', 'partner-key'],
+    ])(
+      'does not set the API key when %s, and still runs the native lookup',
+      async (_description, depositConfig) => {
+        const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
+
+        await withController(async ({ messenger, rootMessenger }) => {
+          const setApiKey = registerDepositApiKey(rootMessenger, depositConfig);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => buildQuotesResponse('/providers/transak-native'),
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          const quote = await callGetQuoteWithFees(messenger);
+
+          expect(setApiKey).not.toHaveBeenCalled();
+          expect(getBuyQuote).toHaveBeenCalled();
+          expect(quote?.quote.totalFees).toBe('0.9');
+        });
+      },
+    );
+
+    it('still runs the native lookup when the flag controller is not wired', async () => {
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        const setApiKey = vi.fn();
+        rootMessenger.registerActionHandler(
+          'TransakService:setApiKey',
+          setApiKey,
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(setApiKey).not.toHaveBeenCalled();
+        expect(getBuyQuote).toHaveBeenCalled();
+        expect(quote?.quote.totalFees).toBe('0.9');
+      });
+    });
+
+    it('still reconciles the native fee when setApiKey is refused', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RemoteFeatureFlagController:getState',
+          () => ({
+            remoteFeatureFlags: {
+              depositConfig: { providerApiKey: 'partner-key' },
+            },
+            cacheTimestamp: 0,
+          }),
+        );
+        rootMessenger.registerActionHandler('TransakService:setApiKey', () => {
+          throw new Error('refused');
+        });
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.providerFee).toBe('0.7');
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.totalFees).toBe('0.9');
+      });
+    });
+
+    it('does not set the API key for a non-native quote', async () => {
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        const setApiKey = registerDepositApiKey(rootMessenger, {
+          providerApiKey: 'partner-key',
+        });
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/moonpay'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger, {
+          providers: ['/providers/moonpay'],
+        });
+
+        expect(setApiKey).not.toHaveBeenCalled();
+        expect(getBuyQuote).not.toHaveBeenCalled();
+      });
+    });
+
     it('puts the whole native total on the network line when it equals the aggregator network fee', async () => {
       await withController(async ({ messenger, rootMessenger }) => {
         rootMessenger.registerActionHandler(

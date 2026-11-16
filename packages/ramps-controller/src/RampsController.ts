@@ -34,6 +34,7 @@ import type {
 } from './diffAutorampTransactions.js';
 import { diffAutorampTransactions } from './diffAutorampTransactions.js';
 import {
+  getDepositProviderApiKey,
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
@@ -3260,7 +3261,10 @@ export class RampsController extends BaseController<
    * Rewrites a quote's fees to Transak Native's own total when the resolved
    * provider is Transak Native, so an estimate matches the native charge.
    * Returns the quote unchanged for a non-native provider, a failed native
-   * lookup, or an unusable native fee.
+   * lookup, or an unusable native fee. Before the lookup, the Transak partner
+   * API key is copied from the `depositConfig` remote flag onto
+   * `TransakService` when that flag carries one. A missing flag or a refused
+   * key set does not stop the lookup.
    *
    * @param quote - The resolved aggregator quote.
    * @param context - Native lookup inputs.
@@ -3303,6 +3307,12 @@ export class RampsController extends BaseController<
     }
 
     try {
+      // Set the key before the lookup. `getBuyQuote` throws when it is unset,
+      // and this catch would then keep the aggregator fee. Doing it here, only
+      // for a Transak Native quote, means other confirmations never touch the
+      // key and the host does not have to pre-warm it.
+      this.#ensureDepositProviderApiKey();
+
       const network = assetId.split('/')[0];
 
       const nativeQuote = await this.messenger.call(
@@ -3340,6 +3350,28 @@ export class RampsController extends BaseController<
       };
     } catch {
       return quote;
+    }
+  }
+
+  /**
+   * Copies `depositConfig.providerApiKey` onto `TransakService` when the flag
+   * carries a key.
+   *
+   * A missing flag controller, a missing or empty key, or a refused
+   * `setApiKey` is ignored. The native lookup still runs; if the service has
+   * no key, `getBuyQuote` throws and the caller keeps the aggregator quote.
+   */
+  #ensureDepositProviderApiKey(): void {
+    try {
+      const remoteFeatureFlagState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      const apiKey = getDepositProviderApiKey(remoteFeatureFlagState);
+      if (apiKey) {
+        this.messenger.call('TransakService:setApiKey', apiKey);
+      }
+    } catch {
+      // Missing flag controller or a refused set leaves the service key as-is.
     }
   }
 

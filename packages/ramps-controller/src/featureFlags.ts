@@ -30,6 +30,14 @@ export const MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY =
 export const HEADLESS_ALL_PROVIDERS_FEATURE_VERSION = '1';
 
 /**
+ * Remote feature flag whose `providerApiKey` is the Transak partner API key.
+ * Mobile stores this on `depositConfig`; the native fee lookup reads the same
+ * flag so the host does not have to pre-warm the key. Not exported from the
+ * package index.
+ */
+export const DEPOSIT_CONFIG_FLAG_KEY = 'depositConfig';
+
+/**
  * The subset of `RemoteFeatureFlagController` state that
  * {@link isHeadlessAllProvidersEnabled} reads. Structural so consumers can
  * pass the whole controller state (or `undefined` before initialization)
@@ -41,11 +49,27 @@ export type HeadlessFeatureFlagsLookup = {
 };
 
 /**
- * Resolves the flag value with `localOverrides` (written by dev-only override
- * screens) merged over `remoteFeatureFlags`, because not every published
+ * Merges `localOverrides` (written by dev-only override screens) over
+ * `remoteFeatureFlags`, because not every published
  * `RemoteFeatureFlagController` version folds overrides into
  * `remoteFeatureFlags` state; when a version already does, the merge is a
- * no-op.
+ * no-op. The merge is shallow: an override replaces the whole flag value.
+ *
+ * @param remoteFeatureFlagState - `RemoteFeatureFlagController` state (or the
+ * relevant subset of it).
+ * @returns The merged flag map. Empty when state is missing.
+ */
+function mergeFeatureFlags(
+  remoteFeatureFlagState: HeadlessFeatureFlagsLookup | null | undefined,
+): FeatureFlags {
+  return {
+    ...(remoteFeatureFlagState?.remoteFeatureFlags ?? {}),
+    ...(remoteFeatureFlagState?.localOverrides ?? {}),
+  };
+}
+
+/**
+ * Resolves the headless all-providers flag with {@link mergeFeatureFlags}.
  *
  * @param remoteFeatureFlagState - `RemoteFeatureFlagController` state (or the
  * relevant subset of it).
@@ -54,11 +78,9 @@ export type HeadlessFeatureFlagsLookup = {
 function resolveFlagValue(
   remoteFeatureFlagState: HeadlessFeatureFlagsLookup | null | undefined,
 ): Json | undefined {
-  const flags: FeatureFlags = {
-    ...(remoteFeatureFlagState?.remoteFeatureFlags ?? {}),
-    ...(remoteFeatureFlagState?.localOverrides ?? {}),
-  };
-  return flags[MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY];
+  return mergeFeatureFlags(remoteFeatureFlagState)[
+    MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY
+  ];
 }
 
 /**
@@ -166,4 +188,49 @@ export function normalizeHeadlessProviderId(id: string): string {
     .trim()
     .replace(/^\/providers\//u, '')
     .toLowerCase();
+}
+
+/**
+ * Whether a flag value is a plain object (not an array or null).
+ *
+ * @param value - The candidate flag value.
+ * @returns Whether the value is a plain object.
+ */
+function isPlainObject(value: Json | undefined): value is {
+  [key: string]: Json;
+} {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The Transak partner API key from the `depositConfig` remote flag.
+ *
+ * Uses the same `localOverrides` over `remoteFeatureFlags` merge as
+ * {@link isHeadlessAllProvidersEnabled}. Returns the trimmed key only when
+ * `depositConfig` is a plain object and `providerApiKey` is a non-empty
+ * string. A missing flag, a non-object payload, or a blank key resolves to
+ * `undefined`. The key is not version-gated: hosts that already apply it do
+ * not check `minimumVersion`, and gating here would hide a present key so the
+ * native fee lookup would keep the aggregator fee.
+ *
+ * @param remoteFeatureFlagState - `RemoteFeatureFlagController` state (or the
+ * relevant subset of it). May be `null`/`undefined` before the controller is
+ * initialized.
+ * @returns The partner API key, or `undefined` when none is configured.
+ */
+export function getDepositProviderApiKey(
+  remoteFeatureFlagState: HeadlessFeatureFlagsLookup | null | undefined,
+): string | undefined {
+  const depositConfig = mergeFeatureFlags(remoteFeatureFlagState)[
+    DEPOSIT_CONFIG_FLAG_KEY
+  ];
+  if (!isPlainObject(depositConfig)) {
+    return undefined;
+  }
+  const apiKey = depositConfig.providerApiKey;
+  if (typeof apiKey !== 'string') {
+    return undefined;
+  }
+  const trimmed = apiKey.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
