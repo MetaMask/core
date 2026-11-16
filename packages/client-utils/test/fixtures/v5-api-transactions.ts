@@ -3,6 +3,12 @@ import type {
   V5TransactionRecord,
   V5TransactionValueTransfer,
 } from '@metamask/core-backend';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
+import {
+  isCaipAccountId,
+  isCaipAssetType,
+  isCaipChainId,
+} from '@metamask/utils';
 
 import { getFees } from '../../src/mappers/helpers/transactions.js';
 
@@ -12,26 +18,39 @@ type V1ValueTransfer = NonNullable<
 
 const contractTokenTransferTypes = new Set(['erc20', 'erc721', 'erc1155']);
 
+function toCaipAssetType(
+  chainId: CaipChainId,
+  assetNamespace: string,
+  assetReference: string,
+): CaipAssetType | undefined {
+  const assetId = `${chainId}/${assetNamespace}:${assetReference}`;
+  return isCaipAssetType(assetId) ? assetId : undefined;
+}
+
 function toV5ValueTransfer(
   transfer: V1ValueTransfer,
-  chainId: string,
+  chainId: CaipChainId,
 ): V5TransactionValueTransfer | undefined {
   const { transferType, contractAddress } = transfer;
-  let assetId: string;
+  let assetId: CaipAssetType | undefined;
   let assetClass = 'ft';
 
   if (contractTokenTransferTypes.has(transferType)) {
     if (!contractAddress) {
       return undefined;
     }
-    assetId = `${chainId}/${transferType}:${contractAddress}`;
+    assetId = toCaipAssetType(chainId, transferType, contractAddress);
     assetClass = transferType === 'erc20' ? 'ft' : 'nft';
   } else if (transferType === 'normal' || transferType === 'internal') {
-    assetId = `${chainId}/slip44:60`;
+    assetId = toCaipAssetType(chainId, 'slip44', '60');
     if (transferType === 'internal') {
       assetClass = 'eip155Internal';
     }
   } else {
+    return undefined;
+  }
+
+  if (!assetId) {
     return undefined;
   }
 
@@ -57,6 +76,15 @@ export function toV5TransactionRecord(
   subjectAddress: string,
 ): V5TransactionRecord | undefined {
   const chainId = `eip155:${transaction.chainId}`;
+  if (!isCaipChainId(chainId)) {
+    return undefined;
+  }
+
+  const accountId = `${chainId}:${subjectAddress}`;
+  if (!isCaipAccountId(accountId)) {
+    return undefined;
+  }
+
   const valueTransfers = (transaction.valueTransfers ?? []).map((transfer) =>
     toV5ValueTransfer(transfer, chainId),
   );
@@ -66,9 +94,10 @@ export function toV5TransactionRecord(
   }
 
   const [fee] = getFees(transaction) ?? [];
+  const payer = `${chainId}:${transaction.from}`;
 
   return {
-    accountId: `${chainId}:${subjectAddress}`,
+    accountId,
     tx: {
       id: transaction.hash,
       chainId,
@@ -87,9 +116,12 @@ export function toV5TransactionRecord(
     },
     valueTransfers: valueTransfers as V5TransactionValueTransfer[],
     fee:
-      fee?.amount && fee.assetId
+      fee?.amount &&
+      fee.assetId &&
+      isCaipAssetType(fee.assetId) &&
+      isCaipAccountId(payer)
         ? {
-            payer: `${chainId}:${transaction.from}`,
+            payer,
             asset: {
               assetId: fee.assetId,
               amount: fee.amount,
@@ -113,7 +145,7 @@ const ethFee = {
   },
   unitsConsumed: 324061,
   unitPrice: '47523265',
-};
+} as const;
 
 // Rows captured from `GET /v5/multiaccount/transactions` with
 // `includeTxMetadata=true`, trimmed to the fields the mapper reads.

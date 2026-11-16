@@ -629,6 +629,8 @@ function isFullAutorampAccount(
  */
 const DEFAULT_QUOTES_TTL = 15000;
 
+const allowNetworkAccess = (): boolean => true;
+
 const CIRCUIT_BREAKER_OPEN_ERROR =
   'Execution prevented because the circuit breaker is open';
 
@@ -1281,6 +1283,15 @@ export type RampsControllerOptions = {
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
   /**
+   * Host check for whether this controller may be used to reach the network.
+   * Evaluated at the start of every gated method, so a denied call throws
+   * `NETWORK_ACCESS_DENIED` before any state write or request, even when a
+   * non-expired request-cache entry exists. Read already-fetched data from
+   * controller state to render while access is denied.
+   * Defaults to allowing network access.
+   */
+  isNetworkAccessAllowed?: () => boolean;
+  /**
    * Optional callback for order-sync failures (full sync parse/fetch/merge and
    * incremental remote push/delete). Context never includes full order JSON.
    */
@@ -1561,6 +1572,8 @@ export class RampsController extends BaseController<
    */
   readonly #requestCacheMaxSize: number;
 
+  readonly #isNetworkAccessAllowed: () => boolean;
+
   readonly #onOrderSyncErroneousSituation?: (
     errorMessage: string,
     sentryContext?: Record<string, unknown>,
@@ -1720,6 +1733,20 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Throws before any request bookkeeping or state write when the host has
+   * revoked network access. Cache entries are not served while denied.
+   * Callers match on `errorKey`, never the message.
+   */
+  #assertNetworkAccessAllowed(): void {
+    if (!this.#isNetworkAccessAllowed()) {
+      throw Object.assign(
+        new Error('Ramps network access is not allowed by the host.'),
+        { errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED },
+      );
+    }
+  }
+
+  /**
    * Constructs a new {@link RampsController}.
    *
    * @param args - The constructor arguments.
@@ -1728,6 +1755,7 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
+   * @param args.isNetworkAccessAllowed - Host check for network access. Defaults to allowing access.
    * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
    * @param args.trace - Optional performance tracing callback for order sync.
    * @param args.trackAutorampTransactionStatusChanged - Optional callback for a new autoramp transaction or a status change.
@@ -1737,6 +1765,7 @@ export class RampsController extends BaseController<
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+    isNetworkAccessAllowed = allowNetworkAccess,
     onOrderSyncErroneousSituation,
     trace,
     trackAutorampTransactionStatusChanged,
@@ -1755,6 +1784,7 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+    this.#isNetworkAccessAllowed = isNetworkAccessAllowed;
     this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
     this.#trace = trace;
     this.#trackAutorampTransactionStatusChanged =
@@ -1829,6 +1859,10 @@ export class RampsController extends BaseController<
     fetcher: (signal: AbortSignal) => Promise<TResult>,
     options?: ExecuteRequestOptions,
   ): Promise<TResult> {
+    // Also guarded here so callers of the exposed
+    // `RampsController:executeRequest` action cannot bypass the host gate.
+    this.#assertNetworkAccessAllowed();
+
     // Get TTL for verifying cache expiration
     const ttl = options?.ttl ?? this.#requestCacheTTL;
 
@@ -2315,6 +2349,7 @@ export class RampsController extends BaseController<
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     if (!options?.forceRefresh && this.#initPromise !== null) {
       return this.#initPromise;
     }
@@ -2404,6 +2439,7 @@ export class RampsController extends BaseController<
    * @returns An array of countries.
    */
   async getCountries(options?: ExecuteRequestOptions): Promise<Country[]> {
+    this.#assertNetworkAccessAllowed();
     const cacheKey = createCacheKey('getCountries', []);
 
     const countries = await this.executeRequest(
@@ -2440,6 +2476,7 @@ export class RampsController extends BaseController<
       provider?: string | string[];
     },
   ): Promise<TokensResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -2562,6 +2599,7 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): Promise<ProvidersResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -2621,6 +2659,7 @@ export class RampsController extends BaseController<
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionCode = region ?? this.#requireRegion();
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
@@ -2732,6 +2771,7 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<PaymentMethodsForContextResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = options.region ?? this.#requireRegion();
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const assetId = options.assetId.trim();
@@ -2938,6 +2978,7 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
+    this.#assertNetworkAccessAllowed();
     const regionToUse = options.region ?? this.#requireRegion();
     const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
     const paymentMethodsToUse =
@@ -3192,6 +3233,7 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<Quote | undefined> {
+    this.#assertNetworkAccessAllowed();
     const { isFeeExcludedFromFiat = true, ...quoteOptions } = options;
 
     const response = await this.getQuotes(quoteOptions);
@@ -3672,6 +3714,9 @@ export class RampsController extends BaseController<
    * Unchanged syncable payloads (including unchanged poll results) are ignored
    * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
    *
+   * When network access is denied, the order is still written locally and the
+   * remote push is deferred to the next full sync.
+   *
    * @param order - The RampsOrder to add or update.
    */
   addOrder(order: RampsOrder): void {
@@ -3755,7 +3800,10 @@ export class RampsController extends BaseController<
       // Incremental push is suppressed during full sync; queue another full
       // sync pass so mutations during the upload await are not dropped.
       this.#orderSyncQueued = true;
-    } else if (!this.#isOrderSyncingInProgress) {
+    } else if (
+      !this.#isOrderSyncingInProgress &&
+      this.#isNetworkAccessAllowed()
+    ) {
       updateOrderInUserStorage(
         healedOrder,
         {
@@ -3777,6 +3825,9 @@ export class RampsController extends BaseController<
 
   /**
    * Removes a V2 order from controller state by providerOrderId.
+   *
+   * When network access is denied, the order is still removed locally and the
+   * remote tombstone is deferred to the next full sync.
    *
    * @param providerOrderId - The provider order ID to remove.
    */
@@ -3824,7 +3875,7 @@ export class RampsController extends BaseController<
           // upload await are not dropped.
           this.#orderSyncQueued = true;
         }
-      } else if (isLocalDeletion) {
+      } else if (isLocalDeletion && this.#isNetworkAccessAllowed()) {
         deleteOrderInUserStorage(
           orderToRemove,
           {
@@ -3858,6 +3909,7 @@ export class RampsController extends BaseController<
    * resolution is not dropped.
    */
   async syncOrdersWithUserStorage(): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     this.#orderSyncQueued = true;
     let syncError: Error | undefined;
 
@@ -3875,6 +3927,12 @@ export class RampsController extends BaseController<
       this.#orderSyncPromise = (async (): Promise<void> => {
         while (this.#orderSyncQueued) {
           this.#orderSyncQueued = false;
+          if (!this.#isNetworkAccessAllowed()) {
+            // Do not start another User Storage pass after the host revoked
+            // access. Local changes stay pending until the next allowed
+            // `syncOrdersWithUserStorage` call.
+            break;
+          }
           await syncOrdersWithUserStorageInternal(
             {
               onOrderSyncErroneousSituation:
@@ -3969,6 +4027,7 @@ export class RampsController extends BaseController<
     request: CreateAutorampRequest,
     options: { idempotencyKey?: string } = {},
   ): Promise<AutorampAccount> {
+    this.#assertNetworkAccessAllowed();
     const customerId = await this.resolveAutorampCustomerId();
     const fiatCode = readCreateAutorampFiatCode(request);
     const walletAddress = readCreateAutorampWalletAddress(request);
@@ -4003,6 +4062,7 @@ export class RampsController extends BaseController<
    * @returns The vendor customer id.
    */
   async resolveAutorampCustomerId(): Promise<string> {
+    this.#assertNetworkAccessAllowed();
     return (await this.#resolveMoonpayCustomer()).id;
   }
 
@@ -4054,6 +4114,7 @@ export class RampsController extends BaseController<
   }: {
     address: string;
   }): Promise<MoneyAccountWalletRegistrationResult> {
+    this.#assertNetworkAccessAllowed();
     let machine = transitionWalletRegistration(
       createInitialWalletRegistrationState(),
       { type: 'START' },
@@ -4284,6 +4345,7 @@ export class RampsController extends BaseController<
     refreshKyc?: boolean;
     refreshAutoramps?: boolean;
   }): Promise<VbaOnboardingSnapshot> {
+    this.#assertNetworkAccessAllowed();
     if (this.#vbaOnboardingHydrationPromise) {
       return await this.#vbaOnboardingHydrationPromise;
     }
@@ -4601,6 +4663,7 @@ export class RampsController extends BaseController<
    * cursor was removed during the fetch.
    */
   async refreshAutoramp(autorampId: string): Promise<AutorampAccount> {
+    this.#assertNetworkAccessAllowed();
     const remote = await this.messenger.call(
       'NeoBankService:getAutoramp',
       autorampId,
@@ -4616,6 +4679,7 @@ export class RampsController extends BaseController<
    * @returns The fetched abilities.
    */
   async refreshCustomerAbilities(): Promise<NeoBankCustomerAbilities> {
+    this.#assertNetworkAccessAllowed();
     const abilities = await this.messenger.call(
       'NeoBankService:getCustomerAbilities',
     );
@@ -4632,6 +4696,7 @@ export class RampsController extends BaseController<
    * @returns Updated autoramp accounts (failed fetches are skipped).
    */
   async refreshAutoramps(): Promise<AutorampAccount[]> {
+    this.#assertNetworkAccessAllowed();
     const ids = this.state.autoramps.map((autoramp) => autoramp.id);
     const updated: AutorampAccount[] = [];
 
@@ -4670,6 +4735,7 @@ export class RampsController extends BaseController<
   async refreshAutorampTransactions(
     autorampId: string,
   ): Promise<AutorampTransactionSummary[]> {
+    this.#assertNetworkAccessAllowed();
     const inFlight = this.#autorampTransactionRefreshes.get(autorampId);
     if (inFlight) {
       return await inFlight;
@@ -4808,6 +4874,12 @@ export class RampsController extends BaseController<
    * @param order - The order to refresh (needs provider and providerOrderId).
    */
   async #refreshOrder(order: RampsOrder): Promise<void> {
+    if (!this.#isNetworkAccessAllowed()) {
+      // A denied call is host policy, not a provider failure. Skip without
+      // counting an error so a later allowed poll is not delayed by backoff.
+      return;
+    }
+
     const providerCode = order.provider?.id ?? '';
     if (!providerCode || !order.providerOrderId || !order.walletAddress) {
       return;
@@ -4948,6 +5020,7 @@ export class RampsController extends BaseController<
    * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
    */
   async getBuyWidgetData(quote: Quote): Promise<BuyWidget | null> {
+    this.#assertNetworkAccessAllowed();
     const buyUrl = quote.quote?.buyURL;
     if (!buyUrl) {
       return null;
@@ -4972,6 +5045,7 @@ export class RampsController extends BaseController<
     fallback: BuyWidgetFallback,
     options?: { redirectUrl?: string },
   ): Promise<BuyWidget | null> {
+    this.#assertNetworkAccessAllowed();
     if (!fallback?.url) {
       return null;
     }
@@ -5005,6 +5079,9 @@ export class RampsController extends BaseController<
    * Registers an order ID for polling until the order is created or resolved.
    * Adds a minimal stub order to controller state; the existing order polling
    * will fetch the full order when the provider has created it.
+   *
+   * When network access is denied, the stub is still written locally and its
+   * remote push is deferred to the next full sync.
    *
    * @param params - Object containing order identifiers and wallet info.
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
@@ -5073,6 +5150,7 @@ export class RampsController extends BaseController<
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    this.#assertNetworkAccessAllowed();
     const hadOrderAtRequestStart = this.state.orders.some(
       (existingOrder) => getInternalOrderCode(existingOrder) === orderCode,
     );
@@ -5124,6 +5202,7 @@ export class RampsController extends BaseController<
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    this.#assertNetworkAccessAllowed();
     const order = await this.messenger.call(
       'RampsService:getOrderFromCallback',
       providerCode,
@@ -5226,6 +5305,7 @@ export class RampsController extends BaseController<
     email: string;
     expiresIn: number;
   }> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:sendUserOtp', email);
     } catch (error) {
@@ -5247,6 +5327,7 @@ export class RampsController extends BaseController<
     verificationCode: string,
     stateToken: string,
   ): Promise<TransakAccessToken> {
+    this.#assertNetworkAccessAllowed();
     try {
       const token = await this.messenger.call(
         'TransakService:verifyUserOtp',
@@ -5265,19 +5346,35 @@ export class RampsController extends BaseController<
    * Logs the user out of Transak. Clears authentication state and user details
    * regardless of whether the API call succeeds or fails.
    *
+   * When network access is denied, the local session is cleared and a message
+   * is returned without calling the Transak service.
+   *
    * @returns A message indicating the logout result.
    */
   async transakLogout(): Promise<string> {
+    if (!this.#isNetworkAccessAllowed()) {
+      this.#clearTransakLocalSession();
+      return 'Transak session cleared without network access';
+    }
+
     try {
       return await this.messenger.call('TransakService:logout');
     } catch (error) {
       throw this.#getNormalizedTransakError(error).normalizedError;
     } finally {
-      this.transakClearAccessToken();
-      this.update((state) => {
-        state.nativeProviders.transak.userDetails.data = null;
-      });
+      this.#clearTransakLocalSession();
     }
+  }
+
+  /**
+   * Clears the local Transak session without making a request. Used on logout
+   * when network access is revoked, so users can still clear their data.
+   */
+  #clearTransakLocalSession(): void {
+    this.transakClearAccessToken();
+    this.update((state) => {
+      state.nativeProviders.transak.userDetails.data = null;
+    });
   }
 
   /**
@@ -5287,6 +5384,7 @@ export class RampsController extends BaseController<
    * @returns The user's profile and KYC details.
    */
   async transakGetUserDetails(): Promise<TransakUserDetails> {
+    this.#assertNetworkAccessAllowed();
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
       state.nativeProviders.transak.userDetails.error = null;
@@ -5338,6 +5436,7 @@ export class RampsController extends BaseController<
     fiatAmount: string,
     isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
+    this.#assertNetworkAccessAllowed();
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
@@ -5380,6 +5479,7 @@ export class RampsController extends BaseController<
   async transakGetKycRequirement(
     quoteId: string,
   ): Promise<TransakKycRequirement> {
+    this.#assertNetworkAccessAllowed();
     this.update((state) => {
       state.nativeProviders.transak.kycRequirement.isLoading = true;
       state.nativeProviders.transak.kycRequirement.error = null;
@@ -5421,6 +5521,7 @@ export class RampsController extends BaseController<
   async transakGetAdditionalRequirements(
     quoteId: string,
   ): Promise<TransakAdditionalRequirementsResponse> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getAdditionalRequirements',
@@ -5446,6 +5547,7 @@ export class RampsController extends BaseController<
     walletAddress: string,
     paymentMethodId: string,
   ): Promise<TransakDepositOrder> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:createOrder',
@@ -5472,6 +5574,7 @@ export class RampsController extends BaseController<
     wallet: string,
     paymentDetails?: TransakOrderPaymentMethod[],
   ): Promise<TransakDepositOrder> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getOrder',
@@ -5497,6 +5600,7 @@ export class RampsController extends BaseController<
     paymentMethod: string,
     kycType: string,
   ): Promise<TransakUserLimits> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getUserLimits',
@@ -5516,6 +5620,7 @@ export class RampsController extends BaseController<
    * @returns The OTT response containing the token.
    */
   async transakRequestOtt(): Promise<TransakOttResponse> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:requestOtt');
     } catch (error) {
@@ -5563,6 +5668,7 @@ export class RampsController extends BaseController<
     walletAddress: string,
     extraParams?: Record<string, string>,
   ): Promise<string> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:createWidgetUrl',
@@ -5583,6 +5689,7 @@ export class RampsController extends BaseController<
    * @returns A promise that resolves when the form is submitted.
    */
   async transakSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:submitPurposeOfUsageForm',
@@ -5601,6 +5708,7 @@ export class RampsController extends BaseController<
    * @returns The API response data.
    */
   async transakPatchUser(data: PatchUserRequestBody): Promise<unknown> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:patchUser', data);
     } catch (error) {
@@ -5620,6 +5728,7 @@ export class RampsController extends BaseController<
     ssn: string,
     quoteId: string,
   ): Promise<unknown> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:submitSsnDetails',
@@ -5643,6 +5752,7 @@ export class RampsController extends BaseController<
     orderId: string,
     paymentMethodId: string,
   ): Promise<{ success: boolean }> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:confirmPayment',
@@ -5664,6 +5774,7 @@ export class RampsController extends BaseController<
   async transakGetTranslation(
     request: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getTranslation',
@@ -5683,6 +5794,7 @@ export class RampsController extends BaseController<
   async transakGetIdProofStatus(
     workFlowRunId: string,
   ): Promise<TransakIdProofStatus> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:getIdProofStatus',
@@ -5701,6 +5813,7 @@ export class RampsController extends BaseController<
    * @returns A promise that resolves when the order is cancelled.
    */
   async transakCancelOrder(depositOrderId: string): Promise<void> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call(
         'TransakService:cancelOrder',
@@ -5719,6 +5832,7 @@ export class RampsController extends BaseController<
    * @returns An array of errors from any failed cancellations (empty if all succeeded).
    */
   async transakCancelAllActiveOrders(): Promise<Error[]> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:cancelAllActiveOrders');
     } catch (error) {
@@ -5733,6 +5847,7 @@ export class RampsController extends BaseController<
    * @returns The list of active orders.
    */
   async transakGetActiveOrders(): Promise<TransakOrder[]> {
+    this.#assertNetworkAccessAllowed();
     try {
       return await this.messenger.call('TransakService:getActiveOrders');
     } catch (error) {

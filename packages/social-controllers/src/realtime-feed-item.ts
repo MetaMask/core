@@ -109,7 +109,29 @@ const RawHydratedPositionStruct = structType({
   entryPriceUsd: optional(nullable(number())),
   authorComment: optional(nullable(AuthorCommentStruct)),
   flags: optional(nullable(array(string()))),
+  currentValueUSD: optional(nullable(number())),
+  positionValueUSD: optional(nullable(number())),
+  pnlValueUsd: optional(nullable(number())),
+  pnlPercent: optional(nullable(number())),
 });
+
+const PRICED_KEYS = [
+  'currentValueUSD',
+  'positionValueUSD',
+  'pnlValueUsd',
+  'pnlPercent',
+] as const;
+
+type PricedFields = Pick<FeedItem, (typeof PRICED_KEYS)[number]>;
+
+// The server prices the card when it publishes it. A field it did not send
+// stays absent, so the client keeps using its own live price for it.
+const toPricedFields = (value: PricedFields): PricedFields =>
+  Object.fromEntries(
+    PRICED_KEYS.flatMap((key) =>
+      value[key] === undefined ? [] : [[key, value[key]]],
+    ),
+  );
 
 export type RealtimeFeedEventData = FeedItem;
 
@@ -262,6 +284,7 @@ export const normalizeRealtimeFeedItem = (
     // `flags` lives on the hydrated card, beside `metadata`. The server does
     // not set `metadata.flags`.
     ...(value.flags === undefined ? {} : { flags: value.flags }),
+    ...toPricedFields(value),
   };
 };
 

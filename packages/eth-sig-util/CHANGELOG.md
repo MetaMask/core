@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#11349](https://github.com/MetaMask/core/pull/11349), [#11362](https://github.com/MetaMask/core/pull/11362))
@@ -19,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `TypedDataUtils.encodeData`, `TypedDataUtils.hashStruct`, `TypedDataUtils.hashType`, `TypedDataUtils.eip712Hash`, `TypedDataUtils.eip712DomainHash`, and `hashEIP7702Authorization` now return a `Uint8Array` instead of a `Buffer` ([#11394](https://github.com/MetaMask/core/pull/11394))
 - **BREAKING:** Objects with a `toArray` or `toBuffer` method are no longer accepted as the `data` of `personalSign`, `recoverPersonalSignature`, and `extractPublicKey`, or as `bytes` values in `V1` typed data ([#11394](https://github.com/MetaMask/core/pull/11394))
 - `Uint8Array` is now accepted as part of the arguments of `personalSign`, `signTypedData`, `signEIP7702Authorization`, and `concatSig`, instead of `Buffer` ([#11394](https://github.com/MetaMask/core/pull/11394))
-- Bump `@metamask/utils` from `^11.0.1` to `^12.0.1` ([#11349](https://github.com/MetaMask/core/pull/11349))
+- Bump `@metamask/utils` from `^11.0.1` to `^12.0.2` ([#11349](https://github.com/MetaMask/core/pull/11349), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `ethereum-cryptography` from `^2.1.2` to `^3.2.0` ([#11349](https://github.com/MetaMask/core/pull/11349))
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#11394](https://github.com/MetaMask/core/pull/11394))
 - Bump `@ethereumjs/rlp` from `^4.0.1` to `^5.0.2` ([#11394](https://github.com/MetaMask/core/pull/11394))
@@ -33,4 +35,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct padding calculation so that every ciphertext is a multiple of 2048 bytes ([#11386](https://github.com/MetaMask/core/pull/11386))
 - Reject non-integer and unsafe-integer `chainId` and `nonce` values in `signEIP7702Authorization`, `recoverEIP7702Authorization`, and `hashEIP7702Authorization` ([#11392](https://github.com/MetaMask/core/pull/11392))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-sig-util@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eth-sig-util@10.0.0
