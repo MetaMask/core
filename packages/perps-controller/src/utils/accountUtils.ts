@@ -13,6 +13,7 @@ import type {
   CrossMarginSummary,
   PerpsInternalAccount,
 } from '../types/index.js';
+import { aggregateAccountTotals } from './accountAggregation.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
 
@@ -482,50 +483,10 @@ export function aggregateAccountStates(states: AccountState[]): AccountState {
     return fallback;
   }
 
-  const aggregated = states.reduce<AccountState>((acc, state, index) => {
-    if (index === 0) {
-      return { ...state };
-    }
-
-    return {
-      spendableBalance: addDecimalValues(
-        acc.spendableBalance,
-        state.spendableBalance,
-      ),
-      withdrawableBalance: addDecimalValues(
-        acc.withdrawableBalance,
-        state.withdrawableBalance,
-      ),
-      totalBalance: addDecimalValues(acc.totalBalance, state.totalBalance),
-      marginUsed: (
-        parseFloat(acc.marginUsed) + parseFloat(state.marginUsed)
-      ).toString(),
-      unrealizedPnl: (
-        parseFloat(acc.unrealizedPnl) + parseFloat(state.unrealizedPnl)
-      ).toString(),
-      returnOnEquity: '0',
-    };
-  }, fallback);
-
-  aggregated.spendableBalance = normalizeDecimalString(
-    aggregated.spendableBalance,
-  );
-  aggregated.withdrawableBalance = normalizeDecimalString(
-    aggregated.withdrawableBalance,
-  );
-  aggregated.totalBalance = normalizeDecimalString(aggregated.totalBalance);
-
-  // Recalculate ROE across all DEXs
-  const totalMarginUsed = parseFloat(aggregated.marginUsed);
-  const totalUnrealizedPnl = parseFloat(aggregated.unrealizedPnl);
-  if (totalMarginUsed > 0) {
-    aggregated.returnOnEquity = (
-      (totalUnrealizedPnl / totalMarginUsed) *
-      100
-    ).toString();
-  } else {
-    aggregated.returnOnEquity = '0';
-  }
+  const aggregated: AccountState = {
+    ...(states.length === 1 ? states[0] : {}),
+    ...aggregateAccountTotals(states),
+  };
 
   const crossMarginSummary = sumCrossMarginSummaries(states);
   if (crossMarginSummary) {
@@ -533,13 +494,4 @@ export function aggregateAccountStates(states: AccountState[]): AccountState {
   }
 
   return aggregated;
-}
-
-function addDecimalValues(left: string, right: string): string {
-  return new BigNumber(left).plus(right).toFixed();
-}
-
-function normalizeDecimalString(value: string): string {
-  const amount = new BigNumber(value);
-  return amount.isFinite() ? amount.toFixed() : value;
 }

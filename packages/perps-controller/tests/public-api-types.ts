@@ -60,6 +60,8 @@ import type {
   PerpsProviderAccountStateEntry,
   ClosePositionsParams,
   ClosePositionsTarget,
+  CancelOrdersParams,
+  SubscribeAccountParams,
   PerpsProviderType,
 } from '@metamask/perps-controller';
 import type {
@@ -889,6 +891,18 @@ export type AggregatedAccountConsumerContracts = [
   >,
   AssertTrue<
     IsExact<AccountState['aggregate'], AccountAggregateMetadata | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<SubscribeAccountParams['callback']>,
+      [account: AccountState | null, aggregate?: AccountAggregateMetadata]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      CancelOrdersParams['orders'],
+      { orderId: string; providerId: PerpsProviderType }[] | undefined
+    >
   >,
   AssertTrue<
     IsExact<AccountState['providerId'], PerpsProviderType | undefined>

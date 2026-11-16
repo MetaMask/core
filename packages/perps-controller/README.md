@@ -79,9 +79,11 @@ unavailable, accepts these writes without an explicit route because there is
 only one destination.
 
 `cancelOrders` and `closePositions` are venue-attributed rather than refused.
-`cancelOrders` resolves each target's venue from the order record that names
-it, so a filtered or cancel-all batch reaches every venue that actually holds
-an order. `closePositions` takes either `closeAll` (fans out to every enabled
+`cancelOrders({ orders: [{ orderId, providerId }] })` matches both fields,
+so a colliding ID on another venue is not cancelled. Legacy `orderIds` filters
+intentionally match that ID at every venue; use `orders` for a venue-specific
+cancel. Cancel-all batches reach every venue holding an order. An empty
+`orders`, `orderIds` or `symbols` filter selects no orders. `closePositions` takes either `closeAll` (fans out to every enabled
 venue) or explicit `targets` of `{ symbol, providerId }`; a legacy
 symbols-only close without venue identity still returns
 `PROVIDER_ROUTE_REQUIRED` while multiple venues are registered, because closing
@@ -104,18 +106,26 @@ Each venue's own snapshot is in `providerStates[providerId]`: either
 `crossMarginSummary` and `subAccountBreakdown` (never merged into the top
 level — cross-venue collateral is not mutually usable), or
 `{ status: 'unavailable', error?, providerId }` for a venue whose read failed
-or has not reported yet. `aggregate` metadata
-(`{ status: 'complete' | 'partial', availableProviders, unavailableProviders }`)
-says whether the totals cover every enabled venue. A `partial` total is a
+or whose snapshot has a missing or non-finite additive field. A stream venue
+is `{ status: 'pending', providerId }` until its first snapshot, even if it
+emits `null`. After a snapshot, `null` makes it unavailable. `aggregate`
+metadata (`{ status: 'complete' | 'partial', availableProviders,
+unavailableProviders, pendingProviders? }`) says whether the totals cover
+every enabled venue. A `partial` total is a
 subtotal: never present it as the user's complete portfolio value. A failed
 read is never shown as a zero balance; a confirmed zero or nonexistent venue
 account is an `available` entry with zero balances. When no venue has usable
-data the read throws (REST) or the stream emits `null`.
+data the read throws (REST) or the stream emits `null`. The account callback's
+optional second argument carries this completeness metadata even when the
+state is `null`, so pending and unavailable venues remain distinguishable.
 
 The controller writes `perpsBalances[providerId]` from live account updates —
 one entry per available venue with `totalBalance`, `unrealizedPnl` and
 `lastUpdated`. A venue whose data becomes unavailable has its entry removed
-rather than left looking live. Each entry records the `accountAddress` and
+rather than left looking live. Pending venues retain their persisted entries
+and history, including when the first stream update is `null`; a `null` total
+clears `accountState` but only explicitly unavailable venues lose their entries.
+Each entry records the `accountAddress` and
 `isTestnet` it was observed for; an optional `accountValue1dAgo` carries
 forward only within that same account and network, and entries for another
 account or network are dropped when the selected account changes or the

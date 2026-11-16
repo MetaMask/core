@@ -968,6 +968,66 @@ describe('PerpsController', () => {
       expect(controller.state.perpsBalances.lighter).toBeUndefined();
     });
 
+    it('preserves pending balances when the first account emission is null', () => {
+      setupAggregatedMode();
+      controller.testUpdate((state) => {
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          accountValue1dAgo: '190',
+          lastUpdated: 1,
+        };
+        state.perpsBalances.hyperliquid = {
+          totalBalance: '100',
+          unrealizedPnl: '1',
+          lastUpdated: 1,
+        };
+      });
+      const persisted = controller.state.perpsBalances;
+      const callback = vi.fn();
+      controller.subscribeToAccount({ callback });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback(null);
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      expect(callback.mock.calls[0][0]).toBeNull();
+
+      // Once a venue reports data, its subsequent null removes only that
+      // venue. The other venue still has no verdict, even with no live total.
+      hlCallback(accountState('110'));
+      hlCallback(null);
+      expect(controller.state.perpsBalances.hyperliquid).toBeUndefined();
+      expect(controller.state.perpsBalances.lighter).toStrictEqual(
+        persisted.lighter,
+      );
+      expect(controller.state.accountState).toBeNull();
+    });
+
+    it('removes malformed venue balances even when every other venue is pending', () => {
+      setupAggregatedMode();
+      controller.testUpdate((state) => {
+        state.perpsBalances.hyperliquid = {
+          totalBalance: '100',
+          unrealizedPnl: '1',
+          lastUpdated: 1,
+        };
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          lastUpdated: 1,
+        };
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback({ ...accountState('110'), marginUsed: '--' });
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances.hyperliquid).toBeUndefined();
+      expect(controller.state.perpsBalances.lighter?.totalBalance).toBe('200');
+    });
+
     it('removes a venue balance entry when that venue reports unavailable', () => {
       setupAggregatedMode();
       controller.subscribeToAccount({ callback: vi.fn() });

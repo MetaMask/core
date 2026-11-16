@@ -2099,7 +2099,7 @@ export class TradingService {
         data: {
           cancelAll: params.cancelAll ? 'true' : 'false',
           symbolCount: params.symbols?.length ?? 0,
-          orderIdCount: params.orderIds?.length ?? 0,
+          orderIdCount: params.orders?.length ?? params.orderIds?.length ?? 0,
         },
       });
 
@@ -2115,18 +2115,27 @@ export class TradingService {
         let ordersToCancel = orders;
         if (
           params.cancelAll === true ||
-          (!params.symbols && !params.orderIds)
+          (!params.symbols && !params.orderIds && !params.orders)
         ) {
           // Cancel all orders (excluding TP/SL orders for positions)
           ordersToCancel = orders.filter(
             (order) => !isTPSLOrder(order.detailedOrderType),
           );
-        } else if (params.orderIds && params.orderIds.length > 0) {
-          // Cancel specific order IDs
+        } else if (params.orders) {
+          ordersToCancel = orders.filter((order) =>
+            params.orders?.some(
+              (target) =>
+                target.orderId === order.orderId &&
+                target.providerId === (order.providerId ?? provider.protocolId),
+            ),
+          );
+        } else if (params.orderIds) {
+          // Legacy IDs intentionally match every venue; scoped targets above
+          // are required to distinguish a colliding order ID.
           ordersToCancel = orders.filter((order) =>
             params.orderIds?.includes(order.orderId),
           );
-        } else if (params.symbols && params.symbols.length > 0) {
+        } else if (params.symbols) {
           // Cancel orders for specific symbols
           ordersToCancel = orders.filter((order) =>
             params.symbols?.includes(order.symbol),
@@ -2200,6 +2209,9 @@ export class TradingService {
             return {
               orderId: ordersToCancel[index].orderId,
               symbol: ordersToCancel[index].symbol,
+              ...(ordersToCancel[index].providerId !== undefined && {
+                providerId: ordersToCancel[index].providerId,
+              }),
               success: Boolean(
                 result.status === 'fulfilled' && result.value.success,
               ),

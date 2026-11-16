@@ -1002,12 +1002,11 @@ export type AccountState = {
 /**
  * One venue's account data inside an aggregated {@link AccountState}.
  *
- * A venue that failed to report (its latest stream update was `null`) is an
- * explicit `unavailable` entry — never a zero balance. A venue that has not
- * reported yet is a `pending` entry: no verdict about its balances, so its
- * previously persisted data stays valid until the venue reports. A confirmed
- * zero or nonexistent venue account is an `available` entry whose balances
- * are zero.
+ * A failed read, invalid balance snapshot, or `null` after a venue has reported
+ * a snapshot is `unavailable` — never a zero balance. Before its first snapshot,
+ * a stream venue is `pending`, even if it emits `null`: no verdict about its
+ * balances, so its persisted entry is retained. A confirmed zero or nonexistent
+ * venue account is an `available` entry whose balances are zero.
  */
 export type PerpsProviderAccountStateEntry =
   | {
@@ -1454,7 +1453,12 @@ export type BatchCancelOrdersParams = {
 
 export type CancelOrdersParams = {
   symbols?: string[]; // Optional: specific symbols (omit to cancel all orders)
-  orderIds?: string[]; // Optional: specific order IDs (omit to cancel all orders for specified coins)
+  /** Legacy cross-venue filter: cancels every matching ID at every venue.
+   * Use `orders` to select a single venue when IDs collide. */
+  orderIds?: string[];
+  /** Venue-scoped targets, matched on both fields. Takes precedence over
+   * legacy filters unless `cancelAll` is true. An empty list cancels nothing. */
+  orders?: { orderId: string; providerId: PerpsProviderType }[];
   cancelAll?: boolean; // Explicitly cancel all orders
 };
 
@@ -2035,7 +2039,12 @@ export type SubscribeAvailableToTradeParams = {
 };
 
 export type SubscribeAccountParams = {
-  callback: (account: AccountState | null) => void;
+  /** Aggregated streams include completeness metadata even when account is null,
+   * so consumers can distinguish pending venues from unavailable ones. */
+  callback: (
+    account: AccountState | null,
+    aggregate?: AccountAggregateMetadata,
+  ) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
 };
 

@@ -806,6 +806,30 @@ describe('AggregatedPerpsProvider', () => {
       await expect(aggregatedProvider.getAccountState()).rejects.toThrow();
     });
 
+    it('excludes a venue whose resolved state contains a nonnumeric field', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
+      mockLighterProvider.getAccountState.mockResolvedValue({
+        ...hlState,
+        totalBalance: '--',
+      });
+      const result = await aggregatedProvider.getAccountState();
+      expect(result.totalBalance).toBe('1000.1');
+      expect(result.aggregate?.unavailableProviders).toStrictEqual(['lighter']);
+      expect(result.providerStates?.lighter?.status).toBe('unavailable');
+    });
+
+    it('rejects when every resolved venue state is malformed', async () => {
+      mockHLProvider.getAccountState.mockResolvedValue({
+        ...hlState,
+        marginUsed: '--',
+      });
+      mockLighterProvider.getAccountState.mockResolvedValue({
+        ...hlState,
+        totalBalance: '--',
+      });
+      await expect(aggregatedProvider.getAccountState()).rejects.toThrow();
+    });
+
     it('forces a strict read in the aggregated fan-out so a failed venue read cannot masquerade as zero', async () => {
       mockHLProvider.getAccountState.mockResolvedValue({ ...hlState });
       mockLighterProvider.getAccountState.mockRejectedValue(
@@ -3481,7 +3505,12 @@ describe('AggregatedPerpsProvider', () => {
       hlCallback(null);
       lighterCallback(null);
 
-      expect(callback).toHaveBeenCalledWith(null);
+      expect(callback).toHaveBeenCalledWith(null, {
+        status: 'partial',
+        availableProviders: [],
+        unavailableProviders: [],
+        pendingProviders: ['hyperliquid', 'lighter'],
+      });
     });
 
     it('keeps the direct stream shape when only one venue is registered', () => {

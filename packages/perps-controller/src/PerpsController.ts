@@ -7557,7 +7557,7 @@ export class PerpsController extends BaseController<
         (nextProvider) =>
           nextProvider.subscribeToAccount({
             ...params,
-            callback: (account: AccountState | null) => {
+            callback: (account, aggregate) => {
               if (account) {
                 this.update((state) => {
                   state.accountState = account;
@@ -7621,7 +7621,7 @@ export class PerpsController extends BaseController<
                       // A `pending` venue has not reported on this stream
                       // yet: no verdict about its balances, so its persisted
                       // entry (with the 1d-ago history it carries) stays
-                      // until the venue reports data or an explicit null.
+                      // until the venue reports a snapshot.
                     }
                   } else {
                     const directVenueId =
@@ -7635,15 +7635,25 @@ export class PerpsController extends BaseController<
                   }
                 });
               } else {
-                // No current account data: the cached snapshot and live
-                // balance entries are gone rather than stale-but-live.
                 this.update((state) => {
                   state.accountState = null;
-                  state.perpsBalances = {};
+                  if (aggregate) {
+                    // A null total may still contain pending venues. Only
+                    // explicit unavailability invalidates their balances.
+                    for (const providerId of aggregate.unavailableProviders) {
+                      delete state.perpsBalances[providerId];
+                    }
+                  } else {
+                    state.perpsBalances = {};
+                  }
                   state.lastUpdateTimestamp = Date.now();
                 });
               }
-              originalCallback(account);
+              if (aggregate) {
+                originalCallback(account, aggregate);
+              } else {
+                originalCallback(account);
+              }
             },
           }),
         () => originalCallback(null),
