@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
-    "@metamask/authenticated-user-storage": "^4.1.0",
+    "@metamask/authenticated-user-storage": "^4.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/base-data-service": "^2.1.0",
     "@metamask/chomp-api-service": "^7.1.0",
