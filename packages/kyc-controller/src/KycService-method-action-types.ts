@@ -300,7 +300,7 @@ export type KycServiceGetSessionStatusForVendorAction = {
  * about the user, so the answer is the same on every device.
  *
  * @param vendor - The vendor to get the step for.
- * @returns The step, and idOS's own step for the session when there is one.
+ * @returns The step.
  */
 export type KycServiceGetStepAction = {
   type: `KycService:getStep`;

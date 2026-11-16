@@ -34,7 +34,7 @@ import type {
   OnboardingVendor,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycStepInfo,
+  KycStep,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -181,17 +181,10 @@ const VendorSigningStruct = type({
 const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
 /** `{ nextStep }`, returned by kyc-api actions that move onboarding on. */
-const NextStepResponseStruct = type({
-  nextStep: string(),
-  relayStep: optional(string()),
-});
+const NextStepResponseStruct = type({ nextStep: string() });
 
 /** `GET /vendors/{vendor}/step`. */
-const StepResponseStruct = type({
-  vendor: string(),
-  nextStep: string(),
-  relayStep: optional(string()),
-});
+const StepResponseStruct = type({ vendor: string(), nextStep: string() });
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
@@ -312,25 +305,6 @@ const SessionDisclaimersResponseStruct = type({
   credentialReusabilityConsentGiven: boolean(),
 });
 
-/**
- * Turns a step response from kyc-api into a {@link KycStepInfo}. A step this
- * version does not know becomes `error`.
- *
- * @param response - The validated response.
- * @param response.nextStep - The step kyc-api decided.
- * @param response.relayStep - idOS's own step, when the session has one.
- * @returns The step info.
- */
-function toStepInfo(response: {
-  nextStep: string;
-  relayStep?: string | undefined;
-}): KycStepInfo {
-  return {
-    step: toKycStep(response.nextStep),
-    ...(response.relayStep ? { relayStep: response.relayStep } : {}),
-  };
-}
-
 // === PARAM TYPES ===
 
 export type CreateMoonpaySessionParams = {
@@ -390,7 +364,7 @@ export type KycOnboardingStep =
  */
 export type OnboardingStepResult = {
   status: KycSessionStatus;
-  step?: KycStepInfo;
+  step?: KycStep;
 };
 
 export type CreateUkycSessionParams = {
@@ -1171,20 +1145,20 @@ export class KycService extends BaseDataService<
    * about the user, so the answer is the same on every device.
    *
    * @param vendor - The vendor to get the step for.
-   * @returns The step, and idOS's own step for the session when there is one.
+   * @returns The step.
    */
-  async getStep(vendor: OnboardingVendor): Promise<KycStepInfo> {
+  async getStep(vendor: OnboardingVendor): Promise<KycStep> {
     const url = new URL(
       `/vendors/${encodeURIComponent(vendor)}/step`,
       this.#baseUrl,
     );
     const data = await this.#requestJson(url, { method: 'GET' });
-    const response = this.#validateResponse(
+    const { nextStep } = this.#validateResponse(
       data,
       StepResponseStruct,
       'vendor step',
     );
-    return toStepInfo(response);
+    return toKycStep(nextStep);
   }
 
   /**
@@ -1203,7 +1177,7 @@ export class KycService extends BaseDataService<
     vendor: OnboardingVendor;
     disclaimerIds: string[];
     country?: string;
-  }): Promise<KycStepInfo> {
+  }): Promise<KycStep> {
     const url = new URL(
       `/vendors/${encodeURIComponent(params.vendor)}/disclaimers`,
       this.#baseUrl,
@@ -1215,9 +1189,12 @@ export class KycService extends BaseDataService<
         ...(params.country ? { country: params.country } : {}),
       }),
     });
-    return toStepInfo(
-      this.#validateResponse(data, NextStepResponseStruct, 'vendor terms'),
+    const { nextStep } = this.#validateResponse(
+      data,
+      NextStepResponseStruct,
+      'vendor terms',
     );
+    return toKycStep(nextStep);
   }
 
   /**
@@ -1229,21 +1206,18 @@ export class KycService extends BaseDataService<
    * @param params.sessionId - The UKYC session id.
    * @returns The next step.
    */
-  async markProviderSubmitted(params: {
-    sessionId: string;
-  }): Promise<KycStepInfo> {
+  async markProviderSubmitted(params: { sessionId: string }): Promise<KycStep> {
     const url = new URL(
       `/sessions/${encodeURIComponent(params.sessionId)}/provider-submitted`,
       this.#baseUrl,
     );
     const data = await this.#requestJson(url, { method: 'POST' });
-    return toStepInfo(
-      this.#validateResponse(
-        data,
-        NextStepResponseStruct,
-        'provider submitted',
-      ),
+    const { nextStep } = this.#validateResponse(
+      data,
+      NextStepResponseStruct,
+      'provider submitted',
     );
+    return toKycStep(nextStep);
   }
 
   /**
@@ -1276,14 +1250,7 @@ export class KycService extends BaseDataService<
     if (typeof nextStep !== 'string') {
       return { status };
     }
-    // idOS's own step is the one the status reports.
-    return {
-      status,
-      step: {
-        step: toKycStep(nextStep),
-        ...(status.currentStep ? { relayStep: status.currentStep } : {}),
-      },
-    };
+    return { status, step: toKycStep(nextStep) };
   }
 
   /**

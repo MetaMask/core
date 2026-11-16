@@ -1025,23 +1025,18 @@ describe('KycService', () => {
         .reply(200, { vendor: 'kalshi', nextStep: 'account_link' });
       const { service } = getService();
 
-      expect(await service.getStep('kalshi')).toStrictEqual({
-        step: 'account_link',
-      });
+      expect(await service.getStep('kalshi')).toBe('account_link');
     });
 
-    it("returns idOS's own step when kyc-api sends one", async () => {
+    it('ignores a field kyc-api adds that this version does not know', async () => {
       nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
         vendor: 'kalshi',
-        nextStep: 'identity_verification',
-        relayStep: 'emailOtpCollection',
+        nextStep: 'identity_email_code',
+        somethingNew: true,
       });
       const { service } = getService();
 
-      expect(await service.getStep('kalshi')).toStrictEqual({
-        step: 'identity_verification',
-        relayStep: 'emailOtpCollection',
-      });
+      expect(await service.getStep('kalshi')).toBe('identity_email_code');
     });
 
     it('turns a step this version does not know into error', async () => {
@@ -1050,7 +1045,7 @@ describe('KycService', () => {
         .reply(200, { vendor: 'iron', nextStep: 'brand_new_step' });
       const { service } = getService();
 
-      expect(await service.getStep('iron')).toStrictEqual({ step: 'error' });
+      expect(await service.getStep('iron')).toBe('error');
     });
 
     it('throws on a malformed response', async () => {
@@ -1079,7 +1074,7 @@ describe('KycService', () => {
           disclaimerIds: ['tos-v1'],
           country: 'USA',
         }),
-      ).toStrictEqual({ step: 'account_link' });
+      ).toBe('account_link');
     });
 
     it('leaves the country out when none is given', async () => {
@@ -1093,21 +1088,7 @@ describe('KycService', () => {
           vendor: 'iron',
           disclaimerIds: ['tos-v1'],
         }),
-      ).toStrictEqual({ step: 'confirm_identity' });
-    });
-
-    it("returns idOS's own step when kyc-api sends one", async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/kalshi/disclaimers')
-        .reply(200, { nextStep: 'account_link', relayStep: 'processing' });
-      const { service } = getService();
-
-      expect(
-        await service.acceptVendorTerms({
-          vendor: 'kalshi',
-          disclaimerIds: ['a'],
-        }),
-      ).toStrictEqual({ step: 'account_link', relayStep: 'processing' });
+      ).toBe('confirm_identity');
     });
 
     it('throws when the response has no next step', async () => {
@@ -1127,9 +1108,9 @@ describe('KycService', () => {
         .reply(200, { nextStep: 'kyc_pending' });
       const { service } = getService();
 
-      expect(
-        await service.markProviderSubmitted({ sessionId: 'sid-1' }),
-      ).toStrictEqual({ step: 'kyc_pending' });
+      expect(await service.markProviderSubmitted({ sessionId: 'sid-1' })).toBe(
+        'kyc_pending',
+      );
     });
   });
 
@@ -1175,10 +1156,10 @@ describe('KycService', () => {
       ).toStrictEqual({ status });
     });
 
-    it("returns the step kyc-api decided, with idOS's own step from the status", async () => {
+    it('returns the step kyc-api decided with the status', async () => {
       nock(MOCK_API_URL)
         .post('/sessions/sid-1/onboarding/phone/verify-otp', { otp: '888888' })
-        .reply(200, { ...status, nextStep: 'identity_verification' });
+        .reply(200, { ...status, nextStep: 'identity_phone' });
       const { service } = getService();
 
       expect(
@@ -1188,28 +1169,9 @@ describe('KycService', () => {
           body: { otp: '888888' },
         }),
       ).toStrictEqual({
-        status: { ...status, nextStep: 'identity_verification' },
-        step: {
-          step: 'identity_verification',
-          relayStep: 'phoneOtpCollection',
-        },
+        status: { ...status, nextStep: 'identity_phone' },
+        step: 'identity_phone',
       });
-    });
-
-    it('leaves idOS’s own step out when the status has none', async () => {
-      const { currentStep, ...withoutStep } = status;
-      nock(MOCK_API_URL)
-        .post('/sessions/sid-1/onboarding/email/verify-otp', { otp: '1' })
-        .reply(200, { ...withoutStep, nextStep: 'kyc_pending' });
-      const { service } = getService();
-
-      const result = await service.postOnboardingStep({
-        sessionId: 'sid-1',
-        step: 'email/verify-otp',
-        body: { otp: '1' },
-      });
-
-      expect(result.step).toStrictEqual({ step: 'kyc_pending' });
     });
 
     it('turns a step this version does not know into error', async () => {
@@ -1224,7 +1186,7 @@ describe('KycService', () => {
         body: { otp: '1' },
       });
 
-      expect(result.step?.step).toBe('error');
+      expect(result.step).toBe('error');
     });
   });
 

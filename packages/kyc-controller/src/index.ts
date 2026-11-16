@@ -174,7 +174,6 @@ export type {
   KycSessionDisclaimers,
   KycSessionStatus,
   KycStep,
-  KycStepInfo,
   KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,

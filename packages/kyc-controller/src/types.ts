@@ -394,7 +394,9 @@ export const KYC_STEPS = [
   'account_link',
   'account_link_code',
   'confirm_identity',
-  'identity_verification',
+  'identity_email_code',
+  'identity_phone',
+  'identity_provider',
   'kyc_pending',
   'kyc_retry',
   'kyc_rejected',
@@ -418,13 +420,3 @@ export function toKycStep(value: string): KycStep {
     ? (value as KycStep)
     : 'error';
 }
-
-/**
- * The step kyc-api decided, plus idOS's own step for the session when there
- * is one. idOS's step says which code it is waiting for while the step is
- * `identity_verification`.
- */
-export type KycStepInfo = {
-  step: KycStep;
-  relayStep?: string;
-};
