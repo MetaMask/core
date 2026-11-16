@@ -268,17 +268,20 @@ export const getHistoryOverridesFromTxMeta = (
   txMeta?: Partial<
     Pick<TransactionMeta, 'actionId' | 'id' | 'status' | 'hash' | 'batchId'>
   >,
-): Pick<BridgeHistoryItem, 'txMetaId' | 'actionId' | 'batchId' | 'status'> => {
+): Pick<BridgeHistoryItem, 'txMetaId' | 'actionId' | 'batchId'> & {
+  status: Partial<Pick<BridgeHistoryItem['status'], 'status'>> &
+    Pick<BridgeHistoryItem['status'], 'srcChain'>;
+} => {
+  const mappedStatus = txMeta?.status
+    ? TRANSACTION_STATUS_TO_STATUS_TYPES[txMeta.status]
+    : undefined;
+
   return {
     txMetaId: txMeta?.id,
     actionId: txMeta?.actionId,
     batchId: txMeta?.batchId,
     status: {
-      // We always have a PENDING status when we start polling for a tx, don't need the Bridge API for that
-      // Also we know the bare minimum fields for status at this point in time
-      status:
-        (txMeta?.status && TRANSACTION_STATUS_TO_STATUS_TYPES[txMeta.status]) ??
-        StatusTypes.PENDING,
+      ...(mappedStatus ? { status: mappedStatus } : {}),
       srcChain: {
         chainId,
         // We don't set the initial tx hash for STX transactions because they return a hash on submission
@@ -313,6 +316,13 @@ export const getInitialHistoryItem = (
     batchSellData,
   } = args;
 
+  const { status: statusOverride, ...overridesFromTxMeta } =
+    getHistoryOverridesFromTxMeta(
+      isStxEnabled ?? false,
+      quoteResponse.quote.srcChainId,
+      bridgeTxMeta,
+    );
+
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
   const txHistoryItem: BridgeHistoryItem = {
@@ -334,11 +344,11 @@ export const getInitialHistoryItem = (
     initialDestAssetBalance,
     targetContractAddress,
     account: selectedAddress,
-    ...getHistoryOverridesFromTxMeta(
-      isStxEnabled ?? false,
-      quoteResponse.quote.srcChainId,
-      bridgeTxMeta,
-    ),
+    ...overridesFromTxMeta,
+    status: {
+      status: statusOverride.status ?? StatusTypes.PENDING,
+      srcChain: statusOverride.srcChain,
+    },
     hasApprovalTx: Boolean(quoteResponse.approval),
     approvalTxId,
     isStxEnabled: Boolean(isStxEnabled),

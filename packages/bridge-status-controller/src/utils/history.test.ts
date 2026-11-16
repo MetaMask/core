@@ -18,6 +18,7 @@ import type {
 } from '../types.js';
 import {
   getHistoryKey,
+  getHistoryOverridesFromTxMeta,
   getInitialHistoryItem,
   getMatchingHistoryEntryForApprovalTxMeta,
   getMatchingHistoryEntryForTxMeta,
@@ -108,6 +109,109 @@ describe('History Utils', () => {
       expect(result).toBe(true);
       expect(state.txHistory.tx1.status.srcChain.txHash).toBe('0xold');
     });
+
+    it('keeps COMPLETE when rekeying with an unmapped TransactionStatus', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.COMPLETE,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            } as StatusResponse,
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+          } as BridgeHistoryItem,
+        },
+      });
+
+      const result = rekeyHistoryItemInState(
+        state,
+        'action1',
+        'tx1',
+        getHistoryOverridesFromTxMeta(false, 1, {
+          id: 'tx1',
+          status: TransactionStatus.unapproved,
+        }),
+      );
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.status.status).toBe(StatusTypes.COMPLETE);
+    });
+
+    it('keeps FAILED when rekeying with an unmapped TransactionStatus', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.FAILED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            } as StatusResponse,
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+          } as BridgeHistoryItem,
+        },
+      });
+
+      const result = rekeyHistoryItemInState(
+        state,
+        'action1',
+        'tx1',
+        getHistoryOverridesFromTxMeta(false, 1, {
+          id: 'tx1',
+          status: TransactionStatus.signed,
+        }),
+      );
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.status.status).toBe(StatusTypes.FAILED);
+    });
+  });
+
+  describe('getHistoryOverridesFromTxMeta', () => {
+    it('maps known TransactionStatus values', () => {
+      expect(
+        getHistoryOverridesFromTxMeta(false, 1, {
+          status: TransactionStatus.submitted,
+        }).status.status,
+      ).toBe(StatusTypes.PENDING);
+      expect(
+        getHistoryOverridesFromTxMeta(false, 1, {
+          status: TransactionStatus.confirmed,
+        }).status.status,
+      ).toBe(StatusTypes.COMPLETE);
+      expect(
+        getHistoryOverridesFromTxMeta(false, 1, {
+          status: TransactionStatus.failed,
+        }).status.status,
+      ).toBe(StatusTypes.FAILED);
+    });
+
+    it('omits status.status for TransactionStatus values not in the map', () => {
+      for (const status of [
+        TransactionStatus.unapproved,
+        TransactionStatus.approved,
+        TransactionStatus.signed,
+        TransactionStatus.dropped,
+        TransactionStatus.rejected,
+        TransactionStatus.cancelled,
+      ]) {
+        expect(
+          getHistoryOverridesFromTxMeta(false, 1, { status }).status.status,
+        ).toBeUndefined();
+      }
+    });
   });
 
   describe('getHistoryKey', () => {
@@ -196,6 +300,18 @@ describe('History Utils', () => {
         inputPrimaryDenomination: 'fiat_value',
       });
       expect(txHistoryItem.inputPrimaryDenomination).toBe('fiat_value');
+    });
+
+    it('defaults status to PENDING when txMeta status is unmapped', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        bridgeTxMeta: {
+          id: 'tx1',
+          hash: '0xhash',
+          status: TransactionStatus.unapproved,
+        },
+      });
+      expect(txHistoryItem.status.status).toBe(StatusTypes.PENDING);
     });
   });
 
