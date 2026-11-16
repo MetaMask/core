@@ -32,17 +32,20 @@ describe('secp256k1', () => {
   describe('getPublicKey', () => {
     const { bip32 } = fixtures;
 
-    it.each(bip32)('returns the public key for a private key', ({ keys }) => {
-      for (const { privateKey, publicKey } of keys) {
-        expect(bytesToHex(getPublicKey(hexToBytes(privateKey)))).toBe(
-          publicKey,
-        );
-      }
-    });
+    it.each(bip32)(
+      'returns the public key for a private key',
+      async ({ keys }) => {
+        for (const { privateKey, publicKey } of keys) {
+          expect(bytesToHex(await getPublicKey(hexToBytes(privateKey)))).toBe(
+            publicKey,
+          );
+        }
+      },
+    );
   });
 
-  describe('publicAdd', () => {
-    const PUBLIC_KEY = getPublicKey(
+  describe('publicAdd', async () => {
+    const PUBLIC_KEY = await getPublicKey(
       hexToBytes(fixtures.bip32[0].keys[0].privateKey),
     );
 

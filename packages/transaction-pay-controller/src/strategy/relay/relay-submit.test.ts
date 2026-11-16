@@ -475,9 +475,8 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('keeps max-gas-station submissions on current gasFeeToken-only options', async () => {
+    it('keeps source gas fee token submissions on gasFeeToken-only options', async () => {
       request.quotes[0].fees.isSourceGasFeeToken = true;
-      request.quotes[0].original.metamask.isMaxGasStation = true;
 
       await submitRelayQuotes(request);
 
