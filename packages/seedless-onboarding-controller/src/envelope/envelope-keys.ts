@@ -16,14 +16,9 @@ import {
 } from '@metamask/utils';
 import { bytesToNumberBE } from '@noble/curves/abstract/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha2';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
-
-const CTRL_AUTH = 'mm-envelope-v1/control-auth';
-const CTRL_ENC = 'mm-envelope-v1/control-enc';
 
 /**
  * The vault key set `K_v`. It addresses and encrypts the backend vault and
@@ -37,12 +32,6 @@ export type VaultKeySet = {
 };
 
 export type EnvelopePath = 'password' | 'recovery-secret';
-
-/** The keys of the control record partition, derived from `K_v`. */
-export type ControlKeys = {
-  ctrlAuth: KeyPair;
-  ctrlKey: Uint8Array;
-};
 
 export type EnvelopeHeader = {
   v: 1;
@@ -147,20 +136,6 @@ export function pubKeysEqual(
 export function deriveKeyPair(bytes: Uint8Array): KeyPair {
   const sk = bytesToNumberBE(bytes) % secp256k1.CURVE.n;
   return { sk, pk: derivePubKey(sk) };
-}
-
-/**
- * Derive the control record keys `C(K_v)` of a vault key set.
- *
- * @param vaultKeySet - The vault key set.
- * @returns The control keys.
- */
-export function deriveControlKeys(vaultKeySet: VaultKeySet): ControlKeys {
-  const { encKey } = vaultKeySet;
-  return {
-    ctrlAuth: deriveKeyPair(hkdf(sha256, encKey, undefined, CTRL_AUTH, 32)),
-    ctrlKey: hkdf(sha256, encKey, undefined, CTRL_ENC, 32),
-  };
 }
 
 /**

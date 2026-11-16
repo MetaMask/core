@@ -43,7 +43,6 @@ import {
   Web3AuthNetwork,
 } from './constants.js';
 import {
-  deriveControlKeys,
   getPasswordNamespaceAuthKeyPair,
   nextControlSeq,
   openEnvelope,
@@ -119,6 +118,7 @@ import {
   parseVaultData,
   parseAndValidateSecretMetadataBackup,
   serializeVaultData,
+  splitVaultItems,
 } from './utils/index.js';
 import type { SecretBackupData } from './utils/index.js';
 
@@ -670,10 +670,11 @@ export class SeedlessOnboardingController<
 
       let secretDatas: SecretMetadata[];
       try {
-        secretDatas = await this.#fetchAllSecretDataFromMetadataStore(
-          toprfEncryptionKey,
-          toprfAuthKeyPair,
-        );
+        ({ secrets: secretDatas } =
+          await this.#fetchAllSecretDataFromMetadataStore(
+            toprfEncryptionKey,
+            toprfAuthKeyPair,
+          ));
       } catch (error) {
         // If no secret data found, just update migration version
         if (
@@ -742,6 +743,7 @@ export class SeedlessOnboardingController<
               passwordAuthPubKey: SEC1EncodedPublicKey;
             }
           | undefined;
+        let passwordKeySet: VaultKeySet | undefined;
 
         if (password) {
           const recoverEncKeyResult = await this.#recoverEncKey(password);
@@ -762,19 +764,11 @@ export class SeedlessOnboardingController<
             encKey = recoverEncKeyResult.encKey;
             pwEncKey = recoverEncKeyResult.pwEncKey;
             authKeyPair = recoverEncKeyResult.authKeyPair;
-            const passwordKeySet: VaultKeySet = {
+            passwordKeySet = {
               authKeyPair,
               encKey,
               localWrapKey: pwEncKey,
             };
-            // a migrated vault has no pbek until its first envelope password
-            // change, so the password may derive K_v directly
-            if (await this.#hasControlRecords(passwordKeySet)) {
-              envelope = {
-                vaultKeySet: passwordKeySet,
-                passwordAuthPubKey: authKeyPair.pk,
-              };
-            }
           }
         } else {
           this.#assertIsUnlocked();
@@ -785,10 +779,20 @@ export class SeedlessOnboardingController<
           authKeyPair = keysFromVault.toprfAuthKeyPair;
         }
 
-        const secrets = await this.#fetchAllSecretDataFromMetadataStore(
-          encKey,
-          authKeyPair,
-        );
+        const { secrets, controlRecords } =
+          await this.#fetchAllSecretDataFromMetadataStore(encKey, authKeyPair);
+
+        // a migrated vault has no pbek until its first envelope password
+        // change, so the password may derive K_v directly
+        if (
+          passwordKeySet &&
+          selectControlRecord(controlRecords, authKeyPair.pk)
+        ) {
+          envelope = {
+            vaultKeySet: passwordKeySet,
+            passwordAuthPubKey: authKeyPair.pk,
+          };
+        }
 
         if (password) {
           // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
@@ -854,9 +858,8 @@ export class SeedlessOnboardingController<
         );
         // another device may have migrated the vault, so the control record
         // decides, not local state (I6)
-        const controlRecords = await this.#envelopeStore.fetchControlRecords(
-          deriveControlKeys(vaultKeySet),
-        );
+        const controlRecords =
+          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
 
         if (controlRecords.length > 0) {
           await this.#changePasswordEnveloped({
@@ -974,7 +977,7 @@ export class SeedlessOnboardingController<
       await this.#assertGlobalAuthPubKeyUnchanged(globalAuthPubKey);
       await this.#writeAndVerifyEnvelope(sealed);
       await this.#envelopeStore.writeControlRecord(
-        deriveControlKeys(vaultKeySet),
+        vaultKeySet,
         nextControlRecord,
       );
 
@@ -1197,8 +1200,10 @@ export class SeedlessOnboardingController<
           };
           // a migrated vault has no pbek until its first envelope password
           // change, so the password may derive K_v directly
-          const isEnvelopeManaged =
-            await this.#hasControlRecords(passwordKeySet);
+          const isEnvelopeManaged = await this.#hasMatchingControlRecord(
+            passwordKeySet,
+            authKeyPair.pk,
+          );
           // update and encrypt the vault with new password
           await this.#createNewVaultWithAuthData({
             password: globalPassword,
@@ -1678,10 +1683,20 @@ export class SeedlessOnboardingController<
     }
   }
 
+  /**
+   * Fetch the vault partition once and split it into the secrets and the
+   * envelope control records.
+   *
+   * @param encKey - The encryption key of the vault partition.
+   * @param authKeyPair - The auth key pair of the vault partition.
+   * @returns The parsed secrets and the control records, newest first.
+   * @throws `NoSecretDataFound` if the partition has no secret items, even
+   * when it has control records.
+   */
   async #fetchAllSecretDataFromMetadataStore(
     encKey: Uint8Array,
     authKeyPair: KeyPair,
-  ): Promise<SecretMetadata[]> {
+  ): Promise<{ secrets: SecretMetadata[]; controlRecords: ControlRecord[] }> {
     let secretDataItems: FetchedSecretDataItem[] = [];
     try {
       // fetch and decrypt the secret data from the metadata store
@@ -1702,9 +1717,13 @@ export class SeedlessOnboardingController<
       );
     }
 
+    const { secretItems, controlRecords } = splitVaultItems(secretDataItems);
     // user must have at least one secret data
-    if (secretDataItems?.length > 0) {
-      return parseAndValidateSecretMetadataBackup(secretDataItems);
+    if (secretItems.length > 0) {
+      return {
+        secrets: parseAndValidateSecretMetadataBackup(secretItems),
+        controlRecords,
+      };
     }
 
     throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
@@ -1759,8 +1778,19 @@ export class SeedlessOnboardingController<
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex: globalKeyIndex,
       newPassword,
-      transformDataItems: (items) =>
-        items
+      transformDataItems: (items) => {
+        // the new partition must keep the control record, or the vault turns
+        // legacy while `rbek` still seals the old K_v
+        if (
+          items.some(
+            ({ dataType }) => dataType === EncAccountDataType.EnvelopeControl,
+          )
+        ) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeVaultRequiresEnvelopePasswordChange,
+          );
+        }
+        return items
           .sort((a, b) =>
             SecretMetadata.compare(
               SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
@@ -1772,7 +1802,8 @@ export class SeedlessOnboardingController<
             data,
             dataType,
             version: dataType === undefined ? 'v1' : version,
-          })),
+          }));
+      },
     });
     return result;
   }
@@ -2775,7 +2806,7 @@ export class SeedlessOnboardingController<
           );
         }
 
-        const secrets = await this.#fetchAllSecretDataFromMetadataStore(
+        const { secrets } = await this.#fetchAllSecretDataFromMetadataStore(
           vaultKeySet.encKey,
           vaultKeySet.authKeyPair,
         );
@@ -2883,9 +2914,8 @@ export class SeedlessOnboardingController<
           await this.#unlockVaultAndGetVaultData(),
         );
         const { authPubKey, keyIndex } = await this.#fetchGlobalAuthPubKey();
-        const controlRecords = await this.#envelopeStore.fetchControlRecords(
-          deriveControlKeys(vaultKeySet),
-        );
+        const controlRecords =
+          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
         await this.#changePasswordEnveloped({
           vaultKeySet,
           controlRecords,
@@ -3044,16 +3074,15 @@ export class SeedlessOnboardingController<
         throw error;
       }
 
-      const controlKeys = deriveControlKeys(vaultKeySet);
       let controlRecords =
-        await this.#envelopeStore.fetchControlRecords(controlKeys);
+        await this.#envelopeStore.fetchControlRecords(vaultKeySet);
       if (controlRecords.length === 0) {
         await this.#envelopeStore.writeControlRecord(
-          controlKeys,
+          vaultKeySet,
           pending.control,
         );
         controlRecords =
-          await this.#envelopeStore.fetchControlRecords(controlKeys);
+          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
       }
       if (!selectControlRecord(controlRecords, vaultKeySet.authKeyPair.pk)) {
         throw new SeedlessOnboardingError(
@@ -3342,17 +3371,21 @@ export class SeedlessOnboardingController<
 
   /**
    * Until the first envelope password change, a migrated vault has no
-   * `pbek`, so its control records are what mark it envelope-managed.
+   * `pbek`, so a control record matching the password is what marks it
+   * envelope-managed.
    *
    * @param vaultKeySet - The vault key set.
-   * @returns Whether the vault key set has control records.
+   * @param passwordAuthPubKey - The password OPRF auth public key.
+   * @returns Whether the vault has a control record for the password.
    * @throws If the control records cannot be fetched.
    */
-  async #hasControlRecords(vaultKeySet: VaultKeySet): Promise<boolean> {
-    const controlRecords = await this.#envelopeStore.fetchControlRecords(
-      deriveControlKeys(vaultKeySet),
-    );
-    return controlRecords.length > 0;
+  async #hasMatchingControlRecord(
+    vaultKeySet: VaultKeySet,
+    passwordAuthPubKey: SEC1EncodedPublicKey,
+  ): Promise<boolean> {
+    const controlRecords =
+      await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+    return Boolean(selectControlRecord(controlRecords, passwordAuthPubKey));
   }
 
   /**

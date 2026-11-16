@@ -4217,6 +4217,20 @@ describe('SeedlessOnboardingController', () => {
 
           const [legacyTransformed] = transformDataItems?.([legacyItem]) ?? [];
           expect(legacyTransformed?.version).toBe('v1');
+
+          expect(() =>
+            transformDataItems?.([
+              ...unsortedItems,
+              {
+                data: stringToBytes('control'),
+                dataType: EncAccountDataType.EnvelopeControl,
+                version: 'v2' as const,
+                itemId: 'control',
+              },
+            ]),
+          ).toThrow(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeVaultRequiresEnvelopePasswordChange,
+          );
         },
       );
     });

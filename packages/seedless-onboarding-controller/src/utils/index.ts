@@ -8,9 +8,13 @@ export {
 export { trackIncompleteMetadataBackupEvents } from './analytics.js';
 export type { SecretBackupData } from './secret-data-utils.js';
 export {
+  getCreatedAtMs,
   getDataTypeMigrationUpdates,
   getNewSocialBackupsMetadata,
+  isSecretDataType,
   parseAndValidateSecretMetadataBackup,
+  sortNewestFirst,
+  splitVaultItems,
 } from './secret-data-utils.js';
 export {
   compareAndGetLatestToken,

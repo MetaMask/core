@@ -43,7 +43,6 @@ import {
   SeedlessOnboardingMigrationVersion,
 } from './constants.js';
 import {
-  deriveControlKeys,
   openEnvelope,
   sealEnvelope,
   serializeEnvelope,
@@ -421,9 +420,8 @@ describe('SeedlessOnboardingController', () => {
       network: MockNetwork,
       vaultKeySet: VaultKeySet = vaultKeySetFor(),
     ): Promise<ControlRecord[]> {
-      const records = await network.envelopeStore.fetchControlRecords(
-        deriveControlKeys(vaultKeySet),
-      );
+      const records =
+        await network.envelopeStore.fetchControlRecords(vaultKeySet);
       return records.sort((a, b) => a.seq - b.seq);
     }
 
@@ -436,8 +434,8 @@ describe('SeedlessOnboardingController', () => {
     }
 
     /**
-     * Stores the primary seed phrase in the secret data partition of a
-     * vault key set.
+     * Stores the primary seed phrase in the vault partition of a vault key
+     * set, replacing its secrets but keeping its control records.
      *
      * @param store - The metadata store.
      * @param vaultKeySet - The vault key set.
@@ -446,21 +444,39 @@ describe('SeedlessOnboardingController', () => {
       store: MetadataStore,
       vaultKeySet: VaultKeySet,
     ): void {
-      store.set(
-        bytesToHex(vaultKeySet.authKeyPair.pk),
-        new Map([
-          [
-            'server-item-0',
-            {
-              encKey: bytesToHex(vaultKeySet.encKey),
-              dataType: EncAccountDataType.PrimarySrp,
-              data: new SecretMetadata(MOCK_SEED_PHRASE, {
-                dataType: EncAccountDataType.PrimarySrp,
-              }).toBytes(),
-            },
-          ],
-        ]),
+      const partitionId = bytesToHex(vaultKeySet.authKeyPair.pk);
+      const partition = new Map(
+        [...(store.get(partitionId) ?? [])].filter(
+          ([, item]) => item.dataType === EncAccountDataType.EnvelopeControl,
+        ),
       );
+      partition.set('server-item-seed', {
+        encKey: bytesToHex(vaultKeySet.encKey),
+        dataType: EncAccountDataType.PrimarySrp,
+        data: new SecretMetadata(MOCK_SEED_PHRASE, {
+          dataType: EncAccountDataType.PrimarySrp,
+        }).toBytes(),
+      });
+      store.set(partitionId, partition);
+    }
+
+    /**
+     * Deletes the control records from the vault partition of a vault key
+     * set, keeping its secrets.
+     *
+     * @param store - The metadata store.
+     * @param vaultKeySet - The vault key set.
+     */
+    function deleteControlRecords(
+      store: MetadataStore,
+      vaultKeySet: VaultKeySet = vaultKeySetFor(),
+    ): void {
+      const partition = store.get(bytesToHex(vaultKeySet.authKeyPair.pk));
+      for (const [itemId, item] of partition ?? []) {
+        if (item.dataType === EncAccountDataType.EnvelopeControl) {
+          partition?.delete(itemId);
+        }
+      }
     }
 
     /**
@@ -830,9 +846,9 @@ describe('SeedlessOnboardingController', () => {
       const WRITE_STEPS = [
         'acquireMetadataLock',
         'fetchAuthPubKey',
-        'fetchAllSecretDataItems:control',
-        'addSecretDataItem:control',
-        'fetchAllSecretDataItems:control',
+        'fetchAllSecretDataItems:vault',
+        'addSecretDataItem:vault',
+        'fetchAllSecretDataItems:vault',
         'releaseMetadataLock',
         'addSecretDataItem:rbek',
         'fetchAllSecretDataItems:rbek',
@@ -873,15 +889,13 @@ describe('SeedlessOnboardingController', () => {
 
       /**
        * @param authKeyPair - The auth key pair of a metadata partition.
-       * @returns `control` for the vault's control partition, `rbek` for the
-       * Recovery Secret envelope partition, or the hex public key otherwise.
+       * @returns `vault` for the vault partition, `rbek` for the Recovery
+       * Secret envelope partition, or the hex public key otherwise.
        */
       function partitionOf(authKeyPair: KeyPair): string {
         const pk = bytesToHex(authKeyPair.pk);
-        if (
-          pk === bytesToHex(deriveControlKeys(vaultKeySetFor()).ctrlAuth.pk)
-        ) {
-          return 'control';
+        if (pk === bytesToHex(vaultKeySetFor().authKeyPair.pk)) {
+          return 'vault';
         }
         if (pk === bytesToHex(recoveryEnvelopeKeys().authKeyPair.pk)) {
           return 'rbek';
@@ -1385,9 +1399,12 @@ describe('SeedlessOnboardingController', () => {
 
           await migrateToEnvelope(args);
 
+          const vaultPartition = network.store.get(
+            bytesToHex(vaultKeySetFor().authKeyPair.pk),
+          ) as Map<string, StoredItem>;
           expect(
-            network.store.has(bytesToHex(vaultKeySetFor().authKeyPair.pk)),
-          ).toBe(false);
+            [...vaultPartition.values()].map(({ dataType }) => dataType),
+          ).toStrictEqual([EncAccountDataType.EnvelopeControl]);
           expect(
             network.spies.addSecretDataItem.mock.calls.map(
               ([{ dataType }]) => dataType,
@@ -1726,7 +1743,7 @@ describe('SeedlessOnboardingController', () => {
           (network: MockNetwork): void =>
             failOnce(
               network.spies.fetchAllSecretDataItems,
-              ({ authKeyPair }) => partitionOf(authKeyPair) === 'control',
+              ({ authKeyPair }) => partitionOf(authKeyPair) === 'vault',
             ),
         ],
         [
@@ -2093,7 +2110,7 @@ describe('SeedlessOnboardingController', () => {
             'trackEvent:ENVELOPES_SEALED',
             'acquireMetadataLock',
             'fetchAuthPubKey',
-            'fetchAllSecretDataItems:control',
+            'fetchAllSecretDataItems:vault',
             'releaseMetadataLock',
             'addSecretDataItem:rbek',
             'fetchAllSecretDataItems:rbek',
@@ -2122,17 +2139,14 @@ describe('SeedlessOnboardingController', () => {
         await withUnlockedController(async (args) => {
           const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient);
-          await network.envelopeStore.writeControlRecord(
-            deriveControlKeys(vaultKeySetFor()),
-            {
-              ...expectedControlRecord(),
-              passwordNamespace: {
-                ...expectedControlRecord().passwordNamespace,
-                authSk: bigIntToHex(keysFor('other-password').authKeyPair.sk),
-              },
-              migratedAt: 1,
+          await network.envelopeStore.writeControlRecord(vaultKeySetFor(), {
+            ...expectedControlRecord(),
+            passwordNamespace: {
+              ...expectedControlRecord().passwordNamespace,
+              authSk: bigIntToHex(keysFor('other-password').authKeyPair.sk),
             },
-          );
+            migratedAt: 1,
+          });
           network.spies.addSecretDataItem.mockClear();
           await authenticateAal2(args, { hasRecoveryShare: false });
 
@@ -2707,9 +2721,7 @@ describe('SeedlessOnboardingController', () => {
           const { toprfClient, baseMessenger } = args;
           const network = mockNetwork(toprfClient);
           await migrate(args, network);
-          network.store.delete(
-            bytesToHex(deriveControlKeys(vaultKeySetFor()).ctrlAuth.pk),
-          );
+          deleteControlRecords(network.store);
 
           await expect(
             baseMessenger.call(
@@ -3091,6 +3103,197 @@ describe('SeedlessOnboardingController', () => {
             1,
           );
           expect(controller.state.vault).toBeUndefined();
+        });
+      });
+    });
+
+    describe('control records in the vault partition', () => {
+      /**
+       * @param password - The password whose auth key the record registers.
+       * @returns A control record for the password.
+       */
+      function controlRecordFor(password: string): ControlRecord {
+        return {
+          v: 1,
+          seq: 1,
+          passwordNamespace: {
+            verifier: MOCK_GROUPED_AUTH_CONNECTION_ID,
+            verifierId: MOCK_USER_ID,
+            authSk: bigIntToHex(keysFor(password).authKeyPair.sk),
+            keyIndex: 1,
+            enabled: true,
+          },
+          migratedAt: 1,
+        };
+      }
+
+      /**
+       * @param network - The mock network.
+       * @returns The calls that fetched the vault partition.
+       */
+      function vaultPartitionFetches(network: MockNetwork): unknown[] {
+        const vaultPk = bytesToHex(vaultKeySetFor().authKeyPair.pk);
+        return network.spies.fetchAllSecretDataItems.mock.calls.filter(
+          ([{ authKeyPair }]) => bytesToHex(authKeyPair.pk) === vaultPk,
+        );
+      }
+
+      it('fetchAllSecretData returns only the secrets of the vault partition', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          await migrate(args, network);
+          storeSeedPhrase(network.store, vaultKeySetFor());
+          expect(await fetchControlRecords(network)).toHaveLength(1);
+          network.spies.fetchAllSecretDataItems.mockClear();
+
+          const secrets = await controller.fetchAllSecretData();
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(vaultPartitionFetches(network)).toHaveLength(1);
+        });
+      });
+
+      it('fetchAllSecretData throws NoSecretDataFound when the vault partition holds only control records', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          await migrate(args, network);
+          expect(await fetchControlRecords(network)).toHaveLength(1);
+
+          await expect(controller.fetchAllSecretData()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
+          );
+        });
+      });
+
+      it('fetchAllSecretData does not mark the vault envelope-managed when no control record matches the password', async () => {
+        await withNewDeviceController(async ({ controller, toprfClient }) => {
+          const network = mockNetwork(toprfClient);
+          storeSeedPhrase(network.store, vaultKeySetFor());
+          await network.envelopeStore.writeControlRecord(
+            vaultKeySetFor(),
+            controlRecordFor('other-password'),
+          );
+          network.spies.fetchAllSecretDataItems.mockClear();
+
+          const secrets = await controller.fetchAllSecretData(MOCK_PASSWORD);
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(controller.state.authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+          expect(controller.state.envelope).toBeUndefined();
+          expect(vaultPartitionFetches(network)).toHaveLength(1);
+        });
+      });
+
+      it('syncLatestGlobalPassword does not mark the vault envelope-managed when no control record matches the password', async () => {
+        await withUnlockedController(async ({ controller, toprfClient }) => {
+          const network = mockNetwork(toprfClient);
+          storeSeedPhrase(network.store, vaultKeySetFor());
+          await network.envelopeStore.writeControlRecord(
+            vaultKeySetFor(),
+            controlRecordFor('other-password'),
+          );
+
+          await controller.syncLatestGlobalPassword({
+            globalPassword: MOCK_PASSWORD,
+          });
+
+          expect(controller.state.envelope).toBeUndefined();
+          expect(controller.state.authPubKey).toBe(authPubKeyOf(MOCK_PASSWORD));
+        });
+      });
+
+      it('runMigrations migrates the secrets and ignores the control records', async () => {
+        await withUnlockedController(async ({ controller, toprfClient }) => {
+          const network = mockNetwork(toprfClient);
+          network.store.set(
+            bytesToHex(vaultKeySetFor().authKeyPair.pk),
+            new Map([
+              [
+                'legacy-seed',
+                {
+                  encKey: bytesToHex(vaultKeySetFor().encKey),
+                  data: new SecretMetadata(MOCK_SEED_PHRASE).toBytes(),
+                },
+              ],
+            ]),
+          );
+          await network.envelopeStore.writeControlRecord(
+            vaultKeySetFor(),
+            controlRecordFor(MOCK_PASSWORD),
+          );
+          const updateSecretDataItemSpy = vi
+            .spyOn(toprfClient, 'updateSecretDataItem')
+            .mockResolvedValue(undefined);
+          const batchUpdateSecretDataItemsSpy = vi
+            .spyOn(toprfClient, 'batchUpdateSecretDataItems')
+            .mockResolvedValue(undefined);
+          controller.setMigrationVersion(
+            0 as SeedlessOnboardingMigrationVersion,
+          );
+
+          expect(await controller.runMigrations()).toBe(true);
+
+          expect(updateSecretDataItemSpy).toHaveBeenCalledTimes(1);
+          expect(updateSecretDataItemSpy).toHaveBeenCalledWith({
+            itemId: 'legacy-seed',
+            dataType: EncAccountDataType.PrimarySrp,
+            authKeyPair: vaultKeySetFor().authKeyPair,
+          });
+          expect(batchUpdateSecretDataItemsSpy).not.toHaveBeenCalled();
+          expect(controller.state.migrationVersion).toBe(
+            SeedlessOnboardingMigrationVersion.V1,
+          );
+        });
+      });
+
+      it('legacy changePassword refuses to move a vault partition with a control item and writes nothing', async () => {
+        await withUnlockedController(async ({ controller, toprfClient }) => {
+          const network = mockNetwork(toprfClient);
+          storeSeedPhrase(network.store, vaultKeySetFor());
+          // an unparseable control item hides from the control record check,
+          // so the legacy path runs
+          network.store
+            .get(bytesToHex(vaultKeySetFor().authKeyPair.pk))
+            ?.set('control-item', {
+              encKey: bytesToHex(vaultKeySetFor().encKey),
+              dataType: EncAccountDataType.EnvelopeControl,
+              data: stringToBytes('garbage'),
+            });
+          const batchAddSecretData = vi.fn();
+          vi.spyOn(toprfClient, 'changeEncKey').mockImplementation(
+            async ({ oldEncKey, oldAuthKeyPair, transformDataItems }) => {
+              const items = await toprfClient.fetchAllSecretDataItems({
+                decKey: oldEncKey,
+                authKeyPair: oldAuthKeyPair,
+              });
+              batchAddSecretData(transformDataItems?.(items));
+              throw new Error('unreachable');
+            },
+          );
+          const { vault } = controller.state;
+
+          await expect(
+            controller.changePassword(NEW_PASSWORD, MOCK_PASSWORD),
+          ).rejects.toMatchObject({
+            message:
+              SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+            cause: expect.objectContaining({
+              message:
+                SeedlessOnboardingControllerErrorMessage.EnvelopeVaultRequiresEnvelopePasswordChange,
+            }),
+          });
+
+          expect(batchAddSecretData).not.toHaveBeenCalled();
+          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+          expect(controller.state.vault).toBe(vault);
+          expect(controller.state.envelope).toBeUndefined();
         });
       });
     });

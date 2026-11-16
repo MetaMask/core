@@ -14,7 +14,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { deriveTestEnvelopeKeys } from '../../tests/mocks/envelopeKeys.js';
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import {
-  deriveControlKeys,
   deriveKeyPair,
   sealEnvelope,
   serializeControlRecord,
@@ -29,7 +28,6 @@ const vaultKeySet: VaultKeySet = {
   localWrapKey: new Uint8Array(32).fill(3),
 };
 const envelopeKeys = deriveTestEnvelopeKeys(new Uint8Array(32).fill(4));
-const controlKeys = deriveControlKeys(vaultKeySet);
 
 /**
  * @param seq - The record sequence number.
@@ -233,17 +231,44 @@ describe('EnvelopeStore', () => {
   });
 
   describe('control records', () => {
-    it('adds a control record to the control partition', async () => {
+    it('adds a control record to the vault partition under K_v', async () => {
       const { store, toprfClient } = createStore();
       const record = createRecord(1);
 
-      await store.writeControlRecord(controlKeys, record);
+      await store.writeControlRecord(vaultKeySet, record);
 
       expect(toprfClient.addSecretDataItem).toHaveBeenCalledWith({
-        encKey: controlKeys.ctrlKey,
-        authKeyPair: controlKeys.ctrlAuth,
+        encKey: vaultKeySet.encKey,
+        authKeyPair: vaultKeySet.authKeyPair,
         secretData: serializeControlRecord(record),
         dataType: EncAccountDataType.EnvelopeControl,
+      });
+    });
+
+    it('fetches control records from the vault partition, ignoring secret and envelope items', async () => {
+      const { store, toprfClient } = createStore();
+      const envelope = await sealEnvelope(
+        envelopeKeys.wrapKey,
+        'password',
+        vaultKeySet,
+      );
+      toprfClient.fetchAllSecretDataItems.mockResolvedValue([
+        createItem(stringToBytes('srp'), {
+          dataType: EncAccountDataType.PrimarySrp,
+        }),
+        createItem(serializeControlRecord(createRecord(1)), {
+          dataType: EncAccountDataType.EnvelopeControl,
+        }),
+        createItem(stringToBytes('legacy'), { dataType: undefined }),
+        createItem(serializeEnvelope(envelope)),
+      ]);
+
+      expect(await store.fetchControlRecords(vaultKeySet)).toStrictEqual([
+        createRecord(1),
+      ]);
+      expect(toprfClient.fetchAllSecretDataItems).toHaveBeenCalledWith({
+        decKey: vaultKeySet.encKey,
+        authKeyPair: vaultKeySet.authKeyPair,
       });
     });
 
@@ -261,7 +286,7 @@ describe('EnvelopeStore', () => {
         }),
       ]);
 
-      expect(await store.fetchControlRecords(controlKeys)).toStrictEqual([
+      expect(await store.fetchControlRecords(vaultKeySet)).toStrictEqual([
         createRecord(2),
         createRecord(1),
       ]);
@@ -270,7 +295,7 @@ describe('EnvelopeStore', () => {
     it('returns no records when the vault has none', async () => {
       const { store } = createStore();
 
-      expect(await store.fetchControlRecords(controlKeys)).toStrictEqual([]);
+      expect(await store.fetchControlRecords(vaultKeySet)).toStrictEqual([]);
     });
   });
 });

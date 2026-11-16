@@ -12,67 +12,52 @@ import {
 } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
-import { isAuthTokenError } from '../utils/index.js';
 import {
-  parseControlRecord,
+  isAuthTokenError,
+  sortNewestFirst,
+  splitVaultItems,
+} from '../utils/index.js';
+import {
   parseEnvelope,
   serializeControlRecord,
   serializeEnvelope,
 } from './envelope-keys.js';
 import type {
-  ControlKeys,
   ControlRecord,
   Envelope,
   EnvelopePath,
+  VaultKeySet,
 } from './envelope-keys.js';
 
 const log = createModuleLogger(projectLogger, controllerName);
 
 /**
- * @param item - A fetched item.
- * @returns The item's creation time in milliseconds, or 0 when unknown.
- */
-function getCreatedAtMs(item: FetchedSecretDataItem): number {
-  if (item.createdAt === undefined) {
-    return 0;
-  }
-  const asNumber = Number(item.createdAt);
-  const ms = Number.isNaN(asNumber) ? Date.parse(item.createdAt) : asNumber;
-  return Number.isNaN(ms) ? 0 : ms;
-}
-
-/**
- * Parse every item of a data type, skipping malformed ones.
+ * Parse every envelope item, skipping malformed ones.
  *
  * @param items - The fetched items, newest first.
- * @param dataType - The data type to keep.
- * @param parse - Parses the data of one item.
- * @returns The parsed items, in the order of `items`.
+ * @returns The parsed envelopes, in the order of `items`.
  */
-function parseItems<Value>(
-  items: FetchedSecretDataItem[],
-  dataType: EncAccountDataType,
-  parse: (data: Uint8Array) => Value,
-): Value[] {
-  const values: Value[] = [];
+function parseEnvelopeItems(items: FetchedSecretDataItem[]): Envelope[] {
+  const envelopes: Envelope[] = [];
   for (const item of items) {
-    if (item.dataType !== dataType) {
+    if (item.dataType !== EncAccountDataType.KeyEnvelope) {
       continue;
     }
     try {
-      values.push(parse(item.data));
+      envelopes.push(parseEnvelope(item.data));
     } catch (error) {
       log('Ignoring malformed envelope item', error);
     }
   }
-  return values;
+  return envelopes;
 }
 
 /**
  * Reads and writes the envelope items (`pbek`, `rbek`) and the control
- * records at the Metadata Service. Each kind sits alone in its own partition.
- * Item ids are content hashes, so every write adds an item and readers choose
- * among all items of the partition.
+ * records at the Metadata Service. Each envelope sits alone in its own
+ * partition. Control records share the vault partition with the secrets,
+ * under the vault keys. Item ids are content hashes, so every write adds an
+ * item and readers choose among all items of the partition.
  *
  * Fetch errors are thrown, never reported as "absent" (I6).
  */
@@ -101,11 +86,9 @@ export class EnvelopeStore {
     path: EnvelopePath,
   ): Promise<Envelope[]> {
     const items = await this.#fetchItems(keys.wrapKey, keys.authKeyPair);
-    return parseItems(
-      items,
-      EncAccountDataType.KeyEnvelope,
-      parseEnvelope,
-    ).filter((envelope) => envelope.path === path);
+    return parseEnvelopeItems(sortNewestFirst(items)).filter(
+      (envelope) => envelope.path === path,
+    );
   }
 
   /**
@@ -124,45 +107,47 @@ export class EnvelopeStore {
   }
 
   /**
-   * Fetch the control records of a vault.
+   * Fetch the control records of a vault from the vault partition. The
+   * secrets of the partition are ignored.
    *
-   * @param keys - The control keys of the vault.
+   * @param vaultKeySet - The vault key set (K_v).
    * @returns The well-formed control records, newest first.
    * @throws The auth token error as-is, or `FailedToFetchSecretMetadata`.
    */
-  async fetchControlRecords(keys: ControlKeys): Promise<ControlRecord[]> {
-    const items = await this.#fetchItems(keys.ctrlKey, keys.ctrlAuth);
-    return parseItems(
-      items,
-      EncAccountDataType.EnvelopeControl,
-      parseControlRecord,
+  async fetchControlRecords(
+    vaultKeySet: VaultKeySet,
+  ): Promise<ControlRecord[]> {
+    const items = await this.#fetchItems(
+      vaultKeySet.encKey,
+      vaultKeySet.authKeyPair,
     );
+    return splitVaultItems(items).controlRecords;
   }
 
   /**
-   * Add a control record to the vault's control partition.
+   * Add a control record to the vault partition.
    *
-   * @param keys - The control keys of the vault.
+   * @param vaultKeySet - The vault key set (K_v).
    * @param record - The control record.
    */
   async writeControlRecord(
-    keys: ControlKeys,
+    vaultKeySet: VaultKeySet,
     record: ControlRecord,
   ): Promise<void> {
     await this.#getToprfClient().addSecretDataItem({
-      encKey: keys.ctrlKey,
-      authKeyPair: keys.ctrlAuth,
+      encKey: vaultKeySet.encKey,
+      authKeyPair: vaultKeySet.authKeyPair,
       secretData: serializeControlRecord(record),
       dataType: EncAccountDataType.EnvelopeControl,
     });
   }
 
   /**
-   * Fetch all items of a partition, newest first.
+   * Fetch all items of a partition.
    *
    * @param decKey - The decryption key of the partition.
    * @param authKeyPair - The auth key pair of the partition.
-   * @returns The items.
+   * @returns The items, in the order the Metadata Service returned them.
    * @throws The auth token error as-is, or `FailedToFetchSecretMetadata`.
    */
   async #fetchItems(
@@ -170,18 +155,10 @@ export class EnvelopeStore {
     authKeyPair: KeyPair,
   ): Promise<FetchedSecretDataItem[]> {
     try {
-      const items = await this.#getToprfClient().fetchAllSecretDataItems({
+      return await this.#getToprfClient().fetchAllSecretDataItems({
         decKey,
         authKeyPair,
       });
-      return items
-        .map((item, index) => ({ item, index }))
-        .sort(
-          (a, b) =>
-            getCreatedAtMs(b.item) - getCreatedAtMs(a.item) ||
-            b.index - a.index,
-        )
-        .map(({ item }) => item);
     } catch (error) {
       log('Error fetching envelope items', error);
       if (isAuthTokenError(error)) {

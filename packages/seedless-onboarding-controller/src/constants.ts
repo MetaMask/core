@@ -68,6 +68,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   RecoveryKeyShareConflict = `${controllerName} - The recovery secret key share belongs to a different key`,
   InvalidEnvelope = `${controllerName} - Invalid key envelope`,
   EnvelopeControlRecordNotFound = `${controllerName} - No control record matches the live password key`,
+  EnvelopeVaultRequiresEnvelopePasswordChange = `${controllerName} - Vault has envelope control records; use the envelope password change`,
   EnvelopeMigrationRequiresDataTypes = `${controllerName} - Envelope migration requires the data type migration`,
   RecoveryEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the Recovery Secret`,
   RecoveryRequired = `${controllerName} - Recover with the Recovery Secret before setting the local password`,

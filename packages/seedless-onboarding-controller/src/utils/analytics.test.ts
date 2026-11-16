@@ -1,5 +1,6 @@
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
-import { stringToBytes } from '@metamask/utils';
+import { bigIntToHex, stringToBytes } from '@metamask/utils';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -15,6 +16,8 @@ import {
   SRP2,
 } from '../../tests/__fixtures__/secret-metadata.js';
 import { SecretType } from '../constants.js';
+import { serializeControlRecord } from '../envelope/envelope-keys.js';
+import type { ControlRecord } from '../envelope/envelope-keys.js';
 import type { IncompleteMetadataBackupEventProperties } from './analytics.js';
 import {
   getIncompleteMetadataBackupEventProperties,
@@ -153,6 +156,56 @@ describe('identifyIncompleteMetadataBackup', () => {
         metadata_schema_version: 'v2',
         number_of_imported_wallets: 1,
         number_of_imported_accounts: 0,
+      },
+    });
+    expect(logFn).not.toHaveBeenCalled();
+  });
+
+  it('ignores EnvelopeControl items mixed into the fetched items', async () => {
+    const controlRecord: ControlRecord = {
+      v: 1,
+      seq: 1,
+      passwordNamespace: {
+        verifier: 'verifier',
+        verifierId: 'user',
+        authSk: bigIntToHex(1n),
+        keyIndex: 1,
+        enabled: true,
+      },
+      migratedAt: 1,
+    };
+    const controlItem = {
+      data: serializeControlRecord(controlRecord),
+      version: 'v2',
+      dataType: EncAccountDataType.EnvelopeControl,
+    } as FetchedSecretDataItem;
+    const fetchAllSecretDataFn = vi
+      .fn()
+      .mockResolvedValue([
+        createFetchedSecretDataItem(PrivateKey1),
+        controlItem,
+        createFetchedSecretDataItem(SRP1),
+        createFetchedSecretDataItem(SRP2),
+      ]);
+    const getPrimaryKeyringSeedPhraseFn = vi
+      .fn()
+      .mockResolvedValue(stringToBytes('actual primary srp'));
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
+
+    await trackIncompleteMetadataBackupEvents({
+      fetchAllSecretDataFn,
+      getPrimaryKeyringSeedPhraseFn,
+      trackEvent,
+      logFn,
+    });
+
+    expectTrackedEvent(trackEvent, {
+      name: SeedlessPrimarySrpMismatchEventName,
+      properties: {
+        metadata_schema_version: 'v1',
+        number_of_imported_wallets: 1,
+        number_of_imported_accounts: 1,
       },
     });
     expect(logFn).not.toHaveBeenCalled();

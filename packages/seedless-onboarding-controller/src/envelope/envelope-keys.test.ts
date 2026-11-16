@@ -10,7 +10,6 @@ import { describe, expect, it } from 'vitest';
 import { deriveTestEnvelopeKeys } from '../../tests/mocks/envelopeKeys.js';
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import {
-  deriveControlKeys,
   deriveKeyPair,
   derivePubKey,
   getPasswordNamespaceAuthKeyPair,
@@ -62,23 +61,6 @@ const INVALID_ENVELOPE =
   SeedlessOnboardingControllerErrorMessage.InvalidEnvelope;
 
 describe('envelope keys', () => {
-  describe('key derivation', () => {
-    it('derives control keys from the vault encryption key only', () => {
-      const vaultKeySet = createVaultKeySet();
-      const keys = deriveControlKeys(vaultKeySet);
-
-      expect(
-        deriveControlKeys({
-          ...createVaultKeySet(5),
-          encKey: vaultKeySet.encKey,
-        }),
-      ).toStrictEqual(keys);
-      expect(pubKeysEqual(keys.ctrlAuth.pk, vaultKeySet.authKeyPair.pk)).toBe(
-        false,
-      );
-    });
-  });
-
   describe('sealEnvelope / openEnvelope', () => {
     it('round-trips the vault key set', async () => {
       const vaultKeySet = createVaultKeySet();
