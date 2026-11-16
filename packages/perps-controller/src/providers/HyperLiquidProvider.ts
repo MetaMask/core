@@ -200,6 +200,7 @@ import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
   PERPS_ERROR_OPERATION,
+  attachProviderErrorCause,
   createPerpsErrorContext,
 } from '../utils/errorContext.js';
 import type {
@@ -11799,24 +11800,27 @@ export class HyperLiquidProvider implements PerpsProvider {
               : normalizeHyperLiquidError(
                   createStatusError(rawStatusError, result),
                 );
+          const outcome = {
+            symbol: orderedPositions[index].symbol,
+            success,
+            error:
+              success || normalizedStatusError === undefined
+                ? undefined
+                : normalizedStatusError.message,
+            ...(success || normalizedStatusError === undefined
+              ? {}
+              : {
+                  errorCode: normalizedStatusError.errorCode,
+                  ...(normalizedStatusError.errorDetails === undefined
+                    ? {}
+                    : { errorDetails: normalizedStatusError.errorDetails }),
+                }),
+          };
           return [
             orderedPositions[index].symbol,
-            {
-              symbol: orderedPositions[index].symbol,
-              success,
-              error:
-                success || normalizedStatusError === undefined
-                  ? undefined
-                  : normalizedStatusError.message,
-              ...(success || normalizedStatusError === undefined
-                ? {}
-                : {
-                    errorCode: normalizedStatusError.errorCode,
-                    ...(normalizedStatusError.errorDetails === undefined
-                      ? {}
-                      : { errorDetails: normalizedStatusError.errorDetails }),
-                  }),
-            },
+            success || normalizedStatusError === undefined
+              ? outcome
+              : attachProviderErrorCause(outcome, normalizedStatusError),
           ] as const;
         }),
       );

@@ -25,7 +25,10 @@ import type {
   PerpsPlatformDependencies,
   PerpsFeeResolution,
 } from '../../../src/types/index.js';
-import { getProviderErrorCause } from '../../../src/utils/errorContext.js';
+import {
+  attachProviderErrorCause,
+  getProviderErrorCause,
+} from '../../../src/utils/errorContext.js';
 import { createErrorResult } from '../../../src/utils/hyperLiquidValidation.js';
 import { resolveSubscriptionWaiverRate } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
@@ -3273,6 +3276,53 @@ describe('TradingService', () => {
 
       expect(result.results).toHaveLength(1);
       expect(mockProvider.closePosition).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs the attached cause of a mixed batch close without putting venue text on the result', async () => {
+      const venueError = new Error(
+        'post only order would have immediately matched',
+      );
+      const normalized = new Error(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      );
+      normalized.cause = venueError;
+      const failed = attachProviderErrorCause(
+        {
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+          errorCode: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+        },
+        normalized,
+      );
+      (mockProvider.closePositions as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 1,
+        results: [{ symbol: 'BTC', success: true }, failed],
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: { closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(result.results[1]).toMatchObject({
+        error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      });
+      expect(JSON.stringify(result.results[1])).not.toContain(
+        'immediately matched',
+      );
+      const [logged] = (mockDeps.logger.error as Mock).mock.calls[0] as [Error];
+      expect(logged.message).toBe(
+        `closePositions batch failure: 1/2 failed (1 reported) - ETH: ${PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS}`,
+      );
+      expect(logged.cause).toBe(normalized);
+      expect(getProviderErrorCause(result.results[1])).toBe(normalized);
     });
 
     it('logs batch error when provider.closePositions returns partial/full failure', async () => {

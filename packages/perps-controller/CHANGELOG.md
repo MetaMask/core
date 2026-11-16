@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add `PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS` and `PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW`, returned on Hyperliquid provider results when a post-only order would cross the spread or when the venue only accepts post-only orders after a network upgrade. ([#11206](https://github.com/MetaMask/core/pull/11206))
+  - This widens the exported `PerpsErrorCode` union. Consumers that key an exhaustive `Record<PerpsErrorCode, …>` must add an entry for both codes. Mobile maps them in [metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018) and Extension maps them in [metamask-extension#47686](https://github.com/MetaMask/metamask-extension/pull/47686).
+  - `ORDER_POST_ONLY_WOULD_CROSS` on a failed `editOrder` means Hyperliquid has already cancelled the original resting order. Clients read `errorCode` rather than venue wording. Mobile does that in `isPostOnlyWouldCrossError`, `isPostOnlyWindowError`, and `normalizeOrderEditRejection` ([metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018)).
+- **BREAKING:** Add exported `HyperLiquidErrorDetails` and widen `PerpsErrorDetails` to `PriceMovedErrorDetails | HyperLiquidErrorDetails`. Every normalized Hyperliquid failure now carries `{ code, provider: 'hyperliquid' }` details, so clients can translate stable codes without parsing venue messages. `PRICE_MOVED` keeps its existing numeric payload. ([#11206](https://github.com/MetaMask/core/pull/11206))
+  - Code that reads `PriceMovedErrorDetails` fields must first narrow on `errorDetails.code === PERPS_ERROR_CODES.PRICE_MOVED`. `HyperLiquidErrorDetails['code']` never includes `PRICE_MOVED`, so that check still narrows.
+  - Mobile accepts `HyperLiquidErrorDetails` in `isPerpsErrorDetails`, so known codes keep their localized copy ([metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018)). Extension translates the same codes in [metamask-extension#47686](https://github.com/MetaMask/metamask-extension/pull/47686).
+- Add optional `errorCode` and `errorDetails` to `MarginResult`, `WithdrawResult`, `TransferBetweenDexsResult`, `InitializeResult`, `ReadyToTradeResult`, `DisconnectResult`, `ToggleTestnetResult`, `ClosePositionsResult`, and each `ClosePositionsResult.results` entry. ([#11206](https://github.com/MetaMask/core/pull/11206))
 - Add venue-neutral TWAP, chase and scale rules to `getOrderCapabilities`, and helpers that read them, so clients no longer copy advanced-order logic ([#11592](https://github.com/MetaMask/core/pull/11592))
   - `PerpsOrderCapabilities` gains optional `strategyRules` (type `PerpsStrategyRules`): `twap` (`minDurationMinutes`, `maxDurationMinutes`, `minNotionalUsd`, `sliceIntervalSeconds`), `chase` (`maxActiveSessions` when the venue caps it, `defaultIntervalMs`, `minIntervalMs`) and `scale` (`minOrders`, `maxOrders`). HyperLiquid reports all three; Lighter reports `scale`, and `chase` without a session cap where it runs chase. A strategy missing from `supportedStrategies` has no rules, and the helpers below return `ORDER_STRATEGY_MARKET_UNSUPPORTED` for it
   - `getStrategyRules(capabilities, strategy)` reads one strategy's rules
@@ -36,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values on every provider result boundary, including order placement and cancellation, edits, closes, TP/SL updates, margin changes, withdrawals, transfers, and readiness failures. ([#11206](https://github.com/MetaMask/core/pull/11206))
+  - Result `error` fields now hold the stable code instead of venue text, and unknown failures return `UNKNOWN_ERROR`. Clients read `errorCode` instead. Mobile does this in [metamask-mobile#39018](https://github.com/MetaMask/metamask-mobile/pull/39018) and Extension in [metamask-extension#47686](https://github.com/MetaMask/metamask-extension/pull/47686).
+  - A structured failure the provider raises itself without details, such as the `ORDER_SIZE_MIN` returned when the venue rejects an opening order below its minimum, now also carries provider-tagged details. `PRICE_MOVED` is unchanged.
+  - The original failure is never copied into result fields. It stays the `cause` of the reported error, including when `TradingService` reports a failed `closePosition`, `cancelOrder`, or `flipPosition` result, and when it reports a mixed `closePositions` batch.
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
 
@@ -45,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Report a failed HyperLiquid `replacePositionTPSLLeg` call under its own name in error logs and error context instead of `updatePositionTPSL`, so a single-leg replace failure is no longer misattributed to a whole-position TP/SL update ([#11206](https://github.com/MetaMask/core/pull/11206))
 - HyperLiquid chase cancels whose child the venue reports gone now read that child's status. A child that filled before the cancel ends the chase as `filled` with its final unfilled size, instead of `canceled` with the size from the last read ([#11592](https://github.com/MetaMask/core/pull/11592))
   - When that status cannot be read, the chase keeps its last status instead of `canceled`. A session kept for HIP-3 collateral cleanup asks for the child's status again on each `getChaseOrders` read until the venue reports it
 - HyperLiquid `getChaseOrders` lists only chases placed by the current account on the current network, so a chase started under another account no longer shows, with its cancel action, after the account or network changes ([#11592](https://github.com/MetaMask/core/pull/11592))
@@ -175,7 +187,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Report a failed HyperLiquid `replacePositionTPSLLeg` call under its own name in error logs and error context instead of `updatePositionTPSL`, so a single-leg replace failure is no longer misattributed to a whole-position TP/SL update
 - Stop a HyperLiquid Chase from re-pricing one tick above its own order when it rests at a whole-number price: the book prints that level as `74676.0` while the order was placed at `74676`, so the Chase no longer reads its own order as the touch and walks its price every interval ([#11459](https://github.com/MetaMask/core/pull/11459))
 - Retry a HyperLiquid Chase replacement the venue refuses as post-only (or too far from the oracle) at the next interval instead of ending the Chase as `failed`; `getChaseOrders` reports it `active` with `restingOrderId: null` until the remainder rests again, and the Chase ends `failed` after three refusals in a row ([#11459](https://github.com/MetaMask/core/pull/11459))
   - A book read that fails while the retry is due keeps the Chase running instead of ending it as `failed`
@@ -332,13 +343,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS` and `PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW`, returned on Hyperliquid provider results when a post-only order would cross the spread or when the venue only accepts post-only orders after a network upgrade. ([#11206](https://github.com/MetaMask/core/pull/11206))
-  - This widens the exported `PerpsErrorCode` union, so consumers that key an exhaustive `Record<PerpsErrorCode, …>` stop compiling until they add an entry for both codes. Both first-party clients do: Mobile's `ERROR_CODE_TO_I18N_KEY` in `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's map in `ui/components/app/perps/utils/translate-perps-error.ts`. Until a client maps them, both codes render that client's generic error copy.
-  - `ORDER_POST_ONLY_WOULD_CROSS` on a failed `editOrder` means Hyperliquid has already cancelled the original resting order. Clients that detect either condition from venue wording must switch to `errorCode`, because `error` no longer carries that wording. In Mobile that is `isPostOnlyWouldCrossError`, `isPostOnlyWindowError`, and `normalizeOrderEditRejection`; without the switch, a refused edit is reported as keeping an original order that was already cancelled.
-- **BREAKING:** Add exported `HyperLiquidErrorDetails` and widen `PerpsErrorDetails` to `PriceMovedErrorDetails | HyperLiquidErrorDetails`. Every normalized Hyperliquid failure now carries `{ code, provider: 'hyperliquid' }` details, so clients can translate stable codes without parsing venue messages. `PRICE_MOVED` keeps its existing numeric payload. ([#11206](https://github.com/MetaMask/core/pull/11206))
-  - Code that reads `PriceMovedErrorDetails` fields must first narrow on `errorDetails.code === PERPS_ERROR_CODES.PRICE_MOVED`, which both first-party clients already do. `HyperLiquidErrorDetails['code']` never includes `PRICE_MOVED`, so that check still narrows.
-  - Runtime guards that accept only the `PRICE_MOVED` shape now reject these results. Mobile's `isPerpsErrorInput` (via `isPerpsErrorDetails`) returns `false` for them, so `translatePerpsError` falls back to generic copy for every Hyperliquid failure until the guard also accepts `HyperLiquidErrorDetails`.
-- Add optional `errorCode` and `errorDetails` to `MarginResult`, `WithdrawResult`, `TransferBetweenDexsResult`, `InitializeResult`, `ReadyToTradeResult`, `DisconnectResult`, `ToggleTestnetResult`, `ClosePositionsResult`, and each `ClosePositionsResult.results` entry. ([#11206](https://github.com/MetaMask/core/pull/11206))
 - Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
@@ -350,10 +354,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values on every provider result boundary, including order placement and cancellation, edits, closes, TP/SL updates, margin changes, withdrawals, transfers, and readiness failures. ([#11206](https://github.com/MetaMask/core/pull/11206))
-  - Result `error` fields now hold the stable code instead of venue text, and unknown failures return `UNKNOWN_ERROR`. Clients that pattern-match on `error` must read `errorCode` instead.
-  - A structured failure the provider raises itself without details, such as the `ORDER_SIZE_MIN` returned when the venue rejects an opening order below its minimum, now also carries provider-tagged details. `PRICE_MOVED` is unchanged.
-  - The original failure is never copied into result fields. It stays the `cause` of the reported error, including when `TradingService` reports a failed `closePosition`, `cancelOrder`, or `flipPosition` result.
 - Bump `@metamask/subscription-controller` from `^15.1.0` to `^15.1.2` ([#11120](https://github.com/MetaMask/core/pull/11120), [#11203](https://github.com/MetaMask/core/pull/11203))
 - Bump `@metamask/transaction-controller` from `^72.3.0` to `^73.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))

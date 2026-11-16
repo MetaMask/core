@@ -2553,11 +2553,24 @@ export class TradingService {
             (result) => `${result.symbol}: ${result.error ?? 'Unknown error'}`,
           )
           .join('; ');
+        const batchError = new Error(
+          `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
+        );
+        const reportedCauses = reportedFailures.flatMap((result) => {
+          const cause = getProviderErrorCause(result);
+          return cause ? [cause] : [];
+        });
+        if (reportedCauses.length === 1) {
+          batchError.cause = reportedCauses[0];
+        } else if (reportedCauses.length > 1) {
+          batchError.cause = new AggregateError(
+            reportedCauses,
+            'closePositions per-position failures',
+          );
+        }
 
         this.#deps.logger.error(
-          new Error(
-            `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
-          ),
+          batchError,
           this.#getErrorContext(
             context,
             'closePositions',

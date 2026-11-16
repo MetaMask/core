@@ -4905,6 +4905,18 @@ describe('HyperLiquidProvider', () => {
 
         expect(result.successCount).toBe(1);
         expect(result.failureCount).toBe(1);
+        const failed = result.results.find((entry) => !entry.success);
+        expect(failed).toMatchObject({
+          symbol: 'xyz:STOCK1',
+          error: PERPS_ERROR_CODES.REDUCE_ONLY_VIOLATION,
+          errorCode: PERPS_ERROR_CODES.REDUCE_ONLY_VIOLATION,
+        });
+        expect(JSON.stringify(failed)).not.toContain('Reduce only');
+        const attached = failed ? getProviderErrorCause(failed) : undefined;
+        expect(attached?.message).toBe(PERPS_ERROR_CODES.REDUCE_ONLY_VIOLATION);
+        expect(attached?.cause).toMatchObject({
+          message: 'Reduce only order rejected',
+        });
         // The HIP-3 close failed, so no freed-margin transfer may be initiated —
         // the successful BTC order carries no transfer of its own
         expect(
