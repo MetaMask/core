@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Added
 
 - Add `clearState` method, also exposed through the messenger, which clears all recorded lifecycles and address registrations, for example when the wallet is reset ([#11533](https://github.com/MetaMask/core/pull/11533))
@@ -33,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/money-account-upgrade-controller` from `^6.0.1` to `^7.0.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
 - Bump `@metamask/subscription-controller` from `^15.2.0` to `^15.2.1` ([#11437](https://github.com/MetaMask/core/pull/11437))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-lifecycle-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-lifecycle-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-lifecycle-controller@1.0.0...@metamask/money-account-lifecycle-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-lifecycle-controller@1.0.0
