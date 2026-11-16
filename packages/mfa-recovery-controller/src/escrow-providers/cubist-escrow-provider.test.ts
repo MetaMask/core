@@ -1,4 +1,5 @@
 import type { CubeSignerClient } from '@cubist-labs/cubesigner-sdk';
+import { ErrResponse, SessionExpiredError } from '@cubist-labs/cubesigner-sdk';
 import { bytesToHex } from '@metamask/utils';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
@@ -129,18 +130,49 @@ describe('CubistEscrowProvider', () => {
       expect(await provider.isAvailable()).toBe(false);
     });
 
+    it.each([
+      new SessionExpiredError('invokePolicy'),
+      new ErrResponse({
+        message: 'Session was revoked',
+        status: 403,
+        errorCode: 'SessionRevoked',
+      }),
+    ])('propagates session errors from ping (%#)', async (error) => {
+      const { provider } = createProvider({
+        invoke: async () => {
+          throw error;
+        },
+      });
+
+      await expect(provider.isAvailable()).rejects.toBe(error);
+    });
+
+    it('returns false for a non-session SDK error', async () => {
+      const { provider } = createProvider({
+        invoke: async () => {
+          throw new ErrResponse({
+            message: 'Service unavailable',
+            status: 503,
+          });
+        },
+      });
+
+      expect(await provider.isAvailable()).toBe(false);
+    });
+
     it('returns false when ping does not report ok', async () => {
       const { provider } = createProvider({ stdout: { ok: false } });
       expect(await provider.isAvailable()).toBe(false);
     });
 
-    it('returns false when getClient throws', async () => {
+    it('propagates getClient errors unchanged', async () => {
+      const error = new MfaRecoveryError('Session expired', 'session_expired');
       const { provider, invoke } = createProvider({
         getClient: async () => {
-          throw new MfaRecoveryError('Feature disabled', 'feature_disabled');
+          throw error;
         },
       });
-      expect(await provider.isAvailable()).toBe(false);
+      await expect(provider.isAvailable()).rejects.toBe(error);
       expect(invoke).not.toHaveBeenCalled();
     });
   });
@@ -446,6 +478,17 @@ describe('CubistEscrowProvider', () => {
   });
 
   describe('request failures', () => {
+    it('propagates session errors from commands unchanged', async () => {
+      const error = new SessionExpiredError('invokePolicy');
+      const { provider } = createProvider({
+        invoke: async () => {
+          throw error;
+        },
+      });
+
+      await expect(provider.generateChallenge(TOKEN)).rejects.toBe(error);
+    });
+
     it('throws when the policy denies the invocation', async () => {
       const { provider } = createProvider({
         policy: { response: 'Deny', reason: 'not allowed' },

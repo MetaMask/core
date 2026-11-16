@@ -3,6 +3,7 @@ import type {
   InvokePolicyResponse,
   Version,
 } from '@cubist-labs/cubesigner-sdk';
+import { ErrResponse } from '@cubist-labs/cubesigner-sdk';
 import {
   array,
   integer,
@@ -57,7 +58,7 @@ export type CubistEscrowProviderOptions = {
   /**
    * Returns the authenticated CubeSigner client used to invoke the escrow C2F.
    * Called for every command, so the caller owns session caching and refresh.
-   * Commands propagate its errors unchanged; `isAvailable` resolves `false`.
+   * Its errors propagate unchanged, including from `isAvailable`.
    */
   getClient: () => Promise<CubeSignerClient>;
   /**
@@ -114,10 +115,14 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
    * @returns Whether a ping of the escrow C2F is allowed and reports ok.
    */
   async isAvailable(): Promise<boolean> {
+    const client = await this.#getClient();
     try {
-      await this.#invoke('ping', {}, parsePing);
+      await this.#invoke({ cmd: 'ping', parse: parsePing, client });
       return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof ErrResponse && error.isSessionExpiredError()) {
+        throw error;
+      }
       return false;
     }
   }
@@ -129,11 +134,11 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   async generateChallenge(
     authControllerToken: AuthControllerToken,
   ): Promise<PoPChallenge> {
-    return await this.#invoke(
-      'generateChallenge',
-      { authControllerToken },
-      parseChallenge,
-    );
+    return await this.#invoke({
+      cmd: 'generateChallenge',
+      body: { authControllerToken },
+      parse: parseChallenge,
+    });
   }
 
   /**
@@ -143,11 +148,11 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   async getIdentifiers(
     authControllerToken: AuthControllerToken,
   ): Promise<GetIdentifiersResponse> {
-    return await this.#invoke(
-      'getIdentifiers',
-      { authControllerToken },
-      parseIdentifiers,
-    );
+    return await this.#invoke({
+      cmd: 'getIdentifiers',
+      body: { authControllerToken },
+      parse: parseIdentifiers,
+    });
   }
 
   /**
@@ -160,16 +165,16 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     mutation: Mutation,
   ): Promise<GetMutationReceiptResponse> {
-    return await this.#invoke(
-      'getMutationReceipt',
-      {
+    return await this.#invoke({
+      cmd: 'getMutationReceipt',
+      body: {
         authControllerToken,
         version: mutation.newVersion,
         mutationId: mutation.id,
         requestHash: mutation.requestHash,
       },
-      parseReceiptResponse,
-    );
+      parse: parseReceiptResponse,
+    });
   }
 
   /**
@@ -185,16 +190,16 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     requestId: string,
     pkE: Uint8Array,
   ): Promise<GetRecoverySecretResponse> {
-    return await this.#invoke(
-      'getSecret',
-      {
+    return await this.#invoke({
+      cmd: 'getSecret',
+      body: {
         identifierAuthorization: authorization,
         requestId,
         pkE,
         authControllerToken,
       },
-      parseGetSecretResponse,
-    );
+      parse: parseGetSecretResponse,
+    });
   }
 
   /**
@@ -213,18 +218,18 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
-    return await this.#invoke(
-      'applyMutation',
-      {
+    return await this.#invoke({
+      cmd: 'applyMutation',
+      body: {
         mutation,
         authControllerToken,
         identifierAuthorizations,
         payload,
         approvedIdentifiers,
       },
-      parseReceipt,
-      true, // a policy Deny did not apply the mutation
-    );
+      parse: parseReceipt,
+      denyIsRejection: true, // a policy Deny did not apply the mutation
+    });
   }
 
   /**
@@ -263,21 +268,31 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     );
   }
 
-  async #invoke<Result>(
-    cmd: string,
-    body: Record<string, unknown>,
-    parse: (value: unknown) => Result,
+  async #invoke<Result>({
+    cmd,
+    body = {},
+    parse,
     denyIsRejection = false,
-  ): Promise<Result> {
-    const client = await this.#getClient();
+    client,
+  }: {
+    cmd: string;
+    body?: Record<string, unknown>;
+    parse: (value: unknown) => Result;
+    denyIsRejection?: boolean;
+    client?: CubeSignerClient;
+  }): Promise<Result> {
+    const resolvedClient = client ?? (await this.#getClient());
     let invocation: InvokePolicyResponse;
     try {
-      invocation = await client.apiClient.policyInvoke(
+      invocation = await resolvedClient.apiClient.policyInvoke(
         this.#functionId,
         this.#version,
         { request: toWire({ cmd, ...body }) },
       );
     } catch (error) {
+      if (error instanceof ErrResponse && error.isSessionExpiredError()) {
+        throw error;
+      }
       throw new MfaRecoveryError(
         error instanceof Error ? error.message : 'Escrow request failed',
         'escrow_request_failed',

@@ -1276,16 +1276,16 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('continues reading when an escrow availability check fails', async () => {
+    it('throws when an escrow availability check fails', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        vi.spyOn(escrowA, 'isAvailable').mockRejectedValue(
-          new Error('health check failed'),
+        const error = new MfaRecoveryError(
+          'Session expired',
+          'session_expired',
         );
+        vi.spyOn(escrowA, 'isAvailable').mockRejectedValue(error);
 
-        const recovered = await recover(controller, PASSKEY);
-
-        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
+        await expect(recover(controller, PASSKEY)).rejects.toBe(error);
       });
     });
 
@@ -1410,6 +1410,24 @@ describe('MfaRecoveryController', () => {
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toThrow('All configured escrows are required for mutation');
+        expect(auth).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('throws when an escrow availability check fails', async () => {
+      await withController(async ({ controller, escrowB, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const error = new MfaRecoveryError(
+          'Session expired',
+          'session_expired',
+        );
+        vi.spyOn(escrowB, 'isAvailable').mockRejectedValue(error);
+        const auth = vi.spyOn(options.authProvider, 'authorizeRecoveryRequest');
+        auth.mockClear();
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBe(error);
         expect(auth).not.toHaveBeenCalled();
         expect(await controller.getPhase()).toBe('idle');
       });

@@ -1110,11 +1110,12 @@ export class MfaRecoveryController extends BaseController<
         available: await escrow.isAvailable(),
       })),
     );
-    return flags.flatMap((result) =>
-      isFulfilledResult(result) && result.value.available
-        ? [result.value.escrow]
-        : [],
-    );
+    return flags.flatMap((result) => {
+      if (!isFulfilledResult(result)) {
+        throw result.reason;
+      }
+      return result.value.available ? [result.value.escrow] : [];
+    });
   }
 
   #assertValidIdentifiers(identifiers: Identifier[]): void {

@@ -272,9 +272,9 @@ every attempt, so the identifier provider must be able to authenticate again.
 The controller does not call CubeSigner, the registration API, or
 `KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`.
 The caller proves OIDC, calls
-`ensure-user`, opens the session, and constructs the provider with the
-authenticated `CubeSignerClient` and the pinned wrap and receipt public keys
-before `register`.
+`ensure-user`, and constructs the provider with a `getClient` callback and the
+pinned wrap and receipt public keys before `register`. The callback returns an
+authenticated `CubeSignerClient`, creating or refreshing the session lazily.
 
 `CubistEscrowProvider` sends every command with `policyInvoke` on the C2F
 (default `cubist_secret_escrow`, version `latest`) as `{ cmd, ...fields }`:
@@ -283,7 +283,9 @@ before `register`.
 `getIdentifiers`, and `getMutationReceipt` take the operation's
 `authControllerToken`; the escrow keys the challenge to its profile. Escrow
 JSON is parsed from C2F stdout. A policy `Deny` on `applyMutation` becomes
-`MutationRejectedError`; any other failure is
+`MutationRejectedError`. Client setup and CubeSigner invalid-session errors
+propagate unchanged, including from `isAvailable`; other ping failures resolve
+`false`. Other command failures are
 `escrow_request_failed` / `escrow_response_invalid`. `verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,
 `receiptKeyId` (SHA-256 of the pinned receipt key), and the Ed25519 signature
@@ -313,7 +315,7 @@ sequenceDiagram
   M-->>C: IdentifierSession with seedlessAuthData if returned
   C->>M: getRecoverySecret(session)
   M->>M: recompute and validate requestHash
-  M->>E: isAvailable (failures skipped)
+  M->>E: isAvailable (false skipped, rejections abort)
   alt none available
     M-->>C: no_available_escrow
   end
