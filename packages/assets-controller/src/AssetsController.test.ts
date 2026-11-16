@@ -11,9 +11,11 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { RpcEndpointType } from '@metamask/network-controller';
 import type {
   AutoManagedNetworkClient,
   CustomNetworkClientConfiguration,
+  NetworkConfiguration,
   NetworkState,
 } from '@metamask/network-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
@@ -5392,17 +5394,17 @@ describe('AssetsController', () => {
   describe('network changes', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': true,
+                '0x1': true,
+                '0x89': true,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
               'eip155:137': 'eip155:137/slip44:966',
             },
           },
@@ -5419,6 +5421,19 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         await activateTracking(messenger);
 
+        messenger.publish(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {
+              eip155: { '0x1': true },
+            },
+            nativeAssetIdentifiers: {
+              'eip155:1': 'eip155:1/slip44:60',
+            },
+          },
+          [],
+        );
+
         let musdPresentAtPriceFetch: boolean | undefined;
         const fetchSpy = vi
           .spyOn(PriceDataSource.prototype, 'fetch')
@@ -5430,19 +5445,11 @@ describe('AssetsController', () => {
           });
 
         try {
-          (
-            messenger as unknown as {
-              publish: (
-                topic: string,
-                payload?: unknown,
-                patches?: unknown,
-              ) => void;
-            }
-          ).publish(
+          messenger.publish(
             'NetworkEnablementController:stateChange',
             {
               enabledNetworkMap: {
-                eip155: { '1': true, '59144': true },
+                eip155: { '0x1': true, '0xe708': true },
               },
               nativeAssetIdentifiers: {
                 'eip155:1': 'eip155:1/slip44:60',
@@ -5556,34 +5563,34 @@ describe('AssetsController', () => {
 
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': true,
+                '0x1': true,
+                '0x89': true,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
               'eip155:137': 'eip155:137/slip44:966',
             },
           },
           [],
         );
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': false,
+                '0x1': true,
+                '0x89': false,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
             },
           },
           [],
@@ -5594,15 +5601,24 @@ describe('AssetsController', () => {
     });
 
     it('refreshes assets when a network is added or removed', async () => {
+      const polygonNetwork: NetworkConfiguration = {
+        blockExplorerUrls: [],
+        chainId: '0x89',
+        defaultRpcEndpointIndex: 0,
+        name: 'Polygon',
+        nativeCurrency: 'POL',
+        rpcEndpoints: [
+          {
+            networkClientId: 'polygon',
+            type: RpcEndpointType.Custom,
+            url: 'https://polygon-rpc.com',
+          },
+        ],
+      };
+
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
-          'NetworkController:networkAdded',
-          { chainId: '0x89' },
-        );
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
-          'NetworkController:networkRemoved',
-          { chainId: '0x89' },
-        );
+        messenger.publish('NetworkController:networkAdded', polygonNetwork);
+        messenger.publish('NetworkController:networkRemoved', polygonNetwork);
 
         expect(true).toBe(true);
       });
@@ -5918,7 +5934,7 @@ describe('AssetsController', () => {
 
         getAssetsSpy.mockClear();
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/1',
           'entropy:mock-keyring-id-1/0',
@@ -5935,7 +5951,7 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
           '',
           'entropy:mock-keyring-id-1/0',
@@ -5960,7 +5976,7 @@ describe('AssetsController', () => {
         messenger.publish('KeyringController:unlock');
         await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
           '',
@@ -5969,9 +5985,9 @@ describe('AssetsController', () => {
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:initialized',
-          {},
+          getDefaultAccountTreeControllerState(),
         );
         await waitFor(() => {
           expect(getAssetsSpy).toHaveBeenCalled();
@@ -6005,17 +6021,14 @@ describe('AssetsController', () => {
 
   describe('assets loading status', () => {
     /**
-     * Publishes an account group switch on the mock messenger. The event
-     * publishes one entropy per previously selected account variadically,
-     * which the mock messenger's single-payload publish type cannot express,
-     * hence the one cast here instead of in every test.
+     * Publishes an account group switch on the mock messenger.
      *
      * @param messenger - The root messenger to publish on.
-     * @param fromEntropy - Entropy of the previously selected account.
-     * @param toEntropy - Entropy of the newly selected account.
+     * @param fromEntropy - The newly selected account group id.
+     * @param toEntropy - The previously selected account group id.
      */
     const switchSelectedAccountGroup = (
-      messenger: RootMessenger,
+      messenger: MockRootMessenger,
       fromEntropy: `entropy:${string}/${string}`,
       toEntropy: `entropy:${string}/${string}`,
     ): void => {
