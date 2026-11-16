@@ -4990,9 +4990,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5106,9 +5106,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5168,9 +5168,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5209,9 +5209,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
           await waitFor(() => {
             const firstInitFetchCalls = traceMock.mock.calls.filter(
@@ -5289,9 +5289,9 @@ describe('AssetsController', () => {
           // #runStartupRefresh(), whose forced getAssets() call is still
           // pending (it never resolves until we call resolveGetAssets below).
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
           await waitFor(() => {
             expect(getAssetsSpy).toHaveBeenCalledTimes(1);
