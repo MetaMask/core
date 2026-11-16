@@ -355,14 +355,15 @@ export class VendorOnboardingController extends BaseController<
    * @param params.vendor - The vendor.
    * @param params.aal2Token - AAL2 token from MFA. Required only when a new
    * session has to be created. Omit it to pick up an existing session.
-   * @param params.email - Email the vendor registers the user with, for
-   * vendors whose session kyc-api opens through the relay (Kalshi).
-   * @returns The next step.
+   * @param params.partnerIdentityToken - Partner identity token. kyc-api
+   * verifies it and takes the session's email from its verified claim, so the
+   * user never chooses which address the vendor registers.
+   * @returns The step the user is on once the session exists.
    */
   async startSession(params: {
     vendor: OnboardingVendor;
     aal2Token?: string;
-    email?: string;
+    partnerIdentityToken?: string;
   }): Promise<KycStep> {
     const { vendor } = params;
     const existing = await this.messenger.call(
@@ -394,7 +395,9 @@ export class VendorOnboardingController extends BaseController<
       vendor,
       residenceCountry,
       aal2Token: params.aal2Token,
-      ...(params.email ? { email: params.email } : {}),
+      ...(params.partnerIdentityToken
+        ? { partnerIdentityToken: params.partnerIdentityToken }
+        : {}),
     });
     this.#write(vendor, { sessionId: session.id });
     return this.#readStep(vendor, { join: false });

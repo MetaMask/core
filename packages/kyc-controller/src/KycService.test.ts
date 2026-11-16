@@ -376,7 +376,7 @@ describe('KycService', () => {
       ).toStrictEqual(response);
     });
 
-    it('sends the email when provided', async () => {
+    it('sends the partner identity token, and no email, for kalshi', async () => {
       nock(MOCK_API_URL)
         .post('/sessions', {
           vendorId: 'kalshi',
@@ -384,18 +384,20 @@ describe('KycService', () => {
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: {},
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-token',
         })
         .reply(200, response);
       const { service } = getService();
 
+      // kyc-api takes the email from the token's verified claim, so the
+      // client never says which address the vendor registers.
       expect(
         await service.createUkycSession({
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-token',
         }),
       ).toStrictEqual(response);
     });

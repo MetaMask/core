@@ -385,16 +385,11 @@ export type CreateUkycSessionParams = {
   aal2Token: string;
   /**
    * Partner identity token minted by
-   * `AuthenticationController:getPartnerIdentityToken` for the session's
-   * vendor audience. Omitted from the request body when not provided.
+   * `AuthenticationController:getPartnerIdentityToken`. kyc-api verifies it
+   * and takes the session's email from its `ext.email` claim, so no email is
+   * sent separately. Omitted from the request body when not provided.
    */
   partnerIdentityToken?: string;
-  /**
-   * Email the vendor registers the user with, for vendors kyc-api opens
-   * sessions for through the relay (Kalshi). Omitted from the request body
-   * when not provided.
-   */
-  email?: string;
 };
 
 /**
@@ -901,7 +896,6 @@ export class KycService extends BaseDataService<
           ...(params.partnerIdentityToken && {
             partnerIdentityToken: params.partnerIdentityToken,
           }),
-          ...(params.email && { email: params.email }),
         }),
       },
       { bearerToken: params.aal2Token },

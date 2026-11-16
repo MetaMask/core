@@ -640,7 +640,7 @@ describe('VendorOnboardingController', () => {
         const step = await controller.startSession({
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-token',
         });
 
         expect(step).toBe('identity_provider');
@@ -650,7 +650,7 @@ describe('VendorOnboardingController', () => {
           residenceCountry: 'USA',
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          email: 'a@b.co',
+          partnerIdentityToken: 'partner-token',
         });
         expect(handlers.setAuthorizations).toHaveBeenCalledWith({
           sessionId: 'sid-1',

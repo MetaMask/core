@@ -53,8 +53,8 @@ export type UkycSessionDeps = Pick<
  * @param params.residenceCountry - ISO 3166-1 alpha-3 country of residence.
  * @param params.aal2Token - AAL2 token, sent as the bearer value for session
  * creation.
- * @param params.email - Email the vendor registers the user with, for vendors
- * kyc-api opens sessions for through the relay.
+ * @param params.partnerIdentityToken - Partner identity token. kyc-api takes
+ * the session's email from its verified claim.
  * @returns The session status after the authorizations are applied.
  */
 export async function createAuthorizedSession(params: {
@@ -62,7 +62,7 @@ export async function createAuthorizedSession(params: {
   vendor: OnboardingVendor;
   residenceCountry: string;
   aal2Token: string;
-  email?: string;
+  partnerIdentityToken?: string;
 }): Promise<KycSessionStatus> {
   const { deps } = params;
   // A per-session X25519 keypair seals both secrets. The private half stays
@@ -82,7 +82,9 @@ export async function createAuthorizedSession(params: {
     residenceCountry: params.residenceCountry,
     vendor: params.vendor,
     aal2Token: params.aal2Token,
-    ...(params.email ? { email: params.email } : {}),
+    ...(params.partnerIdentityToken
+      ? { partnerIdentityToken: params.partnerIdentityToken }
+      : {}),
   });
 
   return submitAuthorizations({
