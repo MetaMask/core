@@ -792,16 +792,26 @@ describe('RampsController', () => {
         'TransakService:setApiKey',
         setApiKey,
       );
+
+      // Build the flag map imperatively. A ternary of `{}` and
+      // `{ depositConfig }` is inferred as a union that is not assignable to
+      // `FeatureFlags` under exactOptionalPropertyTypes.
+      const remoteFeatureFlags: RemoteFeatureFlagControllerState['remoteFeatureFlags'] =
+        {};
+      if (depositConfig !== undefined) {
+        remoteFeatureFlags.depositConfig = depositConfig;
+      }
+      const flagState: RemoteFeatureFlagControllerState = {
+        remoteFeatureFlags,
+        cacheTimestamp: 0,
+      };
+      if (localOverride !== undefined) {
+        flagState.localOverrides = { depositConfig: localOverride };
+      }
+
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
-        () => ({
-          remoteFeatureFlags:
-            depositConfig === undefined ? {} : { depositConfig },
-          ...(localOverride === undefined
-            ? {}
-            : { localOverrides: { depositConfig: localOverride } }),
-          cacheTimestamp: 0,
-        }),
+        () => flagState,
       );
       return setApiKey;
     }
