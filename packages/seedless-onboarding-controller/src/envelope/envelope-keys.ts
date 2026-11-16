@@ -25,8 +25,8 @@ import {
   hexToBytes,
   stringToBytes,
 } from '@metamask/utils';
-import { bytesToNumberBE } from '@noble/curves/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
+import { bytesToNumberBE } from '@noble/curves/utils';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import { SeedlessOnboardingError } from '../errors.js';
