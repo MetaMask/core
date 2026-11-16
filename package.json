@@ -157,6 +157,7 @@
     "changelog:update": "lavamoat/scripts.yarn.json",
     "changelog:validate": "lavamoat/scripts.lint.json",
     "changelog:validate:all": "lavamoat/scripts.lint.json",
+    "create-codeownership-summary": "lavamoat/scripts.cli.json",
     "docs:platform-api:build": "lavamoat/scripts.yarn.json",
     "docs:platform-api:dev": "lavamoat/scripts.yarn.json",
     "docs:platform-api:serve": "lavamoat/scripts.yarn.json",
