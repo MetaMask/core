@@ -163,44 +163,40 @@ export function calculateWeightedReturnOnEquity(
 // not inflate the balances shown or validated by withdraw/payment flows.
 const SPOT_COLLATERAL_COINS = new Set<string>(['USDC']);
 
-function getSpotCollateralAmount(
-  spotState: SpotClearinghouseStateResponse | null | undefined,
-  field: 'hold' | 'total',
-): BigNumber {
-  if (!spotState?.balances || !Array.isArray(spotState.balances)) {
-    return new BigNumber(0);
-  }
-
-  return spotState.balances.reduce((sum, balance) => {
-    if (!balance.coin || !SPOT_COLLATERAL_COINS.has(balance.coin)) {
-      return sum;
-    }
-    const value = new BigNumber(balance[field] ?? '0');
-    return value.isFinite() ? sum.plus(value) : sum;
-  }, new BigNumber(0));
-}
-
 /**
- * Sums one field of the USDC spot balances, or returns `undefined` when the
- * response cannot be trusted.
+ * Sums one field of the USDC spot balances.
  *
- * Unlike {@link getSpotCollateralAmount}, which fails soft so the displayed
- * balances still render, this does not substitute zero for a missing or
- * malformed amount. Collateral is the denominator of the account ratio, so a
- * guess would show a ratio the venue never reported.
+ * The default fails soft: a missing response or a non-finite amount counts as
+ * zero so displayed balances still render. `{ strict: true }` returns
+ * `undefined` instead. Collateral is the denominator of the account ratio, so
+ * a guess would show a ratio the venue never reported. A response that lists
+ * no USDC balance is a genuine `0` in both modes.
  *
  * @param spotState - Spot clearinghouse state.
  * @param field - The USDC amount to sum.
- * @returns The USDC sum. `0` when the response lists no USDC balance, and
- * `undefined` when `balances` is not a list or a USDC balance has a missing
- * or non-finite amount.
+ * @param options.strict - Fail the sum when `balances` is not a list or a
+ * USDC amount is missing or not finite.
+ * @returns The USDC sum, or `undefined` in strict mode when the response
+ * cannot be trusted.
  */
-function getValidatedSpotCollateralAmount(
-  spotState: SpotClearinghouseStateResponse,
+function getSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
   field: 'hold' | 'total',
+  options: { strict: true },
+): BigNumber | undefined;
+function getSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  field: 'hold' | 'total',
+  options?: { strict?: false },
+): BigNumber;
+function getSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  field: 'hold' | 'total',
+  options?: { strict?: boolean },
 ): BigNumber | undefined {
-  if (!Array.isArray(spotState.balances)) {
-    return undefined;
+  const strict = options?.strict === true;
+  if (!spotState?.balances || !Array.isArray(spotState.balances)) {
+    return strict ? undefined : new BigNumber(0);
   }
 
   let sum = new BigNumber(0);
@@ -209,16 +205,57 @@ function getValidatedSpotCollateralAmount(
       continue;
     }
     const raw: unknown = balance[field];
-    if (raw === undefined || raw === null || raw === '') {
-      return undefined;
+    if (strict) {
+      if (raw === undefined || raw === null || raw === '') {
+        return undefined;
+      }
+      const value = new BigNumber(raw as BigNumber.Value);
+      if (!value.isFinite()) {
+        return undefined;
+      }
+      sum = sum.plus(value);
+      continue;
     }
-    const value = new BigNumber(raw as BigNumber.Value);
-    if (!value.isFinite()) {
-      return undefined;
+    const value = new BigNumber((raw ?? '0') as BigNumber.Value);
+    if (value.isFinite()) {
+      sum = sum.plus(value);
     }
-    sum = sum.plus(value);
   }
   return sum;
+}
+
+/**
+ * Free spot USDC, `max(0, total − hold)`, counting USDC only.
+ *
+ * @param spotState - Spot clearinghouse state.
+ * @param options.strict - See {@link getSpotCollateralAmount}.
+ * @returns Free spot USDC, or `undefined` in strict mode when either amount
+ * cannot be trusted.
+ */
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options: { strict: true },
+): BigNumber | undefined;
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options?: { strict?: false },
+): BigNumber;
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options?: { strict?: boolean },
+): BigNumber | undefined {
+  const total =
+    options?.strict === true
+      ? getSpotCollateralAmount(spotState, 'total', { strict: true })
+      : getSpotCollateralAmount(spotState, 'total');
+  const hold =
+    options?.strict === true
+      ? getSpotCollateralAmount(spotState, 'hold', { strict: true })
+      : getSpotCollateralAmount(spotState, 'hold');
+  if (total === undefined || hold === undefined) {
+    return undefined;
+  }
+  return BigNumber.max(0, total.minus(hold));
 }
 
 export function getSpotBalance(
@@ -268,12 +305,11 @@ export function getCrossMarginSpotCollateral(
   if (!hyperLiquidModeFoldsSpot(abstractionMode)) {
     return '0';
   }
-  const total = getValidatedSpotCollateralAmount(spotState, 'total');
-  const hold = getValidatedSpotCollateralAmount(spotState, 'hold');
-  if (total === undefined || hold === undefined) {
+  const freeSpot = getFreeSpotUsdc(spotState, { strict: true });
+  if (freeSpot === undefined) {
     return undefined;
   }
-  return canonicalizeUsdc(BigNumber.max(0, total.minus(hold)));
+  return canonicalizeUsdc(freeSpot);
 }
 
 /**
@@ -351,7 +387,7 @@ export function addSpotBalanceToAccountState(
 
   const spotBalance = getSpotCollateralAmount(spotState, 'total');
   const spotHold = getSpotCollateralAmount(spotState, 'hold');
-  const freeSpot = BigNumber.max(0, spotBalance.minus(spotHold));
+  const freeSpot = getFreeSpotUsdc(spotState);
 
   const currentTotal = new BigNumber(accountState.totalBalance);
   const currentSpendable = new BigNumber(accountState.spendableBalance);

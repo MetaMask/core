@@ -583,6 +583,78 @@ describe('spot balance helpers', () => {
     expect(unresolved.spotCollateral).toBeUndefined();
     expect(unresolved.spendableBalance).toBe('100');
   });
+
+  describe('an existing spotCollateral', () => {
+    const accountState: AccountState = {
+      spendableBalance: '100',
+      withdrawableBalance: '100',
+      totalBalance: '100',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+      spotCollateral: '900',
+    };
+    const spot = {
+      balances: [{ coin: 'USDC', total: '900', hold: '0' }],
+    } as never;
+
+    it('removes the field when the abstraction mode is unresolved', () => {
+      const result = addSpotBalanceToAccountState(accountState, spot, {
+        foldIntoCollateral: false,
+        abstractionMode: null,
+      });
+
+      expect(result).not.toHaveProperty('spotCollateral');
+      expect(result.totalBalance).toBe('1000');
+    });
+
+    it('keeps the field when abstractionMode is omitted', () => {
+      const withOtherOption = addSpotBalanceToAccountState(accountState, spot, {
+        foldIntoCollateral: false,
+      });
+      const withNoOptions = addSpotBalanceToAccountState(accountState, spot);
+
+      expect(withOtherOption.spotCollateral).toBe('900');
+      expect(withNoOptions.spotCollateral).toBe('900');
+    });
+
+    it('overwrites the field with 0 for Standard', () => {
+      expect(
+        addSpotBalanceToAccountState(accountState, spot, {
+          foldIntoCollateral: false,
+          abstractionMode: 'disabled',
+        }).spotCollateral,
+      ).toBe('0');
+      expect(
+        addSpotBalanceToAccountState(accountState, spot, {
+          foldIntoCollateral: false,
+          abstractionMode: 'default',
+        }).spotCollateral,
+      ).toBe('0');
+    });
+  });
+
+  it('publishes spotCollateral when the total balance is the loading sentinel', () => {
+    const accountState: AccountState = {
+      spendableBalance: '100',
+      withdrawableBalance: '100',
+      totalBalance: '--',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    };
+
+    const result = addSpotBalanceToAccountState(
+      accountState,
+      { balances: [{ coin: 'USDC', total: '900', hold: '0' }] } as never,
+      { foldIntoCollateral: true, abstractionMode: 'unifiedAccount' },
+    );
+
+    expect(result.totalBalance).toBe('--');
+    expect(result.spendableBalance).toBe('100');
+    expect(result.withdrawableBalance).toBe('100');
+    expect(result.spotCollateral).toBe('900');
+  });
 });
 
 describe('getCrossMarginSpotCollateral', () => {
