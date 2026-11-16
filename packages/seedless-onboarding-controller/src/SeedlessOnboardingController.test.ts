@@ -7427,6 +7427,115 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('should propagate IdentityMismatch to operations wrapped in #executeWithTokenRefresh when the refreshed idTokens do not match the state userId', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({
+            controller,
+            mockRefreshJWTToken,
+            baseMessenger,
+          }) => {
+            // Force the proactive refresh branch of #executeWithTokenRefresh.
+            vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
+              true,
+            );
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: [createMockJWTToken({ sub: 'different-user' })],
+              accessToken,
+              metadataAccessToken,
+            });
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:checkIsPasswordOutdated',
+                { skipCache: true },
+              ),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+
+            expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);
+            // The wrapped operation must not have run against stale tokens.
+            expect(controller.state.nodeAuthTokens).toStrictEqual(
+              MOCK_NODE_AUTH_TOKENS,
+            );
+          },
+        );
+      });
+
+      it('should abort refresh side effects and reject with IdentityMismatch when the identity changes during the vault update', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({
+            controller,
+            encryptor,
+            toprfClient,
+            baseMessenger,
+          }) => {
+            await baseMessenger.call(
+              'SeedlessOnboardingController:submitPassword',
+              MOCK_PASSWORD,
+            );
+
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            const rotateSpy = vi.spyOn(controller, 'rotateRefreshToken');
+
+            // Gate the vault encryption so we can change the identity while
+            // #updateVault is in flight.
+            const originalEncryptWithKey =
+              encryptor.encryptWithKey.bind(encryptor);
+            let releaseEncrypt!: () => void;
+            const gate = new Promise<void>((resolve) => {
+              releaseEncrypt = resolve;
+            });
+            vi.spyOn(encryptor, 'encryptWithKey').mockImplementation(
+              async (...args) => {
+                await gate;
+                return originalEncryptWithKey(...args);
+              },
+            );
+
+            const refreshPromise = baseMessenger.call(
+              'SeedlessOnboardingController:refreshAuthTokens',
+            );
+
+            // Wait until the vault update is in flight.
+            await vi.waitFor(() => {
+              expect(encryptor.encryptWithKey).toHaveBeenCalled();
+            });
+
+            // Simulate an identity switch while the vault update is in flight.
+            // @ts-expect-error - we are forcing a concurrent update to the state
+            controller.update((state) => {
+              state.userId = 'switched-user';
+            });
+            releaseEncrypt();
+
+            await expect(refreshPromise).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+
+            // The refresh-token rotation side effect must not run.
+            expect(rotateSpy).not.toHaveBeenCalled();
+            expect(controller.state.refreshToken).toBe(refreshToken);
+          },
+        );
+      });
+
       it('should throw error if controller not authenticated', async () => {
         await withController(async ({ baseMessenger }) => {
           await expect(
@@ -8980,6 +9089,86 @@ describe('SeedlessOnboardingController', () => {
           SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
         );
       });
+    });
+
+    it('should discard rotation results and throw IdentityMismatch when the identity changes while the renewal is in flight', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, mockRenewRefreshToken, baseMessenger }) => {
+          // Unlock vault so #cachedDecryptedVaultData is populated.
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+
+          const originalRefreshToken = controller.state.refreshToken;
+          const originalRevokeToken = controller.state.revokeToken;
+
+          let releaseRenew!: (value: {
+            newRevokeToken: string;
+            newRefreshToken: string;
+          }) => void;
+          mockRenewRefreshToken.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                releaseRenew = resolve;
+              }),
+          );
+
+          const rotatePromise = baseMessenger.call(
+            'SeedlessOnboardingController:rotateRefreshToken',
+          );
+
+          // Wait until the renewal request is in flight.
+          await vi.waitFor(() => {
+            expect(mockRenewRefreshToken).toHaveBeenCalled();
+          });
+
+          // Simulate an identity switch while the renewal is pending.
+          // @ts-expect-error - we are forcing a concurrent update to the state
+          controller.update((state) => {
+            state.userId = 'switched-user';
+          });
+          releaseRenew({
+            newRevokeToken: 'newRevokeToken',
+            newRefreshToken: 'newRefreshToken',
+          });
+
+          await expect(rotatePromise).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+          );
+
+          // The rotation results must not be written over the switched identity.
+          expect(controller.state.refreshToken).toBe(originalRefreshToken);
+          expect(controller.state.revokeToken).toBe(originalRevokeToken);
+          expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
+            0,
+          );
+        },
+      );
     });
 
     it('should not update state when renewal returns null tokens', async () => {

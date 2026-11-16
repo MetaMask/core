@@ -2066,7 +2066,7 @@ export class SeedlessOnboardingController<
    */
   async #doRefreshAuthTokens(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
-    const { refreshToken } = this.state;
+    const { refreshToken, userId, authConnectionId } = this.state;
 
     const res = await this.#refreshJWTToken({
       connection: this.state.authConnection,
@@ -2113,6 +2113,18 @@ export class SeedlessOnboardingController<
           vaultData: updatedVaultData,
           pwEncKey,
         });
+
+        // Side-effect guard: the identity may have changed while the vault
+        // update was in flight. Aborting here prevents the refresh-token
+        // rotation from mixing the previous identity's tokens into the
+        // current state.
+        assertIdentityUnchanged(
+          {
+            userId: this.state.userId,
+            authConnectionId: this.state.authConnectionId,
+          },
+          { userId, authConnectionId },
+        );
 
         // Proactively rotate the refresh token now that we have vault access.
         await this.rotateRefreshToken().catch((error) => {
@@ -2264,7 +2276,7 @@ export class SeedlessOnboardingController<
         SeedlessOnboardingControllerErrorMessage.VaultLocked,
       );
     }
-    const { refreshToken } = this.state;
+    const { refreshToken, userId, authConnectionId } = this.state;
     const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
     const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
       connection: this.state.authConnection,
@@ -2281,6 +2293,19 @@ export class SeedlessOnboardingController<
         },
         pwEncKey,
       });
+
+      // Stale-write guard: the identity may have changed while the renewal or
+      // vault update was in flight. Discard the rotation results instead of
+      // writing the previous identity's tokens over the current state. There
+      // is no `await` between this check and the `update` below, so the pair
+      // is atomic.
+      assertIdentityUnchanged(
+        {
+          userId: this.state.userId,
+          authConnectionId: this.state.authConnectionId,
+        },
+        { userId, authConnectionId },
+      );
 
       this.update((state) => {
         state.revokeToken = newRevokeToken;
