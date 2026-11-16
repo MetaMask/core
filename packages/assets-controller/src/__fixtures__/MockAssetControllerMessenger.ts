@@ -1,5 +1,6 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
+import type { AccountTreeControllerStateChangeEvent } from '@metamask/account-tree-controller';
 import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { KeyringControllerMessenger } from '@metamask/keyring-controller';
@@ -12,8 +13,13 @@ import {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import type { Hex } from '@metamask/utils';
 import { vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
@@ -37,7 +43,8 @@ type AssetsControllerStateChangedEvent = ControllerStateChangedEvent<
 >;
 type GlobalEvents =
   | MessengerEvents<AssetsControllerMessenger | KeyringControllerMessenger>
-  | AssetsControllerStateChangedEvent;
+  | AssetsControllerStateChangedEvent
+  | AccountTreeControllerStateChangeEvent;
 
 export type MockRootMessenger = Messenger<
   MockAnyNamespace,
@@ -274,6 +281,15 @@ export function registerRpcDataSourceActions(
     'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
     () => undefined,
   );
+}
+
+export function createMockAutoManagedNetworkClient(
+  chainId: Hex,
+): AutoManagedNetworkClient<CustomNetworkClientConfiguration> {
+  return {
+    provider: {},
+    configuration: { chainId },
+  } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
 }
 
 export function createMockWeb3Provider(

@@ -483,9 +483,6 @@
     }
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
-    "id-length": {
-      "count": 6
-    },
     "no-useless-return": {
       "count": 3
     },
