@@ -175,6 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Report a failed HyperLiquid `replacePositionTPSLLeg` call under its own name in error logs and error context instead of `updatePositionTPSL`, so a single-leg replace failure is no longer misattributed to a whole-position TP/SL update
 - Stop a HyperLiquid Chase from re-pricing one tick above its own order when it rests at a whole-number price: the book prints that level as `74676.0` while the order was placed at `74676`, so the Chase no longer reads its own order as the touch and walks its price every interval ([#11459](https://github.com/MetaMask/core/pull/11459))
 - Retry a HyperLiquid Chase replacement the venue refuses as post-only (or too far from the oracle) at the next interval instead of ending the Chase as `failed`; `getChaseOrders` reports it `active` with `restingOrderId: null` until the remainder rests again, and the Chase ends `failed` after three refusals in a row ([#11459](https://github.com/MetaMask/core/pull/11459))
   - A book read that fails while the retry is due keeps the Chase running instead of ending it as `failed`
