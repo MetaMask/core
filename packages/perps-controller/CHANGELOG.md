@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@metamask/perps-controller/constants` and `@metamask/perps-controller/constants/lighterConfig`: `LIGHTER_REST_REQUESTS_PER_MINUTE`, `LIGHTER_REST_BUDGET_WINDOW_MS`, `LIGHTER_RATE_LIMIT_BASE_COOLDOWN_MS`, `LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS`, `LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD`, `LIGHTER_CHANNEL_RELEASE_DELAY_MS`, `LIGHTER_SOCKET_IDLE_CLOSE_MS`, `LIGHTER_RECONNECT_BASE_DELAY_MS`, `LIGHTER_RECONNECT_MAX_DELAY_MS` and `LIGHTER_SOCKET_DOWN_GRACE_MS`
   - `@metamask/perps-controller/utils/providerHealth`: `getHealthFromConnectionState`, `getProviderHealthOf`, `subscribeToProviderHealthOf` and the `ProviderHealthSource` type
   - `@metamask/perps-controller/providers/lighter`: `getLighterReconnectDelayMs`
+- Add `PerpsController.resolveWithdrawalRoute` (messenger action `PerpsController:resolveWithdrawalRoute`) to report which venue a withdrawal will sign on, using the same provider resolution and `PROVIDER_ROUTE_REQUIRED` refusal as `withdraw`
+  - Returns `{ status: 'resolved', providerId }` with the resolved `PerpsProviderType`, or `{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when several venues are registered and no route is named — returned as a value rather than thrown, so clients cannot fail open around the refusal
+  - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
+  - New types `WithdrawalRoute` and `ResolveWithdrawalRouteParams`
 
 ### Changed
 
@@ -38,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Never held back: order submission, nonce and transaction lookups, the order-book and exact-order reads that chase flows check for freshness, and every request made during an order, close, edit, cancel, TP/SL, recovery-protection, margin or withdrawal call, including its fresh-price, market, account and signer reads
   - A read still held when the provider disconnects is cancelled without being sent
   - A non-2xx Lighter response with a non-JSON body (such as a rate-limit page) now fails with the HTTP status as its error code instead of a JSON parse error
+
+### Fixed
+
+- Reject `withdraw` calls whose explicit `providerId` conflicts with the active direct provider with `PROVIDER_NOT_FOUND` before withdrawal tracking or signing begins
 
 ## [24.0.0]
 

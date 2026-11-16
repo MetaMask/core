@@ -2804,6 +2804,25 @@ export type GetAccountSupportParams = {
   providerId?: PerpsProviderType;
 };
 
+/**
+ * Selects the provider route whose withdrawal destination should be resolved.
+ * Accepts the same optional route `withdraw` accepts.
+ */
+export type ResolveWithdrawalRouteParams = {
+  providerId?: PerpsProviderType;
+};
+
+/**
+ * The venue a withdrawal will sign on, or the same refusal `withdraw` returns
+ * when several venues are registered and no route is named.
+ */
+export type WithdrawalRoute =
+  | { status: 'resolved'; providerId: PerpsProviderType }
+  | {
+      status: 'route_required';
+      error: Extract<PerpsErrorCode, 'PROVIDER_ROUTE_REQUIRED'>;
+    };
+
 export type PerpsProvider = {
   /** Local durable Scale inventory; unsupported providers omit the methods. */
   getScaleOrderGroups?(): Promise<ScaleOrderGroup[]>;

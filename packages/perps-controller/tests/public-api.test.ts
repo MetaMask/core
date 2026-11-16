@@ -55,6 +55,8 @@ import type {
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetAccountSupportParams,
+  ResolveWithdrawalRouteParams,
+  WithdrawalRoute,
   UpdatePositionTPSLParams,
   ReplacePositionTPSLLegParams,
   MarketInfo,
@@ -64,6 +66,7 @@ import type {
   PerpsAgentSigner,
   PerpsControllerClearAgentSignersAction,
   PerpsControllerGetAccountSupportAction,
+  PerpsControllerResolveWithdrawalRouteAction,
   PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
   PerpsControllerReplacePositionTPSLLegAction,
@@ -147,6 +150,34 @@ describe('@metamask/perps-controller public API', () => {
       reason: 'multi_sig_account',
     });
     expect(action).toBe('PerpsController:getAccountSupport');
+  });
+
+  it('exports the withdrawal route resolution method and action', () => {
+    const params: ResolveWithdrawalRouteParams = { providerId: 'lighter' };
+    const resolved: WithdrawalRoute = {
+      status: 'resolved',
+      providerId: 'lighter',
+    };
+    const routeRequired: WithdrawalRoute = {
+      status: 'route_required',
+      error: 'PROVIDER_ROUTE_REQUIRED',
+    };
+    const action: PerpsControllerResolveWithdrawalRouteAction['type'] =
+      'PerpsController:resolveWithdrawalRoute';
+
+    expect(typeof PerpsController.prototype.resolveWithdrawalRoute).toBe(
+      'function',
+    );
+    expect(params.providerId).toBe('lighter');
+    expect(resolved).toStrictEqual({
+      status: 'resolved',
+      providerId: 'lighter',
+    });
+    expect(routeRequired).toStrictEqual({
+      status: 'route_required',
+      error: 'PROVIDER_ROUTE_REQUIRED',
+    });
+    expect(action).toBe('PerpsController:resolveWithdrawalRoute');
   });
 
   it('exports the single-leg TP/SL replace method, action and error code', () => {
