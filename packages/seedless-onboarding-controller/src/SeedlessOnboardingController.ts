@@ -1,6 +1,7 @@
 import { keccak256AndHexify } from '@metamask/auth-network-utils';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import { getRandomBytes } from '@metamask/cryptography';
 import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import type {
   DefaultEncryptionResult,
@@ -30,7 +31,6 @@ import {
   concatBytes,
 } from '@metamask/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { randomBytes } from '@noble/hashes/utils';
 import { Mutex } from 'async-mutex';
 
 import type { AuthConnection } from './constants.js';
@@ -2998,7 +2998,7 @@ export class SeedlessOnboardingController<
     const pending: RegisteredEnvelopeMigration = {
       v: 1,
       phase: 'RS_TOPRF_REGISTERED',
-      id: bytesToHex(randomBytes(16)),
+      id: bytesToHex(getRandomBytes(16)),
       recoverySecret: recoverySecretHex,
       rsAuthPubKey: bytesToBase64(authKeyPair.pk),
     };
