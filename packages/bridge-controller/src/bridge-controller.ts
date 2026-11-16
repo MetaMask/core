@@ -297,13 +297,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getShouldFetchFirstQuoteImmediately?: () => boolean;
 
-  /**
-   * The first quote fetch of the current polling session, started directly by
-   * updateBridgeQuoteRequestParams. The first poll awaits it instead of fetching again.
-   */
-  #initialFetch:
-    | { pollingInput: BridgePollingInput; promise: Promise<void> }
-    | undefined;
+  #initialFetch?: Promise<void>;
 
   constructor({
     messenger,
@@ -338,10 +332,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
      * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
      */
     getUseAssetsControllerForRates?: () => boolean;
-    /**
-     * When it returns true, the first quote fetch starts as soon as polling starts instead of
-     * waiting for the polling controller's 0ms timer.
-     */
+    /** When it returns true, the first quote fetch starts without waiting for the first poll. */
     getShouldFetchFirstQuoteImmediately?: () => boolean;
   }) {
     super({
@@ -377,13 +368,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
     const initialFetch = this.#initialFetch;
-    // The polling controller passes the same input object to every poll of a session
-    if (initialFetch?.pollingInput === pollingInput) {
-      this.#initialFetch = undefined;
-      await initialFetch.promise;
-      return;
-    }
-    await this.#fetchBridgeQuotes(pollingInput);
+    this.#initialFetch = undefined;
+    await (initialFetch ?? this.#fetchBridgeQuotes(pollingInput));
   };
 
   /**
@@ -447,11 +433,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       const pollingInput = { quoteRequests: this.state.quoteRequest, context };
       this.startPolling(pollingInput);
       if (this.#getShouldFetchFirstQuoteImmediately?.()) {
-        this.#initialFetch = {
-          pollingInput,
-          // Matches StaticIntervalPollingController's handling of _executePoll errors
-          promise: this.#fetchBridgeQuotes(pollingInput).catch(console.error),
-        };
+        this.#initialFetch = this.#fetchBridgeQuotes(pollingInput).catch(
+          console.error,
+        );
       }
     }
   };
