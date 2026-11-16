@@ -10,6 +10,7 @@ import type { Hex } from '@metamask/utils';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
+  AddressBookControllerState,
   AddressBookControllerContactDeletedEvent,
   AddressBookControllerMessenger,
 } from './AddressBookController.js';
@@ -72,6 +73,7 @@ function arrangeMocks() {
     controller,
     contactUpdatedListener,
     contactDeletedListener,
+    rootMessenger,
   };
 }
 
@@ -696,5 +698,56 @@ describe('AddressBookController', () => {
         }
       `);
     });
+  });
+
+  it('merges backup address book entries into the current state', () => {
+    const { controller } = arrangeMocks();
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'existing');
+
+    const backup: AddressBookControllerState = {
+      addressBook: {
+        [toHex(2)]: {
+          '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d': {
+            address: '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
+            chainId: toHex(2),
+            isEns: false,
+            memo: '',
+            name: 'backup',
+          },
+        },
+      },
+    };
+
+    controller.loadBackup(backup);
+
+    expect(controller.state.addressBook).toStrictEqual({
+      [toHex(1)]: {
+        '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': expect.objectContaining({
+          name: 'existing',
+        }),
+      },
+      [toHex(2)]: backup.addressBook[toHex(2)],
+    });
+  });
+
+  it('exposes loadBackup through the messenger', () => {
+    const { controller, rootMessenger } = arrangeMocks();
+    const backup: AddressBookControllerState = {
+      addressBook: {
+        [toHex(1)]: {
+          '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
+            address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+            chainId: toHex(1),
+            isEns: false,
+            memo: '',
+            name: 'backup',
+          },
+        },
+      },
+    };
+
+    rootMessenger.call('AddressBookController:loadBackup', backup);
+
+    expect(controller.state.addressBook).toStrictEqual(backup.addressBook);
   });
 });

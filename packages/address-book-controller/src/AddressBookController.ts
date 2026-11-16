@@ -75,7 +75,13 @@ export const controllerName = 'AddressBookController';
  */
 const WALLET_ACCOUNTS_CHAIN_ID = '*';
 
-const MESSENGER_EXPOSED_METHODS = ['list', 'set', 'delete', 'clear'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'list',
+  'set',
+  'delete',
+  'clear',
+  'loadBackup',
+] as const;
 
 /**
  * The action that can be performed to get the state of the {@link AddressBookController}.
@@ -317,6 +323,20 @@ export class AddressBookController extends BaseController<
     }
 
     return true;
+  }
+
+  /**
+   * Merges the given backup address book into controller state.
+   *
+   * @param backup - The address book state that has been backed up.
+   */
+  loadBackup(backup: AddressBookControllerState): void {
+    this.update((state) => {
+      state.addressBook = {
+        ...state.addressBook,
+        ...backup.addressBook,
+      };
+    });
   }
 }
 
