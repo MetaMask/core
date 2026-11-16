@@ -29,6 +29,8 @@ type MockApiClient = {
   };
 };
 
+const teardowns: (() => void)[] = [];
+
 type SetupResult = {
   controller: PriceDataSource;
   apiClient: MockApiClient;
@@ -179,6 +181,7 @@ function setupController(
   }
 
   const controller = new PriceDataSource(controllerOptions);
+  teardowns.push(() => controller.destroy());
 
   const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
 
@@ -192,13 +195,13 @@ function setupController(
 
 describe('PriceDataSource', () => {
   afterEach(() => {
+    teardowns.splice(0).forEach((teardown) => teardown());
     vi.useRealTimers();
   });
 
   it('initializes with correct name', () => {
     const { controller } = setupController();
     expect(controller.getName()).toBe('PriceDataSource');
-    controller.destroy();
   });
 
   it('exposes assetsMiddleware on instance', () => {
@@ -207,8 +210,6 @@ describe('PriceDataSource', () => {
     const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
     expect(typeof middleware).toBe('function');
-
-    controller.destroy();
   });
 
   it('fetch returns empty response when no assets in balance state', async () => {
@@ -219,8 +220,6 @@ describe('PriceDataSource', () => {
     const response = await controller.fetch(createDataRequest());
 
     expect(response).toStrictEqual({});
-
-    controller.destroy();
   });
 
   it('fetch retrieves prices for assets in balance state', async () => {
@@ -250,8 +249,6 @@ describe('PriceDataSource', () => {
       marketCap: 1000000000,
       totalVolume: 50000000,
     });
-
-    controller.destroy();
   });
 
   it('keeps 5-minute and 4-hour percent changes from the spot-prices payload', async () => {
@@ -278,8 +275,6 @@ describe('PriceDataSource', () => {
         pricePercentChange4h: -4.5,
       }),
     );
-
-    controller.destroy();
   });
 
   it('middleware prices response balances and leaves state-only balances to the poll', async () => {
@@ -307,8 +302,6 @@ describe('PriceDataSource', () => {
 
     const assetsCalled = apiClient.prices.fetchV3SpotPrices.mock.calls[0][0];
     expect(assetsCalled).toStrictEqual([normalizeAssetId(MOCK_TOKEN_ASSET)]);
-
-    controller.destroy();
   });
 
   it('middleware excludes hidden assets on the response', async () => {
@@ -346,8 +339,6 @@ describe('PriceDataSource', () => {
       [MOCK_NATIVE_ASSET],
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it.each([
@@ -405,8 +396,6 @@ describe('PriceDataSource', () => {
       );
 
       expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
-
-      controller.destroy();
     },
   );
 
@@ -438,8 +427,6 @@ describe('PriceDataSource', () => {
       marketCap: 1000000000,
       totalVolume: 50000000,
     });
-
-    controller.destroy();
   });
 
   it('fetch splits large asset lists into batches of 50', async () => {
@@ -477,8 +464,6 @@ describe('PriceDataSource', () => {
     );
     // All 120 prices should be merged into the response.
     expect(Object.keys(response.assetsPrice ?? {})).toHaveLength(120);
-
-    controller.destroy();
   });
 
   it('fetch uses custom currency', async () => {
@@ -500,8 +485,6 @@ describe('PriceDataSource', () => {
       expect.anything(),
       expect.objectContaining({ currency: 'eur' }),
     );
-
-    controller.destroy();
   });
 
   it('fetch filters by account ID', async () => {
@@ -525,8 +508,6 @@ describe('PriceDataSource', () => {
       [MOCK_NATIVE_ASSET],
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it('fetch filters by chain ID', async () => {
@@ -551,8 +532,6 @@ describe('PriceDataSource', () => {
       [polygonAsset],
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it('fetch includes assets on partialSupport.spotPricesV3 networks', async () => {
@@ -581,8 +560,6 @@ describe('PriceDataSource', () => {
       expect.arrayContaining([MOCK_NATIVE_ASSET, polygonAsset]),
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it('fetch excludes assets only listed under partialSupport.spotPricesV2', async () => {
@@ -615,8 +592,6 @@ describe('PriceDataSource', () => {
       [MOCK_NATIVE_ASSET],
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it('fetch tolerates a legacy array-shaped partialSupport', async () => {
@@ -643,8 +618,6 @@ describe('PriceDataSource', () => {
       [polygonAsset],
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it('fetch filters out non-priceable assets', async () => {
@@ -674,8 +647,6 @@ describe('PriceDataSource', () => {
       [MOCK_NATIVE_ASSET],
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it('fetch skips assets with invalid market data', async () => {
@@ -698,8 +669,6 @@ describe('PriceDataSource', () => {
 
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toBeDefined();
     expect(response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeUndefined();
-
-    controller.destroy();
   });
 
   it('fetch handles API errors gracefully', async () => {
@@ -718,8 +687,6 @@ describe('PriceDataSource', () => {
     const response = await controller.fetch(createDataRequest());
 
     expect(response).toStrictEqual({});
-
-    controller.destroy();
   });
 
   it('fetch handles getState error gracefully', async () => {
@@ -732,8 +699,6 @@ describe('PriceDataSource', () => {
     const response = await controller.fetch(createDataRequest());
 
     expect(response).toStrictEqual({});
-
-    controller.destroy();
   });
 
   it('subscribe performs initial fetch', async () => {
@@ -763,8 +728,6 @@ describe('PriceDataSource', () => {
         }),
       }),
     );
-
-    controller.destroy();
   });
 
   it('subscribe polls at specified interval', async () => {
@@ -792,8 +755,6 @@ describe('PriceDataSource', () => {
 
     await vi.advanceTimersByTimeAsync(5000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
-
-    controller.destroy();
   });
 
   it('subscribe uses request updateInterval when provided', async () => {
@@ -827,8 +788,6 @@ describe('PriceDataSource', () => {
     }
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(7);
-
-    controller.destroy();
   });
 
   it('subscribe update refreshes request and fetches missing prices', async () => {
@@ -861,8 +820,6 @@ describe('PriceDataSource', () => {
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
-
-    controller.destroy();
   });
 
   it('subscribe update fetches newly held assets that have no price yet', async () => {
@@ -918,8 +875,6 @@ describe('PriceDataSource', () => {
         updateMode: 'merge',
       }),
     );
-
-    controller.destroy();
   });
 
   it('subscribe update swallows onAssetsUpdate errors without throwing', async () => {
@@ -960,8 +915,6 @@ describe('PriceDataSource', () => {
         onAssetsUpdate: vi.fn().mockRejectedValue(new Error('handler failed')),
       }),
     ).toBeUndefined();
-
-    controller.destroy();
   });
 
   it('subscribe does not report when no prices fetched', async () => {
@@ -978,8 +931,6 @@ describe('PriceDataSource', () => {
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
-
-    controller.destroy();
   });
 
   it('unsubscribe stops polling', async () => {
@@ -1010,8 +961,6 @@ describe('PriceDataSource', () => {
     await vi.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
-
-    controller.destroy();
   });
 
   it('middleware passes to next when the response has no balances', async () => {
@@ -1025,8 +974,6 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(next).toHaveBeenCalledWith(context);
-
-    controller.destroy();
   });
 
   it('fetchAssetPrices requests spot prices for the given assets', async () => {
@@ -1046,8 +993,6 @@ describe('PriceDataSource', () => {
       assetPriceType: 'fungible',
       price: 1,
     });
-
-    controller.destroy();
   });
 
   it('middleware fetches prices for assets in the balance response', async () => {
@@ -1084,8 +1029,6 @@ describe('PriceDataSource', () => {
       totalVolume: 50000000,
     });
     expect(next).toHaveBeenCalledWith(context);
-
-    controller.destroy();
   });
 
   it('middleware does not fetch a token that already has a price', async () => {
@@ -1131,8 +1074,6 @@ describe('PriceDataSource', () => {
       [MOCK_NATIVE_ASSET],
       { currency: 'usd', includeMarketData: true },
     );
-
-    controller.destroy();
   });
 
   it('fetch still requests a token that already has a price', async () => {
@@ -1164,8 +1105,6 @@ describe('PriceDataSource', () => {
       [normalizeAssetId(MOCK_TOKEN_ASSET)],
       { currency: 'usd', includeMarketData: true },
     );
-
-    controller.destroy();
   });
 
   it('middleware filters out non-priceable balance assets', async () => {
@@ -1191,8 +1130,6 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(context);
-
-    controller.destroy();
   });
 
   it('middleware handles API error gracefully', async () => {
@@ -1216,8 +1153,6 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(next).toHaveBeenCalledWith(context);
-
-    controller.destroy();
   });
 
   it('middleware merges prices into existing response', async () => {
@@ -1253,8 +1188,6 @@ describe('PriceDataSource', () => {
 
     expect(context.response.assetsPrice?.[anotherAsset]).toBeDefined();
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
-
-    controller.destroy();
   });
 
   it('skips fetching prices for assets fetched within the freshness TTL', async () => {
@@ -1276,8 +1209,6 @@ describe('PriceDataSource', () => {
     // Second fetch immediately after — asset is fresh, API is NOT called again
     await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
-
-    controller.destroy();
   });
 
   it('re-fetches prices after the freshness TTL expires', async () => {
@@ -1302,8 +1233,6 @@ describe('PriceDataSource', () => {
 
     await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
-
-    controller.destroy();
   });
 
   it('caps the freshness TTL below the poll interval so fetch latency does not skip every other poll', async () => {
@@ -1347,8 +1276,6 @@ describe('PriceDataSource', () => {
     vi.setSystemTime(pollInterval);
     await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
-
-    controller.destroy();
   });
 
   it('invalidatePriceCache allows re-fetching assets that were fresh', async () => {
@@ -1388,8 +1315,6 @@ describe('PriceDataSource', () => {
     });
     await controller.assetsMiddleware(context3, next);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
-
-    controller.destroy();
   });
 
   it('coalesces parallel fetches for the same asset into a single API call', async () => {
@@ -1445,8 +1370,6 @@ describe('PriceDataSource', () => {
     // Both contexts received the price
     expect(context1.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
     expect(context2.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
-
-    controller.destroy();
   });
 
   it('freshness is per-asset — stale assets are fetched while fresh ones are skipped', async () => {
@@ -1489,8 +1412,6 @@ describe('PriceDataSource', () => {
       [normalizeAssetId(MOCK_TOKEN_ASSET)],
       expect.anything(),
     );
-
-    controller.destroy();
   });
 
   it('destroy clears the freshness cache', async () => {
@@ -1616,8 +1537,6 @@ describe('PriceDataSource', () => {
       await controller.fetch(createDataRequest({ chainIds: [] }));
 
       expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
-
-      controller.destroy();
     },
   );
 
@@ -1712,7 +1631,6 @@ describe('PriceDataSource', () => {
 
         await setup.act();
         expectAPI(setup);
-        setup.controller.destroy();
       },
     );
   });
