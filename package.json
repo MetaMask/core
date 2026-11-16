@@ -184,7 +184,7 @@
     "skills:postinstall": "lavamoat/scripts.skills.json",
     "test": "lavamoat/scripts.yarn.json",
     "test:clean": "lavamoat/scripts.yarn.json",
-    "test:packages": "lavamoat/scripts.yarn.json",
+    "test:packages": "lavamoat/scripts.test.json",
     "test:scripts": "lavamoat/scripts.test.json",
     "test:verbose": "lavamoat/scripts.yarn.json",
     "workspaces:list-versions": "lavamoat/scripts.yarn.json"
