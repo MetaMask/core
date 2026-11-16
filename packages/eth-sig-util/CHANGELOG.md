@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.1]
+
 ### Changed
 
 - Improve performance of `personalSign` by inlining `hashPersonalMessage` instead of importing it from `@ethereumjs/util` ([#11540](https://github.com/MetaMask/core/pull/11540))
@@ -39,5 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct padding calculation so that every ciphertext is a multiple of 2048 bytes ([#11386](https://github.com/MetaMask/core/pull/11386))
 - Reject non-integer and unsafe-integer `chainId` and `nonce` values in `signEIP7702Authorization`, `recoverEIP7702Authorization`, and `hashEIP7702Authorization` ([#11392](https://github.com/MetaMask/core/pull/11392))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-sig-util@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-sig-util@10.0.1...HEAD
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-sig-util@10.0.0...@metamask/eth-sig-util@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eth-sig-util@10.0.0

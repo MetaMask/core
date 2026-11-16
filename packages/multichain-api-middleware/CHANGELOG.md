@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
@@ -335,7 +337,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.1...HEAD
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.1.0...@metamask/multichain-api-middleware@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@5.0.0...@metamask/multichain-api-middleware@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.3...@metamask/multichain-api-middleware@5.0.0
 [4.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.2...@metamask/multichain-api-middleware@4.0.3

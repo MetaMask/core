@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -87,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit ([#9466](https://github.com/MetaMask/core/pull/9466))
   - Supports `getNetworks`, `simulateTransactions`, `submitRelayTransaction`, and `getSmartTransaction`
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.2.0...HEAD
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.1.0...@metamask/sentinel-api-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.0.0...@metamask/sentinel-api-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@1.0.1...@metamask/sentinel-api-service@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@1.0.0...@metamask/sentinel-api-service@1.0.1
