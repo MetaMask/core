@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { LIGHTER_CHANNEL_RELEASE_DELAY_MS } from '../../../src/constants/lighterConfig.js';
 import type { PublicTrade } from '../../../src/types/index.js';
 import {
   ACCOUNT,
@@ -276,10 +277,14 @@ describe('LighterProvider public trades', () => {
       await provider.disconnect();
     });
 
-    it('releases a market channel when its last subscriber leaves while another stream keeps the socket open', async () => {
+    it('keeps a market channel through a quick return and releases it after the wait while another stream keeps the socket open', async () => {
       const { provider } = buildTradesProvider();
       const btcSubscribe = JSON.stringify({
         type: 'subscribe',
+        channel: 'trade/1',
+      });
+      const btcUnsubscribe = JSON.stringify({
+        type: 'unsubscribe',
         channel: 'trade/1',
       });
       const left = vi.fn();
@@ -299,26 +304,33 @@ describe('LighterProvider public trades', () => {
         channel: 'trade:1',
         trades: [wireTrade(8, 8000)],
       });
-      provider.subscribeToPublicTrades({ symbol: 'BTC', callback: returning });
+      const leaveReturning = provider.subscribeToPublicTrades({
+        symbol: 'BTC',
+        callback: returning,
+      });
       await vi.advanceTimersByTimeAsync(0);
       receive(socket, {
-        type: 'subscribed/trade',
+        type: 'update/trade',
         channel: 'trade:1',
         trades: [wireTrade(9, 9000)],
       });
 
-      expect(socket.readyState).toBe(1);
-      expect(socket.sent).toContain(
-        JSON.stringify({ type: 'unsubscribe', channel: 'trade/1' }),
-      );
-      // The returning subscriber opens the channel again.
+      // A return inside the wait keeps the channel without frame churn.
+      expect(socket.sent).not.toContain(btcUnsubscribe);
       expect(
         socket.sent.filter((frame) => frame === btcSubscribe),
-      ).toHaveLength(2);
+      ).toHaveLength(1);
       expect(left).not.toHaveBeenCalled();
       expect(returning.mock.calls).toStrictEqual([
         [[expectedTrade(9, 9000, 'buy')]],
       ]);
+
+      leaveReturning();
+      await vi.advanceTimersByTimeAsync(LIGHTER_CHANNEL_RELEASE_DELAY_MS - 1);
+      expect(socket.sent).not.toContain(btcUnsubscribe);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(socket.sent).toContain(btcUnsubscribe);
+      expect(socket.readyState).toBe(1);
       await provider.disconnect();
     });
 
