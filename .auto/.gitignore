@@ -1,0 +1,5 @@
+# Generated bench artifacts (rebuilt on every measure.sh run)
+bench/bundle.js
+bench/run_*.out
+bench/staging/
+bench/node_modules/
