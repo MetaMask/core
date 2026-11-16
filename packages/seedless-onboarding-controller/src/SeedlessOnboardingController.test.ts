@@ -7333,6 +7333,100 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('should throw IdentityMismatch and skip re-authentication when the refreshed idTokens do not match the state userId', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRefreshJWTToken,
+            baseMessenger,
+          }) => {
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: [createMockJWTToken({ sub: 'different-user' })],
+              accessToken,
+              metadataAccessToken,
+            });
+            const authenticateSpy = vi
+              .spyOn(toprfClient, 'authenticate')
+              .mockResolvedValue({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:refreshAuthTokens',
+              ),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+
+            expect(authenticateSpy).not.toHaveBeenCalled();
+            expect(controller.state.nodeAuthTokens).toStrictEqual(
+              MOCK_NODE_AUTH_TOKENS,
+            );
+            expect(controller.state.userId).toBe(userId);
+          },
+        );
+      });
+
+      it('should discard the re-authentication result when the identity changes while the request is in flight', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, toprfClient, baseMessenger }) => {
+            let resolveAuthenticate!: (value: {
+              nodeAuthTokens: typeof MOCK_NODE_AUTH_TOKENS;
+              isNewUser: boolean;
+            }) => void;
+            vi.spyOn(toprfClient, 'authenticate').mockImplementation(
+              () =>
+                new Promise((resolve) => {
+                  resolveAuthenticate = resolve;
+                }),
+            );
+
+            const refreshPromise = baseMessenger.call(
+              'SeedlessOnboardingController:refreshAuthTokens',
+            );
+
+            // Wait until the re-authentication request is in flight.
+            await vi.waitFor(() => {
+              expect(toprfClient.authenticate).toHaveBeenCalled();
+            });
+
+            // Simulate an identity change (e.g. clearState or a new
+            // authenticate call) while the re-auth request is pending.
+            await baseMessenger.call('SeedlessOnboardingController:clearState');
+            expect(controller.state.userId).toBeUndefined();
+
+            resolveAuthenticate({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            await expect(refreshPromise).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+
+            // The stale identity must not be resurrected into state.
+            expect(controller.state.userId).toBeUndefined();
+            expect(controller.state.nodeAuthTokens).toBeUndefined();
+            expect(
+              controller.state.isSeedlessOnboardingUserAuthenticated,
+            ).toBe(false);
+          },
+        );
+      });
+
       it('should throw error if controller not authenticated', async () => {
         await withController(async ({ baseMessenger }) => {
           await expect(

@@ -197,3 +197,41 @@ export function assertIdTokenMatchesUserId(
     );
   }
 }
+
+/**
+ * Assert that the controller identity has not changed between two points in
+ * time. Used to guard against writing a stale authentication result into
+ * state after the identity was switched (by another `authenticate()` call) or
+ * wiped (by `clearState()`) while an asynchronous request was in flight.
+ *
+ * Callers should invoke this immediately before the state write, with no
+ * `await` in between, so that the check and the write are atomic under the
+ * JavaScript event loop.
+ *
+ * @param currentState - The identity fields from the current controller state.
+ * @param expectedIdentity - The identity fields captured before the request.
+ * @throws If any identity field differs from the expected value.
+ */
+export function assertIdentityUnchanged(
+  currentState: {
+    userId?: string;
+    authConnectionId?: string;
+  },
+  expectedIdentity: {
+    userId?: string;
+    authConnectionId?: string;
+  },
+): void {
+  if (
+    currentState.userId !== expectedIdentity.userId ||
+    currentState.authConnectionId !== expectedIdentity.authConnectionId
+  ) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+      {
+        details:
+          'Controller identity changed while the request was in flight.',
+      },
+    );
+  }
+}

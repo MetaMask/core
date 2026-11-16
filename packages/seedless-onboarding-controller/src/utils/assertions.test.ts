@@ -10,6 +10,7 @@ import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import { DecodedBaseJWTToken, VaultData } from '../types.js';
 import {
   assertIdTokenMatchesUserId,
+  assertIdentityUnchanged,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -309,5 +310,54 @@ describe('assertIdTokenMatchesUserId', () => {
     expect(() => {
       assertIdTokenMatchesUserId(['not-a-jwt'], 'user-1');
     }).not.toThrow();
+  });
+});
+
+describe('assertIdentityUnchanged', () => {
+  const identity = {
+    userId: 'user-1',
+    authConnectionId: 'auth-connection-1',
+  };
+
+  it('should not throw when the identity is unchanged', () => {
+    expect(() => {
+      assertIdentityUnchanged({ ...identity }, { ...identity });
+    }).not.toThrow();
+  });
+
+  it('should not throw when both identities are fully cleared', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { userId: undefined, authConnectionId: undefined },
+        { userId: undefined, authConnectionId: undefined },
+      );
+    }).not.toThrow();
+  });
+
+  it('should throw IdentityMismatch when the userId changed', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { ...identity, userId: 'user-2' },
+        { ...identity },
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when the identity was cleared', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { userId: undefined, authConnectionId: undefined },
+        { ...identity },
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when the authConnectionId changed', () => {
+    expect(() => {
+      assertIdentityUnchanged(
+        { ...identity, authConnectionId: 'auth-connection-2' },
+        { ...identity },
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
 });

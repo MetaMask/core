@@ -67,6 +67,7 @@ import type {
 } from './types.js';
 import {
   assertIdTokenMatchesUserId,
+  assertIdentityUnchanged,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -2127,6 +2128,15 @@ export class SeedlessOnboardingController<
         });
       }
     } catch (error) {
+      if (
+        error instanceof SeedlessOnboardingError &&
+        error.message ===
+          SeedlessOnboardingControllerErrorMessage.IdentityMismatch
+      ) {
+        // Propagate identity mismatch errors as-is so callers (and telemetry)
+        // can distinguish them from generic authentication failures.
+        throw error;
+      }
       log('Error refreshing node auth tokens', error);
       throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,
@@ -2170,6 +2180,11 @@ export class SeedlessOnboardingController<
       socialLoginEmail,
     } = this.state;
 
+    // Fail fast if the refreshed idTokens do not belong to the identity in
+    // state. This can happen when the identity changes while a token refresh
+    // is in flight (there is no lock between the refresh and this call).
+    assertIdTokenMatchesUserId(idTokens, userId ?? '');
+
     try {
       const authenticationResult = await this.toprfClient.authenticate({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -2179,6 +2194,19 @@ export class SeedlessOnboardingController<
         idTokens,
         groupedAuthConnectionId,
       });
+
+      // Stale-write guard: the state may have been overwritten by another
+      // `authenticate()` call or wiped by `clearState()` while the request
+      // was in flight. Discard the result instead of resurrecting the previous
+      // identity into the current state. There is no `await` between this
+      // check and the `update` below, so the pair is atomic.
+      assertIdentityUnchanged(
+        {
+          userId: this.state.userId,
+          authConnectionId: this.state.authConnectionId,
+        },
+        { userId, authConnectionId },
+      );
 
       this.update((state) => {
         state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
@@ -2195,6 +2223,15 @@ export class SeedlessOnboardingController<
 
       return authenticationResult;
     } catch (error) {
+      if (
+        error instanceof SeedlessOnboardingError &&
+        error.message ===
+          SeedlessOnboardingControllerErrorMessage.IdentityMismatch
+      ) {
+        // Propagate identity mismatch errors as-is so callers (and telemetry)
+        // can distinguish them from generic authentication failures.
+        throw error;
+      }
       log('Error re-authenticating user', error);
       throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,

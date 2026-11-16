@@ -1,5 +1,6 @@
 export {
   assertIdTokenMatchesUserId,
+  assertIdentityUnchanged,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
