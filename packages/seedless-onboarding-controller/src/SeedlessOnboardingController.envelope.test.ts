@@ -2123,6 +2123,7 @@ describe('SeedlessOnboardingController', () => {
             state.envelope = {
               v: 1,
               vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+              passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
             };
           });
           await seedCheckpoint(controller, {
@@ -2148,6 +2149,7 @@ describe('SeedlessOnboardingController', () => {
           const envelope: SeedlessOnboardingControllerState['envelope'] = {
             v: 1,
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
           };
           updateState(controller, (state) => {
             state.envelope = envelope;
