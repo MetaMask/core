@@ -1404,6 +1404,11 @@ export class RampsService extends BaseDataService<
     const normalizedFiat = params.fiat.toLowerCase().trim();
     const action = params.action ?? 'buy';
 
+    // The API builds the response's `buyURL` from the host that served this
+    // request, and `getBuyWidgetUrl` only accepts that origin (see
+    // `#assertBuyWidgetUrlOrigin`). So this must keep using the environment
+    // URL rather than `#getBaseUrl`: honoring `baseUrlOverride` here would
+    // return buy URLs that the widget fetch then rejects.
     const url = new URL(
       getApiPath('quotes'),
       getBaseUrl(this.#environment, RampsApiService.Orders),
@@ -1479,6 +1484,12 @@ export class RampsService extends BaseDataService<
    * Fetches the buy widget data from a buy URL endpoint.
    * Makes a request to the buyURL (as provided in a quote) to get the actual
    * provider widget URL, browser type, and order ID.
+   *
+   * The URL must be on the ramps API origin for this service's environment
+   * (for example `https://on-ramp.api.cx.metamask.io` in production). A URL
+   * from any other origin is rejected before the request is made, because the
+   * request carries the bearer token. `baseUrlOverride` does not change the
+   * origin a buy URL may use.
    *
    * @param buyUrl - The full buy URL endpoint to fetch from.
    * @returns The buy widget data containing the provider widget URL.

@@ -1992,6 +1992,31 @@ describe('RampsService', () => {
       expect(quotesResponse.error).toHaveLength(0);
     });
 
+    it('fetches quotes from the environment origin even when baseUrlOverride is set', async () => {
+      // `getBuyWidgetUrl` requires buy URLs to share this origin, and the API
+      // builds them from the host that served the quotes request.
+      const interceptor = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query(true)
+        .reply(200, mockQuotesResponse);
+      const { service } = getService({
+        options: { baseUrlOverride: 'http://custom-url.test' },
+      });
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await settle();
+      await quotesPromise;
+
+      expect(interceptor.isDone()).toBe(true);
+    });
+
     it('normalizes region and fiat case', async () => {
       nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/v2/quotes')
