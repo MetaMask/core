@@ -10,7 +10,7 @@ import {
   stringToBytes,
 } from '@metamask/utils';
 
-import { derivePubKey } from './envelope-keys.js';
+import { derivePubKey, toControlRecord } from './envelope-keys.js';
 import type { ControlRecord, Envelope } from './envelope-keys.js';
 
 const PENDING_MIGRATION_AAD = 'mm-envelope-v1/pending-migration';
@@ -150,13 +150,14 @@ function parsePendingMigration(
       };
 
     case 'ENVELOPES_SEALED': {
-      const { recoveryEnvelope, control } = value;
+      const { recoveryEnvelope } = value;
+      const control = toControlRecord(value.control);
       if (
         typeof value.recoverySecret !== 'string' ||
         typeof value.rsAuthPubKey !== 'string' ||
         typeof value.vaultAuthPubKey !== 'string' ||
         !isSerializedSealedEnvelope(recoveryEnvelope) ||
-        !isObject(control)
+        !control
       ) {
         return undefined;
       }
@@ -168,7 +169,7 @@ function parsePendingMigration(
         rsAuthPubKey: value.rsAuthPubKey,
         vaultAuthPubKey: value.vaultAuthPubKey,
         recoveryEnvelope: parseSealedEnvelope(recoveryEnvelope),
-        control: control as ControlRecord,
+        control,
       };
     }
 

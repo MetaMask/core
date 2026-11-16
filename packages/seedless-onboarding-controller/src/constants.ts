@@ -71,6 +71,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   EnvelopeVaultRequiresEnvelopePasswordChange = `${controllerName} - Vault has envelope control records; use the envelope password change`,
   EnvelopeMigrationRequiresDataTypes = `${controllerName} - Envelope migration requires the data type migration`,
   RecoveryEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the Recovery Secret`,
+  PasswordEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the password`,
   RecoveryRequired = `${controllerName} - Recover with the Recovery Secret before setting the local password`,
   PasswordResetRequiresRecovery = `${controllerName} - The password can only be reset with the vault keys after a recovery with the Recovery Secret`,
 }

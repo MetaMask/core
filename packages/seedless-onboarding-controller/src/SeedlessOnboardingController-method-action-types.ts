@@ -209,6 +209,9 @@ export type SeedlessOnboardingControllerSetLockedAction = {
  * @param params - The parameters for syncing the latest global password.
  * @param params.globalPassword - The latest global password.
  * @returns A promise that resolves to the success of the operation.
+ * @throws `PasswordEnvelopeNotFound` if the vault is envelope-managed, but
+ * no vault keys are sealed for the global password and it does not derive
+ * the vault keys either.
  */
 export type SeedlessOnboardingControllerSyncLatestGlobalPasswordAction = {
   type: `SeedlessOnboardingController:syncLatestGlobalPassword`;
@@ -345,9 +348,11 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * envelopes are sealed needs no recovery session. Does nothing if the vault
  * is already envelope-managed and no migration is pending.
  *
- * The vault must be unlocked and in sync with the global password. Register
- * the Recovery Secret at the escrows first, then call
- * {@link authenticateForRecovery}.
+ * The vault must be unlocked and in sync with the global password: without
+ * control records, the vault keys must derive from the global password;
+ * with them, one must match the global password, e.g. after a password
+ * change on a partially migrated vault. Register the Recovery Secret at the
+ * escrows first, then call {@link authenticateForRecovery}.
  *
  * @param params - The function parameters.
  * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.

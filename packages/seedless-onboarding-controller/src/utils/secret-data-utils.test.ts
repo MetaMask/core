@@ -342,6 +342,23 @@ describe('secret data utilities', () => {
       expect(controlRecords.map((record) => record.seq)).toStrictEqual([2, 1]);
     });
 
+    it('skips a control record whose auth key is not a valid private key', () => {
+      const record = createRecord(3);
+      record.passwordNamespace.authSk = 'zz';
+
+      const { controlRecords } = splitVaultItems([
+        createControlItem(1, '100', 'control-valid'),
+        createVaultItem({
+          itemId: 'control-bad-auth-key',
+          data: serializeControlRecord(record),
+          dataType: EncAccountDataType.EnvelopeControl,
+          createdAt: '300',
+        }),
+      ]);
+
+      expect(controlRecords.map(({ seq }) => seq)).toStrictEqual([1]);
+    });
+
     it('returns empty lists for empty input', () => {
       expect(splitVaultItems([])).toStrictEqual({
         secretItems: [],

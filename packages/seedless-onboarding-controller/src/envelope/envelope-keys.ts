@@ -134,7 +134,7 @@ export function pubKeysEqual(
  * @returns The key pair.
  */
 export function deriveKeyPair(bytes: Uint8Array): KeyPair {
-  const sk = bytesToNumberBE(bytes) % secp256k1.CURVE.n;
+  const sk = bytesToNumberBE(bytes) % secp256k1.Point.Fn.ORDER;
   return { sk, pk: derivePubKey(sk) };
 }
 
@@ -273,26 +273,74 @@ export function serializeControlRecord(record: ControlRecord): Uint8Array {
 }
 
 /**
- * Check that a value is a control record.
- *
  * @param value - The value to check.
- * @returns Whether the value is a control record.
+ * @param min - The smallest allowed value.
+ * @returns Whether the value is a safe integer of at least `min`.
  */
-function isControlRecord(value: unknown): value is ControlRecord {
-  if (!isObject(value) || !isObject(value.passwordNamespace)) {
+function isSafeIntegerAtLeast(value: unknown, min: number): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= min;
+}
+
+/**
+ * @param value - The value to check.
+ * @returns Whether the value is a non-empty string.
+ */
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * @param value - The value to check.
+ * @returns Whether the value is a hex encoded secp256k1 private key.
+ */
+function isAuthSk(value: unknown): value is string {
+  if (typeof value !== 'string') {
     return false;
   }
+  try {
+    derivePubKey(hexToBigInt(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate a value as a control record and copy its known fields.
+ *
+ * @param value - The value to check.
+ * @returns The control record without unknown fields, or undefined when the
+ * value is not a control record.
+ */
+export function toControlRecord(value: unknown): ControlRecord | undefined {
+  if (!isObject(value) || !isObject(value.passwordNamespace)) {
+    return undefined;
+  }
   const { passwordNamespace: ns } = value;
-  return (
-    value.v === 1 &&
-    typeof value.seq === 'number' &&
-    typeof value.migratedAt === 'number' &&
-    typeof ns.verifier === 'string' &&
-    typeof ns.verifierId === 'string' &&
-    typeof ns.authSk === 'string' &&
-    typeof ns.keyIndex === 'number' &&
-    typeof ns.enabled === 'boolean'
-  );
+  if (
+    value.v !== 1 ||
+    !isSafeIntegerAtLeast(value.seq, 1) ||
+    !isSafeIntegerAtLeast(value.migratedAt, 0) ||
+    !isNonEmptyString(ns.verifier) ||
+    !isNonEmptyString(ns.verifierId) ||
+    !isAuthSk(ns.authSk) ||
+    !isSafeIntegerAtLeast(ns.keyIndex, 0) ||
+    typeof ns.enabled !== 'boolean'
+  ) {
+    return undefined;
+  }
+  return {
+    v: 1,
+    seq: value.seq,
+    passwordNamespace: {
+      verifier: ns.verifier,
+      verifierId: ns.verifierId,
+      authSk: ns.authSk,
+      keyIndex: ns.keyIndex,
+      enabled: ns.enabled,
+    },
+    migratedAt: value.migratedAt,
+  };
 }
 
 /**
@@ -301,11 +349,11 @@ function isControlRecord(value: unknown): value is ControlRecord {
  * @throws `InvalidEnvelope` if the data is not a control record.
  */
 export function parseControlRecord(data: Uint8Array): ControlRecord {
-  const value = parseJsonBytes(data);
-  if (!isControlRecord(value)) {
+  const record = toControlRecord(parseJsonBytes(data));
+  if (!record) {
     throw createInvalidEnvelopeError();
   }
-  return value;
+  return record;
 }
 
 /**
@@ -333,9 +381,14 @@ export function selectControlRecord(
 /**
  * @param records - The control records of the vault.
  * @returns The `seq` of the next control record.
+ * @throws `InvalidEnvelope` if the next `seq` is not a safe integer.
  */
 export function nextControlSeq(records: ControlRecord[]): number {
-  return Math.max(0, ...records.map(({ seq }) => seq)) + 1;
+  const seq = Math.max(0, ...records.map((record) => record.seq)) + 1;
+  if (!Number.isSafeInteger(seq)) {
+    throw createInvalidEnvelopeError();
+  }
+  return seq;
 }
 
 /**

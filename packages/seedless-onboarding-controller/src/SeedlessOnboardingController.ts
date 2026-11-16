@@ -1167,6 +1167,9 @@ export class SeedlessOnboardingController<
    * @param params - The parameters for syncing the latest global password.
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the success of the operation.
+   * @throws `PasswordEnvelopeNotFound` if the vault is envelope-managed, but
+   * no vault keys are sealed for the global password and it does not derive
+   * the vault keys either.
    */
   async syncLatestGlobalPassword({
     globalPassword,
@@ -1204,6 +1207,20 @@ export class SeedlessOnboardingController<
             passwordKeySet,
             authKeyPair.pk,
           );
+          if (
+            this.state.envelope &&
+            !(
+              isEnvelopeManaged &&
+              pubKeysEqual(
+                authKeyPair.pk,
+                base64ToBytes(this.state.envelope.vaultAuthPubKey),
+              )
+            )
+          ) {
+            throw new SeedlessOnboardingError(
+              SeedlessOnboardingControllerErrorMessage.PasswordEnvelopeNotFound,
+            );
+          }
           // update and encrypt the vault with new password
           await this.#createNewVaultWithAuthData({
             password: globalPassword,
@@ -2673,9 +2690,11 @@ export class SeedlessOnboardingController<
    * envelopes are sealed needs no recovery session. Does nothing if the vault
    * is already envelope-managed and no migration is pending.
    *
-   * The vault must be unlocked and in sync with the global password. Register
-   * the Recovery Secret at the escrows first, then call
-   * {@link authenticateForRecovery}.
+   * The vault must be unlocked and in sync with the global password: without
+   * control records, the vault keys must derive from the global password;
+   * with them, one must match the global password, e.g. after a password
+   * change on a partially migrated vault. Register the Recovery Secret at the
+   * escrows first, then call {@link authenticateForRecovery}.
    *
    * @param params - The function parameters.
    * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
@@ -2737,19 +2756,25 @@ export class SeedlessOnboardingController<
             ));
           this.#trackEnvelopeMigrationCheckpoint(pending.phase, resumed);
         }
+        let passwordAuthPubKey: SEC1EncodedPublicKey | undefined;
         while (pending.phase !== 'ENVELOPES_WRITTEN') {
-          pending =
-            pending.phase === 'RS_TOPRF_REGISTERED'
-              ? await this.#sealEnvelopeMigration(
-                  pending,
-                  vaultKeySet,
-                  recoveryKeys,
-                )
-              : await this.#writeEnvelopeMigration(pending, vaultKeySet);
+          if (pending.phase === 'RS_TOPRF_REGISTERED') {
+            pending = await this.#sealEnvelopeMigration(
+              pending,
+              vaultKeySet,
+              recoveryKeys,
+            );
+          } else {
+            ({ pending, passwordAuthPubKey } =
+              await this.#writeEnvelopeMigration(pending, vaultKeySet));
+          }
           this.#trackEnvelopeMigrationCheckpoint(pending.phase, resumed);
         }
+        passwordAuthPubKey ??= (
+          await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet)
+        ).authPubKey;
 
-        this.#setEnvelopeState(vaultKeySet, vaultKeySet.authKeyPair.pk);
+        this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
         this.update((state) => {
           delete state.pendingEnvelopeMigration;
         });
@@ -2982,11 +3007,43 @@ export class SeedlessOnboardingController<
   }
 
   /**
+   * Fetch the live password OPRF key and the vault's control records, and
+   * check that the key is in sync for the migration: without control
+   * records, the vault keys must still derive from the password; with them,
+   * one must match the key, as the vault is already envelope-managed by this
+   * or another device.
+   *
+   * @param vaultKeySet - The vault key set `K_v`.
+   * @returns The live password OPRF key, its key index, and the control
+   * records.
+   * @throws `OutdatedPassword` if the live key is not in sync.
+   */
+  async #fetchEnvelopeMigrationPasswordKey(vaultKeySet: VaultKeySet): Promise<{
+    authPubKey: SEC1EncodedPublicKey;
+    keyIndex: number;
+    controlRecords: ControlRecord[];
+  }> {
+    const { authPubKey, keyIndex } = await this.#fetchGlobalAuthPubKey();
+    const controlRecords =
+      await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+    const isInSync =
+      controlRecords.length === 0
+        ? pubKeysEqual(authPubKey, vaultKeySet.authKeyPair.pk)
+        : selectControlRecord(controlRecords, authPubKey) !== undefined;
+    if (!isInSync) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+      );
+    }
+    return { authPubKey, keyIndex, controlRecords };
+  }
+
+  /**
    * Seal the Recovery Secret envelope and the first control record, and
    * checkpoint `ENVELOPES_SEALED` (step 4).
    *
-   * The password OPRF key is still the one the vault keys derive from, so
-   * the vault is in sync when the nodes' auth public key equals the vault's.
+   * The control record is only written if the vault has none yet, in which
+   * case the password OPRF key is still the one the vault keys derive from.
    *
    * @param pending - The `RS_TOPRF_REGISTERED` checkpoint.
    * @param vaultKeySet - The vault key set `K_v`.
@@ -3006,12 +3063,8 @@ export class SeedlessOnboardingController<
       recoveryKeys ??
       (await this.#recoverRegisteredRecoverySecretKeys(pending));
 
-    const { authPubKey, keyIndex } = await this.#fetchGlobalAuthPubKey();
-    if (!pubKeysEqual(authPubKey, vaultKeySet.authKeyPair.pk)) {
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
-      );
-    }
+    const { keyIndex } =
+      await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet);
 
     this.#assertIsAuthenticatedUser(this.state);
     const { authConnectionId, groupedAuthConnectionId, userId } = this.state;
@@ -3050,62 +3103,71 @@ export class SeedlessOnboardingController<
    *
    * Under the vault's metadata lock, the password OPRF key is re-checked and
    * the control record is written unless the vault already has one, e.g.
-   * from another device holding the same `K_v`. The envelope is written
-   * after the lock is released.
+   * from another device holding the same `K_v`, or from an earlier attempt
+   * followed by a password change. The envelope is written after the lock is
+   * released.
    *
    * @param pending - The `ENVELOPES_SEALED` checkpoint.
    * @param vaultKeySet - The vault key set `K_v`.
-   * @returns The new checkpoint.
+   * @returns The new checkpoint, and the live password OPRF auth public key.
    * @throws `OutdatedPassword`, after rolling the checkpoint back to
-   * `RS_TOPRF_REGISTERED`, if the password changed since the envelopes were
-   * sealed, `EnvelopeControlRecordNotFound` if no control record matches the
-   * vault's auth key, or `InvalidEnvelope` if the envelope does not read back.
+   * `RS_TOPRF_REGISTERED`, if the live password key is not in sync,
+   * `EnvelopeControlRecordNotFound` if no control record matches the live
+   * password key, or `InvalidEnvelope` if the envelope does not read back.
    */
   async #writeEnvelopeMigration(
     pending: SealedEnvelopeMigration,
     vaultKeySet: VaultKeySet,
-  ): Promise<WrittenEnvelopeMigration> {
-    await this.#withMetadataLock(vaultKeySet.authKeyPair, async () => {
-      try {
-        await this.#assertGlobalAuthPubKeyUnchanged(vaultKeySet.authKeyPair.pk);
-      } catch (error) {
-        if (
-          !(error instanceof Error) ||
-          error.message !==
-            SeedlessOnboardingControllerErrorMessage.OutdatedPassword
-        ) {
+  ): Promise<{
+    pending: WrittenEnvelopeMigration;
+    passwordAuthPubKey: SEC1EncodedPublicKey;
+  }> {
+    const passwordAuthPubKey = await this.#withMetadataLock(
+      vaultKeySet.authKeyPair,
+      async () => {
+        let authPubKey: SEC1EncodedPublicKey;
+        let controlRecords: ControlRecord[];
+        try {
+          ({ authPubKey, controlRecords } =
+            await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet));
+        } catch (error) {
+          if (
+            !(error instanceof Error) ||
+            error.message !==
+              SeedlessOnboardingControllerErrorMessage.OutdatedPassword
+          ) {
+            throw error;
+          }
+          // the sealed control record names a key index that may be stale
+          await this.#persistPendingMigration(
+            {
+              v: 1,
+              phase: 'RS_TOPRF_REGISTERED',
+              id: pending.id,
+              recoverySecret: pending.recoverySecret,
+              rsAuthPubKey: pending.rsAuthPubKey,
+            },
+            vaultKeySet,
+          );
           throw error;
         }
-        // the sealed control record names a key index that may be stale
-        await this.#persistPendingMigration(
-          {
-            v: 1,
-            phase: 'RS_TOPRF_REGISTERED',
-            id: pending.id,
-            recoverySecret: pending.recoverySecret,
-            rsAuthPubKey: pending.rsAuthPubKey,
-          },
-          vaultKeySet,
-        );
-        throw error;
-      }
 
-      let controlRecords =
-        await this.#envelopeStore.fetchControlRecords(vaultKeySet);
-      if (controlRecords.length === 0) {
-        await this.#envelopeStore.writeControlRecord(
-          vaultKeySet,
-          pending.control,
-        );
-        controlRecords =
-          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
-      }
-      if (!selectControlRecord(controlRecords, vaultKeySet.authKeyPair.pk)) {
-        throw new SeedlessOnboardingError(
-          SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
-        );
-      }
-    });
+        if (controlRecords.length === 0) {
+          await this.#envelopeStore.writeControlRecord(
+            vaultKeySet,
+            pending.control,
+          );
+          controlRecords =
+            await this.#envelopeStore.fetchControlRecords(vaultKeySet);
+        }
+        if (!selectControlRecord(controlRecords, authPubKey)) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+          );
+        }
+        return authPubKey;
+      },
+    );
 
     await this.#writeAndVerifyEnvelope(pending.recoveryEnvelope);
 
@@ -3116,7 +3178,7 @@ export class SeedlessOnboardingController<
       vaultAuthPubKey: pending.vaultAuthPubKey,
     };
     await this.#persistPendingMigration(written, vaultKeySet);
-    return written;
+    return { pending: written, passwordAuthPubKey };
   }
 
   /**

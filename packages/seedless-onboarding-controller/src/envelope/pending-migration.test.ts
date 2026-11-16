@@ -329,6 +329,55 @@ describe('pending envelope migration', () => {
     ).toBeUndefined();
   });
 
+  it.each([
+    ['a control record that is not an object', (): unknown => 'control'],
+    [
+      'a control record with a bad auth key',
+      (control: SealedPending['control']): unknown => ({
+        ...control,
+        passwordNamespace: { ...control.passwordNamespace, authSk: 'zz' },
+      }),
+    ],
+    [
+      'a control record with seq 0',
+      (control: SealedPending['control']): unknown => ({ ...control, seq: 0 }),
+    ],
+  ])(
+    'returns undefined when the ENVELOPES_SEALED phase has %s',
+    async (_name, createControl) => {
+      const body = await createSealedBody();
+
+      expect(
+        await decryptPendingMigration(
+          await encryptBody({
+            ...body,
+            control: createControl(body.control as SealedPending['control']),
+          }),
+          vaultKeySet.localWrapKey,
+        ),
+      ).toBeUndefined();
+    },
+  );
+
+  it('drops unknown fields of the ENVELOPES_SEALED control record', async () => {
+    const body = await createSealedBody();
+    const control = body.control as SealedPending['control'];
+
+    const decrypted = await decryptPendingMigration(
+      await encryptBody({
+        ...body,
+        control: {
+          ...control,
+          extra: 1,
+          passwordNamespace: { ...control.passwordNamespace, extra: 2 },
+        },
+      }),
+      vaultKeySet.localWrapKey,
+    );
+
+    expect((decrypted as SealedPending).control).toStrictEqual(control);
+  });
+
   it('returns undefined when the ENVELOPES_WRITTEN phase lacks vaultAuthPubKey', async () => {
     const encrypted = await encryptBody({
       v: 1,

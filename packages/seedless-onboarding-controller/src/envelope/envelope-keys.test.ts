@@ -22,8 +22,11 @@ import {
   selectControlRecord,
   serializeControlRecord,
   serializeEnvelope,
+  toControlRecord,
 } from './envelope-keys.js';
 import type { ControlRecord, VaultKeySet } from './envelope-keys.js';
+
+const CURVE_ORDER = secp256k1.Point.Fn.ORDER;
 
 /**
  * @param fill - The byte to fill the keys with.
@@ -212,6 +215,26 @@ describe('envelope keys', () => {
       );
     });
 
+    it('accepts an auth key without the 0x prefix', () => {
+      const record = createRecord(1, 11n);
+      record.passwordNamespace.authSk = 'b';
+
+      expect(parseControlRecord(serializeControlRecord(record))).toStrictEqual(
+        record,
+      );
+    });
+
+    it('drops unknown fields', () => {
+      const record = createRecord(1, 11n);
+      const data = JSON.stringify({
+        ...record,
+        extra: 1,
+        passwordNamespace: { ...record.passwordNamespace, extra: 2 },
+      });
+
+      expect(parseControlRecord(stringToBytes(data))).toStrictEqual(record);
+    });
+
     it.each([
       ['not JSON', 'nope'],
       ['an array', '[]'],
@@ -222,6 +245,66 @@ describe('envelope keys', () => {
       expect(() => parseControlRecord(stringToBytes(data))).toThrow(
         INVALID_ENVELOPE,
       );
+    });
+
+    it.each([
+      ['seq 0', { seq: 0 }],
+      ['a fractional seq', { seq: 1.5 }],
+      ['an unsafe seq', { seq: 2 ** 53 }],
+      ['a string seq', { seq: '1' }],
+      ['a negative migratedAt', { migratedAt: -1 }],
+      ['a fractional migratedAt', { migratedAt: 1.5 }],
+      ['an unsafe migratedAt', { migratedAt: 2 ** 53 }],
+    ])('rejects a record with %s', (_name, overrides) => {
+      const data = JSON.stringify({ ...createRecord(1, 11n), ...overrides });
+
+      expect(() => parseControlRecord(stringToBytes(data))).toThrow(
+        INVALID_ENVELOPE,
+      );
+    });
+
+    it.each([
+      ['an empty auth key', { authSk: '' }],
+      ['a non-hex auth key', { authSk: 'zz' }],
+      ['a bare 0x auth key', { authSk: '0x' }],
+      ['a zero auth key', { authSk: '0x0' }],
+      ['an auth key of the curve order', { authSk: bigIntToHex(CURVE_ORDER) }],
+      [
+        'an auth key above the curve order',
+        { authSk: bigIntToHex(CURVE_ORDER + 1n) },
+      ],
+      ['a numeric auth key', { authSk: 11 }],
+      ['a negative keyIndex', { keyIndex: -1 }],
+      ['a fractional keyIndex', { keyIndex: 1.5 }],
+      ['an unsafe keyIndex', { keyIndex: 2 ** 53 }],
+      ['a non-boolean enabled', { enabled: 'true' }],
+      ['an empty verifier', { verifier: '' }],
+      ['a numeric verifier', { verifier: 1 }],
+      ['an empty verifierId', { verifierId: '' }],
+      ['a missing verifierId', { verifierId: undefined }],
+    ])('rejects a record with %s', (_name, overrides) => {
+      const record = createRecord(1, 11n);
+      const data = JSON.stringify({
+        ...record,
+        passwordNamespace: { ...record.passwordNamespace, ...overrides },
+      });
+
+      expect(() => parseControlRecord(stringToBytes(data))).toThrow(
+        INVALID_ENVELOPE,
+      );
+    });
+
+    it('checks values with toControlRecord without throwing', () => {
+      const record = createRecord(1, 11n);
+
+      expect(toControlRecord({ ...record, extra: 1 })).toStrictEqual(record);
+      expect(toControlRecord(null)).toBeUndefined();
+      expect(
+        toControlRecord({
+          ...record,
+          passwordNamespace: { ...record.passwordNamespace, authSk: 'zz' },
+        }),
+      ).toBeUndefined();
     });
 
     it('selects the record matching the live key, highest seq first', () => {
@@ -241,6 +324,12 @@ describe('envelope keys', () => {
       expect(nextControlSeq([createRecord(4, 11n), createRecord(2, 12n)])).toBe(
         5,
       );
+    });
+
+    it('throws when the next seq is not a safe integer', () => {
+      expect(() =>
+        nextControlSeq([createRecord(Number.MAX_SAFE_INTEGER, 11n)]),
+      ).toThrow(INVALID_ENVELOPE);
     });
 
     it('rebuilds the password namespace auth key pair', () => {
