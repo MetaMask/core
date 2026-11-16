@@ -162,7 +162,7 @@ type GasStationCostRequest = {
   totalItemCount: number;
 };
 
-type GasStationStepData = {
+export type GasStationStepData = {
   data: Hex;
   to: Hex;
   value?: string;

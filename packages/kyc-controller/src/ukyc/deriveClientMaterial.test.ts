@@ -19,8 +19,8 @@ const OTHER_LOCAL_USER_SECRET = new Uint8Array(
 ).fill(43);
 
 describe('UKYC deriveClientMaterial', () => {
-  it('derives each value at the documented length', () => {
-    const material = deriveClientMaterial(LOCAL_USER_SECRET);
+  it('derives each value at the documented length', async () => {
+    const material = await deriveClientMaterial(LOCAL_USER_SECRET);
 
     expect(material.storageId).toHaveLength(UKYC_DERIVED_KEY_SIZES.storageId);
     expect(material.dataEncryptionKey).toHaveLength(
@@ -34,16 +34,16 @@ describe('UKYC deriveClientMaterial', () => {
     expect(material.signingPublicKey).toHaveLength(32);
   });
 
-  it('is deterministic for the same local_user_secret', () => {
-    const a = deriveClientMaterial(LOCAL_USER_SECRET);
-    const b = deriveClientMaterial(LOCAL_USER_SECRET);
+  it('is deterministic for the same local_user_secret', async () => {
+    const a = await deriveClientMaterial(LOCAL_USER_SECRET);
+    const b = await deriveClientMaterial(LOCAL_USER_SECRET);
 
     expect(a).toStrictEqual(b);
   });
 
-  it('produces different material for a different local_user_secret', () => {
-    const a = deriveClientMaterial(LOCAL_USER_SECRET);
-    const b = deriveClientMaterial(OTHER_LOCAL_USER_SECRET);
+  it('produces different material for a different local_user_secret', async () => {
+    const a = await deriveClientMaterial(LOCAL_USER_SECRET);
+    const b = await deriveClientMaterial(OTHER_LOCAL_USER_SECRET);
 
     expect(areUint8ArraysEqual(a.storageId, b.storageId)).toBe(false);
     expect(areUint8ArraysEqual(a.dataEncryptionKey, b.dataEncryptionKey)).toBe(
@@ -53,9 +53,9 @@ describe('UKYC deriveClientMaterial', () => {
     expect(areUint8ArraysEqual(a.relayTunnelKey, b.relayTunnelKey)).toBe(false);
   });
 
-  it('domain-separates the derived values from one another', () => {
+  it('domain-separates the derived values from one another', async () => {
     const { storageId, dataEncryptionKey, signingKey, relayTunnelKey } =
-      deriveClientMaterial(LOCAL_USER_SECRET);
+      await deriveClientMaterial(LOCAL_USER_SECRET);
     const values = [storageId, dataEncryptionKey, signingKey, relayTunnelKey];
 
     for (let i = 0; i < values.length; i++) {
@@ -65,16 +65,16 @@ describe('UKYC deriveClientMaterial', () => {
     }
   });
 
-  it('derives a signing public key that matches the signing key', () => {
-    const material = deriveClientMaterial(LOCAL_USER_SECRET);
+  it('derives a signing public key that matches the signing key', async () => {
+    const material = await deriveClientMaterial(LOCAL_USER_SECRET);
 
     expect(material.signingPublicKey).toStrictEqual(
       ed25519.getPublicKey(material.signingKey),
     );
   });
 
-  it('produces a working Ed25519 keypair for storage authorization', () => {
-    const material = deriveClientMaterial(LOCAL_USER_SECRET);
+  it('produces a working Ed25519 keypair for storage authorization', async () => {
+    const material = await deriveClientMaterial(LOCAL_USER_SECRET);
     const message = new TextEncoder().encode('storage-authorization-payload');
 
     const signature = ed25519.sign(message, material.signingKey);
@@ -86,8 +86,8 @@ describe('UKYC deriveClientMaterial', () => {
 });
 
 describe('UKYC encodeClientMaterial', () => {
-  it('encodes storage_id and signing public key as unpadded base64url', () => {
-    const material = deriveClientMaterial(LOCAL_USER_SECRET);
+  it('encodes storage_id and signing public key as unpadded base64url', async () => {
+    const material = await deriveClientMaterial(LOCAL_USER_SECRET);
 
     const encoded = encodeClientMaterial(material);
 
@@ -97,8 +97,8 @@ describe('UKYC encodeClientMaterial', () => {
     expect(encoded.signingPublicKey).not.toContain('=');
   });
 
-  it('omits secret material from the encoded output', () => {
-    const material = deriveClientMaterial(LOCAL_USER_SECRET);
+  it('omits secret material from the encoded output', async () => {
+    const material = await deriveClientMaterial(LOCAL_USER_SECRET);
 
     const encoded = encodeClientMaterial(material);
 

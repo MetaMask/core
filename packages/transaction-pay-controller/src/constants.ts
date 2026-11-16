@@ -62,6 +62,10 @@ export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 export const HYPERCORE_USDC_DECIMALS = 8;
 export const USDC_DECIMALS = 6;
 
+export const HYPERLIQUID_URL_BASE = 'https://api.hyperliquid.xyz';
+export const HYPERLIQUID_INFO_URL = `${HYPERLIQUID_URL_BASE}/info`;
+export const HYPERLIQUID_EXCHANGE_URL = `${HYPERLIQUID_URL_BASE}/exchange`;
+
 export const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
   [CHAIN_ID_POLYGON]: 966, // POL
 };

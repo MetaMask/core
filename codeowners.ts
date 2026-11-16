@@ -423,14 +423,14 @@ const config = {
     },
   },
   overrides: [
-    { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
+    { pattern: '/.github/', primaryOwners: ['@MetaMask/core-platform'] },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/methods',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/wallet.*',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
   ],
 } satisfies CodeownersConfig;

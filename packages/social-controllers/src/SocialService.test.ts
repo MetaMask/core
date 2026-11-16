@@ -1006,6 +1006,49 @@ describe('SocialService', () => {
       expect(result.positions[1].flags).toBeNull();
     });
 
+    it('passes the owner profileId through and accepts positions without one', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [
+              { ...mockPosition, profileId: 'profile-1' },
+              mockPosition,
+            ],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0].profileId).toBe('profile-1');
+      expect(result.positions[1].profileId).toBeUndefined();
+    });
+
+    it('rejects a position whose owner profileId is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [{ ...mockPosition, profileId: 1 }],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchOpenPositions({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
+      );
+    });
+
     it('rejects a position whose flags are not an array of strings', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1400,6 +1443,57 @@ describe('SocialService', () => {
       );
     });
 
+    it('returns the owner profileId unchanged', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({ ...mockPosition, profileId: 'profile-1' }),
+      });
+
+      const service = createService();
+      const result = await service.fetchPositionById({
+        positionId: 'position-1',
+      });
+
+      expect(result).toStrictEqual({ ...mockPosition, profileId: 'profile-1' });
+    });
+
+    it('accepts a position without an owner profileId', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      const result = await service.fetchPositionById({
+        positionId: 'position-1',
+      });
+
+      expect(result.profileId).toBeUndefined();
+    });
+
+    it.each([
+      ['null', null],
+      ['a number', 1],
+      ['an object', { profileId: 'profile-1' }],
+    ])('throws when the owner profileId is %s', async (_label, profileId) => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...mockPosition, profileId }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchPositionById({ positionId: 'position-1' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
+      );
+    });
+
     it('keeps every author comment on each trade', async () => {
       const tradeComment = {
         uid: 'comment-1',
@@ -1541,6 +1635,24 @@ describe('SocialService', () => {
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed`, {
         headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
+    });
+
+    it('passes the owner profileId through on feed items', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockFeedResponse,
+            items: [{ ...mockFeedItem, profileId: 'profile-1' }, mockFeedItem],
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'leaderboard' });
+
+      expect(result.items[0].profileId).toBe('profile-1');
+      expect(result.items[1].profileId).toBeUndefined();
     });
 
     it('appends scope, chains, limit, and pagination cursors', async () => {

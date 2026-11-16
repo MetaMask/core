@@ -50,6 +50,11 @@ import type {
   PositionTPSLLeg,
   ReplacePositionTPSLLegParams,
   PerpsControllerReplacePositionTPSLLegAction,
+  PublicTrade,
+  GetPublicTradesParams,
+  SubscribePublicTradesParams,
+  PerpsControllerGetPublicTradesAction,
+  PerpsControllerSubscribeToPublicTradesAction,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -108,6 +113,63 @@ export type AccountSupportConsumerContracts = [
       ReturnType<PerpsController['getAccountSupport']>,
       Promise<PerpsAccountSupport>
     >
+  >,
+];
+
+export type PublicTradesConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      PerpsControllerGetPublicTradesAction['type'],
+      'PerpsController:getPublicTrades'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerGetPublicTradesAction['handler']>,
+      [params: GetPublicTradesParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetPublicTradesAction['handler']>,
+      Promise<PublicTrade[]>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerSubscribeToPublicTradesAction['type'],
+      'PerpsController:subscribeToPublicTrades'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerSubscribeToPublicTradesAction['handler']>,
+      [params: SubscribePublicTradesParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerSubscribeToPublicTradesAction['handler']>,
+      () => void
+    >
+  >,
+  AssertTrue<IsExact<PublicTrade['side'], 'buy' | 'sell'>>,
+  AssertTrue<
+    IsExact<
+      keyof PublicTrade,
+      | 'id'
+      | 'symbol'
+      | 'price'
+      | 'size'
+      | 'side'
+      | 'timestamp'
+      | 'txHash'
+      | 'providerId'
+    >
+  >,
+  AssertCompatible<
+    Parameters<SubscribePublicTradesParams['callback']>,
+    [trades: PublicTrade[]]
   >,
 ];
 
