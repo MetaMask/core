@@ -2056,12 +2056,15 @@ describe('BridgeController SSE', function () {
     },
   );
 
-  it('should not write quotes after the stream is aborted during the yield', async () => {
+  it('should not update state after the stream is aborted during the yield', async () => {
     await withController(
       { options: { getShouldYieldAfterFirstQuote: (): boolean => true } },
       async ({ controller: bridgeController }) => {
         mockFetchFn.mockImplementationOnce(async () =>
-          mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+          mockSseEventSourceWithComplete(mockBridgeQuotesNativeErc20V1, [], {
+            quoteCount: 2,
+            hasQuotes: true,
+          }),
         );
         await bridgeController.updateBridgeQuoteRequestParams(
           quoteRequest,
@@ -2076,6 +2079,10 @@ describe('BridgeController SSE', function () {
         await flushPromises();
 
         expect(bridgeController.state.quotes).toHaveLength(1);
+        expect(bridgeController.state.quoteStreamComplete).toBeNull();
+        expect(bridgeController.state.quotesLoadingStatus).toBe(
+          RequestStatus.LOADING,
+        );
       },
     );
   });

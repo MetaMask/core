@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Stop writing streamed quotes to state after the quote stream is aborted ([#11465](https://github.com/MetaMask/core/pull/11465))
+- Stop processing buffered quote stream events, including `onClose`, after the stream is aborted, so an aborted stream can no longer update quotes, token warnings, `quoteStreamComplete` or `quotesLoadingStatus` ([#11465](https://github.com/MetaMask/core/pull/11465))
 
 ## [83.1.5]
 
