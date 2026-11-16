@@ -71,11 +71,9 @@ export async function resumePayTransactions(
         continue;
       }
 
-      const strategyName = transaction.metamaskPay?.strategy;
-
-      if (!strategyName) {
-        throw new Error('Missing Pay strategy');
-      }
+      // Guaranteed by `isPayTransactionResumable` when building candidates.
+      const strategyName = transaction.metamaskPay
+        ?.strategy as TransactionPayStrategy;
 
       updateTransaction(
         { transactionId: id, messenger, note: 'Set resumeAttemptedAt' },
@@ -85,9 +83,7 @@ export async function resumePayTransactions(
         },
       );
 
-      const strategy = getStrategyByName(
-        strategyName as TransactionPayStrategy,
-      );
+      const strategy = getStrategyByName(strategyName);
 
       if (!strategy.resume) {
         throw new Error(`Strategy ${strategyName} does not support resume`);

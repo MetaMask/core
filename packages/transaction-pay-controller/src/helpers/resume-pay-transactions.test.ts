@@ -38,9 +38,11 @@ function getTransactionMock(
 }
 
 function getMessengerMock({
+  failTransactionError,
   isUnlocked = true,
   transactions = [],
 }: {
+  failTransactionError?: Error;
   isUnlocked?: boolean;
   transactions?: TransactionMeta[];
 } = {}): {
@@ -71,10 +73,14 @@ function getMessengerMock({
       return;
     }
 
-    if (
-      action === 'TransactionController:finalizeResumedTransaction' ||
-      action === 'TransactionController:failTransaction'
-    ) {
+    if (action === 'TransactionController:failTransaction') {
+      if (failTransactionError) {
+        throw failTransactionError;
+      }
+      return;
+    }
+
+    if (action === 'TransactionController:finalizeResumedTransaction') {
       return;
     }
 
@@ -289,5 +295,140 @@ describe('resumePayTransactions', () => {
     await promise;
 
     expect(order).toStrictEqual(['start-1', 'finish-1', 'start-2']);
+  });
+
+  it('waits for keyring unlock before resuming', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const { messenger } = getMessengerMock({
+      isUnlocked: false,
+      transactions: [transaction],
+    });
+    let unlockHandler: (() => void) | undefined;
+
+    vi.mocked(messenger.subscribe).mockImplementation(((
+      _event: string,
+      handler: () => void,
+    ) => {
+      unlockHandler = handler;
+    }) as never);
+
+    const promise = resumePayTransactions(messenger);
+    await Promise.resolve();
+
+    expect(messenger.call).not.toHaveBeenCalledWith(
+      'TransactionController:finalizeResumedTransaction',
+      expect.anything(),
+      expect.anything(),
+    );
+
+    unlockHandler?.();
+    await promise;
+
+    expect(messenger.call).toHaveBeenCalledWith(
+      'TransactionController:finalizeResumedTransaction',
+      'tx-1',
+      '0x1234',
+    );
+  });
+
+  it('skips a transaction removed from state while gates were pending', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const { messenger, state } = getMessengerMock({
+      transactions: [transaction],
+    });
+    let resolveClientReady: (() => void) | undefined;
+
+    const promise = resumePayTransactions(
+      messenger,
+      () =>
+        new Promise<void>((resolve) => {
+          resolveClientReady = resolve;
+        }),
+    );
+
+    state.transactions = [];
+    resolveClientReady?.();
+    await promise;
+
+    expect(messenger.call).not.toHaveBeenCalledWith(
+      'TransactionController:failTransaction',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('fails the transaction when strategy does not support resume', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const { messenger } = getMessengerMock({ transactions: [transaction] });
+    const canResume = vi.fn().mockReturnValue(true);
+
+    getStrategyByNameMock
+      .mockReturnValueOnce({ canResume, execute: vi.fn(), getQuotes: vi.fn() })
+      .mockReturnValueOnce({ execute: vi.fn(), getQuotes: vi.fn() });
+
+    await resumePayTransactions(messenger);
+
+    expect(messenger.call).toHaveBeenCalledWith(
+      'TransactionController:failTransaction',
+      'tx-1',
+      new Error('Strategy fiat does not support resume'),
+    );
+  });
+
+  it('fails the transaction when resume returns no hash', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const { messenger } = getMessengerMock({ transactions: [transaction] });
+
+    getStrategyByNameMock.mockReturnValue({
+      canResume: vi.fn().mockReturnValue(true),
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+      resume: vi.fn().mockResolvedValue({}),
+    });
+
+    await resumePayTransactions(messenger);
+
+    expect(messenger.call).toHaveBeenCalledWith(
+      'TransactionController:failTransaction',
+      'tx-1',
+      new Error('Resume did not return a transaction hash'),
+    );
+  });
+
+  it('wraps non-error rejections when failing the transaction', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const { messenger } = getMessengerMock({ transactions: [transaction] });
+
+    getStrategyByNameMock.mockReturnValue({
+      canResume: vi.fn().mockReturnValue(true),
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+      resume: vi.fn().mockRejectedValue('string error'),
+    });
+
+    await resumePayTransactions(messenger);
+
+    expect(messenger.call).toHaveBeenCalledWith(
+      'TransactionController:failTransaction',
+      'tx-1',
+      new Error('string error'),
+    );
+  });
+
+  it('does not throw when failing the transaction throws', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const { messenger } = getMessengerMock({
+      failTransactionError: new Error('fail failed'),
+      transactions: [transaction],
+    });
+
+    getStrategyByNameMock.mockReturnValue({
+      canResume: vi.fn().mockReturnValue(true),
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+      resume: vi.fn().mockRejectedValue(new Error('resume failed')),
+    });
+
+    expect(await resumePayTransactions(messenger)).toBeUndefined();
   });
 });
