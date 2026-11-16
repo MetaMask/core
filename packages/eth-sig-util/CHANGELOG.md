@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improve performance of `personalSign` by inlining `hashPersonalMessage` instead of importing it from `@ethereumjs/util` ([#11540](https://github.com/MetaMask/core/pull/11540))
+
 ## [10.0.0]
 
 ### Changed
