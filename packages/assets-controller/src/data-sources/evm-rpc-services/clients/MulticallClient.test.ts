@@ -93,7 +93,7 @@ describe('MulticallClient', () => {
   });
 
   describe('constructor', () => {
-    it('should create client with default config', () => {
+    it('creates client with default config', () => {
       const newClient = new MulticallClient({
         getProvider: getProviderMock,
         getMulticall3AddressForChain: getMulticall3AddressForChainMock,
@@ -101,7 +101,7 @@ describe('MulticallClient', () => {
       expect(newClient).toBeDefined();
     });
 
-    it('should create client with custom config', () => {
+    it('creates client with custom config', () => {
       const newClient = new MulticallClient({
         getProvider: getProviderMock,
         getMulticall3AddressForChain: getMulticall3AddressForChainMock,
@@ -113,7 +113,7 @@ describe('MulticallClient', () => {
       expect(newClient).toBeDefined();
     });
 
-    it('should use default maxCallsPerBatch when 0 is passed', async () => {
+    it('uses default maxCallsPerBatch when 0 is passed', async () => {
       // This tests that passing maxCallsPerBatch: 0 doesn't cause an infinite loop
       // by verifying the client falls back to default (300) instead of using 0
       const zeroConfigClient = new MulticallClient({
@@ -143,7 +143,7 @@ describe('MulticallClient', () => {
       expect(result[0].balance).toBe('1000');
     });
 
-    it('should use default timeoutMs when 0 is passed', () => {
+    it('uses default timeoutMs when 0 is passed', () => {
       const zeroTimeoutClient = new MulticallClient({
         getProvider: getProviderMock,
         getMulticall3AddressForChain: getMulticall3AddressForChainMock,
@@ -155,7 +155,7 @@ describe('MulticallClient', () => {
       expect(zeroTimeoutClient).toBeDefined();
     });
 
-    it('should use default maxCallsPerBatch when negative value is passed', async () => {
+    it('uses default maxCallsPerBatch when negative value is passed', async () => {
       const negativeConfigClient = new MulticallClient({
         getProvider: getProviderMock,
         getMulticall3AddressForChain: getMulticall3AddressForChainMock,
@@ -186,7 +186,7 @@ describe('MulticallClient', () => {
 
   describe('batchBalanceOf', () => {
     describe('with empty requests', () => {
-      it('should return empty array', async () => {
+      it('returns empty array', async () => {
         const result = await client.batchBalanceOf(MAINNET_CHAIN_ID, []);
         expect(result).toStrictEqual([]);
         expect(getProviderMock).not.toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe('MulticallClient', () => {
     });
 
     describe('with Multicall3 supported chain via config-registry', () => {
-      it('should use the provided multicall3 address from config-registry', async () => {
+      it('uses the provided multicall3 address from config-registry', async () => {
         const mockAddress = '0x1234567890123456789012345678901234567890';
         mockProvider.call.mockResolvedValue(
           buildMockAggregate3Response([
@@ -219,7 +219,7 @@ describe('MulticallClient', () => {
     });
 
     describe('with Multicall3 supported chain', () => {
-      it('should fetch single ERC-20 balance', async () => {
+      it('fetches single ERC-20 balance', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
         ];
@@ -241,7 +241,7 @@ describe('MulticallClient', () => {
         });
       });
 
-      it('should fetch multiple ERC-20 balances in single batch', async () => {
+      it('fetches multiple ERC-20 balances in single batch', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
           { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
@@ -305,7 +305,7 @@ describe('MulticallClient', () => {
         encodeSpy.mockRestore();
       });
 
-      it('should fetch native token balance using getEthBalance', async () => {
+      it('fetches native token balance using getEthBalance', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: ZERO_ADDRESS, accountAddress: TEST_ACCOUNT },
         ];
@@ -327,7 +327,7 @@ describe('MulticallClient', () => {
         });
       });
 
-      it('should handle mixed native and ERC-20 tokens', async () => {
+      it('handles mixed native and ERC-20 tokens', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: ZERO_ADDRESS, accountAddress: TEST_ACCOUNT },
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
@@ -349,7 +349,7 @@ describe('MulticallClient', () => {
         expect(result[1].balance).toBe('500000000');
       });
 
-      it('should handle failed individual calls in aggregate3', async () => {
+      it('handles failed individual calls in aggregate3', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
           { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
@@ -544,7 +544,7 @@ describe('MulticallClient', () => {
         });
       });
 
-      it('should handle zero balance', async () => {
+      it('handles zero balance', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
         ];
@@ -561,7 +561,7 @@ describe('MulticallClient', () => {
         expect(result[0].balance).toBe('0');
       });
 
-      it('should handle very large balances', async () => {
+      it('handles very large balances', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
         ];
@@ -647,7 +647,7 @@ describe('MulticallClient', () => {
     describe('without Multicall3 support (fallback)', () => {
       const fallbackOptions = { fallbackToSingleCalls: true };
 
-      it('should fetch ERC-20 balance using individual call', async () => {
+      it('fetches ERC-20 balance using individual call', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
         ];
@@ -671,7 +671,7 @@ describe('MulticallClient', () => {
         });
       });
 
-      it('should fetch native balance using getBalance', async () => {
+      it('fetches native balance using getBalance', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: ZERO_ADDRESS, accountAddress: TEST_ACCOUNT },
         ];
@@ -696,7 +696,7 @@ describe('MulticallClient', () => {
         expect(mockProvider.getBalance).toHaveBeenCalledWith(TEST_ACCOUNT);
       });
 
-      it('should handle empty return data (0x) from provider', async () => {
+      it('handles empty return data (0x) from provider', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
         ];
@@ -719,7 +719,7 @@ describe('MulticallClient', () => {
         });
       });
 
-      it('should handle oversized return data from provider', async () => {
+      it('handles oversized return data from provider', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
         ];
@@ -746,7 +746,7 @@ describe('MulticallClient', () => {
         });
       });
 
-      it('should handle failed individual call', async () => {
+      it('handles failed individual call', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
         ];
@@ -767,7 +767,7 @@ describe('MulticallClient', () => {
         });
       });
 
-      it('should handle multiple requests in parallel batches', async () => {
+      it('handles multiple requests in parallel batches', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
           { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
@@ -797,7 +797,7 @@ describe('MulticallClient', () => {
         expect(result[2].balance).toBe('1000000000000000000');
       });
 
-      it('should maintain 1:1 correspondence when some individual calls fail', async () => {
+      it('maintains 1:1 correspondence when some individual calls fail', async () => {
         const requests: BalanceOfRequest[] = [
           { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
           { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
@@ -846,7 +846,7 @@ describe('MulticallClient', () => {
     });
 
     describe('batching behavior', () => {
-      it('should respect maxCallsPerBatch config', async () => {
+      it('respects maxCallsPerBatch config', async () => {
         const smallBatchClient = new MulticallClient({
           getProvider: getProviderMock,
           getMulticall3AddressForChain: getMulticall3AddressForChainMock,
@@ -892,7 +892,7 @@ describe('MulticallClient', () => {
 });
 
 describe('encodeAggregate3WithEthers', () => {
-  it('should encode a valid aggregate3 call', () => {
+  it('encodes a valid aggregate3 call', () => {
     const calls = [
       {
         target: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
@@ -908,7 +908,7 @@ describe('encodeAggregate3WithEthers', () => {
     expect(typeof result).toBe('string');
   });
 
-  it('should encode multiple calls', () => {
+  it('encodes multiple calls', () => {
     const calls = [
       {
         target: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
@@ -928,7 +928,7 @@ describe('encodeAggregate3WithEthers', () => {
     expect(typeof result).toBe('string');
   });
 
-  it('should produce valid ABI-encoded calldata that can be decoded', () => {
+  it('produces valid ABI-encoded calldata that can be decoded', () => {
     const calls = [
       {
         target: '0x1111111111111111111111111111111111111111' as Address,
@@ -968,7 +968,7 @@ describe('encodeAggregate3WithEthers', () => {
     expect(decodedCalls[1].callData.toLowerCase()).toBe(calls[1].callData);
   });
 
-  it('should match encodeFunctionData for aggregate3', () => {
+  it('matches encodeFunctionData for aggregate3', () => {
     const multicall3Interface = new Interface([
       'function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[])',
       'function getEthBalance(address addr) view returns (uint256)',
@@ -1011,7 +1011,7 @@ describe('encodeAggregate3WithEthers', () => {
 });
 
 describe('decodeAggregate3ResponseWithEthers', () => {
-  it('should decode response with viem-encoded data', () => {
+  it('decodes response with viem-encoded data', () => {
     const mockResponse = buildMockAggregate3Response([
       { success: true, balance: '1000000000' },
     ]);
@@ -1024,7 +1024,7 @@ describe('decodeAggregate3ResponseWithEthers', () => {
     expect(result[0].returnData).toMatch(/^0x/u);
   });
 
-  it('should decode multiple results', () => {
+  it('decodes multiple results', () => {
     const mockResponse = buildMockAggregate3Response([
       { success: true, balance: '100' },
       { success: false },
@@ -1039,7 +1039,7 @@ describe('decodeAggregate3ResponseWithEthers', () => {
     expect(result[2].success).toBe(true);
   });
 
-  it('should throw when result count does not match', () => {
+  it('throws when result count does not match', () => {
     const mockResponse = buildMockAggregate3Response([
       { success: true, balance: '100' },
     ]);
