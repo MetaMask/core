@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 1425.0.0 ([#11537](https://github.com/MetaMask/core/pull/11537))
-- Release 1424.0.0 ([#11488](https://github.com/MetaMask/core/pull/11488))
-- Release 1422.0.0 ([#11472](https://github.com/MetaMask/core/pull/11472))
-
 ### Added
 
 - Add `PerpsController.getProviderHealth(providerId)` and `PerpsController.subscribeToProviderHealth({ providerId, callback })` (messenger actions `PerpsController:getProviderHealth` and `PerpsController:subscribeToProviderHealth`) to report each provider's health separately, including in aggregated mode ([#11502](https://github.com/MetaMask/core/pull/11502))
