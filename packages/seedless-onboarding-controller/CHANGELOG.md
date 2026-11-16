@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Export `SeedlessAuthData` (the `authenticate` parameters, without `skipLock`; extends `AuthenticatedUserDetails` without `nodeAuthTokens`), `parseSeedlessAuthData`, and `AUTH_CONNECTION_BY_NAMESPACE` so other controllers can reuse the seedless social-login auth payload ([#11224](https://github.com/MetaMask/core/pull/11224))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `SeedlessOnboardingControllerErrorMessage.IdentityMismatch`, thrown when an idToken does not belong to the user identity it is paired with ([#11531](https://github.com/MetaMask/core/pull/11531))
+  - `authenticate` validates that the first idToken's `sub` claim matches the provided `userId` before making any network request
+  - Token refreshes validate that the refreshed idTokens match the identity in state before re-authenticating
 
 ### Changed
 
@@ -19,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.3.1` ([#11072](https://github.com/MetaMask/core/pull/11072), [#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Fixed
+
+- Prevent stale identity data from being written into state when the controller identity changes while a token refresh is in flight ([#11531](https://github.com/MetaMask/core/pull/11531))
+  - If the identity is switched by a new `authenticate()` call or wiped by `clearState()` while a refresh is pending, the pending refresh results are discarded and the refresh-token rotation side effects are skipped
+  - These situations now throw `SeedlessOnboardingControllerErrorMessage.IdentityMismatch` instead of a generic authentication error
 
 ## [12.0.0]
 

@@ -229,8 +229,7 @@ export function assertIdentityUnchanged(
     throw new SeedlessOnboardingError(
       SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
       {
-        details:
-          'Controller identity changed while the request was in flight.',
+        details: 'Controller identity changed while the request was in flight.',
       },
     );
   }

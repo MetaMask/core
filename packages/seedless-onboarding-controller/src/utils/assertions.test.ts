@@ -1,10 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { base64ToBytes, bytesToBase64, bytesToString } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
-import {
-  base64ToBytes,
-  bytesToBase64,
-  bytesToString,
-} from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
 import { DecodedBaseJWTToken, VaultData } from '../types.js';
@@ -270,20 +266,29 @@ describe('assertIdTokenMatchesUserId', () => {
 
   it('should not throw when idToken sub matches the userId', () => {
     expect(() => {
-      assertIdTokenMatchesUserId([createMockIdToken({ sub: 'user-1' })], 'user-1');
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-1' })],
+        'user-1',
+      );
     }).not.toThrow();
   });
 
   it('should throw IdentityMismatch when idToken sub does not match the userId', () => {
     expect(() => {
-      assertIdTokenMatchesUserId([createMockIdToken({ sub: 'user-A' })], 'user-B');
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-A' })],
+        'user-B',
+      );
     }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
 
   it('should only validate the first idToken', () => {
     expect(() => {
       assertIdTokenMatchesUserId(
-        [createMockIdToken({ sub: 'user-1' }), createMockIdToken({ sub: 'other' })],
+        [
+          createMockIdToken({ sub: 'user-1' }),
+          createMockIdToken({ sub: 'other' }),
+        ],
         'user-1',
       );
     }).not.toThrow();

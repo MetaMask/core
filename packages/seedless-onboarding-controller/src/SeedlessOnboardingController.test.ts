@@ -7405,7 +7405,8 @@ describe('SeedlessOnboardingController', () => {
 
             // Simulate an identity change (e.g. clearState or a new
             // authenticate call) while the re-auth request is pending.
-            await baseMessenger.call('SeedlessOnboardingController:clearState');
+            // `clearState` is synchronous, so no `await` is needed.
+            baseMessenger.call('SeedlessOnboardingController:clearState');
             expect(controller.state.userId).toBeUndefined();
 
             resolveAuthenticate({
@@ -7420,9 +7421,9 @@ describe('SeedlessOnboardingController', () => {
             // The stale identity must not be resurrected into state.
             expect(controller.state.userId).toBeUndefined();
             expect(controller.state.nodeAuthTokens).toBeUndefined();
-            expect(
-              controller.state.isSeedlessOnboardingUserAuthenticated,
-            ).toBe(false);
+            expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+              false,
+            );
           },
         );
       });
@@ -7434,11 +7435,7 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthenticatedUser: true,
             }),
           },
-          async ({
-            controller,
-            mockRefreshJWTToken,
-            baseMessenger,
-          }) => {
+          async ({ controller, mockRefreshJWTToken, baseMessenger }) => {
             // Force the proactive refresh branch of #executeWithTokenRefresh.
             vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
               true,
@@ -7477,12 +7474,7 @@ describe('SeedlessOnboardingController', () => {
               vaultEncryptionSalt,
             }),
           },
-          async ({
-            controller,
-            encryptor,
-            toprfClient,
-            baseMessenger,
-          }) => {
+          async ({ controller, encryptor, toprfClient, baseMessenger }) => {
             await baseMessenger.call(
               'SeedlessOnboardingController:submitPassword',
               MOCK_PASSWORD,
@@ -9164,9 +9156,7 @@ describe('SeedlessOnboardingController', () => {
           // The rotation results must not be written over the switched identity.
           expect(controller.state.refreshToken).toBe(originalRefreshToken);
           expect(controller.state.revokeToken).toBe(originalRevokeToken);
-          expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
-            0,
-          );
+          expect(controller.state.pendingToBeRevokedTokens).toBeUndefined();
         },
       );
     });
