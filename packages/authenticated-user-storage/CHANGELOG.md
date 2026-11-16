@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -20,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
 
 ## [4.1.0]
 
@@ -130,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Rename `SocialAIPreference.traderProfileIds` to `mutedTraderProfileIds` in types and notification-preferences validation to match the API payload. ([#8536](https://github.com/MetaMask/core/pull/8536))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.1.0...@metamask/authenticated-user-storage@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.0.0...@metamask/authenticated-user-storage@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.2...@metamask/authenticated-user-storage@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.1...@metamask/authenticated-user-storage@3.0.2

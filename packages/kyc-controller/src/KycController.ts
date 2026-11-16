@@ -35,8 +35,9 @@ import {
   isEmailRequiredError,
 } from './partnerIdentityToken.js';
 import {
-  isSumSubFlowCompleted,
   isSumSubFlowFailed,
+  isSumSubPreSubmissionStatus,
+  isSumSubSubmissionStatus,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
@@ -109,6 +110,25 @@ const UKYC_DELETE_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 // First wait between UKYC session-status polls. Each later wait grows by this
 // step, so the delays are 10s, 20s, 30s, and so on.
 const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
+
+// After a SumSub close that looks like a submit, how many times, and how far
+// apart, the session status is fetched to see whether idOS left the `kyc` step.
+const SUBMISSION_CHECK_ATTEMPTS = 3;
+const SUBMISSION_CHECK_INTERVAL_MS = 1_000;
+
+/**
+ * Whether idOS still has the applicant on the `kyc` step with no decision,
+ * which means it has not received a SumSub submission.
+ *
+ * @param sessionStatus - Session status from the kyc-api.
+ * @returns Whether the applicant still has documents to submit.
+ */
+function isAwaitingSubmission(sessionStatus: KycSessionStatus): boolean {
+  return (
+    sessionStatus.currentStep === KYC_CURRENT_STEPS.kyc &&
+    !FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)
+  );
+}
 
 // === STATE ===
 
@@ -863,12 +883,21 @@ export class KycController extends BaseController<
    * Writes that load a session into an empty slot must not use this helper, so
    * an already-decided session found on a fresh install is not reported.
    *
+   * A stored `submitted` outcome becomes `abandoned` when idOS shows that the
+   * submission never arrived, so a client that recorded one can resume.
+   *
    * @param sessionStatus - The session status to store.
    */
   #updateSessionStatusAndTrackAnalytics(sessionStatus: KycSessionStatus): void {
     const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
     this.update((state) => {
       state.sessionStatus = sessionStatus;
+      if (
+        state.providerFlowStatus === 'submitted' &&
+        isAwaitingSubmission(sessionStatus)
+      ) {
+        state.providerFlowStatus = 'abandoned';
+      }
     });
     this.#trackAnalyticsStatusIfChanged(previousAnalyticsStatus);
   }
@@ -1391,11 +1420,11 @@ export class KycController extends BaseController<
         sessionId,
       );
 
-      // Track whether the SDK ever reported a successful completion or its own
-      // failure. A resolved `launch` alone does not imply success — the
-      // applicant may have abandoned the flow, or the SDK may have reported
-      // that it could not run.
-      let reachedCompletion = false;
+      // Whether the applicant submitted during this launch, and whether the SDK
+      // reported its own failure. A resolved `launch` alone does not imply
+      // success: the applicant may have abandoned the flow, or the SDK may
+      // have reported that it could not run.
+      let submitted = false;
       let sdkFailed = false;
 
       const result = await this.#sumsubLauncher.launch({
@@ -1408,8 +1437,12 @@ export class KycController extends BaseController<
           return journey.applicantAccessToken;
         },
         onStatusChange: (_prev, next) => {
-          if (isSumSubFlowCompleted(next)) {
-            reachedCompletion = true;
+          // A review decision keeps the previous value, so a decision the SDK
+          // opens on is not a submission but one that follows it still is.
+          if (isSumSubSubmissionStatus(next)) {
+            submitted = true;
+          } else if (isSumSubPreSubmissionStatus(next)) {
+            submitted = false;
           }
           if (isSumSubFlowFailed(next)) {
             sdkFailed = true;
@@ -1421,7 +1454,7 @@ export class KycController extends BaseController<
 
       // Some native SDKs resolve with their final status without first
       // delivering the corresponding state-change callback.
-      reachedCompletion ||= isSumSubFlowCompleted(result.status);
+      submitted ||= isSumSubSubmissionStatus(result.status);
       sdkFailed ||= isSumSubFlowFailed(result.status);
 
       const currentSessionStatus = this.state.sessionStatus;
@@ -1437,12 +1470,28 @@ export class KycController extends BaseController<
         return 'failed';
       }
 
-      if (reachedCompletion) {
+      if (submitted) {
+        const unsubmittedSessionStatus =
+          await this.#getUnsubmittedSessionStatus(sessionId);
+        const latestSessionStatus = this.state.sessionStatus;
+        if (latestSessionStatus?.id !== sessionId) {
+          this.#recordLaunchOutcomeAndTrackAnalytics('failed');
+          return 'failed';
+        }
+
+        if (unsubmittedSessionStatus) {
+          this.#recordLaunchOutcomeAndTrackAnalytics('abandoned', (state) => {
+            state.sessionStatus = unsubmittedSessionStatus;
+            state.providerFlowStatus = 'abandoned';
+          });
+          return 'abandoned';
+        }
+
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result.
         this.#recordLaunchOutcomeAndTrackAnalytics('submitted', (state) => {
           state.sessionStatus = {
-            ...currentSessionStatus,
+            ...latestSessionStatus,
             finalStatus: KYC_STATUSES.pending,
             // The applicant has submitted documents, so the session is in
             // vendor processing rather than still on the `kyc` step.
@@ -1468,6 +1517,42 @@ export class KycController extends BaseController<
       }
       return 'failed';
     }
+  }
+
+  /**
+   * Checks whether idOS received a SumSub submission. SumSub reports `Pending`
+   * on some pages partway through its flow, so closing there looks like a
+   * submit, while idOS keeps the session on the `kyc` step with no decision.
+   * The status is fetched up to {@link SUBMISSION_CHECK_ATTEMPTS} times so a
+   * real submit that idOS has not processed yet still counts.
+   *
+   * @param sessionId - Session the SDK ran for.
+   * @returns The last status when idOS still has the applicant on the `kyc`
+   * step, or `null` when it shows a submission or a request fails.
+   */
+  async #getUnsubmittedSessionStatus(
+    sessionId: string,
+  ): Promise<KycSessionStatus | null> {
+    let sessionStatus: KycSessionStatus | null = null;
+    for (let attempt = 0; attempt < SUBMISSION_CHECK_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, SUBMISSION_CHECK_INTERVAL_MS),
+        );
+      }
+      try {
+        sessionStatus = await this.messenger.call(
+          'KycService:getSessionStatus',
+          { sessionId },
+        );
+      } catch {
+        return null;
+      }
+      if (!isAwaitingSubmission(sessionStatus)) {
+        return null;
+      }
+    }
+    return sessionStatus;
   }
 
   /**

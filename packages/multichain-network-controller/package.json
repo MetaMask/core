@@ -60,13 +60,13 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^38.0.1",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.1",
+    "@metamask/utils": "^12.0.2",
     "@solana/addresses": "^2.3.0",
     "lodash-es": "^4.18.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
-    "@metamask/keyring-controller": "^28.2.0",
+    "@metamask/keyring-controller": "^28.2.1",
     "@types/lodash-es": "^4.17.12",
     "@typescript/native": "npm:typescript@^7.0.2",
     "immer": "^11.1.18",

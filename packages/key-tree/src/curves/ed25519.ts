@@ -1,4 +1,5 @@
 import { concatBytes, stringToBytes } from '@metamask/byte-utils';
+import { getPublicKey as getPublicKeyNative } from '@metamask/cryptography/ed25519';
 import { ed25519 } from '@noble/curves/ed25519';
 
 export const curve = ed25519.CURVE;
@@ -18,28 +19,13 @@ export const deriveUnhardenedKeys = false;
 
 export const publicKeyLength = 33;
 
-const getGetPublicKey = (): ((
+export const getPublicKey = async (
   privateKey: Uint8Array<ArrayBuffer>,
   _compressed?: boolean,
-) => Uint8Array<ArrayBuffer>) => {
-  let hasPrecomputed = false;
-
-  const getPublicKey = (
-    privateKey: Uint8Array<ArrayBuffer>,
-    _compressed?: boolean,
-  ): Uint8Array<ArrayBuffer> => {
-    if (!hasPrecomputed) {
-      ed25519.Point.BASE.precompute(4);
-      hasPrecomputed = true;
-    }
-    const publicKey = ed25519.getPublicKey(privateKey);
-    return concatBytes([new Uint8Array([0]), publicKey]);
-  };
-
-  return getPublicKey;
+): Promise<Uint8Array<ArrayBuffer>> => {
+  const publicKey = await getPublicKeyNative(privateKey);
+  return concatBytes([new Uint8Array([0]), publicKey]);
 };
-
-export const getPublicKey = getGetPublicKey();
 
 export const publicAdd = (
   _publicKey: Uint8Array<ArrayBuffer>,

@@ -23,7 +23,7 @@ import {
   SCAM_WALLET_SURVIVING_ASSET_IDS,
   buildScamWalletState,
 } from './__fixtures__/scam-token-cleanup/scamWalletState.js';
-import { waitFor } from './__fixtures__/test-utils.js';
+import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import { AssetsController } from './AssetsController.js';
 import type { AssetsControllerState } from './AssetsController.js';
 
@@ -179,7 +179,9 @@ describe('AssetsController scam-token cleanup (example state)', () => {
     mockSweepApis();
 
     await withController({}, async ({ controller }) => {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await waitUntilStable(
+        () => Object.keys(controller.state.assetsInfo).length,
+      );
 
       // The full 83-asset registry is untouched until unlock.
       expect(Object.keys(controller.state.assetsInfo)).toHaveLength(83);
@@ -197,7 +199,9 @@ describe('AssetsController scam-token cleanup (example state)', () => {
       },
       async ({ controller, messenger }) => {
         messenger.publish('KeyringController:unlock');
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await waitUntilStable(
+          () => Object.keys(controller.state.assetsInfo).length,
+        );
 
         // The full 83-asset registry is untouched while the flag is off.
         expect(Object.keys(controller.state.assetsInfo)).toHaveLength(83);
