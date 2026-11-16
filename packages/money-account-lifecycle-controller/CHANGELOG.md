@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `clearState` method, also exposed through the messenger, which clears all recorded lifecycles and address registrations, for example when the wallet is reset ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `clearState` method, also exposed through the messenger, which clears all recorded lifecycles and address registrations, for example when the wallet is reset ([#11533](https://github.com/MetaMask/core/pull/11533))
 
 ### Changed
 
