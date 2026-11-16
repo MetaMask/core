@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support max-amount quotes in `ServerStrategy`, using the same max flow as `RelayStrategy` ([#11418](https://github.com/MetaMask/core/pull/11418))
   - Re-quote with a reduced source amount so origin gas can be paid from the source token when the user lacks native balance.
   - Quote subsidized routes atomically when `payStrategies.relay.atomicMaxEnabled` is enabled, embedding the transaction's calls re-encoded for the max amount.
+- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and new `waitForClientReady` option ([#11450](https://github.com/MetaMask/core/pull/11450))
 
 ### Changed
 
@@ -33,11 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `confirmations_pay_extended.payStrategies.server.gaslessEnabled` feature flag to disable gasless quotes in `ServerStrategy`, enabled by default ([#11432](https://github.com/MetaMask/core/pull/11432))
-- `getPayTransactionType(transaction)`: derives the pay-specific type from a transaction, including from nested calls in EIP-7702 batches ([#11450](https://github.com/MetaMask/core/pull/11450))
-- `getResumeEnabledTypes(messenger, strategy)`: reads the per-strategy resume flag from `confirmations_pay_extended.resume` through the messenger ([#11450](https://github.com/MetaMask/core/pull/11450))
-- `isPayTransactionResumable(messenger, transaction)`: pure sync gate for the TC `isResumable` hook, reading feature flags through the messenger ([#11450](https://github.com/MetaMask/core/pull/11450))
-- `PayStrategy.canResume?` and `PayStrategy.resume?` optional methods; `PayStrategyResumeRequest` type ([#11450](https://github.com/MetaMask/core/pull/11450))
-- `TransactionPayControllerOptions.waitForClientReady?: () => Promise<void>` option; `#resumePayTransactions()` self-scheduled from the constructor ([#11450](https://github.com/MetaMask/core/pull/11450))
 
 ### Changed
 
