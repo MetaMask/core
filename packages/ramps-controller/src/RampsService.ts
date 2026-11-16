@@ -1447,6 +1447,35 @@ export class RampsService extends BaseDataService<
   }
 
   /**
+   * Ensures that a buy widget URL points at the ramps API origin for this
+   * service's environment.
+   *
+   * `buyUrl` comes from the ramps quotes API response, so a malicious or
+   * compromised response could otherwise redirect the bearer token in the
+   * request headers to an arbitrary host. The check runs before common
+   * parameters are added and before the bearer token is requested, so a
+   * rejected URL never sees the token and never makes a request.
+   *
+   * `baseUrlOverride` deliberately does not apply, consistent with
+   * {@link RampsService.getDefaultRedirectCallbackUrl}. `getQuotes` uses
+   * `getBaseUrl(environment, RampsApiService.Orders)` rather than the override,
+   * so the buy URLs in its response are expected to share that origin.
+   *
+   * @param url - The parsed buy widget URL.
+   */
+  #assertBuyWidgetUrlOrigin(url: URL): void {
+    const expectedOrigin = new URL(
+      getBaseUrl(this.#environment, RampsApiService.Orders),
+    ).origin;
+
+    if (url.origin !== expectedOrigin) {
+      throw new Error(
+        `Refusing to request buy widget URL with origin '${url.origin}': expected the ramps API origin '${expectedOrigin}'`,
+      );
+    }
+  }
+
+  /**
    * Fetches the buy widget data from a buy URL endpoint.
    * Makes a request to the buyURL (as provided in a quote) to get the actual
    * provider widget URL, browser type, and order ID.
@@ -1456,6 +1485,7 @@ export class RampsService extends BaseDataService<
    */
   async getBuyWidgetUrl(buyUrl: string): Promise<BuyWidget> {
     const url = new URL(buyUrl);
+    this.#assertBuyWidgetUrlOrigin(url);
     this.#addCommonParams(url);
 
     const headers = await this.#getRequestHeaders();
