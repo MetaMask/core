@@ -1,11 +1,13 @@
 import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
+import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
+import type { MockRootMessenger } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { waitUntilStable } from '../__fixtures__/test-utils.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
   ChainId,
@@ -22,19 +24,11 @@ import {
   SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
   SnapsAssetsMigrationStage,
 } from '../utils/snaps-assets-migration.js';
-import type {
-  AccountsApiDataSourceOptions,
-  AccountsApiDataSourceAllowedActions,
-  AccountsApiDataSourceAllowedEvents,
-} from './AccountsApiDataSource.js';
+import type { AccountsApiDataSourceOptions } from './AccountsApiDataSource.js';
 import {
   AccountsApiDataSource,
   filterResponseToKnownAssets,
 } from './AccountsApiDataSource.js';
-
-type AllActions = AccountsApiDataSourceAllowedActions;
-type AllEvents = AccountsApiDataSourceAllowedEvents;
-type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const CHAIN_POLYGON = 'eip155:137' as ChainId;
@@ -182,11 +176,28 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
 
 type SetupResult = {
   controller: AccountsApiDataSource;
-  messenger: RootMessenger;
+  messenger: MockRootMessenger;
   apiClient: MockApiClient;
   assetsUpdateHandler: Mock;
   activeChainsUpdateHandler: Mock;
 };
+
+function createTestMessenger(remoteFeatureFlags: FeatureFlags = {}): {
+  rootMessenger: MockRootMessenger;
+  assetsControllerMessenger: AssetsControllerMessenger;
+} {
+  return createMockMessengers({
+    registerCustomRootActions: (rootMessenger): void => {
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({
+          remoteFeatureFlags,
+          cacheTimestamp: 0,
+        }),
+      );
+    },
+  });
+}
 
 async function setupController(
   options: {
@@ -197,7 +208,7 @@ async function setupController(
     unprocessedIncludeAssetIds?: string[];
     fetchTimeoutMs?: number;
     v6Balances?: V6BalanceItem[];
-    remoteFeatureFlags?: Record<string, unknown>;
+    remoteFeatureFlags?: FeatureFlags;
     getAssetsState?: () => AssetsControllerState;
     tokenDetectionEnabled?: () => boolean;
   } = {},
@@ -215,35 +226,8 @@ async function setupController(
     tokenDetectionEnabled,
   } = options;
 
-  const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
-    namespace: MOCK_ANY_NAMESPACE,
-  });
-
-  const controllerMessenger = new Messenger<
-    'AccountsApiDataSource',
-    AllActions,
-    AllEvents,
-    RootMessenger
-  >({
-    namespace: 'AccountsApiDataSource',
-    parent: rootMessenger,
-  });
-
-  (
-    rootMessenger as unknown as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-    remoteFeatureFlags,
-    cacheTimestamp: 0,
-  }));
-
-  rootMessenger.delegate({
-    messenger: controllerMessenger,
-    actions: ['RemoteFeatureFlagController:getState'],
-
-    events: ['RemoteFeatureFlagController:stateChange'],
-  });
+  const { rootMessenger, assetsControllerMessenger } =
+    createTestMessenger(remoteFeatureFlags);
 
   const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
   const activeChainsUpdateHandler = vi.fn();
@@ -258,8 +242,7 @@ async function setupController(
   );
 
   const controller = new AccountsApiDataSource({
-    messenger:
-      controllerMessenger as unknown as AccountsApiDataSourceOptions['messenger'],
+    messenger: assetsControllerMessenger,
     queryApiClient:
       apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
@@ -1987,7 +1970,7 @@ describe('AccountsApiDataSource', () => {
         unprocessedNetworks?: string[];
         tokenDetectionEnabled?: boolean;
         getAssetsState?: () => AssetsControllerState;
-        remoteFeatureFlags?: Record<string, unknown>;
+        remoteFeatureFlags?: FeatureFlags;
       } = {},
     ): Promise<SetupResult> {
       const {
@@ -1999,38 +1982,8 @@ describe('AccountsApiDataSource', () => {
         remoteFeatureFlags = {},
       } = options;
 
-      const rootMessenger = new Messenger<
-        MockAnyNamespace,
-        AllActions,
-        AllEvents
-      >({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
-      const controllerMessenger = new Messenger<
-        'AccountsApiDataSource',
-        AllActions,
-        AllEvents,
-        RootMessenger
-      >({
-        namespace: 'AccountsApiDataSource',
-        parent: rootMessenger,
-      });
-
-      (
-        rootMessenger as unknown as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-        remoteFeatureFlags,
-        cacheTimestamp: 0,
-      }));
-
-      rootMessenger.delegate({
-        messenger: controllerMessenger,
-        actions: ['RemoteFeatureFlagController:getState'],
-        events: [],
-      });
+      const { rootMessenger, assetsControllerMessenger } =
+        createTestMessenger(remoteFeatureFlags);
 
       const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
       const activeChainsUpdateHandler = vi.fn();
@@ -2042,8 +1995,7 @@ describe('AccountsApiDataSource', () => {
       );
 
       const controllerOptions: AccountsApiDataSourceOptions = {
-        messenger:
-          controllerMessenger as unknown as AccountsApiDataSourceOptions['messenger'],
+        messenger: assetsControllerMessenger,
         queryApiClient:
           apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
         onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>

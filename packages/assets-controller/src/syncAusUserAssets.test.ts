@@ -1,8 +1,17 @@
-import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
+import type {
+  AuthenticatedUserStorageServiceGetUserAssetsAction,
+  AuthenticatedUserStorageServiceHideTokensAction,
+  AuthenticatedUserStorageServiceImportTokensAction,
+  AuthenticatedUserStorageServiceSetUserAssetsAction,
+  UserAssetsBlob,
+} from '@metamask/authenticated-user-storage';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
+import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
+import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
+import type { AssetsControllerMessenger } from './AssetsController.js';
 import { syncAusUserAssets } from './syncAusUserAssets.js';
 import type { AccountId, Caip19AssetId } from './types.js';
 import { normalizeAssetId } from './utils/index.js';
@@ -21,7 +30,32 @@ const SET_USER_ASSETS = 'AuthenticatedUserStorageService:setUserAssets';
 const IMPORT_TOKENS = 'AuthenticatedUserStorageService:importTokens';
 const HIDE_TOKENS = 'AuthenticatedUserStorageService:hideTokens';
 
-type AusFixtureMessenger = { call: Mock; captureException: Mock };
+type RecordedCall = Mock<
+  (action: string, ...params: unknown[]) => Promise<unknown>
+>;
+
+type RecordedException = Mock<(error: Error) => void>;
+
+type FixtureMessenger = Omit<
+  AssetsControllerMessenger,
+  'call' | 'captureException'
+> & {
+  call: RecordedCall;
+  captureException: RecordedException;
+};
+
+type AusActionHandlers = {
+  getUserAssets: Mock<
+    AuthenticatedUserStorageServiceGetUserAssetsAction['handler']
+  >;
+  setUserAssets: Mock<
+    AuthenticatedUserStorageServiceSetUserAssetsAction['handler']
+  >;
+  importTokens: Mock<
+    AuthenticatedUserStorageServiceImportTokensAction['handler']
+  >;
+  hideTokens: Mock<AuthenticatedUserStorageServiceHideTokensAction['handler']>;
+};
 
 type AusMockOptions = {
   /** The blob `getUserAssets` serves (defaults to `null`, i.e. no blob). */
@@ -31,27 +65,29 @@ type AusMockOptions = {
 };
 
 /**
- * Install a default AUS mock on the fixture messenger: `getUserAssets` serves
- * the given blob and every other action resolves.
+ * Build a restricted assets messenger whose `call` is spied and whose
+ * `captureException` is the given reporter.
  *
- * @param messenger - The fixture messenger to mock.
- * @param options - Options controlling the mock's behavior.
- * @param options.blob - The user-assets blob `getUserAssets` serves.
- * @param options.rejectWith - An error every AUS action rejects with.
+ * @param captureException - Reports a failed AUS sync.
+ * @returns The root messenger, for action handlers, and the spied controller
+ * messenger.
  */
-function installAusMock(
-  messenger: AusFixtureMessenger,
-  { blob = null, rejectWith }: AusMockOptions = {},
-): void {
-  messenger.call.mockImplementation(async (actionType: string) => {
-    if (rejectWith) {
-      throw rejectWith;
-    }
-    if (actionType === GET_USER_ASSETS) {
-      return blob;
-    }
-    return { version: 1, importedAssets: [], hiddenAssets: [] };
+function createFixtureMessenger(captureException: RecordedException): {
+  rootMessenger: MockRootMessenger;
+  messenger: FixtureMessenger;
+} {
+  const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
+    captureException,
   });
+  const call = vi.spyOn(assetsControllerMessenger, 'call');
+
+  return {
+    rootMessenger,
+    messenger: Object.assign(assetsControllerMessenger, {
+      call: call as RecordedCall,
+      captureException,
+    }),
+  };
 }
 
 /**
@@ -64,13 +100,22 @@ function installAusMock(
  * control.
  */
 class AusSyncFixture {
-  readonly messenger: AusFixtureMessenger = {
-    call: vi.fn(),
-    captureException: vi.fn(),
-  };
+  readonly rootMessenger: MockRootMessenger;
+
+  readonly messenger: FixtureMessenger;
+
+  /** Handlers registered for the four AUS user-asset actions. */
+  ausHandlers?: AusActionHandlers;
 
   /** When set, `addCustomAsset` resolves only when this promise does. */
   pending?: Promise<void>;
+
+  constructor() {
+    const captureException = vi.fn<(error: Error) => void>();
+    const created = createFixtureMessenger(captureException);
+    this.rootMessenger = created.rootMessenger;
+    this.messenger = created.messenger;
+  }
 
   /** Records that a decorated method applied its local mutation. */
   localCalls: string[] = [];
@@ -104,6 +149,81 @@ class AusSyncFixture {
   }
 }
 
+/**
+ * Register AUS user-asset handlers that serve `blob` or reject.
+ *
+ * @param fixture - The fixture whose root messenger receives the handlers.
+ * @param options - Options controlling the handlers' behavior.
+ * @param options.blob - The user-assets blob `getUserAssets` serves.
+ * @param options.rejectWith - An error every AUS action rejects with.
+ */
+function registerAusHandlers(
+  fixture: AusSyncFixture,
+  { blob = null, rejectWith }: AusMockOptions = {},
+): void {
+  const emptyBlob: UserAssetsBlob = {
+    version: 1,
+    importedAssets: [],
+    hiddenAssets: [],
+  };
+
+  const getUserAssets = vi.fn<
+    AuthenticatedUserStorageServiceGetUserAssetsAction['handler']
+  >(async () => {
+    if (rejectWith) {
+      throw rejectWith;
+    }
+    return blob;
+  });
+  const setUserAssets = vi.fn<
+    AuthenticatedUserStorageServiceSetUserAssetsAction['handler']
+  >(async () => {
+    if (rejectWith) {
+      throw rejectWith;
+    }
+  });
+  const importTokens = vi.fn<
+    AuthenticatedUserStorageServiceImportTokensAction['handler']
+  >(async () => {
+    if (rejectWith) {
+      throw rejectWith;
+    }
+    return emptyBlob;
+  });
+  const hideTokens = vi.fn<
+    AuthenticatedUserStorageServiceHideTokensAction['handler']
+  >(async () => {
+    if (rejectWith) {
+      throw rejectWith;
+    }
+    return emptyBlob;
+  });
+
+  fixture.rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:getUserAssets',
+    getUserAssets,
+  );
+  fixture.rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:setUserAssets',
+    setUserAssets,
+  );
+  fixture.rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:importTokens',
+    importTokens,
+  );
+  fixture.rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:hideTokens',
+    hideTokens,
+  );
+
+  fixture.ausHandlers = {
+    getUserAssets,
+    setUserAssets,
+    importTokens,
+    hideTokens,
+  };
+}
+
 type FixtureInvocation = (
   fixture: AusSyncFixture,
   assetId: Caip19AssetId,
@@ -129,7 +249,7 @@ describe('syncAusUserAssets', () => {
       'mirrors %s to AUS via a single %s call with a normalized id',
       async (_methodName, actionType, invoke) => {
         const fixture = new AusSyncFixture();
-        installAusMock(fixture.messenger);
+        registerAusHandlers(fixture);
 
         await invoke(fixture, MOCK_ASSET_ID_LOWERCASE);
 
@@ -188,7 +308,7 @@ describe('syncAusUserAssets', () => {
       'strips the asset from the correct AUS list for %s',
       async (_methodName, blob, expectedBlob, invoke) => {
         const fixture = new AusSyncFixture();
-        installAusMock(fixture.messenger, { blob });
+        registerAusHandlers(fixture, { blob });
 
         await invoke(fixture, MOCK_ASSET_ID_LOWERCASE);
 
@@ -211,7 +331,7 @@ describe('syncAusUserAssets', () => {
 
     it('skips the write when there is no stored blob', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger, { blob: null });
+      registerAusHandlers(fixture, { blob: null });
 
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
       await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
@@ -222,7 +342,7 @@ describe('syncAusUserAssets', () => {
 
     it('skips the write when the asset is already absent from the list', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger, {
+      registerAusHandlers(fixture, {
         blob: {
           version: 1,
           importedAssets: [OTHER_ASSET_ID],
@@ -241,7 +361,7 @@ describe('syncAusUserAssets', () => {
   describe('timing', () => {
     it('fires immediately when a sync method returns', () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger);
+      registerAusHandlers(fixture);
 
       fixture.hideAsset(MOCK_ASSET_ID);
 
@@ -253,7 +373,7 @@ describe('syncAusUserAssets', () => {
 
     it('fires when an async method is invoked, before its post-mutation work settles', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger);
+      registerAusHandlers(fixture);
       let resolvePending: () => void = () => undefined;
       fixture.pending = new Promise<void>((resolve) => {
         resolvePending = resolve;
@@ -275,7 +395,7 @@ describe('syncAusUserAssets', () => {
 
     it('does not write back over a later remove when a pending add settles', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger, {
+      registerAusHandlers(fixture, {
         blob: {
           version: 1,
           importedAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
@@ -332,28 +452,28 @@ describe('syncAusUserAssets', () => {
         hiddenAssets: [],
       };
       let releaseImport: () => void = () => undefined;
-      const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {
-        [IMPORT_TOKENS]: async (payload) => {
+      fixture.rootMessenger.registerActionHandler(
+        'AuthenticatedUserStorageService:importTokens',
+        async (ids): Promise<UserAssetsBlob> => {
           await new Promise<void>((resolve) => {
             releaseImport = resolve;
           });
           blob = {
             ...blob,
-            importedAssets: [
-              ...blob.importedAssets,
-              ...(payload as Caip19AssetId[]),
-            ],
+            importedAssets: [...blob.importedAssets, ...ids],
           };
           return blob;
         },
-        [GET_USER_ASSETS]: async () => blob,
-        [SET_USER_ASSETS]: async (payload) => {
-          blob = payload as UserAssetsBlob;
+      );
+      fixture.rootMessenger.registerActionHandler(
+        'AuthenticatedUserStorageService:getUserAssets',
+        async (): Promise<UserAssetsBlob | null> => blob,
+      );
+      fixture.rootMessenger.registerActionHandler(
+        'AuthenticatedUserStorageService:setUserAssets',
+        async (nextBlob): Promise<void> => {
+          blob = nextBlob;
         },
-      };
-      fixture.messenger.call.mockImplementation(
-        async (actionType: string, payload: unknown) =>
-          handlers[actionType](payload),
       );
 
       await fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
@@ -376,14 +496,15 @@ describe('syncAusUserAssets', () => {
 
     it('keeps serializing syncs after one of them fails', async () => {
       const fixture = new AusSyncFixture();
-      const handlers: Record<string, () => Promise<unknown>> = {
-        [HIDE_TOKENS]: async () => {
+      fixture.rootMessenger.registerActionHandler(
+        'AuthenticatedUserStorageService:hideTokens',
+        async (): Promise<UserAssetsBlob> => {
           throw new Error('AUS unavailable');
         },
-        [GET_USER_ASSETS]: async () => null,
-      };
-      fixture.messenger.call.mockImplementation(async (actionType: string) =>
-        handlers[actionType](),
+      );
+      fixture.rootMessenger.registerActionHandler(
+        'AuthenticatedUserStorageService:getUserAssets',
+        async (): Promise<UserAssetsBlob | null> => null,
       );
 
       fixture.hideAsset(MOCK_ASSET_ID);
@@ -425,7 +546,7 @@ describe('syncAusUserAssets', () => {
       'never writes to AUS when %s fails validation',
       (methodName, assertThrows) => {
         const fixture = new AusSyncFixture();
-        installAusMock(fixture.messenger);
+        registerAusHandlers(fixture);
 
         assertThrows(fixture);
 
@@ -436,7 +557,7 @@ describe('syncAusUserAssets', () => {
 
     it('never writes to AUS when an async method fails validation', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger);
+      registerAusHandlers(fixture);
 
       await expect(
         fixture.addCustomAsset(MOCK_ACCOUNT_ID, MALFORMED_ASSET_ID),
@@ -450,7 +571,7 @@ describe('syncAusUserAssets', () => {
 
     it('still mirrors an async method whose post-mutation work later rejects', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger);
+      registerAusHandlers(fixture);
       fixture.pending = Promise.reject(new Error('post-mutation fetch failed'));
 
       await expect(
@@ -471,7 +592,7 @@ describe('syncAusUserAssets', () => {
   describe('AUS failures', () => {
     it('swallows an AUS rejection without affecting the method result', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger, {
+      registerAusHandlers(fixture, {
         rejectWith: new Error('AUS unavailable'),
       });
       const unhandledRejections: unknown[] = [];
@@ -508,7 +629,7 @@ describe('syncAusUserAssets', () => {
 
     it('swallows a throwing error reporter', async () => {
       const fixture = new AusSyncFixture();
-      installAusMock(fixture.messenger, {
+      registerAusHandlers(fixture, {
         rejectWith: new Error('AUS unavailable'),
       });
       fixture.messenger.captureException.mockImplementation(() => {

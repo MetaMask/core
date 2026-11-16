@@ -1,11 +1,12 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { describe, expect, it, vi } from 'vitest';
-import type { Mock, MockInstance } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   MockRootMessenger,
   createMockMessengers,
+  createMockNetworkState,
   createMockWeb3Provider,
   registerStakedMessengerActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -18,6 +19,13 @@ import { StakedBalanceDataSource } from './StakedBalanceDataSource.js';
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MAINNET_CHAIN_ID_CAIP = 'eip155:1' as ChainId;
 const STAKING_CONTRACT_MAINNET = '0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+const STAKED_MAINNET_ASSET_ID = `${MAINNET_CHAIN_ID_CAIP}/erc20:${STAKING_CONTRACT_MAINNET}`;
+const STAKED_MAINNET_METADATA = {
+  type: 'erc20',
+  name: 'staked ethereum',
+  symbol: 'ETH',
+  decimals: 18,
+};
 const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 
@@ -80,9 +88,6 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: StakedBalanceDataSource;
   messenger: AssetsControllerMessenger;
-  mockMessengerCall: MockInstance;
-  mockMessengerSubscribe: MockInstance;
-  mockMessengerUnsubscribe: MockInstance;
   rootMessenger: MockRootMessenger;
   onActiveChainsUpdated: (
     dataSourceName: string,
@@ -115,21 +120,6 @@ async function withController<ReturnValue>(
       }),
   });
 
-  // spy on staked messenger calls, so we can inspect and assert
-  const mockStakedMessengerCall = vi.spyOn(assetsControllerMessenger, 'call');
-
-  // spy on staked messenger subscriptions, so we can inspect and assert
-  const mockStakedMessengerSubscribe = vi.spyOn(
-    assetsControllerMessenger,
-    'subscribe',
-  );
-
-  // spy on staked messenger unsubscribe, so we can inspect and assert
-  const mockStakedMessengerUnsubscribe = vi.spyOn(
-    assetsControllerMessenger,
-    'clearEventSubscriptions',
-  );
-
   const onActiveChainsUpdated =
     (
       options as {
@@ -148,9 +138,6 @@ async function withController<ReturnValue>(
     return await fn({
       controller,
       messenger: assetsControllerMessenger,
-      mockMessengerCall: mockStakedMessengerCall,
-      mockMessengerSubscribe: mockStakedMessengerSubscribe,
-      mockMessengerUnsubscribe: mockStakedMessengerUnsubscribe,
       onActiveChainsUpdated,
       mockProvider,
       rootMessenger,
@@ -198,21 +185,82 @@ describe('StakedBalanceDataSource', () => {
       });
     });
 
-    it('subscribes to transaction and network events', async () => {
-      await withController(({ mockMessengerSubscribe }) => {
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'TransactionController:transactionConfirmed',
-          expect.any(Function),
-        );
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'NetworkController:stateChange',
-          expect.any(Function),
-        );
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'NetworkEnablementController:stateChange',
-          expect.any(Function),
-        );
+    it('refreshes staked balance when a confirmed staking transaction is published', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const onAssetsUpdate = vi.fn();
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate,
+        });
+        await waitUntilStable(() => [onAssetsUpdate.mock.calls.length]);
+        onAssetsUpdate.mockClear();
+
+        rootMessenger.publish('TransactionController:transactionConfirmed', {
+          id: '1',
+          networkClientId: 'mainnet',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          chainId: MAINNET_CHAIN_ID_HEX,
+          txParams: {
+            to: STAKING_CONTRACT_MAINNET,
+            from: '0x0000000000000000000000000000000000000000',
+          },
+        });
+
+        await waitFor(() => {
+          expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        });
       });
+    });
+
+    it('builds a new provider after the network state changes', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockProvider }) => {
+          const callsBefore = mockProvider.mock.calls.length;
+          const request = createDataRequest();
+
+          await controller.fetch(request);
+          await controller.fetch(request);
+          expect(mockProvider).toHaveBeenCalledTimes(callsBefore + 1);
+
+          rootMessenger.publish(
+            'NetworkController:stateChange',
+            createMockNetworkState(),
+            [],
+          );
+
+          await controller.fetch(request);
+          expect(mockProvider).toHaveBeenCalledTimes(callsBefore + 2);
+        },
+      );
+    });
+
+    it('drops staking chains when network enablement disables mainnet', async () => {
+      await withController(
+        async ({ controller, rootMessenger, onActiveChainsUpdated }) => {
+          expect(await controller.getActiveChains()).toContain(
+            MAINNET_CHAIN_ID_CAIP,
+          );
+
+          rootMessenger.publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: { eip155: {} },
+              nativeAssetIdentifiers: {},
+            },
+            [],
+          );
+
+          expect(await controller.getActiveChains()).toStrictEqual([]);
+          expect(onActiveChainsUpdated).toHaveBeenCalledWith(
+            'StakedBalanceDataSource',
+            [],
+            [MAINNET_CHAIN_ID_CAIP],
+          );
+        },
+      );
     });
   });
 
@@ -283,26 +331,28 @@ describe('StakedBalanceDataSource', () => {
     });
 
     it('returns staked balance and metadata for mainnet when fetcher returns data', async () => {
-      await withController(
-        async ({ controller, mockMessengerCall: mockMessengerCalls }) => {
-          const account = createMockInternalAccount();
-          const request = createDataRequest({
-            accounts: [account],
-            chainIds: [MAINNET_CHAIN_ID_CAIP],
-            accountsWithSupportedChains: [
-              { account, supportedChains: [MAINNET_CHAIN_ID_CAIP] },
-            ],
-          });
+      await withController(async ({ controller }) => {
+        const account = createMockInternalAccount();
+        const request = createDataRequest({
+          accounts: [account],
+          chainIds: [MAINNET_CHAIN_ID_CAIP],
+          accountsWithSupportedChains: [
+            { account, supportedChains: [MAINNET_CHAIN_ID_CAIP] },
+          ],
+        });
 
-          const response = await controller.fetch(request);
-          expect(response).toBeDefined();
-
-          expect(mockMessengerCalls).toHaveBeenCalledWith(
-            'NetworkController:getNetworkClientById',
-            'mainnet',
-          );
-        },
-      );
+        const response = await controller.fetch(request);
+        expect(response).toStrictEqual({
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [STAKED_MAINNET_ASSET_ID]: { amount: '1.5' },
+            },
+          },
+          assetsInfo: {
+            [STAKED_MAINNET_ASSET_ID]: STAKED_MAINNET_METADATA,
+          },
+        });
+      });
     });
 
     it('returns zero amount when getShares returns zero', async () => {

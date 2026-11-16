@@ -199,14 +199,7 @@ describe('AssetsController spam cleanup', () => {
 
     await withController({}, async ({ messenger }) => {
       const stateChanges: AssetsControllerState[] = [];
-      (
-        messenger as unknown as {
-          subscribe: (
-            topic: string,
-            handler: (state: AssetsControllerState) => void,
-          ) => void;
-        }
-      ).subscribe('AssetsController:stateChanged', (state) => {
+      messenger.subscribe('AssetsController:stateChanged', (state) => {
         stateChanges.push(state);
       });
 

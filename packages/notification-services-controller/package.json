@@ -79,7 +79,7 @@
     "@metamask/authenticated-user-storage": "^4.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/keyring-controller": "^28.2.1",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/utils": "^12.0.2",
@@ -92,7 +92,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^5.1.0",
-    "@lavamoat/preinstall-always-fail": "^3.0.0",
+    "@lavamoat/preinstall-always-fail": "^3.0.1",
     "@metamask/auto-changelog": "^7.1.0",
     "@types/lodash-es": "^4.17.12",
     "@types/readable-stream": "^2.3.0",
