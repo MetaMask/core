@@ -13082,7 +13082,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     } catch (error) {
       const mappedError = await this.#reportWriteError(
         error,
-        'updatePositionTPSL',
+        operationName,
         {
           symbol: params.symbol,
           hasTakeProfit: params.takeProfitPrice !== undefined,

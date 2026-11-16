@@ -2879,6 +2879,55 @@ describe('HyperLiquidProvider', () => {
       expect(request.orders).toHaveLength(1);
       expect(request.orders[0].t.trigger.isMarket).toBe(false);
     });
+
+    it('attributes a thrown leg-replace failure to replacePositionTPSLLeg in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'replacePositionTPSLLeg' }),
+          }),
+        }),
+      );
+    });
+
+    it('attributes a thrown whole-position failure to updatePositionTPSL in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'updatePositionTPSL' }),
+          }),
+        }),
+      );
+    });
   });
 
   describe('updatePositionTPSL with partial sizes', () => {
