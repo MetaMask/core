@@ -230,26 +230,79 @@ type FixtureInvocation = (
 ) => void | Promise<void>;
 
 describe('syncAusUserAssets', () => {
+  /**
+   * The AUS handlers registered on this fixture.
+   *
+   * @param fixture - The fixture whose handlers to read.
+   * @returns The registered handlers.
+   */
+  function ausHandlersOf(fixture: AusSyncFixture): AusActionHandlers {
+    const handlers = fixture.ausHandlers;
+    if (handlers === undefined) {
+      throw new Error('AUS handlers were not registered');
+    }
+    return handlers;
+  }
+
+  /**
+   * Call counts for the four AUS storage handlers.
+   *
+   * @param handlers - The registered AUS handlers.
+   * @returns The four call counts.
+   */
+  function ausHandlerCallCounts(handlers: AusActionHandlers): number[] {
+    return [
+      handlers.getUserAssets.mock.calls.length,
+      handlers.setUserAssets.mock.calls.length,
+      handlers.importTokens.mock.calls.length,
+      handlers.hideTokens.mock.calls.length,
+    ];
+  }
+
+  /**
+   * The order of a handler's first call, across every mock.
+   *
+   * @param handler - A Vitest mock handler.
+   * @returns That handler's first invocation order.
+   */
+  function firstInvocationOrder(handler: {
+    mock: { invocationCallOrder: number[] };
+  }): number {
+    const order = handler.mock.invocationCallOrder[0];
+    if (order === undefined) {
+      throw new Error('expected the handler to have been called');
+    }
+    return order;
+  }
+
   describe('merge operations', () => {
     it.each<
-      [methodName: string, actionType: string, invoke: FixtureInvocation]
+      [
+        methodName: string,
+        handlerName: 'importTokens' | 'hideTokens',
+        otherHandlerName: 'importTokens' | 'hideTokens',
+        invoke: FixtureInvocation,
+      ]
     >([
       [
         'addCustomAsset',
-        IMPORT_TOKENS,
+        'importTokens',
+        'hideTokens',
         (fixture, assetId): Promise<void> =>
           fixture.addCustomAsset(MOCK_ACCOUNT_ID, assetId),
       ],
       [
         'hideAsset',
-        HIDE_TOKENS,
+        'hideTokens',
+        'importTokens',
         (fixture, assetId): void => fixture.hideAsset(assetId),
       ],
     ])(
       'mirrors %s to AUS via a single %s call with a normalized id',
-      async (_methodName, actionType, invoke) => {
+      async (_methodName, handlerName, otherHandlerName, invoke) => {
         const fixture = new AusSyncFixture();
         registerAusHandlers(fixture);
+        const handlers = ausHandlersOf(fixture);
 
         await invoke(fixture, MOCK_ASSET_ID_LOWERCASE);
 
@@ -257,10 +310,11 @@ describe('syncAusUserAssets', () => {
         // account-first signatures, the account id is never mistaken for the
         // asset id.
         await waitFor(() => {
-          expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-          expect(fixture.messenger.call).toHaveBeenCalledWith(actionType, [
-            MOCK_ASSET_ID,
-          ]);
+          expect(handlers[handlerName]).toHaveBeenCalledTimes(1);
+          expect(handlers[handlerName]).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+          expect(handlers[otherHandlerName]).not.toHaveBeenCalled();
+          expect(handlers.getUserAssets).not.toHaveBeenCalled();
+          expect(handlers.setUserAssets).not.toHaveBeenCalled();
         });
       },
     );
@@ -309,21 +363,21 @@ describe('syncAusUserAssets', () => {
       async (_methodName, blob, expectedBlob, invoke) => {
         const fixture = new AusSyncFixture();
         registerAusHandlers(fixture, { blob });
+        const handlers = ausHandlersOf(fixture);
 
         await invoke(fixture, MOCK_ASSET_ID_LOWERCASE);
 
         // Read-modify-write: GET the blob, then PUT it with the id filtered
         // from the target list, leaving every other entry untouched.
         await waitFor(() => {
-          expect(fixture.messenger.call).toHaveBeenCalledTimes(2);
-          expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-            1,
-            GET_USER_ASSETS,
-          );
-          expect(fixture.messenger.call).toHaveBeenNthCalledWith(
-            2,
-            SET_USER_ASSETS,
-            expectedBlob,
+          expect(handlers.getUserAssets).toHaveBeenCalledTimes(1);
+          expect(handlers.getUserAssets).toHaveBeenCalledWith();
+          expect(handlers.setUserAssets).toHaveBeenCalledTimes(1);
+          expect(handlers.setUserAssets).toHaveBeenCalledWith(expectedBlob);
+          expect(handlers.importTokens).not.toHaveBeenCalled();
+          expect(handlers.hideTokens).not.toHaveBeenCalled();
+          expect(firstInvocationOrder(handlers.getUserAssets)).toBeLessThan(
+            firstInvocationOrder(handlers.setUserAssets),
           );
         });
       },
@@ -332,12 +386,16 @@ describe('syncAusUserAssets', () => {
     it('skips the write when there is no stored blob', async () => {
       const fixture = new AusSyncFixture();
       registerAusHandlers(fixture, { blob: null });
+      const handlers = ausHandlersOf(fixture);
 
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
+      await waitUntilStable(() => ausHandlerCallCounts(handlers));
 
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.call).toHaveBeenCalledWith(GET_USER_ASSETS);
+      expect(handlers.getUserAssets).toHaveBeenCalledTimes(1);
+      expect(handlers.getUserAssets).toHaveBeenCalledWith();
+      expect(handlers.setUserAssets).not.toHaveBeenCalled();
+      expect(handlers.importTokens).not.toHaveBeenCalled();
+      expect(handlers.hideTokens).not.toHaveBeenCalled();
     });
 
     it('skips the write when the asset is already absent from the list', async () => {
@@ -349,12 +407,16 @@ describe('syncAusUserAssets', () => {
           hiddenAssets: [],
         },
       });
+      const handlers = ausHandlersOf(fixture);
 
       fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-      await waitUntilStable(() => fixture.messenger.call.mock.calls.length);
+      await waitUntilStable(() => ausHandlerCallCounts(handlers));
 
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.call).toHaveBeenCalledWith(GET_USER_ASSETS);
+      expect(handlers.getUserAssets).toHaveBeenCalledTimes(1);
+      expect(handlers.getUserAssets).toHaveBeenCalledWith();
+      expect(handlers.setUserAssets).not.toHaveBeenCalled();
+      expect(handlers.importTokens).not.toHaveBeenCalled();
+      expect(handlers.hideTokens).not.toHaveBeenCalled();
     });
   });
 
