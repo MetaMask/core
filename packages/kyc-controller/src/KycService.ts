@@ -180,11 +180,8 @@ const VendorSigningStruct = type({
 });
 const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
-/** `{ nextStep }`, returned by kyc-api actions that move onboarding on. */
-const NextStepResponseStruct = type({ nextStep: string() });
-
-/** `GET /vendors/{vendor}/step`. */
-const StepResponseStruct = type({ vendor: string(), nextStep: string() });
+/** `GET /vendors/{vendor}/step`, the only route that reports the step. */
+const StepResponseStruct = type({ vendor: string(), step: string() });
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
@@ -357,15 +354,6 @@ export type KycOnboardingStep =
   | 'email/resend-otp'
   | 'phone/send-otp'
   | 'phone/verify-otp';
-
-/**
- * What `postOnboardingStep` returns: the session status after the step, and
- * the step kyc-api decided with it.
- */
-export type OnboardingStepResult = {
-  status: KycSessionStatus;
-  step?: KycStep;
-};
 
 export type CreateUkycSessionParams = {
   /**
@@ -1153,12 +1141,12 @@ export class KycService extends BaseDataService<
       this.#baseUrl,
     );
     const data = await this.#requestJson(url, { method: 'GET' });
-    const { nextStep } = this.#validateResponse(
+    const { step } = this.#validateResponse(
       data,
       StepResponseStruct,
       'vendor step',
     );
-    return toKycStep(nextStep);
+    return toKycStep(step);
   }
 
   /**
@@ -1171,30 +1159,23 @@ export class KycService extends BaseDataService<
    * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
    * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
    * for.
-   * @returns The next step.
    */
   async acceptVendorTerms(params: {
     vendor: OnboardingVendor;
     disclaimerIds: string[];
     country?: string;
-  }): Promise<KycStep> {
+  }): Promise<void> {
     const url = new URL(
       `/vendors/${encodeURIComponent(params.vendor)}/disclaimers`,
       this.#baseUrl,
     );
-    const data = await this.#requestJson(url, {
+    await this.#requestJson(url, {
       method: 'POST',
       body: JSON.stringify({
         disclaimerIds: params.disclaimerIds,
         ...(params.country ? { country: params.country } : {}),
       }),
     });
-    const { nextStep } = this.#validateResponse(
-      data,
-      NextStepResponseStruct,
-      'vendor terms',
-    );
-    return toKycStep(nextStep);
   }
 
   /**
@@ -1204,20 +1185,13 @@ export class KycService extends BaseDataService<
    *
    * @param params - The parameters.
    * @param params.sessionId - The UKYC session id.
-   * @returns The next step.
    */
-  async markProviderSubmitted(params: { sessionId: string }): Promise<KycStep> {
+  async markProviderSubmitted(params: { sessionId: string }): Promise<void> {
     const url = new URL(
       `/sessions/${encodeURIComponent(params.sessionId)}/provider-submitted`,
       this.#baseUrl,
     );
-    const data = await this.#requestJson(url, { method: 'POST' });
-    const { nextStep } = this.#validateResponse(
-      data,
-      NextStepResponseStruct,
-      'provider submitted',
-    );
-    return toKycStep(nextStep);
+    await this.#requestJson(url, { method: 'POST' });
   }
 
   /**
@@ -1229,14 +1203,13 @@ export class KycService extends BaseDataService<
    * @param params.sessionId - UKYC session id.
    * @param params.step - The onboarding step.
    * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
-   * @returns The session status after the step, and the step kyc-api decided
-   * with it. The step is missing when kyc-api does not send one.
+   * @returns The session status after the step.
    */
   async postOnboardingStep(params: {
     sessionId: string;
     step: KycOnboardingStep;
     body?: Record<string, string>;
-  }): Promise<OnboardingStepResult> {
+  }): Promise<KycSessionStatus> {
     const url = new URL(
       `/sessions/${encodeURIComponent(params.sessionId)}/onboarding/${params.step}`,
       this.#baseUrl,
@@ -1245,12 +1218,7 @@ export class KycService extends BaseDataService<
       method: 'POST',
       body: JSON.stringify(params.body ?? {}),
     });
-    const status = this.#validateAndPatchSessionStatus(data, 'onboarding step');
-    const nextStep = (data as { nextStep?: unknown } | null)?.nextStep;
-    if (typeof nextStep !== 'string') {
-      return { status };
-    }
-    return { status, step: toKycStep(nextStep) };
+    return this.#validateAndPatchSessionStatus(data, 'onboarding step');
   }
 
   /**

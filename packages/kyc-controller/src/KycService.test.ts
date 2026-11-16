@@ -1022,7 +1022,7 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/vendors/kalshi/step')
         .matchHeader('authorization', 'Bearer test-bearer')
-        .reply(200, { vendor: 'kalshi', nextStep: 'account_link' });
+        .reply(200, { vendor: 'kalshi', step: 'account_link' });
       const { service } = getService();
 
       expect(await service.getStep('kalshi')).toBe('account_link');
@@ -1031,7 +1031,7 @@ describe('KycService', () => {
     it('ignores a field kyc-api adds that this version does not know', async () => {
       nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
         vendor: 'kalshi',
-        nextStep: 'identity_email_code',
+        step: 'identity_email_code',
         somethingNew: true,
       });
       const { service } = getService();
@@ -1042,7 +1042,7 @@ describe('KycService', () => {
     it('turns a step this version does not know into error', async () => {
       nock(MOCK_API_URL)
         .get('/vendors/iron/step')
-        .reply(200, { vendor: 'iron', nextStep: 'brand_new_step' });
+        .reply(200, { vendor: 'iron', step: 'brand_new_step' });
       const { service } = getService();
 
       expect(await service.getStep('iron')).toBe('error');
@@ -1059,58 +1059,61 @@ describe('KycService', () => {
   });
 
   describe('acceptVendorTerms', () => {
-    it('records the terms and returns the next step', async () => {
-      nock(MOCK_API_URL)
+    it('records the terms for the country', async () => {
+      const scope = nock(MOCK_API_URL)
         .post('/vendors/kalshi/disclaimers', {
           disclaimerIds: ['tos-v1'],
           country: 'USA',
         })
-        .reply(200, { signings: [], nextStep: 'account_link' });
+        .reply(204);
       const { service } = getService();
 
-      expect(
-        await service.acceptVendorTerms({
-          vendor: 'kalshi',
-          disclaimerIds: ['tos-v1'],
-          country: 'USA',
-        }),
-      ).toBe('account_link');
+      await service.acceptVendorTerms({
+        vendor: 'kalshi',
+        disclaimerIds: ['tos-v1'],
+        country: 'USA',
+      });
+
+      expect(scope.isDone()).toBe(true);
     });
 
     it('leaves the country out when none is given', async () => {
-      nock(MOCK_API_URL)
+      const scope = nock(MOCK_API_URL)
         .post('/vendors/iron/disclaimers', { disclaimerIds: ['tos-v1'] })
-        .reply(200, { nextStep: 'confirm_identity' });
+        .reply(204);
+      const { service } = getService();
+
+      await service.acceptVendorTerms({
+        vendor: 'iron',
+        disclaimerIds: ['tos-v1'],
+      });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports nothing about the step, which is read separately', async () => {
+      nock(MOCK_API_URL).post('/vendors/iron/disclaimers').reply(204);
       const { service } = getService();
 
       expect(
         await service.acceptVendorTerms({
           vendor: 'iron',
-          disclaimerIds: ['tos-v1'],
+          disclaimerIds: ['a'],
         }),
-      ).toBe('confirm_identity');
-    });
-
-    it('throws when the response has no next step', async () => {
-      nock(MOCK_API_URL).post('/vendors/iron/disclaimers').reply(200, []);
-      const { service } = getService();
-
-      await expect(
-        service.acceptVendorTerms({ vendor: 'iron', disclaimerIds: ['a'] }),
-      ).rejects.toThrow(/Malformed response received from vendor terms API/u);
+      ).toBeUndefined();
     });
   });
 
   describe('markProviderSubmitted', () => {
-    it('posts to the session and returns the next step', async () => {
-      nock(MOCK_API_URL)
+    it('posts to the session', async () => {
+      const scope = nock(MOCK_API_URL)
         .post('/sessions/sid-1/provider-submitted')
-        .reply(200, { nextStep: 'kyc_pending' });
+        .reply(204);
       const { service } = getService();
 
-      expect(await service.markProviderSubmitted({ sessionId: 'sid-1' })).toBe(
-        'kyc_pending',
-      );
+      await service.markProviderSubmitted({ sessionId: 'sid-1' });
+
+      expect(scope.isDone()).toBe(true);
     });
   });
 
@@ -1139,7 +1142,7 @@ describe('KycService', () => {
           step: 'phone/send-otp',
           body: { phoneNumber: '+18888888888' },
         }),
-      ).toStrictEqual({ status });
+      ).toStrictEqual(status);
     });
 
     it('sends an empty body when the step has no payload', async () => {
@@ -1153,40 +1156,7 @@ describe('KycService', () => {
           sessionId: 'sid-1',
           step: 'email/resend-otp',
         }),
-      ).toStrictEqual({ status });
-    });
-
-    it('returns the step kyc-api decided with the status', async () => {
-      nock(MOCK_API_URL)
-        .post('/sessions/sid-1/onboarding/phone/verify-otp', { otp: '888888' })
-        .reply(200, { ...status, nextStep: 'identity_phone' });
-      const { service } = getService();
-
-      expect(
-        await service.postOnboardingStep({
-          sessionId: 'sid-1',
-          step: 'phone/verify-otp',
-          body: { otp: '888888' },
-        }),
-      ).toStrictEqual({
-        status: { ...status, nextStep: 'identity_phone' },
-        step: 'identity_phone',
-      });
-    });
-
-    it('turns a step this version does not know into error', async () => {
-      nock(MOCK_API_URL)
-        .post('/sessions/sid-1/onboarding/email/verify-otp', { otp: '1' })
-        .reply(200, { ...status, nextStep: 'brand_new_step' });
-      const { service } = getService();
-
-      const result = await service.postOnboardingStep({
-        sessionId: 'sid-1',
-        step: 'email/verify-otp',
-        body: { otp: '1' },
-      });
-
-      expect(result.step).toBe('error');
+      ).toStrictEqual(status);
     });
   });
 

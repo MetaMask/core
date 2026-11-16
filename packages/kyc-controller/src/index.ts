@@ -99,7 +99,6 @@ export type {
   GetDataSharesParams,
   GetSessionStatusParams,
   KycOnboardingStep,
-  OnboardingStepResult,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,

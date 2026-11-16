@@ -289,17 +289,19 @@ describe('VendorOnboardingController', () => {
         );
       });
 
-      it('drops an older read that finishes after the step came back with the action', async () => {
+      it('drops an older read that finishes after a newer one', async () => {
         await withController(async ({ controller, handlers }) => {
           let answerOld: (step: KycStep) => void = () => undefined;
-          handlers.getStep.mockReturnValueOnce(
-            new Promise<KycStep>((resolve) => {
-              answerOld = resolve;
-            }),
-          );
-          handlers.acceptVendorTerms.mockResolvedValue('account_link');
+          handlers.getStep
+            .mockReturnValueOnce(
+              new Promise<KycStep>((resolve) => {
+                answerOld = resolve;
+              }),
+            )
+            .mockResolvedValueOnce('account_link');
 
           const old = controller.refreshStep({ vendor: 'kalshi' });
+          // An action starts its own read, which answers first.
           await controller.acceptTerms({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
@@ -311,7 +313,7 @@ describe('VendorOnboardingController', () => {
         });
       });
 
-      it('asks again, not joins, after a step came back with the action', async () => {
+      it('does not let a later refresh join a read an action overtook', async () => {
         await withController(async ({ controller, handlers }) => {
           let answerOld: (step: KycStep) => void = () => undefined;
           handlers.getStep
@@ -320,8 +322,8 @@ describe('VendorOnboardingController', () => {
                 answerOld = resolve;
               }),
             )
+            .mockResolvedValueOnce('account_link')
             .mockResolvedValueOnce('account_link_code');
-          handlers.acceptVendorTerms.mockResolvedValue('account_link');
 
           const old = controller.refreshStep({ vendor: 'kalshi' });
           await controller.acceptTerms({
@@ -333,7 +335,7 @@ describe('VendorOnboardingController', () => {
           await old;
 
           expect(fresh).toBe('account_link_code');
-          expect(handlers.getStep).toHaveBeenCalledTimes(2);
+          expect(handlers.getStep).toHaveBeenCalledTimes(3);
         });
       });
     });
@@ -366,9 +368,9 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('acceptTerms', () => {
-    it('sends the terms to kyc-api and saves the next step', async () => {
+    it('sends the terms to kyc-api, then saves the step it reads', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.acceptVendorTerms.mockResolvedValue('account_link');
+        handlers.getStep.mockResolvedValue('account_link');
 
         const step = await controller.acceptTerms({
           vendor: 'kalshi',
@@ -388,7 +390,7 @@ describe('VendorOnboardingController', () => {
 
     it('leaves the country out when none is given', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.acceptVendorTerms.mockResolvedValue('confirm_identity');
+        handlers.getStep.mockResolvedValue('confirm_identity');
 
         await controller.acceptTerms({
           vendor: 'iron',
@@ -958,7 +960,7 @@ describe('VendorOnboardingController', () => {
           handlers.createJourney.mockResolvedValue({
             applicantAccessToken: 'token-1',
           });
-          handlers.markProviderSubmitted.mockResolvedValue('kyc_pending');
+          handlers.getStep.mockResolvedValue('kyc_pending');
 
           const outcome = await controller.launchProviderFlow({
             vendor: 'kalshi',
@@ -1129,7 +1131,7 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('markProviderSubmitted', () => {
-    it('tells kyc-api and saves the next step', async () => {
+    it('tells kyc-api, then saves the step it reads', async () => {
       await withController(
         {
           options: {
@@ -1144,7 +1146,7 @@ describe('VendorOnboardingController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.markProviderSubmitted.mockResolvedValue('kyc_pending');
+          handlers.getStep.mockResolvedValue('kyc_pending');
 
           const step = await controller.markProviderSubmitted({
             vendor: 'kalshi',
@@ -1160,7 +1162,7 @@ describe('VendorOnboardingController', () => {
     });
   });
 
-  describe('the step an action returns', () => {
+  describe('the step an action reads once it has run', () => {
     const saved = {
       state: {
         vendors: {
@@ -1172,27 +1174,34 @@ describe('VendorOnboardingController', () => {
       },
     } satisfies WithControllerOptions['options'];
 
-    it('saves the step from accepted terms', async () => {
+    it('reads and saves the step after accepting terms', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.acceptVendorTerms.mockResolvedValue('account_link');
+        handlers.getStep.mockResolvedValue('account_link');
 
-        await controller.acceptTerms({
+        const step = await controller.acceptTerms({
           vendor: 'kalshi',
           disclaimerIds: ['a'],
         });
 
+        expect(handlers.acceptVendorTerms).toHaveBeenCalledTimes(1);
+        // Read after the write, so the step reflects the terms just stored.
+        expect(
+          handlers.acceptVendorTerms.mock.invocationCallOrder[0],
+        ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
+        expect(step).toBe('account_link');
         expect(controller.state.vendors.kalshi?.step).toBe('account_link');
       });
     });
 
-    it('saves the step from a finished SumSub flow', async () => {
+    it('reads and saves the step after a finished SumSub flow', async () => {
       await withController(
         { options: saved },
         async ({ controller, handlers }) => {
-          handlers.markProviderSubmitted.mockResolvedValue('kyc_pending');
+          handlers.getStep.mockResolvedValue('kyc_pending');
 
           await controller.markProviderSubmitted({ vendor: 'kalshi' });
 
+          expect(handlers.markProviderSubmitted).toHaveBeenCalledTimes(1);
           expect(controller.state.vendors.kalshi).toStrictEqual({
             step: 'kyc_pending',
             sessionId: 'sid-1',
@@ -1207,15 +1216,13 @@ describe('VendorOnboardingController', () => {
       ['submitEmailCode', { code: '123456' }],
       ['resendEmailCode', {}],
     ] as const)(
-      '%s uses the step kyc-api returned and does not ask again',
+      '%s reads the step once the code step has run',
       async (method, args) => {
         await withController(
           { options: saved },
           async ({ controller, handlers }) => {
-            handlers.postOnboardingStep.mockResolvedValue({
-              status: SESSION_STATUS,
-              step: 'identity_phone',
-            });
+            handlers.postOnboardingStep.mockResolvedValue(SESSION_STATUS);
+            handlers.getStep.mockResolvedValue('identity_phone');
 
             const step = await controller[method]({
               vendor: 'kalshi',
@@ -1223,7 +1230,10 @@ describe('VendorOnboardingController', () => {
             } as never);
 
             expect(step).toBe('identity_phone');
-            expect(handlers.getStep).not.toHaveBeenCalled();
+            expect(handlers.getStep).toHaveBeenCalledTimes(1);
+            expect(
+              handlers.postOnboardingStep.mock.invocationCallOrder[0],
+            ).toBeLessThan(handlers.getStep.mock.invocationCallOrder[0]);
             expect(controller.state.vendors.kalshi?.step).toBe(
               'identity_phone',
             );
@@ -1232,41 +1242,23 @@ describe('VendorOnboardingController', () => {
       },
     );
 
-    it('asks for the step when kyc-api does not return one with a code step', async () => {
-      await withController(
-        { options: saved },
-        async ({ controller, handlers }) => {
-          handlers.postOnboardingStep.mockResolvedValue({
-            status: SESSION_STATUS,
-          });
-          handlers.getStep.mockResolvedValue('kyc_pending');
-
-          const step = await controller.submitEmailCode({
-            vendor: 'kalshi',
-            code: '123456',
-          });
-
-          expect(step).toBe('kyc_pending');
-          expect(handlers.getStep).toHaveBeenCalledTimes(1);
-        },
-      );
-    });
-
-    it('uses the step the account link adapter returns with a verified code', async () => {
+    it('reads the step after a verified account link code', async () => {
       const adapter = {
         startLink: vi.fn(),
-        verifyLink: vi.fn().mockResolvedValue({ nextStep: 'confirm_identity' }),
+        verifyLink: vi.fn().mockResolvedValue({}),
       };
       await withController(
         { options: { accountLinkAdapters: { kalshi: adapter } } },
         async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue('confirm_identity');
+
           const result = await controller.verifyAccountLink({
             vendor: 'kalshi',
             code: '888888',
           });
 
           expect(result).toStrictEqual({ step: 'confirm_identity' });
-          expect(handlers.getStep).not.toHaveBeenCalled();
+          expect(handlers.getStep).toHaveBeenCalledTimes(1);
           expect(controller.state.vendors.kalshi).toStrictEqual({
             step: 'confirm_identity',
             sessionId: null,
