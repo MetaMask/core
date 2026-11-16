@@ -275,9 +275,12 @@ export class SeedlessOnboardingController<
 
   /**
    * The vault key set recovered by `recoverWithRecoverySecret`, held in
-   * memory until `setLocalPassword` creates the local vault with it.
+   * memory until `setLocalPassword` creates the local vault with it, and the
+   * live password OPRF auth public key when a control record matched it.
    */
-  #recoveredVaultKeySet: VaultKeySet | undefined;
+  #recoveredVault:
+    | { vaultKeySet: VaultKeySet; passwordAuthPubKey?: SEC1EncodedPublicKey }
+    | undefined;
 
   /**
    * Creates a new SeedlessOnboardingController instance.
@@ -433,7 +436,7 @@ export class SeedlessOnboardingController<
         // recovery state belongs to the user it was started for
         const isUserChanged = this.state.userId !== userId;
         if (isUserChanged) {
-          this.#recoveredVaultKeySet = undefined;
+          this.#recoveredVault = undefined;
         }
         // update the state with the authenticated user info
         this.update((state) => {
@@ -826,8 +829,6 @@ export class SeedlessOnboardingController<
    * @param newPassword - The new password to update.
    * @param oldPassword - The old password to verify.
    * @returns A promise that resolves to the success of the operation.
-   * @throws `PasswordResetPending` after {@link setLocalPassword}, until
-   * {@link resetPasswordWithVaultKeys} succeeds.
    */
   async changePassword(
     newPassword: string,
@@ -835,7 +836,6 @@ export class SeedlessOnboardingController<
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
-      this.#assertIsNotLocalPassword();
       // verify the old password of the encrypted vault
       await this.verifyVaultPassword(oldPassword, {
         skipLock: true, // skip lock since we already have the lock
@@ -895,6 +895,9 @@ export class SeedlessOnboardingController<
           });
         }
 
+        this.update((state) => {
+          delete state.isLocalPassword;
+        });
         this.#resetPasswordOutdatedCache();
 
         // store the keyring encryption key if it exists
@@ -1151,7 +1154,7 @@ export class SeedlessOnboardingController<
       });
 
       this.#cachedDecryptedVaultData = undefined;
-      this.#recoveredVaultKeySet = undefined;
+      this.#recoveredVault = undefined;
       this.#isUnlocked = false;
     });
   }
@@ -1164,8 +1167,6 @@ export class SeedlessOnboardingController<
    * @param params - The parameters for syncing the latest global password.
    * @param params.globalPassword - The latest global password.
    * @returns A promise that resolves to the success of the operation.
-   * @throws `PasswordResetPending` after {@link setLocalPassword}, until
-   * {@link resetPasswordWithVaultKeys} succeeds.
    */
   async syncLatestGlobalPassword({
     globalPassword,
@@ -1174,7 +1175,6 @@ export class SeedlessOnboardingController<
   }): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
-      this.#assertIsNotLocalPassword();
       const doSyncPassword = async (): Promise<void> => {
         // update vault with latest globalPassword
         const { envelopeKeys, encKey, pwEncKey, authKeyPair } =
@@ -1218,6 +1218,9 @@ export class SeedlessOnboardingController<
           );
         }
 
+        this.update((state) => {
+          delete state.isLocalPassword;
+        });
         this.#resetPasswordOutdatedCache();
       };
       return await this.#executeWithTokenRefresh(
@@ -1378,12 +1381,9 @@ export class SeedlessOnboardingController<
       // an envelope-managed vault keeps its key set, so the password OPRF
       // key it last synced with is tracked separately
       const { envelope } = this.state;
-      let currentDeviceAuthPubKey: SEC1EncodedPublicKey | undefined;
-      if (!envelope) {
-        currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-      } else if (envelope.passwordAuthPubKey) {
-        currentDeviceAuthPubKey = base64ToBytes(envelope.passwordAuthPubKey);
-      }
+      const currentDeviceAuthPubKey = envelope
+        ? base64ToBytes(envelope.passwordAuthPubKey)
+        : this.#recoverAuthPubKey();
 
       let globalAuthPubKey = options?.globalAuthPubKey;
       if (!globalAuthPubKey) {
@@ -1407,11 +1407,9 @@ export class SeedlessOnboardingController<
       }
 
       // use noble lib to deserialize and compare curve point
-      const isExpiredPwd =
-        !currentDeviceAuthPubKey ||
-        !secp256k1.ProjectivePoint.fromHex(currentDeviceAuthPubKey).equals(
-          secp256k1.ProjectivePoint.fromHex(globalAuthPubKey),
-        );
+      const isExpiredPwd = !secp256k1.ProjectivePoint.fromHex(
+        currentDeviceAuthPubKey,
+      ).equals(secp256k1.ProjectivePoint.fromHex(globalAuthPubKey));
       // Cache the result in state
       this.update((state) => {
         state.passwordOutdatedCache = { isExpiredPwd, timestamp: Date.now() };
@@ -1494,7 +1492,7 @@ export class SeedlessOnboardingController<
     this.update(() => {
       return defaultState;
     });
-    this.#recoveredVaultKeySet = undefined;
+    this.#recoveredVault = undefined;
   }
 
   /**
@@ -2767,14 +2765,18 @@ export class SeedlessOnboardingController<
    *
    * No local vault is created. The vault keys are held in memory until
    * {@link setLocalPassword} creates the local vault with them, or until the
-   * controller is locked or its state is cleared.
+   * controller is locked or its state is cleared. The live password OPRF
+   * auth public key is held with them when a control record of the vault
+   * matches it; otherwise {@link setLocalPassword} refuses to create the
+   * local vault, since the password could never be reset.
    *
    * Authenticate with social login and call {@link authenticateForRecovery}
    * first.
    *
    * @param params - The function parameters.
    * @param params.recoverySecret - The 32-byte Recovery Secret from escrow.
-   * @returns The secret data of the vault.
+   * @returns The secret data of the vault, also when no control record
+   * matches the live password OPRF key.
    * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
    * Recovery Secret, `RecoveryKeyShareConflict` if the nodes hold the key of
    * another Recovery Secret, or `Aal2Required` without a valid aal2 session.
@@ -2806,11 +2808,18 @@ export class SeedlessOnboardingController<
           );
         }
 
-        const { secrets } = await this.#fetchAllSecretDataFromMetadataStore(
-          vaultKeySet.encKey,
-          vaultKeySet.authKeyPair,
-        );
-        this.#recoveredVaultKeySet = vaultKeySet;
+        const { secrets, controlRecords } =
+          await this.#fetchAllSecretDataFromMetadataStore(
+            vaultKeySet.encKey,
+            vaultKeySet.authKeyPair,
+          );
+        const { authPubKey } = await this.#fetchGlobalAuthPubKey();
+        this.#recoveredVault = {
+          vaultKeySet,
+          ...(selectControlRecord(controlRecords, authPubKey) && {
+            passwordAuthPubKey: authPubKey,
+          }),
+        };
         return secrets;
       }, 'recoverWithRecoverySecret'),
     );
@@ -2820,10 +2829,12 @@ export class SeedlessOnboardingController<
    * Create the local vault under `password` with the vault keys recovered by
    * {@link recoverWithRecoverySecret}.
    *
-   * `password` only encrypts the local vault and counts as outdated. This
-   * sets `isLocalPassword`, which blocks {@link syncLatestGlobalPassword}
-   * and {@link changePassword} until {@link resetPasswordWithVaultKeys} sets a
-   * new global password.
+   * `password` only encrypts the local vault. This sets `isLocalPassword`,
+   * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
+   * {@link syncLatestGlobalPassword} clear once the password is global.
+   * `envelope.passwordAuthPubKey` is set to the live password OPRF key
+   * matched during recovery, so {@link checkIsPasswordOutdated} reports a
+   * password change made elsewhere after recovery.
    *
    * Any pending envelope migration checkpoint is discarded, since it belongs
    * to the vault this call replaces.
@@ -2832,15 +2843,22 @@ export class SeedlessOnboardingController<
    * @param params.password - The password of the new local vault.
    * @returns A promise that resolves once the local vault is created.
    * @throws `RecoveryRequired` without a prior {@link recoverWithRecoverySecret},
-   * or `Aal2Required` without a valid aal2 session.
+   * `EnvelopeControlRecordNotFound` if no control record matched the live
+   * password OPRF key during recovery, or `Aal2Required` without a valid aal2
+   * session.
    */
   async setLocalPassword({ password }: { password: string }): Promise<void> {
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
-        const vaultKeySet = this.#recoveredVaultKeySet;
-        if (!vaultKeySet) {
+        if (!this.#recoveredVault) {
           throw new SeedlessOnboardingError(
             SeedlessOnboardingControllerErrorMessage.RecoveryRequired,
+          );
+        }
+        const { vaultKeySet, passwordAuthPubKey } = this.#recoveredVault;
+        if (!passwordAuthPubKey) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
           );
         }
         this.#requireRecoverySession();
@@ -2858,9 +2876,9 @@ export class SeedlessOnboardingController<
           delete state.pendingEnvelopeMigration;
           state.isLocalPassword = true;
         });
-        this.#setEnvelopeState(vaultKeySet);
+        this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
         this.#resetPasswordOutdatedCache();
-        this.#recoveredVaultKeySet = undefined;
+        this.#recoveredVault = undefined;
       }, 'setLocalPassword'),
     );
   }
@@ -2869,10 +2887,9 @@ export class SeedlessOnboardingController<
    * Set a new global password on an envelope-managed vault without the old
    * one, after {@link recoverWithRecoverySecret} and {@link setLocalPassword}.
    *
-   * Only allowed while the local password is not yet synced with the global
-   * password, which is the state the vault is left in after
-   * {@link setLocalPassword}, and with a valid aal2 session from
-   * {@link authenticateForRecovery}. A successful reset clears
+   * Only allowed while `isLocalPassword` is set, which is the state the vault
+   * is left in after {@link setLocalPassword}, and with a valid aal2 session
+   * from {@link authenticateForRecovery}. A successful reset clears
    * `isLocalPassword`; after that, use {@link changePassword} instead.
    *
    * The password OPRF key swap is signed with the auth key stored in the
@@ -2884,7 +2901,7 @@ export class SeedlessOnboardingController<
    * @param params.newPassword - The new global password.
    * @returns A promise that resolves once the new password is global.
    * @throws `PasswordResetRequiresRecovery` if the vault is not
-   * envelope-managed or its local password is already synced,
+   * envelope-managed or `isLocalPassword` is not set,
    * `Aal2Required` without a valid aal2 session, or
    * `EnvelopeControlRecordNotFound` if no control record matches the live
    * password OPRF key.
@@ -2897,8 +2914,7 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsUnlocked();
-        const { envelope } = this.state;
-        if (!envelope || envelope.passwordAuthPubKey) {
+        if (!this.state.envelope || !this.state.isLocalPassword) {
           throw new SeedlessOnboardingError(
             SeedlessOnboardingControllerErrorMessage.PasswordResetRequiresRecovery,
           );
@@ -3352,19 +3368,17 @@ export class SeedlessOnboardingController<
    *
    * @param vaultKeySet - The vault key set `K_v`.
    * @param passwordAuthPubKey - The password OPRF auth public key the local
-   * password is synced with, or undefined when it is not known to be synced.
+   * password is synced with.
    */
   #setEnvelopeState(
     vaultKeySet: VaultKeySet,
-    passwordAuthPubKey?: SEC1EncodedPublicKey,
+    passwordAuthPubKey: SEC1EncodedPublicKey,
   ): void {
     this.update((state) => {
       state.envelope = {
         v: 1,
         vaultAuthPubKey: bytesToBase64(vaultKeySet.authKeyPair.pk),
-        ...(passwordAuthPubKey && {
-          passwordAuthPubKey: bytesToBase64(passwordAuthPubKey),
-        }),
+        passwordAuthPubKey: bytesToBase64(passwordAuthPubKey),
       };
     });
   }
@@ -3468,18 +3482,6 @@ export class SeedlessOnboardingController<
         );
       }
       throw error;
-    }
-  }
-
-  /**
-   * @throws `PasswordResetPending` after {@link setLocalPassword}, until
-   * {@link resetPasswordWithVaultKeys} succeeds.
-   */
-  #assertIsNotLocalPassword(): void {
-    if (this.state.isLocalPassword) {
-      throw new SeedlessOnboardingError(
-        SeedlessOnboardingControllerErrorMessage.PasswordResetPending,
-      );
     }
   }
 

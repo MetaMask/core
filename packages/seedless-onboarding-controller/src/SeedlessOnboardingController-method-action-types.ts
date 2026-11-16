@@ -112,8 +112,6 @@ export type SeedlessOnboardingControllerFetchAllSecretDataAction = {
  * @param newPassword - The new password to update.
  * @param oldPassword - The old password to verify.
  * @returns A promise that resolves to the success of the operation.
- * @throws `PasswordResetPending` after {@link setLocalPassword}, until
- * {@link resetPasswordWithVaultKeys} succeeds.
  */
 export type SeedlessOnboardingControllerChangePasswordAction = {
   type: `SeedlessOnboardingController:changePassword`;
@@ -211,8 +209,6 @@ export type SeedlessOnboardingControllerSetLockedAction = {
  * @param params - The parameters for syncing the latest global password.
  * @param params.globalPassword - The latest global password.
  * @returns A promise that resolves to the success of the operation.
- * @throws `PasswordResetPending` after {@link setLocalPassword}, until
- * {@link resetPasswordWithVaultKeys} succeeds.
  */
 export type SeedlessOnboardingControllerSyncLatestGlobalPasswordAction = {
   type: `SeedlessOnboardingController:syncLatestGlobalPassword`;
@@ -339,10 +335,15 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * Writes `rbek` (sealed for the Recovery Secret) and the control record
  * into their own partitions. No secret data item is moved, and no password
  * is needed: the current password still derives `K_v` directly, so the
- * first `pbek` is written by the first password change. The sealed
- * envelope is checkpointed before the first remote write, so a failed call
- * can be retried with the same arguments. Does nothing if the vault is
- * already envelope-managed.
+ * first `pbek` is written by the first password change.
+ *
+ * The migration runs in phases, and each phase is checkpointed (encrypted
+ * under the vault keys) before the next remote write: the Recovery Secret
+ * OPRF key is registered, then `rbek` and the control record are sealed,
+ * then written. A failed call resumes from its last checkpoint when retried
+ * with the same Recovery Secret, writing the same bytes; resuming after the
+ * envelopes are sealed needs no recovery session. Does nothing if the vault
+ * is already envelope-managed and no migration is pending.
  *
  * The vault must be unlocked and in sync with the global password. Register
  * the Recovery Secret at the escrows first, then call
@@ -352,7 +353,9 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
  * @returns A promise that resolves once the vault is envelope-managed.
  * @throws `OutdatedPassword` if the vault is not in sync with the global
- * password.
+ * password, `RecoveryKeyShareConflict` if the nodes hold the key of another
+ * Recovery Secret, or `Aal2Required` without a valid aal2 session when one
+ * is needed.
  */
 export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
   type: `SeedlessOnboardingController:migrateToEnvelope`;
@@ -366,14 +369,18 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
  *
  * No local vault is created. The vault keys are held in memory until
  * {@link setLocalPassword} creates the local vault with them, or until the
- * controller is locked or its state is cleared.
+ * controller is locked or its state is cleared. The live password OPRF
+ * auth public key is held with them when a control record of the vault
+ * matches it; otherwise {@link setLocalPassword} refuses to create the
+ * local vault, since the password could never be reset.
  *
  * Authenticate with social login and call {@link authenticateForRecovery}
  * first.
  *
  * @param params - The function parameters.
  * @param params.recoverySecret - The 32-byte Recovery Secret from escrow.
- * @returns The secret data of the vault.
+ * @returns The secret data of the vault, also when no control record
+ * matches the live password OPRF key.
  * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
  * Recovery Secret, `RecoveryKeyShareConflict` if the nodes hold the key of
  * another Recovery Secret, or `Aal2Required` without a valid aal2 session.
@@ -387,10 +394,12 @@ export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
  * Create the local vault under `password` with the vault keys recovered by
  * {@link recoverWithRecoverySecret}.
  *
- * `password` only encrypts the local vault and counts as outdated. This
- * sets `isLocalPassword`, which blocks {@link syncLatestGlobalPassword}
- * and {@link changePassword} until {@link resetPasswordWithVaultKeys} sets a
- * new global password.
+ * `password` only encrypts the local vault. This sets `isLocalPassword`,
+ * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
+ * {@link syncLatestGlobalPassword} clear once the password is global.
+ * `envelope.passwordAuthPubKey` is set to the live password OPRF key
+ * matched during recovery, so {@link checkIsPasswordOutdated} reports a
+ * password change made elsewhere after recovery.
  *
  * Any pending envelope migration checkpoint is discarded, since it belongs
  * to the vault this call replaces.
@@ -399,7 +408,9 @@ export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
  * @param params.password - The password of the new local vault.
  * @returns A promise that resolves once the local vault is created.
  * @throws `RecoveryRequired` without a prior {@link recoverWithRecoverySecret},
- * or `Aal2Required` without a valid aal2 session.
+ * `EnvelopeControlRecordNotFound` if no control record matched the live
+ * password OPRF key during recovery, or `Aal2Required` without a valid aal2
+ * session.
  */
 export type SeedlessOnboardingControllerSetLocalPasswordAction = {
   type: `SeedlessOnboardingController:setLocalPassword`;
@@ -410,10 +421,9 @@ export type SeedlessOnboardingControllerSetLocalPasswordAction = {
  * Set a new global password on an envelope-managed vault without the old
  * one, after {@link recoverWithRecoverySecret} and {@link setLocalPassword}.
  *
- * Only allowed while the local password is not yet synced with the global
- * password, which is the state the vault is left in after
- * {@link setLocalPassword}, and with a valid aal2 session from
- * {@link authenticateForRecovery}. A successful reset clears
+ * Only allowed while `isLocalPassword` is set, which is the state the vault
+ * is left in after {@link setLocalPassword}, and with a valid aal2 session
+ * from {@link authenticateForRecovery}. A successful reset clears
  * `isLocalPassword`; after that, use {@link changePassword} instead.
  *
  * The password OPRF key swap is signed with the auth key stored in the
@@ -425,7 +435,7 @@ export type SeedlessOnboardingControllerSetLocalPasswordAction = {
  * @param params.newPassword - The new global password.
  * @returns A promise that resolves once the new password is global.
  * @throws `PasswordResetRequiresRecovery` if the vault is not
- * envelope-managed or its local password is already synced,
+ * envelope-managed or `isLocalPassword` is not set,
  * `Aal2Required` without a valid aal2 session, or
  * `EnvelopeControlRecordNotFound` if no control record matches the live
  * password OPRF key.

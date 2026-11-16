@@ -134,10 +134,10 @@ export type EnvelopeState = {
   vaultAuthPubKey: string;
   /**
    * base64 auth public key of the password OPRF key the local password was
-   * last synced with, for the outdated check. Unset after a recovery with the
-   * Recovery Secret, until the local password is synced or reset.
+   * last synced with, for the outdated check. After a recovery with the
+   * Recovery Secret, the live key matched by a control record at recovery.
    */
-  passwordAuthPubKey?: string;
+  passwordAuthPubKey: string;
 };
 
 // State
