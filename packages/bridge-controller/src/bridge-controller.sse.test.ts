@@ -2055,4 +2055,28 @@ describe('BridgeController SSE', function () {
       );
     },
   );
+
+  it('should not write quotes after the stream is aborted during the yield', async () => {
+    await withController(
+      { options: { getShouldYieldAfterFirstQuote: (): boolean => true } },
+      async ({ controller: bridgeController }) => {
+        mockFetchFn.mockImplementationOnce(async () =>
+          mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+        );
+        await bridgeController.updateBridgeQuoteRequestParams(
+          quoteRequest,
+          metricsContext,
+        );
+        vi.advanceTimersByTime(1000);
+        await advanceToNthTimerThenFlush();
+        vi.advanceTimersByTime(3000);
+        await flushPromises();
+        bridgeController.stopPollingForQuotes();
+        vi.advanceTimersByTime(0);
+        await flushPromises();
+
+        expect(bridgeController.state.quotes).toHaveLength(1);
+      },
+    );
+  });
 });

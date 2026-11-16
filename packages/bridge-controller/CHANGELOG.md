@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^20.3.1` to `^20.4.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 
+### Fixed
+
+- Stop writing streamed quotes to state after the quote stream is aborted ([#11465](https://github.com/MetaMask/core/pull/11465))
+
 ## [83.1.4]
 
 ### Changed

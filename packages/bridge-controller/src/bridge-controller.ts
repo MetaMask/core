@@ -1094,6 +1094,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               this.#getLayer1GasFee,
               selectedAccount,
             );
+            if (signal?.aborted) {
+              return;
+            }
             if (quotesWithFees.length > 0) {
               validQuotesCounter += 1;
               traceProviderFirstResult(quote.quote);
