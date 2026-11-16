@@ -414,6 +414,21 @@ describe('BridgeController SSE', function () {
       ]);
     });
 
+    it('fetches quotes without a parent context if getQuoteFetchTraceContext throws', async () => {
+      const requests = await runTraceScenario({
+        response: (): unknown =>
+          mockSseEventSource([mockBridgeQuotesErc20Erc20V1[0]]),
+        getQuoteFetchTraceContext: () => {
+          throw new Error('trace context failed');
+        },
+      });
+
+      expect(requests.map((request) => request.parentContext)).toStrictEqual([
+        undefined,
+        undefined,
+      ]);
+    });
+
     it('records cancellation for an expected abort', async () => {
       const requests = await runTraceScenario({
         response: (): unknown =>

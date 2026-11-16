@@ -882,7 +882,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : TraceName.SwapQuotesFetched;
     }
     const tracedProviders = new Set<string>();
-    const parentContext = this.#getQuoteFetchTraceContext?.();
+    let parentContext: TraceContext;
+    try {
+      parentContext = this.#getQuoteFetchTraceContext?.();
+    } catch {
+      parentContext = undefined;
+    }
     const traceWithoutImpact = (
       request: Omit<SwapTraceRequest<TraceName>, 'tags'>,
     ) => {
