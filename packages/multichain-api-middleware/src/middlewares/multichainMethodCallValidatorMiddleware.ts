@@ -37,9 +37,6 @@ const transformError = (
 
 const v = new Validator();
 
-// `parseOpenRPCDocument` is used instead of `dereferenceDocument` because the
-// package's browser entry, which bundlers resolve, does not export
-// `dereferenceDocument`. Without validation, this only dereferences.
 const dereffedPromise = parseOpenRPCDocument(
   MultiChainOpenRPCDocument as unknown as OpenrpcDocument,
   {
