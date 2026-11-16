@@ -68,7 +68,7 @@
     "@metamask/core-backend": "^14.1.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/keyring-api": "^24.3.0",
-    "@metamask/keyring-controller": "^28.2.1",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-account-service": "^14.1.0",

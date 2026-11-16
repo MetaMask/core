@@ -28,6 +28,7 @@ import {
 import type {
   AuthControllerToken,
   GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   Identifier,
   IdentifierAuthorization,
   KeyBoundIdentifierLogin,
@@ -257,22 +258,14 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   readonly #receiptPrivateKey: Uint8Array;
 
-  readonly #replicaIds: string[];
-
   #applyCommitted = false;
 
-  constructor(
-    id: string,
-    wrapKey: KeyPair,
-    receiptKey: KeyPair,
-    replicaIds: string[] = [id],
-  ) {
+  constructor(id: string, wrapKey: KeyPair, receiptKey: KeyPair) {
     this.id = id;
     this.wrapPublicKey = wrapKey.publicKey;
     this.#wrapPrivateKey = wrapKey.privateKey;
     this.receiptPublicKey = receiptKey.publicKey;
     this.#receiptPrivateKey = receiptKey.privateKey;
-    this.#replicaIds = [...replicaIds];
   }
 
   async isAvailable(): Promise<boolean> {
@@ -304,9 +297,26 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       this.#verifyProfileToken(authControllerToken),
     );
     if (record === undefined) {
-      throw new MfaRecoveryError('No recovery record', 'not_registered');
+      return { identifiers: [], version: 0 };
     }
     return { identifiers: record.identifiers, version: record.version };
+  }
+
+  async getMutationReceipt(
+    authControllerToken: AuthControllerToken,
+    mutation: Mutation,
+  ): Promise<GetMutationReceiptResponse> {
+    const record = this.#records.get(
+      this.#verifyProfileToken(authControllerToken),
+    );
+    const applied = record?.appliedMutations[mutation.id];
+    const isOurs =
+      applied?.version === mutation.newVersion &&
+      applied.requestHash === mutation.requestHash;
+    return {
+      receipt: isOurs ? await this.#signReceipt(mutation) : null,
+      version: record?.version ?? 0,
+    };
   }
 
   #verifyProfileToken(authControllerToken: AuthControllerToken): string {
@@ -611,7 +621,10 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   patchRecord(
     profileId: string,
     patch: Partial<
-      Pick<RecoveryRecord, 'version' | 'lastMutationId' | 'recoverySecret'>
+      Pick<
+        RecoveryRecord,
+        'version' | 'lastMutationId' | 'recoverySecret' | 'identifiers'
+      >
     >,
   ): void {
     const record = this.#records.get(profileId);
@@ -621,7 +634,9 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     Object.assign(record, patch);
   }
 
-  async #signReceipt(mutation: Mutation): Promise<MutationReceipt> {
+  async #signReceipt(
+    mutation: Pick<Mutation, 'id' | 'requestHash' | 'newVersion'>,
+  ): Promise<MutationReceipt> {
     const unsigned = {
       mutationId: mutation.id,
       requestHash: mutation.requestHash,
@@ -658,20 +673,13 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       claims.sub !== mutation.profileId ||
       claims.ext.aal < 2 ||
       claims.exp <= this.now() ||
-      !this.#hasExactAudiences(mutation.audiences)
+      mutation.audiences.filter((id) => id === this.id).length !== 1
     ) {
       throw new MfaRecoveryError(
         'Invalid mutation authorization',
         'invalid_mutation_auth',
       );
     }
-  }
-
-  #hasExactAudiences(audiences: string[]): boolean {
-    return (
-      audiences.length === this.#replicaIds.length &&
-      audiences.every((id, index) => id === this.#replicaIds[index])
-    );
   }
 
   async #assertIdentifierOwnership(
