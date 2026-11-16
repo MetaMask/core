@@ -70,7 +70,7 @@
   "devDependencies": {
     "@metamask/account-api": "^2.2.0",
     "@metamask/auto-changelog": "^7.1.0",
-    "@metamask/eth-hd-keyring": "^15.0.0",
+    "@metamask/eth-hd-keyring": "^16.0.0",
     "@metamask/providers": "^22.1.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.3",

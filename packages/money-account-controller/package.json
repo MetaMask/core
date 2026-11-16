@@ -54,7 +54,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.2.0",
     "@metamask/base-controller": "^10.1.0",
-    "@metamask/eth-money-keyring": "^4.0.2",
+    "@metamask/eth-money-keyring": "^5.0.0",
     "@metamask/eth-money-mpc-keyring": "^0.3.1",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/keyring-controller": "^28.2.1",
