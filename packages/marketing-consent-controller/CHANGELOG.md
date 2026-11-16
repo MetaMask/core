@@ -15,9 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `MarketingConsentController` no longer extends `BaseController` and holds no state ([#11470](https://github.com/MetaMask/core/pull/11470))
   - The local change waiting to be saved to Authenticated User Storage is now the `marketingConsentSyncPending` state of `AnalyticsController`, which requires a version of `@metamask/analytics-controller` that includes it.
-  - Remove the `state` constructor option, and drop persisted `MarketingConsentController` state. Clients should migrate a non-null `pendingMarketingConsent` to `AnalyticsController.marketingConsentSyncPending: true`.
+  - Remove the `state` constructor option and persisted `MarketingConsentController` state. No state migration is needed because the controller was not released.
   - The messenger must now allow the `AnalyticsController:applyRemoteMarketingConsent` and `AnalyticsController:clearMarketingConsentSyncPending` actions.
-- Apply consent read from Authenticated User Storage with `AnalyticsController:applyRemoteMarketingConsent`, and only start a sync when the pending consent in `AnalyticsController` changes, instead of on every `AnalyticsController` state change ([#11470](https://github.com/MetaMask/core/pull/11470))
+- Apply consent read from Authenticated User Storage with `AnalyticsController:applyRemoteMarketingConsent`, and subscribe to `AnalyticsController:stateChanged` using a selector for pending consent so unrelated state changes do not trigger syncs ([#11470](https://github.com/MetaMask/core/pull/11470))
 - Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.3.1` ([#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391), [#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
