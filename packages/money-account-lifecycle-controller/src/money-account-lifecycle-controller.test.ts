@@ -551,6 +551,119 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
+    it('stops an upgrade in flight without refetching identities', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        const { promise, resolve } = createDeferredPromise<void>();
+        mocks.upgradeAccount.mockReturnValueOnce(promise);
+        await init();
+
+        const upgrade = controller.upgradeMoneyAccount();
+        await flushPromises();
+        controller.clearState();
+        resolve();
+        await upgrade;
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
+        expect(controller.state.moneyAccounts).toStrictEqual({});
+      });
+    });
+
+    it('stops an upgrade waiting for identities before it upgrades', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const { promise, resolve } =
+          createDeferredPromise<DerivedIdentitiesResponse>();
+        mocks.getDerivedIdentities.mockReturnValueOnce(promise);
+
+        const upgrade = controller.upgradeMoneyAccount();
+        controller.clearState();
+        resolve({ identities: [SFA_IDENTITY] });
+        await upgrade;
+
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+        expect(controller.state.moneyAccounts).toStrictEqual({});
+      });
+    });
+
+    it('lets a new upgrade start instead of joining one that was in flight', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        const first = createDeferredPromise<void>();
+        mocks.upgradeAccount.mockReturnValueOnce(first.promise);
+        await init();
+
+        const staleUpgrade = controller.upgradeMoneyAccount();
+        await flushPromises();
+        controller.clearState();
+        const upgrade = controller.upgradeMoneyAccount();
+        first.resolve();
+        await Promise.all([staleUpgrade, upgrade]);
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(2);
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'sfa',
+          identity: SFA_IDENTITY,
+        });
+      });
+    });
+
+    it('does not forget a new upgrade when one from before it finishes', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        const first = createDeferredPromise<void>();
+        const second = createDeferredPromise<void>();
+        mocks.upgradeAccount
+          .mockReturnValueOnce(first.promise)
+          .mockReturnValueOnce(second.promise);
+        await init();
+
+        const staleUpgrade = controller.upgradeMoneyAccount();
+        await flushPromises();
+        controller.clearState();
+        const upgrade = controller.upgradeMoneyAccount();
+        await flushPromises();
+        first.resolve();
+        await staleUpgrade;
+
+        const joined = controller.upgradeMoneyAccount();
+        second.resolve();
+        await Promise.all([upgrade, joined]);
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('interrupts a migration in flight before its next step, without refetching identities', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        await init();
+        mocks.upgradeSuccessorAccount.mockImplementationOnce(async () => {
+          controller.clearState();
+        });
+
+        await expect(controller.startMigration()).rejects.toThrow(
+          'Money Account migration was interrupted because the state was cleared',
+        );
+        expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+        expect(mocks.startFundsTransfer).not.toHaveBeenCalled();
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(3);
+        expect(controller.state.moneyAccounts).toStrictEqual({});
+      });
+    });
+
+    it('lets a migration start once an interrupted one has settled', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        await init();
+        mocks.upgradeSuccessorAccount.mockImplementationOnce(async () => {
+          controller.clearState();
+        });
+        await expect(controller.startMigration()).rejects.toThrow(
+          'Money Account migration was interrupted because the state was cleared',
+        );
+
+        await controller.startMigration();
+
+        expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it('fetches derived identities again when the remote feature flags refresh without changing', async () => {
       await withController(
         async ({ controller, mocks, init, triggerFlagChange }) => {

@@ -142,7 +142,8 @@ export type MoneyAccountLifecycleControllerStartMigrationAction = {
  * when the wallet is reset. Also discards the derived identities and any
  * identity or registration status request in flight, so nothing from the
  * previous wallet is recorded afterwards, and the next sync fetches
- * identities again.
+ * identities again. An upgrade in flight stops without refetching
+ * identities, and a migration in flight throws before its next step.
  */
 export type MoneyAccountLifecycleControllerClearStateAction = {
   type: `MoneyAccountLifecycleController:clearState`;

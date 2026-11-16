@@ -204,6 +204,15 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #isMigrationInFlight = false;
 
+  /**
+   * Bumped by `clearState`. Upgrades and migrations capture it when they
+   * start and stop once it has moved on, so nothing started before the state
+   * was cleared carries on or records anything afterwards.
+   */
+  #generation = 0;
+
+  #migrationGeneration = 0;
+
   constructor({
     messenger,
     state,
@@ -367,14 +376,19 @@ export class MoneyAccountLifecycleController extends BaseController<
 
     const upgrade = this.#upgradeMoneyAccount(
       moneyAccount.address as Hex,
-    ).finally(() => this.#upgradesInFlight.delete(moneyAccountKey));
+    ).finally(() => {
+      if (this.#upgradesInFlight.get(moneyAccountKey) === upgrade) {
+        this.#upgradesInFlight.delete(moneyAccountKey);
+      }
+    });
     this.#upgradesInFlight.set(moneyAccountKey, upgrade);
     return upgrade;
   }
 
   async #upgradeMoneyAccount(moneyAccountAddress: Hex): Promise<void> {
+    const generation = this.#generation;
     await this.#waitForLatestDerivedIdentities();
-    if (!this.#isReady()) {
+    if (!this.#isCurrent(generation)) {
       return;
     }
 
@@ -388,7 +402,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       'MoneyAccountUpgradeController:upgradeAccount',
       moneyAccountAddress,
     );
-    if (!this.#isReady()) {
+    if (!this.#isCurrent(generation)) {
       return;
     }
 
@@ -505,9 +519,12 @@ export class MoneyAccountLifecycleController extends BaseController<
    * when the wallet is reset. Also discards the derived identities and any
    * identity or registration status request in flight, so nothing from the
    * previous wallet is recorded afterwards, and the next sync fetches
-   * identities again.
+   * identities again. An upgrade in flight stops without refetching
+   * identities, and a migration in flight throws before its next step.
    */
   clearState(): void {
+    this.#generation += 1;
+    this.#upgradesInFlight.clear();
     this.#syncedRemoteFeatureFlags = undefined;
     this.#derivedIdentitiesRequest = undefined;
     this.#isFetchingDerivedIdentities = false;
@@ -518,6 +535,7 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 
   async #startMigration(): Promise<void> {
+    this.#migrationGeneration = this.#generation;
     this.#assertReadyToMigrate();
 
     const moneyAccount = this.messenger.call(
@@ -555,7 +573,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       this.#assertReadyToMigrate();
       await this.#startFundsTransfer(moneyAccountAddress);
     } finally {
-      if (this.#isReady()) {
+      if (this.#isCurrent(this.#migrationGeneration)) {
         this.#fetchDerivedIdentities();
         await this.#waitForLatestDerivedIdentities().catch(() => undefined);
       }
@@ -587,9 +605,18 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 
   #assertReadyToMigrate(): void {
+    if (this.#migrationGeneration !== this.#generation) {
+      throw new Error(
+        'Money Account migration was interrupted because the state was cleared',
+      );
+    }
     if (!this.#isReady()) {
       throw new Error('Money Account migration is not available');
     }
+  }
+
+  #isCurrent(generation: number): boolean {
+    return generation === this.#generation && this.#isReady();
   }
 
   async #moveSubscriptionToSuccessor(
