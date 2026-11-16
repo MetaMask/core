@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "31.2.1",
+  "version": "31.3.0",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "Ethereum",
@@ -61,11 +61,11 @@
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/gas-fee-controller": "^27.1.1",
-    "@metamask/keyring-controller": "^28.2.1",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^38.0.1",
-    "@metamask/ramps-controller": "^29.0.0",
+    "@metamask/ramps-controller": "^30.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/sentinel-api-service": "^2.1.0",
     "@metamask/transaction-controller": "^74.0.0",

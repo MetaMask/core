@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   extractPixDepositInstructions,
+  extractSepaDepositInstructions,
   extractUsBankDepositInstructions,
   mapNeoBankAutorampToRemoteSnapshot,
   NeoBankService,
@@ -356,6 +357,81 @@ describe('NeoBankService', () => {
       expect(
         extractUsBankDepositInstructions([{ ...achRail, bank_name: 7 }]),
       ).toBeNull();
+    });
+  });
+
+  describe('extractSepaDepositInstructions', () => {
+    const sepaRail = {
+      type: 'SEPA',
+      iban: 'DE89370400440532013000',
+      bic: 'DEUTDEFF',
+      beneficiary_name: 'Jane Doe',
+      name: 'Banking Circle S.A. – German Branch',
+      address: 'Maximilianstraße 54, 80538 München',
+      phone: '+352 4015-1',
+    };
+
+    it('returns null for a non-array deposit_rails value', () => {
+      expect(extractSepaDepositInstructions(undefined)).toBeNull();
+      expect(extractSepaDepositInstructions({})).toBeNull();
+    });
+
+    it('reads a full SEPA rail', () => {
+      expect(extractSepaDepositInstructions([sepaRail])).toStrictEqual({
+        iban: 'DE89370400440532013000',
+        bic: 'DEUTDEFF',
+        accountHolder: 'Jane Doe',
+        bankName: 'Banking Circle S.A. – German Branch',
+        bankAddress: 'Maximilianstraße 54, 80538 München',
+      });
+    });
+
+    it('sets only the IBAN when the other fields are missing', () => {
+      expect(
+        extractSepaDepositInstructions([{ type: 'SEPA', iban: 'DE89' }]),
+      ).toStrictEqual({ iban: 'DE89' });
+    });
+
+    it('returns null when the IBAN is missing or empty', () => {
+      expect(extractSepaDepositInstructions([{ type: 'SEPA' }])).toBeNull();
+      expect(
+        extractSepaDepositInstructions([{ ...sepaRail, iban: '' }]),
+      ).toBeNull();
+      expect(
+        extractSepaDepositInstructions([{ ...sepaRail, iban: '   ' }]),
+      ).toBeNull();
+    });
+
+    it('strips whitespace from the IBAN', () => {
+      expect(
+        extractSepaDepositInstructions([
+          { ...sepaRail, iban: 'DE89 3704 0044 0532 0130 00' },
+        ]),
+      ).toStrictEqual({
+        iban: 'DE89370400440532013000',
+        bic: 'DEUTDEFF',
+        accountHolder: 'Jane Doe',
+        bankName: 'Banking Circle S.A. – German Branch',
+        bankAddress: 'Maximilianstraße 54, 80538 München',
+      });
+    });
+
+    it('skips non-object rails and other rail types', () => {
+      expect(
+        extractSepaDepositInstructions([
+          null,
+          'skip',
+          { type: 'Iban', iban: 'GB33BUKB20201555555555' },
+          { type: 'ACH', account_number: '123456789' },
+          sepaRail,
+        ]),
+      ).toStrictEqual({
+        iban: 'DE89370400440532013000',
+        bic: 'DEUTDEFF',
+        accountHolder: 'Jane Doe',
+        bankName: 'Banking Circle S.A. – German Branch',
+        bankAddress: 'Maximilianstraße 54, 80538 München',
+      });
     });
   });
 
@@ -721,14 +797,175 @@ describe('NeoBankService', () => {
       });
     });
 
-    it('returns null when no supported rail is present', async () => {
+    it('returns the SEPA rail when present', async () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramps/ar-1')
         .query(true)
         .reply(200, {
           id: 'ar-1',
           status: 'Approved',
-          deposit_rails: [{ type: 'SEPA', iban: 'DE89' }],
+          deposit_rails: [
+            {
+              type: 'SEPA',
+              iban: 'DE89 3704 0044 0532 0130 00',
+              bic: 'DEUTDEFF',
+              beneficiary_name: 'Jane Doe',
+              name: 'Banking Circle S.A. – German Branch',
+              address: 'Maximilianstraße 54, 80538 München',
+            },
+          ],
+        });
+
+      const { service } = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+        type: 'Sepa',
+        iban: 'DE89370400440532013000',
+        bic: 'DEUTDEFF',
+        accountHolder: 'Jane Doe',
+        bankName: 'Banking Circle S.A. – German Branch',
+        bankAddress: 'Maximilianstraße 54, 80538 München',
+      });
+    });
+
+    it('includes the inbound payment reference on the SEPA rail', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          inbound_payment_reference: 'IR-K7M2QX',
+          deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+        });
+
+      const { service } = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+        type: 'Sepa',
+        iban: 'DE89370400440532013000',
+        paymentReference: 'IR-K7M2QX',
+      });
+    });
+
+    it.each([null, ''] as const)(
+      'omits the inbound payment reference when MoonPay returns %j',
+      async (inboundPaymentReference) => {
+        nock(STAGING_BASE)
+          .get('/neobank/autoramps/ar-1')
+          .query(true)
+          .reply(200, {
+            id: 'ar-1',
+            status: 'Approved',
+            inbound_payment_reference: inboundPaymentReference,
+            deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+          });
+
+        const { service } = createService();
+
+        expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+          type: 'Sepa',
+          iban: 'DE89370400440532013000',
+        });
+      },
+    );
+
+    it.each([true, false] as const)(
+      'includes isThirdParty on the SEPA rail when MoonPay returns %j',
+      async (isThirdParty) => {
+        nock(STAGING_BASE)
+          .get('/neobank/autoramps/ar-1')
+          .query(true)
+          .reply(200, {
+            id: 'ar-1',
+            status: 'Approved',
+            is_third_party: isThirdParty,
+            deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+          });
+
+        const { service } = createService();
+
+        expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+          type: 'Sepa',
+          iban: 'DE89370400440532013000',
+          isThirdParty,
+        });
+      },
+    );
+
+    it('omits isThirdParty when MoonPay does not return it', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+        });
+
+      const { service } = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+        type: 'Sepa',
+        iban: 'DE89370400440532013000',
+      });
+    });
+
+    it('prefers PIX over a SEPA rail', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [
+            { type: 'SEPA', iban: 'DE89370400440532013000' },
+            { type: 'Pix', br_code: '00020126', instruction: 'Pay with PIX' },
+          ],
+        });
+
+      const { service } = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toMatchObject({
+        type: 'Pix',
+      });
+    });
+
+    it('prefers a US bank rail over a SEPA rail', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [
+            { type: 'SEPA', iban: 'DE89370400440532013000' },
+            {
+              type: 'ACH',
+              recipient_name: 'Jane Doe',
+              routing_number: '021000021',
+              account_number: '123456789',
+              bank_name: 'Lead Bank',
+            },
+          ],
+        });
+
+      const { service } = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toMatchObject({
+        type: 'UsBank',
+        rail: 'ACH',
+      });
+    });
+
+    it('returns null when no supported rail is complete', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [{ type: 'Iban' }, { type: 'SEPA', iban: '' }],
         });
 
       const { service } = createService();

@@ -1,6 +1,6 @@
+import { getDefaultAccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
@@ -12,10 +12,18 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
+import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
-import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
+import {
+  createMockMessengers,
+  registerAssetsControllerActions,
+  registerKeyringUnlockMock,
+  registerWalletLifecycleMocks,
+} from './__fixtures__/MockAssetControllerMessenger.js';
+import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
 import {
   AssetsController,
@@ -201,6 +209,8 @@ const [MOCK_DEFAULT_TRACKED_ASSET_ID] =
 const OTHER_ASSET_ID =
   'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 
+type LifecyclePublish = (topic: string, payload?: unknown) => void;
+
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
  * the account tree initialized, then waiting until controller state settles
@@ -208,17 +218,12 @@ const OTHER_ASSET_ID =
  *
  * @param messenger - The root messenger used to publish lifecycle events.
  */
-type LifecyclePublish = (topic: string, payload?: unknown) => void;
-
-async function activateTracking(messenger: RootMessenger): Promise<void> {
-  (messenger as unknown as { publish: LifecyclePublish }).publish(
-    'ClientController:stateChanged',
-    { isUiOpen: true },
-  );
+async function activateTracking(messenger: MockRootMessenger): Promise<void> {
+  messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
   messenger.publish('KeyringController:unlock');
-  (messenger as unknown as { publish: LifecyclePublish }).publish(
+  messenger.publish(
     'AccountTreeController:initialized',
-    {},
+    getDefaultAccountTreeControllerState(),
   );
   await waitUntilStable(() => messenger.call('AssetsController:getState'));
 }
@@ -336,7 +341,7 @@ type WithControllerOptions = {
    * When set, registers RemoteFeatureFlagController:getState so the controller can
    * read feature flags (e.g. `assetsAccountsApiV6` gating the balances endpoint).
    */
-  remoteFeatureFlags?: Record<string, unknown>;
+  remoteFeatureFlags?: FeatureFlags;
   /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
     trace: TraceCallback;
@@ -354,7 +359,7 @@ type WithControllerCallback<ReturnValue> = ({
   getSelectedAccountsMock,
 }: {
   controller: AssetsController;
-  messenger: RootMessenger;
+  messenger: MockRootMessenger;
   getSelectedAccountsMock: Mock<(...args: []) => InternalAccount[]>;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -388,101 +393,44 @@ async function withController<ReturnValue>(
     ...restControllerOptions
   } = controllerOptions;
 
-  // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
-  const messenger: RootMessenger = new Messenger({
-    namespace: MOCK_ANY_NAMESPACE,
-  });
-
-  // Mock AccountsController
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('AccountsController:getSelectedAccount', () =>
-    createMockInternalAccount(),
-  );
-
-  // Mock AccountTreeController
-  let isAccountTreeInitialized = false;
-  messenger.registerActionHandler(
-    'AccountTreeController:isInitialized',
-    () => isAccountTreeInitialized,
-  );
-  messenger.subscribe('AccountTreeController:initialized', () => {
-    isAccountTreeInitialized = true;
-  });
-  messenger.subscribe('AccountTreeController:uninitialized', () => {
-    isAccountTreeInitialized = false;
-  });
   const getSelectedAccountsMock = vi.fn(() => [createMockInternalAccount()]);
-  messenger.registerActionHandler(
-    'AccountTreeController:getAccountsFromSelectedAccountGroup',
-    getSelectedAccountsMock,
-  );
-
-  // Mock NetworkEnablementController
-  messenger.registerActionHandler(
-    'NetworkEnablementController:getState',
-    () => ({
-      enabledNetworkMap: {
-        eip155: {
-          '1': true,
-        },
+  const { rootMessenger: messenger, assetsControllerMessenger } =
+    createMockMessengers({
+      registerCustomRootActions: (rootMessenger) => {
+        registerWalletLifecycleMocks(rootMessenger, {
+          clientControllerState: initialClientControllerState,
+          remoteFeatureFlags,
+        });
+        rootMessenger.registerActionHandler(
+          'AccountsController:getSelectedAccount',
+          () => createMockInternalAccount(),
+        );
+        rootMessenger.registerActionHandler(
+          'AccountTreeController:getAccountsFromSelectedAccountGroup',
+          getSelectedAccountsMock,
+        );
+        rootMessenger.registerActionHandler(
+          'NetworkEnablementController:getState',
+          () => ({
+            enabledNetworkMap: {
+              eip155: { '1': true },
+            } as NetworkEnablementControllerState['enabledNetworkMap'],
+            nativeAssetIdentifiers: { 'eip155:1': 'eip155:1/slip44:60' },
+          }),
+        );
+        rootMessenger.registerActionHandler(
+          'NetworkController:getState',
+          () => ({
+            selectedNetworkClientId: 'mainnet',
+            networkConfigurationsByChainId: {},
+            networksMetadata: {},
+          }),
+        );
       },
-      nativeAssetIdentifiers: {
-        'eip155:1': 'eip155:1/slip44:60',
-      },
-    }),
-  );
-
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('NetworkController:getState', () => ({
-    networkConfigurationsByChainId: {},
-    networksMetadata: {},
-  }));
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-    provider: {},
-  }));
-
-  let clientControllerState = {
-    isUiOpen: initialClientControllerState?.isUiOpen ?? false,
-  };
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler(
-    'ClientController:getState',
-    () => clientControllerState,
-  );
-  messenger.subscribe(
-    'ClientController:stateChanged',
-    (open: boolean) => {
-      clientControllerState = { isUiOpen: open };
-    },
-    clientControllerSelectors.selectIsUiOpen,
-  );
-
-  registerKeyringUnlockMock(messenger);
-
-  (
-    messenger as {
-      registerActionHandler: (a: string, h: () => unknown) => void;
-    }
-  ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-    remoteFeatureFlags,
-    cacheTimestamp: 0,
-  }));
+    });
 
   const controller = new AssetsController({
-    messenger: messenger as unknown as AssetsControllerMessenger,
+    messenger: assetsControllerMessenger,
     state,
     queryApiClient,
     isBasicFunctionality,
@@ -725,99 +673,54 @@ describe('AssetsController', () => {
 
         // Action handlers should be registered
         expect(() => {
-          (messenger as unknown as { call: LifecyclePublish }).call(
-            'AssetsController:getCustomAssets',
-            MOCK_ACCOUNT_ID,
-          );
+          messenger.call('AssetsController:getCustomAssets', MOCK_ACCOUNT_ID);
         }).not.toThrow();
       });
     });
 
     it('accepts accountsApiDataSourceConfig option', () => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
+      const { assetsControllerMessenger } = createMockMessengers({
+        registerCustomRootActions: (rootMessenger): void => {
+          registerAssetsControllerActions(rootMessenger);
+        },
       });
 
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: {},
-          nativeAssetIdentifiers: {},
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-
-      expect(
-        () =>
-          new AssetsController({
-            messenger: messenger as unknown as AssetsControllerMessenger,
-            queryApiClient: createMockQueryApiClient(),
-            subscribeToBasicFunctionalityChange: (): void => {
-              /* no-op */
-            },
-            accountsApiDataSourceConfig: {
-              pollInterval: 15_000,
-              tokenDetectionEnabled: (): boolean => false,
-            },
-          }),
-      ).not.toThrow();
+      expect(() => {
+        const controller = new AssetsController({
+          messenger: assetsControllerMessenger,
+          queryApiClient: createMockQueryApiClient(),
+          subscribeToBasicFunctionalityChange: (): void => {
+            /* no-op */
+          },
+          accountsApiDataSourceConfig: {
+            pollInterval: 15_000,
+            tokenDetectionEnabled: (): boolean => false,
+          },
+        });
+        controller.destroy();
+      }).not.toThrow();
     });
 
     it('accepts priceDataSourceConfig option', () => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
+      const { assetsControllerMessenger } = createMockMessengers({
+        registerCustomRootActions: (rootMessenger): void => {
+          registerAssetsControllerActions(rootMessenger);
+        },
       });
 
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: {},
-          nativeAssetIdentifiers: {},
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-
-      expect(
-        () =>
-          new AssetsController({
-            messenger: messenger as unknown as AssetsControllerMessenger,
-            queryApiClient: createMockQueryApiClient(),
-            subscribeToBasicFunctionalityChange: (): void => {
-              /* no-op */
-            },
-            priceDataSourceConfig: {
-              pollInterval: 120_000,
-            },
-          }),
-      ).not.toThrow();
+      expect(() => {
+        const controller = new AssetsController({
+          messenger: assetsControllerMessenger,
+          queryApiClient: createMockQueryApiClient(),
+          subscribeToBasicFunctionalityChange: (): void => {
+            /* no-op */
+          },
+          priceDataSourceConfig: {
+            pollInterval: 120_000,
+          },
+        });
+        controller.destroy();
+      }).not.toThrow();
     });
 
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
@@ -4349,11 +4252,11 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           // UI must be open and keyring unlocked so AccountActivityDataSource is
           // subscribed and can route balanceUpdated events to the account.
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
           (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
@@ -5081,15 +4984,15 @@ describe('AssetsController', () => {
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5197,15 +5100,15 @@ describe('AssetsController', () => {
           },
         },
         async ({ controller, messenger }) => {
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5259,15 +5162,15 @@ describe('AssetsController', () => {
           },
         },
         async ({ controller, messenger }) => {
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5300,15 +5203,15 @@ describe('AssetsController', () => {
         },
         async ({ controller, messenger }) => {
           // UI must be open, keyring unlocked, and account tree ready
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
           await waitFor(() => {
             const firstInitFetchCalls = traceMock.mock.calls.filter(
@@ -5386,9 +5289,9 @@ describe('AssetsController', () => {
           // #runStartupRefresh(), whose forced getAssets() call is still
           // pending (it never resolves until we call resolveGetAssets below).
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
           await waitFor(() => {
             expect(getAssetsSpy).toHaveBeenCalledTimes(1);
@@ -5398,11 +5301,11 @@ describe('AssetsController', () => {
           // call is still in flight — #activeSubscriptions is still empty at
           // this point, so only the in-flight guard can prevent a duplicate
           // #runStartupRefresh() (and its own forced getAssets() call).
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          messenger.publish(
+            'ClientController:stateChange',
+            { isUiOpen: true },
+            [],
+          );
           await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
           expect(getAssetsSpy).toHaveBeenCalledTimes(1);
@@ -5567,38 +5470,38 @@ describe('AssetsController', () => {
         `${solanaChainId}/slip44:501` as Caip19AssetId;
       const solanaAccountId = 'mock-solana-account-id';
 
-      await withController(async ({ controller, getSelectedAccountsMock }) => {
-        getSelectedAccountsMock.mockReturnValue([
-          createMockInternalAccount({
-            id: solanaAccountId,
-            address: 'FhRuTg4d2vbVbY1AhPWFGaJgMxNWUxUJUcNhjT5rFQZg',
-            type: 'solana:data-account',
-            scopes: [solanaChainId],
-          }),
-        ]);
+      await withController(
+        async ({ controller, messenger, getSelectedAccountsMock }) => {
+          getSelectedAccountsMock.mockReturnValue([
+            createMockInternalAccount({
+              id: solanaAccountId,
+              address: 'FhRuTg4d2vbVbY1AhPWFGaJgMxNWUxUJUcNhjT5rFQZg',
+              type: 'solana:data-account',
+              scopes: [solanaChainId],
+            }),
+          ]);
 
-        (
-          controller.messenger as unknown as { publish: LifecyclePublish }
-        ).publish(
-          'NetworkEnablementController:stateChange',
-          {
-            enabledNetworkMap: {
-              eip155: { '1': true },
-              solana: { [solanaChainId]: true },
+          messenger.publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: {
+                eip155: { '0x1': true },
+                solana: { [solanaChainId]: true },
+              },
+              nativeAssetIdentifiers: {},
             },
-            nativeAssetIdentifiers: {},
-          },
-          [],
-        );
+            [],
+          );
 
-        await waitFor(() => {
-          expect(
-            controller.state.assetsBalance[solanaAccountId]?.[
-              solanaNativeAssetId
-            ],
-          ).toStrictEqual({ amount: '0' });
-        });
-      });
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[solanaAccountId]?.[
+                solanaNativeAssetId
+              ],
+            ).toStrictEqual({ amount: '0' });
+          });
+        },
+      );
     });
 
     it('seeds a Stellar native with zero spendable and reserve metadata when the account has no assets', async () => {
@@ -5607,44 +5510,45 @@ describe('AssetsController', () => {
         `${stellarChainId}/slip44:148` as Caip19AssetId;
       const stellarAccountId = 'mock-stellar-account-id';
 
-      await withController(async ({ controller, getSelectedAccountsMock }) => {
-        getSelectedAccountsMock.mockReturnValue([
-          createMockInternalAccount({
-            id: stellarAccountId,
-            address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-            type: 'stellar:data-account',
-            scopes: [stellarChainId],
-          }),
-        ]);
+      await withController(
+        async ({ controller, messenger, getSelectedAccountsMock }) => {
+          getSelectedAccountsMock.mockReturnValue([
+            createMockInternalAccount({
+              id: stellarAccountId,
+              address:
+                'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+              type: 'stellar:data-account',
+              scopes: [stellarChainId],
+            }),
+          ]);
 
-        (
-          controller.messenger as unknown as { publish: LifecyclePublish }
-        ).publish(
-          'NetworkEnablementController:stateChange',
-          {
-            enabledNetworkMap: {
-              eip155: { '1': true },
-              stellar: { [stellarChainId]: true },
+          messenger.publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: {
+                eip155: { '0x1': true },
+                stellar: { [stellarChainId]: true },
+              },
+              nativeAssetIdentifiers: {},
             },
-            nativeAssetIdentifiers: {},
-          },
-          [],
-        );
+            [],
+          );
 
-        await waitFor(() => {
-          expect(
-            controller.state.assetsBalance[stellarAccountId]?.[
-              stellarNativeAssetId
-            ],
-          ).toStrictEqual({
-            amount: '0',
-            metadata: {
-              minimumReserveBalance: '0',
-              spendableBalance: '0',
-            },
+          await waitFor(() => {
+            expect(
+              controller.state.assetsBalance[stellarAccountId]?.[
+                stellarNativeAssetId
+              ],
+            ).toStrictEqual({
+              amount: '0',
+              metadata: {
+                minimumReserveBalance: '0',
+                spendableBalance: '0',
+              },
+            });
           });
-        });
-      });
+        },
+      );
     });
 
     it('handles network being disabled', async () => {
@@ -5801,11 +5705,11 @@ describe('AssetsController', () => {
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
       try {
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish(
+          'ClientController:stateChange',
+          { isUiOpen: true },
+          [],
+        );
         messenger.publish('KeyringController:unlock');
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:initialized',
@@ -5956,11 +5860,11 @@ describe('AssetsController', () => {
         });
 
       try {
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish(
+          'ClientController:stateChange',
+          { isUiOpen: true },
+          [],
+        );
         messenger.publish('KeyringController:unlock');
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:initialized',
@@ -6045,11 +5949,11 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish(
+          'ClientController:stateChange',
+          { isUiOpen: true },
+          [],
+        );
         messenger.publish('KeyringController:unlock');
         await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
@@ -6592,11 +6496,7 @@ describe('AssetsController', () => {
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
       // Step 1: UI open + unlock — accounts empty, #start() is a no-op
-      (
-        messenger as unknown as {
-          publish: (topic: string, payload?: unknown) => void;
-        }
-      ).publish('ClientController:stateChanged', { isUiOpen: true });
+      messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
       messenger.publish('KeyringController:unlock');
       await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 

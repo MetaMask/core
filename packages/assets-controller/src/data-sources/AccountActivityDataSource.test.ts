@@ -1,27 +1,16 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type {
-  MessengerActions,
-  MessengerEvents,
-  MockAnyNamespace,
-} from '@metamask/messenger';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
+import type { MockRootMessenger } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { waitFor } from '../__fixtures__/test-utils.js';
-import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type { ChainId, Caip19AssetId } from '../types.js';
 import {
   AccountActivityDataSource,
   createAccountActivityDataSource,
 } from './AccountActivityDataSource.js';
-
-type RootMessenger = Messenger<
-  MockAnyNamespace,
-  MessengerActions<AssetsControllerMessenger>,
-  MessengerEvents<AssetsControllerMessenger>
->;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const CHAIN_POLYGON = 'eip155:137' as ChainId;
@@ -103,7 +92,7 @@ type SetupOptions = {
 
 type SetupResult = {
   dataSource: AccountActivityDataSource;
-  rootMessenger: RootMessenger;
+  rootMessenger: MockRootMessenger;
   onAssetsUpdate: Mock;
   onActiveChainsUpdated: Mock;
   triggerBalanceUpdated: (payload: {
@@ -134,35 +123,18 @@ function setup(options: SetupOptions = {}): SetupResult {
     state,
   } = options;
 
-  const rootMessenger: RootMessenger = new Messenger({
-    namespace: MOCK_ANY_NAMESPACE,
+  const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
+    registerCustomRootActions: (messenger) => {
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        () => groupAccounts,
+      );
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        () => selectedAccount as InternalAccount,
+      );
+    },
   });
-
-  const assetsControllerMessenger: AssetsControllerMessenger = new Messenger({
-    namespace: 'AssetsController',
-    parent: rootMessenger,
-  });
-
-  rootMessenger.delegate({
-    messenger: assetsControllerMessenger,
-    actions: [
-      'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      'AccountsController:getSelectedAccount',
-    ],
-    events: [
-      'AccountActivityService:balanceUpdated',
-      'AccountActivityService:statusChanged',
-    ],
-  });
-
-  rootMessenger.registerActionHandler(
-    'AccountTreeController:getAccountsFromSelectedAccountGroup',
-    () => groupAccounts,
-  );
-  rootMessenger.registerActionHandler(
-    'AccountsController:getSelectedAccount',
-    () => selectedAccount as InternalAccount,
-  );
 
   const dataSource = new AccountActivityDataSource({
     messenger: assetsControllerMessenger,
@@ -805,22 +777,8 @@ describe('AccountActivityDataSource', () => {
 
   describe('createAccountActivityDataSource', () => {
     it('returns an AccountActivityDataSource instance', () => {
-      const rootMessenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-      const assetsControllerMessenger: AssetsControllerMessenger =
-        new Messenger({
-          namespace: 'AssetsController',
-          parent: rootMessenger,
-        });
-      rootMessenger.delegate({
-        messenger: assetsControllerMessenger,
-        actions: [],
-        events: [
-          'AccountActivityService:balanceUpdated',
-          'AccountActivityService:statusChanged',
-        ],
-      });
+      const { rootMessenger, assetsControllerMessenger } =
+        createMockMessengers();
 
       const dataSource = createAccountActivityDataSource({
         messenger: assetsControllerMessenger,

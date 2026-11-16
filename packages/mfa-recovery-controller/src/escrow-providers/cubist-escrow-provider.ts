@@ -26,10 +26,11 @@ import {
   verifySignature,
 } from '../crypto.js';
 import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
-import { isMutationReceipt } from '../escrow-utils.js';
+import { isMutationReceipt } from '../receipt-utils.js';
 import type {
   AuthControllerToken,
   GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   GetRecoverySecretResponse,
   Identifier,
   IdentifierAuthorization,
@@ -146,6 +147,28 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       'getIdentifiers',
       { authControllerToken },
       parseIdentifiers,
+    );
+  }
+
+  /**
+   * @param authControllerToken - Approval for the profile to read.
+   * @param mutation - Mutation the receipt must acknowledge.
+   * @returns The receipt, or `null` when the escrow has none for `mutation`,
+   * and the record's current version.
+   */
+  async getMutationReceipt(
+    authControllerToken: AuthControllerToken,
+    mutation: Mutation,
+  ): Promise<GetMutationReceiptResponse> {
+    return await this.#invoke(
+      'getMutationReceipt',
+      {
+        authControllerToken,
+        version: mutation.newVersion,
+        mutationId: mutation.id,
+        requestHash: mutation.requestHash,
+      },
+      parseReceiptResponse,
     );
   }
 
@@ -398,4 +421,17 @@ function parseReceipt(value: unknown): MutationReceipt {
     );
   }
   return value;
+}
+
+function parseReceiptResponse(value: unknown): GetMutationReceiptResponse {
+  if (!is(value, type({ receipt: unknown(), version: min(integer(), 0) }))) {
+    throw new MfaRecoveryError(
+      'Invalid mutation receipt',
+      'escrow_response_invalid',
+    );
+  }
+  return {
+    receipt: value.receipt === null ? null : parseReceipt(value.receipt),
+    version: value.version,
+  };
 }

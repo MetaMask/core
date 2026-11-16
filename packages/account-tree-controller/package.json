@@ -55,7 +55,7 @@
     "@metamask/accounts-controller": "^40.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/keyring-api": "^24.3.0",
-    "@metamask/keyring-controller": "^28.2.1",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
     "@metamask/multichain-account-service": "^14.1.0",
     "@metamask/profile-sync-controller": "^36.1.2",
@@ -70,7 +70,7 @@
   "devDependencies": {
     "@metamask/account-api": "^2.2.0",
     "@metamask/auto-changelog": "^7.1.0",
-    "@metamask/eth-hd-keyring": "^15.0.0",
+    "@metamask/eth-hd-keyring": "^16.0.0",
     "@metamask/providers": "^22.1.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.3",
