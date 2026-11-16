@@ -4258,9 +4258,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           messenger.publish('AccountActivityService:balanceUpdated', {
@@ -5375,10 +5375,9 @@ describe('AssetsController', () => {
         // Action handlers should be unregistered
         expect(() => {
           // The handler is unregistered, so calling it should throw
-          (messenger as unknown as { call: LifecyclePublish }).call(
-            'AssetsController:getAssets',
-            createMockInternalAccount(),
-          );
+          messenger
+            .call('AssetsController:getAssets', [createMockInternalAccount()])
+            .catch(() => undefined);
         }).toThrow(
           'A handler for AssetsController:getAssets has not been registered',
         );
