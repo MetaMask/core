@@ -1424,9 +1424,9 @@ export class SeedlessOnboardingController<
       }
 
       // use noble lib to deserialize and compare curve point
-      const isExpiredPwd = !secp256k1.ProjectivePoint.fromHex(
+      const isExpiredPwd = !secp256k1.Point.fromHex(
         currentDeviceAuthPubKey,
-      ).equals(secp256k1.ProjectivePoint.fromHex(globalAuthPubKey));
+      ).equals(secp256k1.Point.fromHex(globalAuthPubKey));
       // Cache the result in state
       this.update((state) => {
         state.passwordOutdatedCache = { isExpiredPwd, timestamp: Date.now() };

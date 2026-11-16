@@ -14,7 +14,7 @@ import {
   hexToBytes,
   stringToBytes,
 } from '@metamask/utils';
-import { bytesToNumberBE } from '@noble/curves/abstract/utils';
+import { bytesToNumberBE } from '@noble/curves/utils';
 import { secp256k1 } from '@noble/curves/secp256k1';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
@@ -121,8 +121,8 @@ export function pubKeysEqual(
   a: SEC1EncodedPublicKey,
   b: SEC1EncodedPublicKey,
 ): boolean {
-  return secp256k1.ProjectivePoint.fromHex(a).equals(
-    secp256k1.ProjectivePoint.fromHex(b),
+  return secp256k1.Point.fromHex(a).equals(
+    secp256k1.Point.fromHex(b),
   );
 }
 
