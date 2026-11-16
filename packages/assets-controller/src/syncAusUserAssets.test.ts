@@ -25,8 +25,6 @@ const OTHER_ASSET_ID =
   'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 const MALFORMED_ASSET_ID = 'not-a-caip19-asset-id' as Caip19AssetId;
 
-const IMPORT_TOKENS = 'AuthenticatedUserStorageService:importTokens';
-
 type RecordedCall = Mock<
   (action: string, ...params: unknown[]) => Promise<unknown>
 >;
