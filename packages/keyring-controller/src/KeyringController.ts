@@ -52,7 +52,12 @@ import type {
   TypedMessageParams,
 } from './types.js';
 import { VaultTransaction } from './VaultTransaction.js';
-import type { VaultOperations, VaultSession } from './VaultTransaction.js';
+import type {
+  VaultOperations,
+  VaultPersistPolicy,
+  VaultSession,
+  WalletTransactionScope,
+} from './VaultTransaction.js';
 
 /**
  * `ethereumjs-wallet` is CommonJS, and Node cannot reliably detect its named
@@ -372,14 +377,6 @@ export type CachedEncryptionKey = {
   salt: string;
 };
 
-/**
- * State/data that can be updated during a `withKeyring` operation.
- */
-type SessionState = {
-  keyrings: SerializedKeyring[];
-  encryptionKey?: CachedEncryptionKey;
-};
-
 export type EncryptionResultConstraint<SupportedKeyMetadata> = {
   salt?: string;
   keyMetadata?: SupportedKeyMetadata;
@@ -608,22 +605,6 @@ type MutuallyExclusiveCallback<Result> = ({
 }) => Promise<Result>;
 
 /**
- * A function executed within a mutually exclusive lock and a wallet-scoped
- * vault transaction, with a mutex releaser and the transaction in its
- * option bag.
- *
- * @param releaseLock - A function to release the lock.
- * @param transaction - The vault transaction the function runs in.
- */
-type RollbackCallback<Result> = ({
-  releaseLock,
-  transaction,
-}: {
-  releaseLock: MutexInterface.Releaser;
-  transaction: VaultTransaction;
-}) => Promise<Result>;
-
-/**
  * Get builder function for `Keyring`
  *
  * Returns a builder function for `Keyring` with a `type` property.
@@ -806,6 +787,16 @@ function normalize(address: string): string | undefined {
 }
 
 /**
+ * The standard wallet persist policy: the vault is written when the
+ * session state changed since the transaction began.
+ *
+ * @param hasChanged - Lazily checks whether the session state changed.
+ * @returns Whether the vault should be written.
+ */
+const persistWhenSessionChanged: VaultPersistPolicy = (hasChanged) =>
+  hasChanged();
+
+/**
  * Controller responsible for establishing and managing user identity.
  *
  * This class is a wrapper around the `eth-keyring-controller` package. The
@@ -933,36 +924,39 @@ export class KeyringController<
 
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
-    return this.#persistOrRollback(async () => {
-      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-        | EthKeyring
-        | undefined;
-      if (!primaryKeyring) {
-        throw new KeyringControllerError('No HD keyring found');
-      }
-      const oldAccounts = await primaryKeyring.getAccounts();
-
-      if (accountCount && oldAccounts.length !== accountCount) {
-        if (accountCount > oldAccounts.length) {
-          throw new KeyringControllerError('Account out of sequence');
+    return this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async () => {
+        const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+          | EthKeyring
+          | undefined;
+        if (!primaryKeyring) {
+          throw new KeyringControllerError('No HD keyring found');
         }
-        // we return the account already existing at index `accountCount`
-        const existingAccount = oldAccounts[accountCount];
+        const oldAccounts = await primaryKeyring.getAccounts();
 
-        if (!existingAccount) {
-          throw new KeyringControllerError(
-            `Can't find account at index ${accountCount}`,
-          );
+        if (accountCount && oldAccounts.length !== accountCount) {
+          if (accountCount > oldAccounts.length) {
+            throw new KeyringControllerError('Account out of sequence');
+          }
+          // we return the account already existing at index `accountCount`
+          const existingAccount = oldAccounts[accountCount];
+
+          if (!existingAccount) {
+            throw new KeyringControllerError(
+              `Can't find account at index ${accountCount}`,
+            );
+          }
+
+          return existingAccount;
         }
 
-        return existingAccount;
-      }
+        const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
+        await this.#verifySeedPhrase();
 
-      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
-      await this.#verifySeedPhrase();
-
-      return addedAccountAddress;
-    });
+        return addedAccountAddress;
+      },
+    );
   }
 
   /**
@@ -984,29 +978,32 @@ export class KeyringController<
 
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
-    return this.#persistOrRollback(async () => {
-      const oldAccounts = await this.#getAccountsFromKeyrings();
+    return this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async () => {
+        const oldAccounts = await this.#getAccountsFromKeyrings();
 
-      if (accountCount && oldAccounts.length !== accountCount) {
-        if (accountCount > oldAccounts.length) {
-          throw new KeyringControllerError('Account out of sequence');
+        if (accountCount && oldAccounts.length !== accountCount) {
+          if (accountCount > oldAccounts.length) {
+            throw new KeyringControllerError('Account out of sequence');
+          }
+
+          const existingAccount = oldAccounts[accountCount];
+          assertIsStrictHexString(existingAccount);
+
+          return existingAccount;
         }
 
-        const existingAccount = oldAccounts[accountCount];
-        assertIsStrictHexString(existingAccount);
+        await keyring.addAccounts(1);
 
-        return existingAccount;
-      }
+        const addedAccountAddress = (
+          await this.#getAccountsFromKeyrings()
+        ).find((selectedAddress) => !oldAccounts.includes(selectedAddress));
+        assertIsStrictHexString(addedAccountAddress);
 
-      await keyring.addAccounts(1);
-
-      const addedAccountAddress = (await this.#getAccountsFromKeyrings()).find(
-        (selectedAddress) => !oldAccounts.includes(selectedAddress),
-      );
-      assertIsStrictHexString(addedAccountAddress);
-
-      return addedAccountAddress;
-    });
+        return addedAccountAddress;
+      },
+    );
   }
 
   /**
@@ -1022,17 +1019,20 @@ export class KeyringController<
     password: string,
     seed: Uint8Array,
   ): Promise<void> {
-    return this.#persistOrRollback(async ({ transaction }) => {
-      assertIsValidPassword(password);
+    return this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async (transaction) => {
+        assertIsValidPassword(password);
 
-      await this.#createNewVaultWithKeyring(transaction, password, {
-        type: KeyringTypes.hd,
-        opts: {
-          mnemonic: seed,
-          numberOfAccounts: 1,
-        },
-      });
-    });
+        await this.#createNewVaultWithKeyring(transaction, password, {
+          type: KeyringTypes.hd,
+          opts: {
+            mnemonic: seed,
+            numberOfAccounts: 1,
+          },
+        });
+      },
+    );
   }
 
   /**
@@ -1045,14 +1045,17 @@ export class KeyringController<
    * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndKeychain(password: string): Promise<void> {
-    return this.#persistOrRollback(async ({ transaction }) => {
-      const accounts = await this.#getAccountsFromKeyrings();
-      if (!accounts.length) {
-        await this.#createNewVaultWithKeyring(transaction, password, {
-          type: KeyringTypes.hd,
-        });
-      }
-    });
+    return this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async (transaction) => {
+        const accounts = await this.#getAccountsFromKeyrings();
+        if (!accounts.length) {
+          await this.#createNewVaultWithKeyring(transaction, password, {
+            type: KeyringTypes.hd,
+          });
+        }
+      },
+    );
   }
 
   /**
@@ -1072,7 +1075,10 @@ export class KeyringController<
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
     return this.#getKeyringMetadata(
-      await this.#persistOrRollback(async () => this.#newKeyring(type, opts)),
+      await this.#withTransaction(
+        () => this.#beginWalletTransaction(persistWhenSessionChanged),
+        async () => this.#newKeyring(type, opts),
+      ),
     );
   }
 
@@ -1360,12 +1366,15 @@ export class KeyringController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    return this.#withRollback(async () => {
-      this.#assertIsUnlocked();
+    return this.#withTransaction(
+      // The deprecated method's contract is an unconditional vault write.
+      () => this.#beginWalletTransaction(() => true),
+      async () => {
+        this.#assertIsUnlocked();
 
-      await this.#updateVault();
-      return true;
-    });
+        return true;
+      },
+    );
   }
 
   /**
@@ -1386,61 +1395,64 @@ export class KeyringController<
 
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
-    return this.#persistOrRollback(async () => {
-      let privateKey;
-      switch (strategy) {
-        case AccountImportStrategy.privateKey: {
-          const [importedKey] = args;
-          if (!importedKey) {
-            throw new KeyringControllerError('Cannot import an empty key.');
-          }
-          const prefixed = add0x(importedKey);
+    return this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async () => {
+        let privateKey;
+        switch (strategy) {
+          case AccountImportStrategy.privateKey: {
+            const [importedKey] = args;
+            if (!importedKey) {
+              throw new KeyringControllerError('Cannot import an empty key.');
+            }
+            const prefixed = add0x(importedKey);
 
-          let bufferedPrivateKey;
-          try {
-            bufferedPrivateKey = hexToBytes(prefixed);
-          } catch {
+            let bufferedPrivateKey;
+            try {
+              bufferedPrivateKey = hexToBytes(prefixed);
+            } catch {
+              throw new KeyringControllerError(
+                'Cannot import invalid private key.',
+              );
+            }
+
+            if (
+              !isValidPrivate(bufferedPrivateKey) ||
+              // ensures that the key is 64 bytes long
+              getBinarySize(prefixed) !== 64 + '0x'.length
+            ) {
+              throw new KeyringControllerError(
+                'Cannot import invalid private key.',
+              );
+            }
+
+            privateKey = remove0x(prefixed);
+            break;
+          }
+          case AccountImportStrategy.json: {
+            let wallet;
+            const [input, password] = args;
+            try {
+              wallet = importers.fromEtherWallet(input, password);
+            } catch {
+              // @ts-expect-error: Wallet.fromV3 does not exist?
+              wallet = wallet ?? (await Wallet.fromV3(input, password, true));
+            }
+            privateKey = bytesToHex(new Uint8Array(wallet.getPrivateKey()));
+            break;
+          }
+          default:
             throw new KeyringControllerError(
-              'Cannot import invalid private key.',
+              `Unexpected import strategy: '${String(strategy)}'`,
             );
-          }
-
-          if (
-            !isValidPrivate(bufferedPrivateKey) ||
-            // ensures that the key is 64 bytes long
-            getBinarySize(prefixed) !== 64 + '0x'.length
-          ) {
-            throw new KeyringControllerError(
-              'Cannot import invalid private key.',
-            );
-          }
-
-          privateKey = remove0x(prefixed);
-          break;
         }
-        case AccountImportStrategy.json: {
-          let wallet;
-          const [input, password] = args;
-          try {
-            wallet = importers.fromEtherWallet(input, password);
-          } catch {
-            // @ts-expect-error: Wallet.fromV3 does not exist?
-            wallet = wallet ?? (await Wallet.fromV3(input, password, true));
-          }
-          privateKey = bytesToHex(new Uint8Array(wallet.getPrivateKey()));
-          break;
-        }
-        default:
-          throw new KeyringControllerError(
-            `Unexpected import strategy: '${String(strategy)}'`,
-          );
-      }
-      const newKeyring = await this.#newKeyring(KeyringTypes.simple, [
-        privateKey,
-      ]);
-      const accounts = await newKeyring.getAccounts();
-      return accounts[0];
-    });
+        const newKeyring = await this.#newKeyring(KeyringTypes.simple, [
+          privateKey,
+        ]);
+        const accounts = await newKeyring.getAccounts();
+        return accounts[0];
+      },
+    );
   }
 
   /**
@@ -1455,48 +1467,51 @@ export class KeyringController<
 
     // TODO: Migrate this to `#withKeyringOrRollback` so that only the
     // operated keyring is snapshotted and diffed.
-    await this.#persistOrRollback(async ({ transaction }) => {
-      const keyringIndex = await this.#findKeyringIndexForAccount(address);
+    await this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async (transaction) => {
+        const keyringIndex = await this.#findKeyringIndexForAccount(address);
 
-      if (keyringIndex === -1) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.NoKeyring,
-        );
-      }
+        if (keyringIndex === -1) {
+          throw new KeyringControllerError(
+            KeyringControllerErrorMessage.NoKeyring,
+          );
+        }
 
-      const entry = this.#keyrings[keyringIndex];
-      const { keyring } = entry;
+        const entry = this.#keyrings[keyringIndex];
+        const { keyring } = entry;
 
-      const isPrimaryKeyring = keyringIndex === 0;
-      const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
+        const isPrimaryKeyring = keyringIndex === 0;
+        const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
 
-      // Primary keyring should never be removed, so we need to keep at least one account in it
-      if (isPrimaryKeyring && shouldRemoveKeyring) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.LastAccountInPrimaryKeyring,
-        );
-      }
+        // Primary keyring should never be removed, so we need to keep at least one account in it
+        if (isPrimaryKeyring && shouldRemoveKeyring) {
+          throw new KeyringControllerError(
+            KeyringControllerErrorMessage.LastAccountInPrimaryKeyring,
+          );
+        }
 
-      // Not all the keyrings support this, so we have to check
-      if (!keyring.removeAccount) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.UnsupportedRemoveAccount,
-        );
-      }
+        // Not all the keyrings support this, so we have to check
+        if (!keyring.removeAccount) {
+          throw new KeyringControllerError(
+            KeyringControllerErrorMessage.UnsupportedRemoveAccount,
+          );
+        }
 
-      // FIXME #1: We do cast to `Hex` to make the type checker happy here, and
-      // because `Keyring<State>.removeAccount` requires address to be `Hex`.
-      // Those types would need to be updated for a full non-EVM support.
-      //
-      // FIXME #2: The `removeAccount` method of snaps keyring is async. We have
-      // to update the interface of the other keyrings to be async as well.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await keyring.removeAccount(address as Hex);
+        // FIXME #1: We do cast to `Hex` to make the type checker happy here, and
+        // because `Keyring<State>.removeAccount` requires address to be `Hex`.
+        // Those types would need to be updated for a full non-EVM support.
+        //
+        // FIXME #2: The `removeAccount` method of snaps keyring is async. We have
+        // to update the interface of the other keyrings to be async as well.
+        // eslint-disable-next-line @typescript-eslint/await-thenable
+        await keyring.removeAccount(address as Hex);
 
-      if (shouldRemoveKeyring) {
-        await this.#removeKeyringEntry(transaction, entry);
-      }
-    });
+        if (shouldRemoveKeyring) {
+          await transaction.remove(entry);
+        }
+      },
+    );
 
     this.messenger.publish(`${name}:accountRemoved`, address);
   }
@@ -1509,19 +1524,24 @@ export class KeyringController<
   async setLocked(): Promise<void> {
     this.#assertIsUnlocked();
 
-    return this.#withRollback(async ({ transaction }) => {
-      this.#encryptionKey = undefined;
-      await this.#clearKeyrings(transaction);
+    return this.#withTransaction(
+      // Locking clears the session without rewriting the vault, and the
+      // encryption key is gone by commit time anyway.
+      () => this.#beginWalletTransaction(() => false),
+      async (transaction) => {
+        this.#encryptionKey = undefined;
+        await this.#clearKeyrings(transaction);
 
-      this.update((state) => {
-        state.isUnlocked = false;
-        state.keyrings = [];
-        delete state.encryptionKey;
-        delete state.encryptionSalt;
-      });
+        this.update((state) => {
+          state.isUnlocked = false;
+          state.keyrings = [];
+          delete state.encryptionKey;
+          delete state.encryptionSalt;
+        });
 
-      this.messenger.publish(`${name}:lock`);
-    });
+        this.messenger.publish(`${name}:lock`);
+      },
+    );
   }
 
   /**
@@ -1783,12 +1803,15 @@ export class KeyringController<
   changePassword(password: string): Promise<void> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async () => {
-      assertIsValidPassword(password);
-      await this.#deriveAndSetEncryptionKey(password, {
-        ignoreExistingVault: true,
-      });
-    });
+    return this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async () => {
+        assertIsValidPassword(password);
+        await this.#deriveAndSetEncryptionKey(password, {
+          ignoreExistingVault: true,
+        });
+      },
+    );
   }
 
   /**
@@ -1804,23 +1827,30 @@ export class KeyringController<
     encryptionKey: string,
     encryptionSalt?: string,
   ): Promise<void> {
-    const { hasChanged } = await this.#withRollback(async ({ transaction }) => {
-      const result = await this.#unlockKeyrings(transaction, {
-        encryptionKey,
-        encryptionSalt,
-      });
-      this.#setUnlocked();
-      return result;
-    });
+    const { hasChanged } = await this.#withTransaction(
+      // The unlock transaction is a rollback safety net: whether to
+      // upgrade the vault is the next transaction's decision, on the
+      // restoration's own change flag.
+      () => this.#beginWalletTransaction(() => false),
+      async (transaction) => {
+        const result = await this.#unlockKeyrings(transaction, {
+          encryptionKey,
+          encryptionSalt,
+        });
+        this.#setUnlocked();
+        return result;
+      },
+    );
 
     try {
       // if new metadata has been generated during login, we
       // can attempt to upgrade the vault.
-      await this.#withRollback(async () => {
-        if (hasChanged) {
-          await this.#updateVault();
-        }
-      });
+      await this.#withTransaction(
+        // The criterion is the restoration's change flag from the unlock
+        // above — not this transaction's own session diff.
+        () => this.#beginWalletTransaction(() => hasChanged),
+        async () => undefined,
+      );
     } catch (error) {
       // We don't want to throw an error if the upgrade fails
       // since the controller is already unlocked.
@@ -1850,27 +1880,42 @@ export class KeyringController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    const { hasChanged } = await this.#withRollback(async ({ transaction }) => {
-      const result = await this.#unlockKeyrings(transaction, { password });
-      this.#setUnlocked();
-      return result;
-    });
+    const { hasChanged } = await this.#withTransaction(
+      // The unlock transaction is a rollback safety net: whether to
+      // upgrade the vault is the next transaction's decision.
+      () => this.#beginWalletTransaction(() => false),
+      async (transaction) => {
+        const result = await this.#unlockKeyrings(transaction, { password });
+        this.#setUnlocked();
+        return result;
+      },
+    );
 
     try {
       // If there are stronger encryption params available, or
       // if the keyring state has changed during deserialization, we
       // can attempt to upgrade the vault.
-      await this.#withRollback(async () => {
-        if (hasChanged || this.#isNewEncryptionAvailable()) {
-          await this.#deriveAndSetEncryptionKey(password, {
-            // If the vault is being upgraded, we want to ignore the metadata
-            // that is already in the vault, so we can effectively
-            // re-encrypt the vault with the new encryption config.
-            ignoreExistingVault: true,
-          });
-          await this.#updateVault();
-        }
-      });
+      await this.#withTransaction(
+        // The criterion combines the restoration's change flag from the
+        // unlock above — not this transaction's own session diff — with
+        // the available encryption params, and gates the re-derivation
+        // of the encryption key on it.
+        () =>
+          this.#beginWalletTransaction(async () => {
+            if (hasChanged || this.#isNewEncryptionAvailable()) {
+              // If the vault is being upgraded, we want to ignore the
+              // metadata that is already in the vault, so we can
+              // effectively re-encrypt the vault with the new encryption
+              // config.
+              await this.#deriveAndSetEncryptionKey(password, {
+                ignoreExistingVault: true,
+              });
+              return true;
+            }
+            return false;
+          }),
+        async () => undefined,
+      );
     } catch (error) {
       // We don't want to throw an error if the upgrade fails
       // since the controller is already unlocked.
@@ -2240,98 +2285,101 @@ export class KeyringController<
   ): Promise<CallbackResult> {
     this.#assertIsUnlocked();
 
-    return this.#persistOrRollback(async ({ transaction }) => {
-      // Track created and removed keyrings during the operation execution.
-      const createdEntries = new Set<KeyringEntry>();
-      const removedEntries = new Set<KeyringEntry>();
+    return this.#withTransaction(
+      () => this.#beginWalletTransaction(persistWhenSessionChanged),
+      async (transaction) => {
+        // Track created and removed keyrings during the operation execution.
+        const createdEntries = new Set<KeyringEntry>();
+        const removedEntries = new Set<KeyringEntry>();
 
-      // Copy of the current keyrings that is mutated during the operation execution.
-      const restrictedEntries = [...this.#keyrings];
+        // Copy of the current keyrings that is mutated during the operation execution.
+        const restrictedEntries = [...this.#keyrings];
 
-      // The restricted controller proxies the current keyrings and allows staging
-      // mutations that are only applied to the real keyrings if the operation
-      // completes successfully. This allows us to have a single source of truth
-      // for the keyrings during the operation execution, and to automatically
-      // roll back any changes if an error is thrown.
-      const restrictedController: RestrictedController = {
-        // We freeze the array to prevent direct mutations, but the keyring instances
-        // themselves are not frozen, allowing safe read-only access.
-        get keyrings() {
-          return Object.freeze([...restrictedEntries]);
-        },
+        // The restricted controller proxies the current keyrings and allows staging
+        // mutations that are only applied to the real keyrings if the operation
+        // completes successfully. This allows us to have a single source of truth
+        // for the keyrings during the operation execution, and to automatically
+        // roll back any changes if an error is thrown.
+        const restrictedController: RestrictedController = {
+          // We freeze the array to prevent direct mutations, but the keyring instances
+          // themselves are not frozen, allowing safe read-only access.
+          get keyrings() {
+            return Object.freeze([...restrictedEntries]);
+          },
 
-        // Method to create a new keyring and adds it to the restricted entries.
-        addNewKeyring: async (type: string, opts?: unknown) => {
-          const entry = await this.#createKeyring(type, opts);
+          // Method to create a new keyring and adds it to the restricted entries.
+          addNewKeyring: async (type: string, opts?: unknown) => {
+            const entry = await this.#createKeyring(type, opts);
 
-          restrictedEntries.push(entry);
-          createdEntries.add(entry);
+            restrictedEntries.push(entry);
+            createdEntries.add(entry);
 
-          return entry;
-        },
+            return entry;
+          },
 
-        // Method to remove a keyring from the restricted entries.
-        removeKeyring: async (id: string) => {
-          const index = restrictedEntries.findIndex(
-            (entry) => entry.metadata.id === id,
-          );
-          if (index === -1) {
-            throw new KeyringControllerError(
-              KeyringControllerErrorMessage.KeyringNotFound,
+          // Method to remove a keyring from the restricted entries.
+          removeKeyring: async (id: string) => {
+            const index = restrictedEntries.findIndex(
+              (entry) => entry.metadata.id === id,
             );
-          }
+            if (index === -1) {
+              throw new KeyringControllerError(
+                KeyringControllerErrorMessage.KeyringNotFound,
+              );
+            }
 
-          this.#assertNotRemovingPrimaryKeyring(
-            restrictedEntries[index],
-            restrictedEntries,
+            this.#assertNotRemovingPrimaryKeyring(
+              restrictedEntries[index],
+              restrictedEntries,
+            );
+
+            const [removed] = restrictedEntries.splice(index, 1) as [
+              KeyringEntry,
+            ];
+            removedEntries.add(removed);
+          },
+        };
+
+        const destroyKeyrings = async (
+          entries: Iterable<KeyringEntry>,
+        ): Promise<void> => {
+          await Promise.all(
+            [...entries].map((entry) => transaction.destroy(entry)),
           );
+        };
 
-          const [removed] = restrictedEntries.splice(index, 1) as [
-            KeyringEntry,
-          ];
-          removedEntries.add(removed);
-        },
-      };
+        let result: CallbackResult;
+        try {
+          result = await operation(restrictedController);
+        } catch (error) {
+          await destroyKeyrings(createdEntries);
 
-      const destroyKeyrings = async (
-        entries: Iterable<KeyringEntry>,
-      ): Promise<void> => {
-        await Promise.all(
-          [...entries].map((entry) => transaction.destroy(entry)),
-        );
-      };
-
-      let result: CallbackResult;
-      try {
-        result = await operation(restrictedController);
-      } catch (error) {
-        await destroyKeyrings(createdEntries);
-
-        throw error;
-      }
-
-      await destroyKeyrings(removedEntries);
-
-      // We update the real keyrings only after the operation completes successfully, so that
-      // they will be persisted in the vault.
-      this.#keyrings = restrictedEntries;
-
-      // As usual, we want to prevent returning direct references to keyring instances, so we check
-      // the result for any unsafe direct access before returning.
-      for (const { keyring, keyringV2 } of [
-        ...this.#keyrings,
-        // We also check for keyrings that got removed during the operation, since the result could
-        // still have references to them.
-        ...removedEntries,
-      ]) {
-        this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
-        if (keyringV2) {
-          this.#assertNoUnsafeDirectKeyringAccess(result, keyringV2);
+          throw error;
         }
-      }
 
-      return result;
-    });
+        await destroyKeyrings(removedEntries);
+
+        // We update the real keyrings only after the operation completes successfully, so that
+        // they will be persisted in the vault.
+        this.#keyrings = restrictedEntries;
+
+        // As usual, we want to prevent returning direct references to keyring instances, so we check
+        // the result for any unsafe direct access before returning.
+        for (const { keyring, keyringV2 } of [
+          ...this.#keyrings,
+          // We also check for keyrings that got removed during the operation, since the result could
+          // still have references to them.
+          ...removedEntries,
+        ]) {
+          this.#assertNoUnsafeDirectKeyringAccess(result, keyring);
+          if (keyringV2) {
+            this.#assertNoUnsafeDirectKeyringAccess(result, keyringV2);
+          }
+        }
+
+        return result;
+      },
+    );
   }
 
   /**
@@ -2703,19 +2751,6 @@ export class KeyringController<
     serializedKeyrings.push(...this.#unsupportedKeyrings);
 
     return serializedKeyrings;
-  }
-
-  /**
-   * Get a snapshot of session data held by instance variables.
-   *
-   * @returns An object with serialized keyrings, keyrings metadata,
-   * and the user password.
-   */
-  async #getSessionState(): Promise<SessionState> {
-    return {
-      keyrings: await this.#getSerializedKeyrings(),
-      encryptionKey: this.#encryptionKey,
-    };
   }
 
   /**
@@ -3099,26 +3134,6 @@ export class KeyringController<
   }
 
   /**
-   * Remove the given keyring entry from the keyrings, destroying its
-   * instances. A no-op for an entry that is not registered anymore: a
-   * missing entry must not fall back to deleting the last keyring
-   * (`splice(-1, 1)`).
-   *
-   * @param transaction - The transaction removing the entry.
-   * @param entry - The keyring entry to remove.
-   */
-  async #removeKeyringEntry(
-    transaction: VaultTransaction,
-    entry: KeyringEntry,
-  ): Promise<void> {
-    const index = this.#keyrings.indexOf(entry);
-    if (index !== -1) {
-      this.#keyrings.splice(index, 1);
-      await transaction.destroy(entry);
-    }
-  }
-
-  /**
    * Assert that there are no duplicate accounts in the keyrings.
    *
    * @param additionalKeyrings - Additional keyrings to include in the check.
@@ -3162,31 +3177,6 @@ export class KeyringController<
   }
 
   /**
-   * Execute the given function after acquiring the controller lock
-   * and save the vault to state after it (only if needed), or rollback to their
-   * previous state in case of error.
-   *
-   * @param callback - The function to execute.
-   * @returns The result of the function.
-   */
-  async #persistOrRollback<Result>(
-    callback: RollbackCallback<Result>,
-  ): Promise<Result> {
-    return this.#withRollback(async ({ releaseLock, transaction }) => {
-      const oldState = JSON.stringify(await this.#getSessionState());
-      const callbackResult = await callback({ releaseLock, transaction });
-      const newState = JSON.stringify(await this.#getSessionState());
-
-      // State is committed only if the operation is successful and need to trigger a vault update.
-      if (oldState !== newState) {
-        await this.#updateVault();
-      }
-
-      return callbackResult;
-    });
-  }
-
-  /**
    * Execute a transaction that operates on a single keyring entry, selected
    * (and possibly created) before the transaction starts. Only that keyring
    * is snapshotted, diffed, persisted, and rolled back; the other keyrings
@@ -3195,13 +3185,13 @@ export class KeyringController<
    *
    * If the operation drains the operated keyring of all its accounts, the
    * keyring is removed and destroyed (mirroring `removeAccount`), unless it
-   * is the primary keyring.
+   * is the primary keyring. A setup failure — selection, creation, or
+   * validation — never triggers a rollback; see
+   * `#beginKeyringTransaction`.
    *
    * @param options - Transaction options.
    * @param options.v2 - Whether the transaction operates on the keyring's
-   *   V2 adapter. The selected or created entry must then have one:
-   *   validated before any of the keyring's accounts are read, so that the
-   *   missing adapter takes precedence over keyring-level errors.
+   *   V2 adapter. The selected or created entry must then have one.
    * @param select - Selects the keyring entry to operate on, if any.
    * @param create - Creates the keyring entry to operate on when selection
    *   found nothing, if needed.
@@ -3214,35 +3204,9 @@ export class KeyringController<
     create: () => Promise<KeyringEntry | undefined>,
     run: (entry: KeyringEntry) => Promise<Result>,
   ): Promise<Result> {
-    return this.#withControllerLock(async () => {
-      const selected = await select();
-      const entry = selected ?? (await create());
-
-      if (!entry) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringNotFound,
-        );
-      }
-
-      if (v2 && !entry.keyringV2) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringV2NotSupported,
-        );
-      }
-
-      // The transaction owns the operated keyring, and snapshots it unless
-      // it created it. The snapshot is taken before the transaction
-      // starts: a failure here leaves the controller untouched, and must
-      // not be mistaken for a rollback with no snapshot, which would
-      // destroy a pre-existing keyring.
-      const transaction = new VaultTransaction(
-        { type: 'keyring', entry, created: !selected },
-        this.#vaultSession(),
-        this.#vaultOperations(),
-      );
-      await transaction.begin();
-
-      try {
+    return this.#withTransaction(
+      () => this.#beginKeyringTransaction({ v2 }, select, create),
+      async (transaction, entry) => {
         // The drain cleanup below can only fire when the wallet holds
         // other keyrings: the bracketing account reads are skipped
         // entirely otherwise, so single-keyring wallets make no extra
@@ -3264,22 +3228,66 @@ export class KeyringController<
           isEmpty &&
           !this.#isPrimaryKeyring(entry, this.#keyrings)
         ) {
-          await this.#removeKeyringEntry(transaction, entry);
+          await transaction.remove(entry);
         }
 
-        // The vault is updated only if the operated keyring changed.
-        if (await transaction.hasChanged()) {
-          await this.#updateVault();
-        }
-
+        // The vault is updated by the commit, only if the operated keyring
+        // changed.
         return result;
-      } catch (error) {
-        // Rollback to the pre-operation state.
-        await transaction.rollback();
+      },
+    );
+  }
 
-        throw error;
-      }
-    });
+  /**
+   * Begin a keyring-scoped transaction: select, or create, the entry to
+   * operate on, validate it, and snapshot the operated keyring.
+   *
+   * Everything here runs before the transaction starts, so a failure
+   * leaves the controller untouched and never triggers a rollback: the
+   * rollback of an entry without a snapshot would misread it as created
+   * by the transaction, destroying a pre-existing keyring. The V2
+   * validation happens before any of the keyring's accounts are read, so
+   * that the missing adapter takes precedence over keyring-level errors.
+   *
+   * @param options - Transaction options.
+   * @param options.v2 - Whether the transaction operates on the keyring's
+   *   V2 adapter.
+   * @param select - Selects the keyring entry to operate on, if any.
+   * @param create - Creates the keyring entry to operate on when selection
+   *   found nothing, if needed.
+   * @returns The transaction, and the operated entry.
+   */
+  async #beginKeyringTransaction(
+    { v2 }: { v2: boolean },
+    select: () => Promise<KeyringEntry | undefined>,
+    create: () => Promise<KeyringEntry | undefined>,
+  ): Promise<{
+    transaction: VaultTransaction;
+    setup: KeyringEntry;
+  }> {
+    const selected = await select();
+    const entry = selected ?? (await create());
+
+    if (!entry) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.KeyringNotFound,
+      );
+    }
+
+    if (v2 && !entry.keyringV2) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.KeyringV2NotSupported,
+      );
+    }
+
+    const transaction = new VaultTransaction(
+      { type: 'keyring', entry, created: !selected },
+      this.#vaultSession(),
+      this.#vaultOperations(),
+    );
+    await transaction.begin();
+
+    return { transaction, setup: entry };
   }
 
   /**
@@ -3332,39 +3340,70 @@ export class KeyringController<
         this.#createKeyring(type, data, metadata),
       assertNoDuplicateAccounts: async (keyrings) =>
         assertNoDuplicateAccounts(keyrings),
+      updateVault: async () => this.#updateVault(),
     };
   }
 
   /**
-   * Execute the given function inside a wallet-scoped transaction, after
-   * acquiring the controller lock, rolling back the keyrings, the
-   * unsupported keyrings, and the encryption key in case of error.
+   * Execute the given function inside a vault transaction, after
+   * acquiring the controller lock. The transaction is constructed and
+   * begun before the function runs — a failure there leaves the
+   * controller untouched — and committed after the function succeeds, or
+   * rolled back if it throws.
    *
-   * @param callback - The function to execute atomically.
-   * @returns The result of the function.
+   * @param construct - Constructs and begins the transaction, plus
+   *   whatever the operation needs from the construction.
+   * @param run - Runs the operation, with the transaction and what its
+   *   construction produced.
+   * @returns The result of the operation.
    */
-  async #withRollback<Result>(
-    callback: RollbackCallback<Result>,
+  async #withTransaction<Result, Setup>(
+    construct: () => Promise<{
+      transaction: VaultTransaction;
+      setup: Setup;
+    }>,
+    run: (transaction: VaultTransaction, setup: Setup) => Promise<Result>,
   ): Promise<Result> {
-    return this.#withControllerLock(async ({ releaseLock }) => {
-      const transaction = new VaultTransaction(
-        { type: 'wallet' },
-        this.#vaultSession(),
-        this.#vaultOperations(),
-      );
-      // The snapshot is taken before the transaction starts: a failure
-      // here leaves the controller untouched.
-      await transaction.begin();
+    return this.#withControllerLock(async () => {
+      const { transaction, setup } = await construct();
 
       try {
-        return await callback({ releaseLock, transaction });
+        const result = await run(transaction, setup);
+        await transaction.commit();
+
+        return result;
       } catch (error) {
-        // Keyrings and encryption credentials are restored to their previous state
+        // What the transaction owns is restored to its previous state.
         await transaction.rollback();
 
         throw error;
       }
     });
+  }
+
+  /**
+   * Begin a wallet-scoped transaction, snapshotting the whole session.
+   *
+   * @param persist - Decides, when the transaction commits, whether the
+   *   vault is written.
+   * @returns The transaction, and nothing else for the operation.
+   */
+  async #beginWalletTransaction(
+    persist: WalletTransactionScope['persist'],
+  ): Promise<{
+    transaction: VaultTransaction;
+    setup: undefined;
+  }> {
+    const transaction = new VaultTransaction(
+      { type: 'wallet', persist },
+      this.#vaultSession(),
+      this.#vaultOperations(),
+    );
+    // The snapshot is taken before the transaction starts: a failure
+    // here leaves the controller untouched.
+    await transaction.begin();
+
+    return { transaction, setup: undefined };
   }
 
   /**
