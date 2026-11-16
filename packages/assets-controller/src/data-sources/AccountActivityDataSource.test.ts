@@ -1,6 +1,6 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -105,8 +105,9 @@ type SetupResult = {
     status: 'up' | 'down';
     timestamp?: number;
   }) => void;
-  cleanup: () => void;
 };
+
+const teardowns: (() => void)[] = [];
 
 /**
  * Create an AccountActivityDataSource wired to a messenger for testing.
@@ -164,6 +165,8 @@ function setup(options: SetupOptions = {}): SetupResult {
     rootMessenger.clearSubscriptions();
   };
 
+  teardowns.push(cleanup);
+
   return {
     dataSource,
     rootMessenger,
@@ -171,71 +174,62 @@ function setup(options: SetupOptions = {}): SetupResult {
     onActiveChainsUpdated,
     triggerBalanceUpdated,
     triggerStatusChanged,
-    cleanup,
   };
 }
 
 describe('AccountActivityDataSource', () => {
+  afterEach(() => {
+    teardowns.splice(0).forEach((teardown) => teardown());
+  });
+
   describe('constructor', () => {
     it('uses the default (empty) active chains state', () => {
-      const { dataSource, cleanup } = setup();
+      const { dataSource } = setup();
 
       expect(dataSource.getActiveChainsSync()).toStrictEqual([]);
-
-      cleanup();
     });
 
     it('seeds active chains from provided state', () => {
-      const { dataSource, cleanup } = setup({
+      const { dataSource } = setup({
         state: { activeChains: [CHAIN_MAINNET] },
       });
 
       expect(dataSource.getActiveChainsSync()).toStrictEqual([CHAIN_MAINNET]);
-
-      cleanup();
     });
 
     it('subscribes to balanceUpdated and statusChanged events', () => {
-      const { dataSource, onAssetsUpdate, triggerStatusChanged, cleanup } =
-        setup();
+      const { dataSource, onAssetsUpdate, triggerStatusChanged } = setup();
 
       triggerStatusChanged({ chainIds: [CHAIN_MAINNET], status: 'up' });
 
       // statusChanged handler ran and claimed the chain
       expect(dataSource.getActiveChainsSync()).toStrictEqual([CHAIN_MAINNET]);
       expect(onAssetsUpdate).not.toHaveBeenCalled();
-
-      cleanup();
     });
   });
 
   describe('getName', () => {
     it('returns the data source name', () => {
-      const { dataSource, cleanup } = setup();
+      const { dataSource } = setup();
 
       expect(dataSource.getName()).toBe('AccountActivityDataSource');
-
-      cleanup();
     });
   });
 
   describe('subscribe', () => {
     it('resolves without doing anything (no-op)', async () => {
-      const { dataSource, onAssetsUpdate, onActiveChainsUpdated, cleanup } =
-        setup();
+      const { dataSource, onAssetsUpdate, onActiveChainsUpdated } = setup();
 
       expect(await dataSource.subscribe()).toBeUndefined();
       expect(onAssetsUpdate).not.toHaveBeenCalled();
       expect(onActiveChainsUpdated).not.toHaveBeenCalled();
-
-      cleanup();
     });
   });
 
   describe('balanceUpdated event', () => {
     it('reports decoded balances through onAssetsUpdate', async () => {
       const account = createMockAccount();
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -268,13 +262,11 @@ describe('AccountActivityDataSource', () => {
         chainIds: [CHAIN_MAINNET],
         dataTypes: ['balance', 'metadata', 'price'],
       });
-
-      cleanup();
     });
 
     it('converts a hex postBalance to a human-readable amount', async () => {
       const account = createMockAccount();
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -293,8 +285,6 @@ describe('AccountActivityDataSource', () => {
       expect(response.assetsBalance[account.id][ETH_ASSET]).toStrictEqual({
         amount: '0.00000114526056',
       });
-
-      cleanup();
     });
 
     it('persists Stellar trustline metadata from postBalance', async () => {
@@ -312,7 +302,7 @@ describe('AccountActivityDataSource', () => {
         type: 'stellar:ss58',
         scopes: [STELLAR_CHAIN],
       });
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -343,13 +333,11 @@ describe('AccountActivityDataSource', () => {
         metadata: trustlineMetadata,
       });
       expect(response.assetsInfo).toBeUndefined();
-
-      cleanup();
     });
 
     it('checksums the lower-case ERC-20 asset IDs the websocket delivers', async () => {
       const account = createMockAccount();
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -375,13 +363,11 @@ describe('AccountActivityDataSource', () => {
         USDC_ASSET_LOWERCASE,
       );
       expect(response.assetsInfo).toBeUndefined();
-
-      cleanup();
     });
 
     it('keeps an unparseable asset ID as-is', async () => {
       const account = createMockAccount();
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -399,8 +385,6 @@ describe('AccountActivityDataSource', () => {
       expect(response.assetsBalance[account.id]).toHaveProperty(
         malformedAssetId,
       );
-
-      cleanup();
     });
 
     it.each([
@@ -408,7 +392,7 @@ describe('AccountActivityDataSource', () => {
       ['chain is empty', { chain: '' }],
       ['updates is empty', { updates: [] }],
     ])('ignores the event when %s', async (_label, override) => {
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup();
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup();
 
       triggerBalanceUpdated({
         address: EVM_ADDRESS,
@@ -420,12 +404,10 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
-
-      cleanup();
     });
 
     it('ignores the event when no wallet account matches the address', async () => {
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [
           createMockAccount({
             address: '0x9999999999999999999999999999999999999999',
@@ -442,13 +424,11 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
-
-      cleanup();
     });
 
     it('matches EVM addresses case-insensitively', async () => {
       const account = createMockAccount({ address: EVM_ADDRESS.toLowerCase() });
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -461,8 +441,6 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
-
-      cleanup();
     });
 
     it('matches non-EVM addresses exactly', async () => {
@@ -470,7 +448,7 @@ describe('AccountActivityDataSource', () => {
         address: SOLANA_ADDRESS,
         type: 'solana:data-account',
       });
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -483,8 +461,6 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
-
-      cleanup();
     });
 
     it('does not match a non-EVM address that differs only by case', async () => {
@@ -492,7 +468,7 @@ describe('AccountActivityDataSource', () => {
         address: SOLANA_ADDRESS,
         type: 'solana:data-account',
       });
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [account],
       });
 
@@ -505,13 +481,11 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
-
-      cleanup();
     });
 
     it('falls back to the selected account when the group is empty', async () => {
       const selected = createMockAccount({ id: 'selected-id' });
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [],
         selectedAccount: selected,
       });
@@ -527,12 +501,10 @@ describe('AccountActivityDataSource', () => {
       });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance).toHaveProperty('selected-id');
-
-      cleanup();
     });
 
     it('ignores the event when the group is empty and there is no selected account', async () => {
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup({
         groupAccounts: [],
         selectedAccount: null,
       });
@@ -546,12 +518,10 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
-
-      cleanup();
     });
 
     it('does not call onAssetsUpdate when no balances could be decoded', async () => {
-      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup();
+      const { onAssetsUpdate, triggerBalanceUpdated } = setup();
 
       // decimals undefined => the update is skipped and assetsBalance is absent
       triggerBalanceUpdated({
@@ -567,15 +537,13 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
-
-      cleanup();
     });
 
     it('swallows rejections from onAssetsUpdate', async () => {
       const onAssetsUpdate = vi
         .fn()
         .mockRejectedValue(new Error('report failed'));
-      const { triggerBalanceUpdated, cleanup } = setup({ onAssetsUpdate });
+      const { triggerBalanceUpdated } = setup({ onAssetsUpdate });
 
       expect(() =>
         triggerBalanceUpdated({
@@ -588,19 +556,13 @@ describe('AccountActivityDataSource', () => {
       await waitFor(() => {
         expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
-
-      cleanup();
     });
   });
 
   describe('statusChanged event', () => {
     it('claims chains reported as up', () => {
-      const {
-        dataSource,
-        onActiveChainsUpdated,
-        triggerStatusChanged,
-        cleanup,
-      } = setup();
+      const { dataSource, onActiveChainsUpdated, triggerStatusChanged } =
+        setup();
 
       triggerStatusChanged({
         chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
@@ -616,17 +578,12 @@ describe('AccountActivityDataSource', () => {
         [CHAIN_MAINNET, CHAIN_POLYGON],
         [],
       );
-
-      cleanup();
     });
 
     it('releases chains reported as down', () => {
-      const {
-        dataSource,
-        onActiveChainsUpdated,
-        triggerStatusChanged,
-        cleanup,
-      } = setup({ state: { activeChains: [CHAIN_MAINNET, CHAIN_POLYGON] } });
+      const { dataSource, onActiveChainsUpdated, triggerStatusChanged } = setup(
+        { state: { activeChains: [CHAIN_MAINNET, CHAIN_POLYGON] } },
+      );
 
       triggerStatusChanged({ chainIds: [CHAIN_MAINNET], status: 'down' });
 
@@ -636,27 +593,19 @@ describe('AccountActivityDataSource', () => {
         [CHAIN_POLYGON],
         [CHAIN_MAINNET, CHAIN_POLYGON],
       );
-
-      cleanup();
     });
 
     it('acts on non-EVM namespaces such as solana', () => {
-      const { dataSource, triggerStatusChanged, cleanup } = setup();
+      const { dataSource, triggerStatusChanged } = setup();
 
       triggerStatusChanged({ chainIds: [CHAIN_SOLANA], status: 'up' });
 
       expect(dataSource.getActiveChainsSync()).toStrictEqual([CHAIN_SOLANA]);
-
-      cleanup();
     });
 
     it('filters out identifiers that are not valid CAIP-2 chain IDs', () => {
-      const {
-        dataSource,
-        onActiveChainsUpdated,
-        triggerStatusChanged,
-        cleanup,
-      } = setup();
+      const { dataSource, onActiveChainsUpdated, triggerStatusChanged } =
+        setup();
 
       triggerStatusChanged({
         chainIds: ['not-a-chain', CHAIN_MAINNET],
@@ -669,77 +618,62 @@ describe('AccountActivityDataSource', () => {
         [CHAIN_MAINNET],
         [],
       );
-
-      cleanup();
     });
 
     it('does nothing when there are no valid chains', () => {
-      const {
-        dataSource,
-        onActiveChainsUpdated,
-        triggerStatusChanged,
-        cleanup,
-      } = setup();
+      const { dataSource, onActiveChainsUpdated, triggerStatusChanged } =
+        setup();
 
       triggerStatusChanged({ chainIds: ['not-a-chain'], status: 'up' });
 
       expect(dataSource.getActiveChainsSync()).toStrictEqual([]);
       expect(onActiveChainsUpdated).not.toHaveBeenCalled();
-
-      cleanup();
     });
 
     it('does not notify listeners when the active chains do not change', () => {
-      const { onActiveChainsUpdated, triggerStatusChanged, cleanup } = setup({
+      const { onActiveChainsUpdated, triggerStatusChanged } = setup({
         state: { activeChains: [CHAIN_MAINNET] },
       });
 
       triggerStatusChanged({ chainIds: [CHAIN_MAINNET], status: 'up' });
 
       expect(onActiveChainsUpdated).not.toHaveBeenCalled();
-
-      cleanup();
     });
 
     it('swallows errors thrown while handling the event', () => {
       const onActiveChainsUpdated = vi.fn().mockImplementation(() => {
         throw new Error('listener boom');
       });
-      const { triggerStatusChanged, cleanup } = setup({
+      const { triggerStatusChanged } = setup({
         onActiveChainsUpdated,
       });
 
       expect(() =>
         triggerStatusChanged({ chainIds: [CHAIN_MAINNET], status: 'up' }),
       ).not.toThrow();
-
-      cleanup();
     });
   });
 
   describe('destroy', () => {
     it('does not throw and clears internal subscriptions', () => {
-      const { dataSource, cleanup } = setup();
+      const { dataSource } = setup();
 
       expect(() => dataSource.destroy()).not.toThrow();
-
-      cleanup();
     });
 
     it('can be called multiple times safely', () => {
-      const { dataSource, cleanup } = setup();
+      const { dataSource } = setup();
 
       expect(() => {
         dataSource.destroy();
         dataSource.destroy();
       }).not.toThrow();
-
-      cleanup();
     });
 
     it('stops handling balanceUpdated events once destroyed', () => {
-      const { dataSource, onAssetsUpdate, triggerBalanceUpdated, cleanup } =
-        setup({ groupAccounts: [createMockAccount()] });
+      const { dataSource, onAssetsUpdate, triggerBalanceUpdated } = setup({
+        groupAccounts: [createMockAccount()],
+      });
 
       dataSource.destroy();
 
@@ -750,17 +684,11 @@ describe('AccountActivityDataSource', () => {
       });
 
       expect(onAssetsUpdate).not.toHaveBeenCalled();
-
-      cleanup();
     });
 
     it('stops handling statusChanged events once destroyed', () => {
-      const {
-        dataSource,
-        onActiveChainsUpdated,
-        triggerStatusChanged,
-        cleanup,
-      } = setup();
+      const { dataSource, onActiveChainsUpdated, triggerStatusChanged } =
+        setup();
 
       dataSource.destroy();
 
@@ -770,8 +698,6 @@ describe('AccountActivityDataSource', () => {
       });
 
       expect(onActiveChainsUpdated).not.toHaveBeenCalled();
-
-      cleanup();
     });
   });
 
@@ -786,10 +712,12 @@ describe('AccountActivityDataSource', () => {
         onAssetsUpdate: vi.fn(),
       });
 
-      expect(dataSource).toBeInstanceOf(AccountActivityDataSource);
+      teardowns.push(() => {
+        dataSource.destroy();
+        rootMessenger.clearSubscriptions();
+      });
 
-      dataSource.destroy();
-      rootMessenger.clearSubscriptions();
+      expect(dataSource).toBeInstanceOf(AccountActivityDataSource);
     });
   });
 });
