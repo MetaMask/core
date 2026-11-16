@@ -13,8 +13,13 @@ import {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
+import type { Hex } from '@metamask/utils';
 import { vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
@@ -276,6 +281,15 @@ export function registerRpcDataSourceActions(
     'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
     () => undefined,
   );
+}
+
+export function createMockAutoManagedNetworkClient(
+  chainId: Hex,
+): AutoManagedNetworkClient<CustomNetworkClientConfiguration> {
+  return {
+    provider: {},
+    configuration: { chainId },
+  } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
 }
 
 export function createMockWeb3Provider(
