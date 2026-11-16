@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `clearState` method, also exposed through the messenger, which clears all recorded lifecycles and address registrations, for example when the wallet is reset ([#11533](https://github.com/MetaMask/core/pull/11533))
+
 ### Changed
 
 - Bump `@metamask/subscription-controller` from `^15.2.1` to `^15.2.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
