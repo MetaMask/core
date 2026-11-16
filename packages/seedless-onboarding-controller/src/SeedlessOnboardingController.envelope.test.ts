@@ -1,4 +1,6 @@
+import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { encrypt } from '@metamask/cryptography/aes-gcm';
 import type {
   EnvelopeKeys,
   FetchedSecretDataItem,
@@ -12,20 +14,26 @@ import {
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
+  bigIntToHex,
   bytesToBase64,
   bytesToHex,
+  concatBytes,
   stringToBytes,
 } from '@metamask/utils';
-import type { MockInstance } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { RootMessenger } from '../tests/__fixtures__/mockMessenger.js';
 import {
+  authConnectionId as MOCK_AUTH_CONNECTION_ID,
   createMockToprfEncryptor,
   getMockInitialControllerState,
+  groupedAuthConnectionId as MOCK_GROUPED_AUTH_CONNECTION_ID,
   MOCK_KEYRING_ID,
+  MOCK_NODE_AUTH_TOKENS,
   MOCK_SEED_PHRASE,
   mockCreateToprfKeyAndBackupSeedPhrase,
+  userId as MOCK_USER_ID,
   withController,
 } from '../tests/controller-helpers.js';
 import { deriveTestEnvelopeKeys } from '../tests/mocks/envelopeKeys.js';
@@ -42,7 +50,14 @@ import {
 } from './envelope/envelope-keys.js';
 import type { ControlRecord, VaultKeySet } from './envelope/envelope-keys.js';
 import { EnvelopeStore } from './envelope/EnvelopeStore.js';
+import {
+  decryptPendingMigration,
+  encryptPendingMigration,
+} from './envelope/pending-migration.js';
+import type { PendingEnvelopeMigration } from './envelope/pending-migration.js';
 import { SecretMetadata } from './SecretMetadata.js';
+import type { SeedlessOnboardingControllerState } from './types.js';
+import { SeedlessEnvelopeMigrationCheckpointEventName } from './utils/analytics.js';
 
 describe('SeedlessOnboardingController', () => {
   describe('MFA recovery', () => {
@@ -269,8 +284,13 @@ describe('SeedlessOnboardingController', () => {
       NonNullable<Parameters<typeof withController<unknown>>[1]>
     >[0];
 
+    type UnlockedControllerArgs = ControllerArgs & {
+      trackEvent: Mock<(event: AnalyticsTrackingEvent) => void>;
+    };
+
     /**
-     * Runs the callback with an unlocked controller that holds a vault.
+     * Runs the callback with an unlocked controller that holds a vault, and
+     * a mock `AnalyticsController:trackEvent` handler.
      *
      * @param fn - The callback.
      * @param options - The options.
@@ -280,7 +300,7 @@ describe('SeedlessOnboardingController', () => {
      * @returns Whatever the callback returns.
      */
     async function withUnlockedController<ReturnValue>(
-      fn: (args: ControllerArgs) => Promise<ReturnValue>,
+      fn: (args: UnlockedControllerArgs) => Promise<ReturnValue>,
       {
         password = MOCK_PASSWORD,
         ...overrides
@@ -308,7 +328,12 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingMigrationVersion.V1,
           );
           vi.clearAllMocks();
-          return await fn(args);
+          const trackEvent: UnlockedControllerArgs['trackEvent'] = vi.fn();
+          args.baseMessenger.registerActionHandler(
+            'AnalyticsController:trackEvent',
+            trackEvent,
+          );
+          return await fn({ ...args, trackEvent });
         },
       );
     }
@@ -797,18 +822,421 @@ describe('SeedlessOnboardingController', () => {
     });
 
     describe('migrateToEnvelope', () => {
-      it('registers the Recovery Secret, writes its envelope and the control record, and adopts the vault keys', async () => {
+      const MIGRATION_ID = 'seeded-migration-id';
+      const OTHER_RECOVERY_SECRET = new Uint8Array(32).fill(9);
+      const OTHER_RECOVERY_SECRET_HEX = bytesToHex(OTHER_RECOVERY_SECRET);
+      const PENDING_MIGRATION_AAD = 'mm-envelope-v1/pending-migration';
+
+      const WRITE_STEPS = [
+        'acquireMetadataLock',
+        'fetchAuthPubKey',
+        'fetchAllSecretDataItems:control',
+        'addSecretDataItem:control',
+        'fetchAllSecretDataItems:control',
+        'releaseMetadataLock',
+        'addSecretDataItem:rbek',
+        'fetchAllSecretDataItems:rbek',
+        'checkpoint:ENVELOPES_WRITTEN',
+        'trackEvent:ENVELOPES_WRITTEN',
+        'checkpoint:cleared',
+        'trackEvent:COMPLETED',
+      ];
+
+      type SealedCheckpoint = Extract<
+        PendingEnvelopeMigration,
+        { phase: 'ENVELOPES_SEALED' }
+      >;
+
+      type CheckpointWatcher = Mock<(checkpoint: string | undefined) => void>;
+
+      /**
+       * @param args - The controller test arguments.
+       * @param args.baseMessenger - The root messenger.
+       * @param recoverySecret - The Recovery Secret to migrate with.
+       */
+      async function migrateToEnvelope(
+        { baseMessenger }: { baseMessenger: RootMessenger },
+        recoverySecret: Uint8Array = RECOVERY_SECRET,
+      ): Promise<void> {
+        await baseMessenger.call(
+          'SeedlessOnboardingController:migrateToEnvelope',
+          { recoverySecret },
+        );
+      }
+
+      /**
+       * @returns The envelope keys of the Recovery Secret partition.
+       */
+      function recoveryEnvelopeKeys(): EnvelopeKeys {
+        return keysFor(RECOVERY_SECRET_HEX).envelopeKeys;
+      }
+
+      /**
+       * @param authKeyPair - The auth key pair of a metadata partition.
+       * @returns `control` for the vault's control partition, `rbek` for the
+       * Recovery Secret envelope partition, or the hex public key otherwise.
+       */
+      function partitionOf(authKeyPair: KeyPair): string {
+        const pk = bytesToHex(authKeyPair.pk);
+        if (
+          pk === bytesToHex(deriveControlKeys(vaultKeySetFor()).ctrlAuth.pk)
+        ) {
+          return 'control';
+        }
+        if (pk === bytesToHex(recoveryEnvelopeKeys().authKeyPair.pk)) {
+          return 'rbek';
+        }
+        return pk;
+      }
+
+      /**
+       * @returns The envelope state of the migrated vault.
+       */
+      function expectedEnvelopeState(): SeedlessOnboardingControllerState['envelope'] {
+        return {
+          v: 1,
+          vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+          passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+        };
+      }
+
+      /**
+       * @param options - The options.
+       * @param options.keyIndex - The key index of the password OPRF key.
+       * @param options.verifier - The password verifier.
+       * @returns The first control record of the vault.
+       */
+      function expectedControlRecord({
+        keyIndex = 1,
+        verifier = MOCK_GROUPED_AUTH_CONNECTION_ID,
+      }: { keyIndex?: number; verifier?: string } = {}): ControlRecord {
+        return {
+          v: 1,
+          seq: 1,
+          passwordNamespace: {
+            verifier,
+            verifierId: MOCK_USER_ID,
+            authSk: bigIntToHex(vaultKeySetFor().authKeyPair.sk),
+            keyIndex,
+            enabled: true,
+          },
+          migratedAt: expect.any(Number),
+        };
+      }
+
+      /**
+       * @param phase - The reported phase.
+       * @param resumed - Whether the call started from a checkpoint.
+       * @returns The checkpoint analytics event.
+       */
+      function checkpointEvent(
+        phase: string,
+        resumed: boolean,
+      ): AnalyticsTrackingEvent {
+        return {
+          name: SeedlessEnvelopeMigrationCheckpointEventName,
+          properties: { phase, resumed },
+          sensitiveProperties: {},
+          saveDataRecording: false,
+          hasProperties: true,
+        };
+      }
+
+      /**
+       * @param overrides - Fields to override.
+       * @returns An RS_TOPRF_REGISTERED checkpoint for the Recovery Secret.
+       */
+      function registeredCheckpoint(
+        overrides: Partial<
+          Extract<PendingEnvelopeMigration, { phase: 'RS_TOPRF_REGISTERED' }>
+        > = {},
+      ): PendingEnvelopeMigration {
+        return {
+          v: 1,
+          phase: 'RS_TOPRF_REGISTERED',
+          id: MIGRATION_ID,
+          recoverySecret: RECOVERY_SECRET_HEX,
+          rsAuthPubKey: authPubKeyOf(RECOVERY_SECRET_HEX),
+          ...overrides,
+        };
+      }
+
+      /**
+       * @returns An ENVELOPES_SEALED checkpoint of the vault.
+       */
+      async function sealedCheckpoint(): Promise<SealedCheckpoint> {
+        const keys = recoveryEnvelopeKeys();
+        return {
+          v: 1,
+          phase: 'ENVELOPES_SEALED',
+          id: MIGRATION_ID,
+          recoverySecret: RECOVERY_SECRET_HEX,
+          rsAuthPubKey: authPubKeyOf(RECOVERY_SECRET_HEX),
+          vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+          recoveryEnvelope: {
+            keys,
+            envelope: await sealEnvelope(
+              keys.wrapKey,
+              'recovery-secret',
+              vaultKeySetFor(),
+            ),
+          },
+          control: { ...expectedControlRecord(), migratedAt: 1 },
+        };
+      }
+
+      /**
+       * @param controller - The controller.
+       * @param recipe - Mutates the state.
+       */
+      function updateState(
+        controller: ControllerArgs['controller'],
+        recipe: (state: SeedlessOnboardingControllerState) => void,
+      ): void {
+        // @ts-expect-error Accessing protected method for testing
+        controller.update(recipe);
+      }
+
+      /**
+       * Stores a checkpoint in the controller state.
+       *
+       * @param controller - The controller.
+       * @param checkpoint - The checkpoint, or the raw stored value.
+       * @returns The stored value.
+       */
+      async function seedCheckpoint(
+        controller: ControllerArgs['controller'],
+        checkpoint: PendingEnvelopeMigration | string,
+      ): Promise<string> {
+        const encrypted =
+          typeof checkpoint === 'string'
+            ? checkpoint
+            : await encryptPendingMigration(
+                checkpoint,
+                vaultKeySetFor().localWrapKey,
+              );
+        updateState(controller, (state) => {
+          state.pendingEnvelopeMigration = encrypted;
+        });
+        return encrypted;
+      }
+
+      /**
+       * @param encrypted - The stored checkpoint.
+       * @returns The checkpoint, or undefined when there is none or it does
+       * not decrypt under the vault keys.
+       */
+      async function readCheckpoint(
+        encrypted: string | undefined,
+      ): Promise<PendingEnvelopeMigration | undefined> {
+        return encrypted === undefined
+          ? undefined
+          : await decryptPendingMigration(
+              encrypted,
+              vaultKeySetFor().localWrapKey,
+            );
+      }
+
+      /**
+       * Records every value `pendingEnvelopeMigration` takes.
+       *
+       * @param baseMessenger - The root messenger.
+       * @returns A mock called with each new stored checkpoint, and with
+       * undefined once it is cleared.
+       */
+      function watchCheckpoints(
+        baseMessenger: RootMessenger,
+      ): CheckpointWatcher {
+        const checkpoints: CheckpointWatcher = vi.fn();
+        baseMessenger.subscribe(
+          'SeedlessOnboardingController:stateChange',
+          (checkpoint: string | undefined) => checkpoints(checkpoint),
+          (state: SeedlessOnboardingControllerState) =>
+            state.pendingEnvelopeMigration,
+        );
+        return checkpoints;
+      }
+
+      /**
+       * @param checkpoints - The checkpoint watcher.
+       * @returns Each stored checkpoint, in order.
+       */
+      async function readCheckpoints(
+        checkpoints: CheckpointWatcher,
+      ): Promise<(PendingEnvelopeMigration | undefined)[]> {
+        return await Promise.all(
+          checkpoints.mock.calls.map(async ([checkpoint]) =>
+            readCheckpoint(checkpoint),
+          ),
+        );
+      }
+
+      /**
+       * Merges the TOPRF calls, the stored checkpoints and the analytics
+       * events into one ordered list. Metadata item calls are labelled with
+       * their partition.
+       *
+       * @param network - The mock network.
+       * @param checkpoints - The checkpoint watcher.
+       * @param trackEvent - The analytics handler.
+       * @returns The labels, in call order.
+       */
+      async function readTimeline(
+        network: MockNetwork,
+        checkpoints: CheckpointWatcher,
+        trackEvent: UnlockedControllerArgs['trackEvent'],
+      ): Promise<string[]> {
+        const entries: { order: number; label: string }[] = [];
+        const record = (orders: number[], labels: string[]): void => {
+          orders.forEach((order, index) => {
+            entries.push({ order, label: labels[index] });
+          });
+        };
+        const { addSecretDataItem, fetchAllSecretDataItems, ...others } =
+          network.spies;
+        for (const [method, spy] of Object.entries(others)) {
+          record(
+            spy.mock.invocationCallOrder,
+            spy.mock.calls.map(() => method),
+          );
+        }
+        record(
+          addSecretDataItem.mock.invocationCallOrder,
+          addSecretDataItem.mock.calls.map(
+            ([{ authKeyPair }]) =>
+              `addSecretDataItem:${partitionOf(authKeyPair)}`,
+          ),
+        );
+        record(
+          fetchAllSecretDataItems.mock.invocationCallOrder,
+          fetchAllSecretDataItems.mock.calls.map(
+            ([{ authKeyPair }]) =>
+              `fetchAllSecretDataItems:${partitionOf(authKeyPair)}`,
+          ),
+        );
+        record(
+          checkpoints.mock.invocationCallOrder,
+          await Promise.all(
+            checkpoints.mock.calls.map(async ([checkpoint]) =>
+              checkpoint === undefined
+                ? 'checkpoint:cleared'
+                : `checkpoint:${(await readCheckpoint(checkpoint))?.phase ?? 'unreadable'}`,
+            ),
+          ),
+        );
+        record(
+          trackEvent.mock.invocationCallOrder,
+          trackEvent.mock.calls.map(
+            ([{ properties }]) => `trackEvent:${properties.phase as string}`,
+          ),
+        );
+        return entries
+          .sort((a, b) => a.order - b.order)
+          .map(({ label }) => label);
+      }
+
+      /**
+       * Makes the first call of a TOPRF client method that matches reject
+       * with `network`. Other calls keep the mock implementation.
+       *
+       * @param spy - The spied method.
+       * @param matches - Selects the call to fail. Defaults to the first call.
+       */
+      function failOnce<Fn extends (params: never) => Promise<unknown>>(
+        spy: MockInstance<Fn>,
+        matches?: (params: Parameters<Fn>[0]) => boolean,
+      ): void {
+        const implementation = spy.getMockImplementation() as unknown as (
+          params: Parameters<Fn>[0],
+        ) => Promise<unknown>;
+        let failed = false;
+        spy.mockImplementation((async (params: Parameters<Fn>[0]) => {
+          if (!failed && (matches?.(params) ?? true)) {
+            failed = true;
+            throw new Error('network');
+          }
+          return await implementation(params);
+        }) as unknown as Parameters<MockInstance<Fn>['mockImplementation']>[0]);
+      }
+
+      /**
+       * @param checkpoints - The checkpoint watcher.
+       * @returns The id of each stored checkpoint, in order.
+       */
+      async function readCheckpointIds(
+        checkpoints: CheckpointWatcher,
+      ): Promise<string[]> {
+        return (await readCheckpoints(checkpoints)).flatMap((checkpoint) =>
+          checkpoint ? [checkpoint.id] : [],
+        );
+      }
+
+      /**
+       * Makes the store keep a Recovery Secret envelope sealing other vault
+       * keys instead of the one written.
+       *
+       * @param network - The mock network.
+       */
+      function tamperRecoveryEnvelopeWrites(network: MockNetwork): void {
+        const addSecretDataItem =
+          network.spies.addSecretDataItem.getMockImplementation();
+        network.spies.addSecretDataItem.mockImplementation(async (params) =>
+          addSecretDataItem?.(
+            params.dataType === EncAccountDataType.KeyEnvelope
+              ? {
+                  ...params,
+                  secretData: serializeEnvelope(
+                    await sealEnvelope(
+                      recoveryEnvelopeKeys().wrapKey,
+                      'recovery-secret',
+                      vaultKeySetFor('other-password'),
+                    ),
+                  ),
+                }
+              : params,
+          ),
+        );
+      }
+
+      /**
+       * @param network - The mock network.
+       * @param dataType - The data type of the items.
+       * @returns The hex encoded data of each attempted write of the data
+       * type, including failed ones.
+       */
+      function writtenItems(
+        network: MockNetwork,
+        dataType: EncAccountDataType,
+      ): string[] {
+        return network.spies.addSecretDataItem.mock.calls
+          .filter(([params]) => params.dataType === dataType)
+          .map(([{ secretData }]) => bytesToHex(secretData));
+      }
+
+      /**
+       * @param network - The mock network.
+       * @returns The ciphertexts of the stored Recovery Secret envelopes.
+       */
+      async function storedRecoveryEnvelopeCts(
+        network: MockNetwork,
+      ): Promise<string[]> {
+        const envelopes = await network.envelopeStore.fetchEnvelopes(
+          recoveryEnvelopeKeys(),
+          'recovery-secret',
+        );
+        return envelopes.map(({ ct }) => ct);
+      }
+
+      it('registers the Recovery Secret, writes the control record and its envelope, and adopts the vault keys', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient);
           await authenticateAal2(args, { hasRecoveryShare: false });
 
-          await baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
+          await migrateToEnvelope(args);
 
           const vaultKeySet = vaultKeySetFor();
+          expect(network.spies.createLocalKey).toHaveBeenCalledTimes(1);
           expect(network.spies.createLocalKey).toHaveBeenCalledWith({
             password: RECOVERY_SECRET_HEX,
           });
@@ -833,46 +1261,129 @@ describe('SeedlessOnboardingController', () => {
             ),
           ).toStrictEqual(vaultKeySet);
           expect(await fetchControlRecords(network)).toStrictEqual([
-            {
-              v: 1,
-              seq: 1,
-              passwordNamespace: {
-                verifier: controller.state.groupedAuthConnectionId,
-                verifierId: controller.state.userId,
-                authSk: expect.any(String),
-                keyIndex: 1,
-                enabled: true,
-              },
-              migratedAt: expect.any(Number),
-            },
+            expectedControlRecord(),
           ]);
-          expect(network.spies.acquireMetadataLock).toHaveBeenCalledWith(
-            vaultKeySet.authKeyPair,
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
           );
-          expect(network.spies.releaseMetadataLock).toHaveBeenCalledWith(
-            vaultKeySet.authKeyPair,
-            LOCK_ID,
-          );
-          expect(controller.state.envelope).toStrictEqual({
-            v: 1,
-            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
-            passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
-          });
           expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+        });
+      });
+
+      it('registers the Recovery Secret, checkpoints, seals, writes the control record under the lock, then writes and reads back the Recovery Secret envelope', async () => {
+        await withUnlockedController(async (args) => {
+          const { toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+
+          await migrateToEnvelope(args);
+
+          expect(
+            await readTimeline(network, checkpoints, trackEvent),
+          ).toStrictEqual([
+            'createLocalKey',
+            'persistLocalKey',
+            'checkpoint:RS_TOPRF_REGISTERED',
+            'trackEvent:RS_TOPRF_REGISTERED',
+            'fetchAuthPubKey',
+            'checkpoint:ENVELOPES_SEALED',
+            'trackEvent:ENVELOPES_SEALED',
+            ...WRITE_STEPS,
+          ]);
+        });
+      });
+
+      it('checks the password with aal1 tokens and locks the vault partition', async () => {
+        await withUnlockedController(async (args) => {
+          const { toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+
+          await migrateToEnvelope(args);
+
+          const aal1Request = {
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            authConnectionId: MOCK_AUTH_CONNECTION_ID,
+            groupedAuthConnectionId: MOCK_GROUPED_AUTH_CONNECTION_ID,
+            userId: MOCK_USER_ID,
+          };
+          expect(network.spies.fetchAuthPubKey.mock.calls).toStrictEqual([
+            [aal1Request],
+            [aal1Request],
+          ]);
+          const { authKeyPair } = vaultKeySetFor();
+          expect(network.spies.acquireMetadataLock.mock.calls).toStrictEqual([
+            [authKeyPair],
+          ]);
+          expect(network.spies.releaseMetadataLock.mock.calls).toStrictEqual([
+            [authKeyPair, LOCK_ID],
+          ]);
+        });
+      });
+
+      it('persists each phase under one attempt id and writes the sealed envelopes', async () => {
+        await withUnlockedController(async (args) => {
+          const { toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+
+          await migrateToEnvelope(args);
+
+          const stored = await readCheckpoints(checkpoints);
+          expect(stored).toHaveLength(4);
+          const [registered, sealed, written, cleared] = stored;
+          expect(registered).toStrictEqual({
+            v: 1,
+            phase: 'RS_TOPRF_REGISTERED',
+            id: expect.any(String),
+            recoverySecret: RECOVERY_SECRET_HEX,
+            rsAuthPubKey: authPubKeyOf(RECOVERY_SECRET_HEX),
+          });
+          const id = registered?.id;
+          expect(id).not.toBe('');
+          expect(sealed).toStrictEqual({
+            v: 1,
+            phase: 'ENVELOPES_SEALED',
+            id,
+            recoverySecret: RECOVERY_SECRET_HEX,
+            rsAuthPubKey: authPubKeyOf(RECOVERY_SECRET_HEX),
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            recoveryEnvelope: {
+              keys: recoveryEnvelopeKeys(),
+              envelope: {
+                v: 1,
+                path: 'recovery-secret',
+                vaultAuthPubKey: bytesToHex(vaultKeySetFor().authKeyPair.pk),
+                ct: expect.any(String),
+              },
+            },
+            control: expectedControlRecord(),
+          });
+          expect(written).toStrictEqual({
+            v: 1,
+            phase: 'ENVELOPES_WRITTEN',
+            id,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+          });
+          expect(cleared).toBeUndefined();
+          const { recoveryEnvelope, control } = sealed as SealedCheckpoint;
+          expect(await storedRecoveryEnvelopeCts(network)).toStrictEqual([
+            recoveryEnvelope.envelope.ct,
+          ]);
+          expect(await fetchControlRecords(network)).toStrictEqual([control]);
         });
       });
 
       it('leaves the secret data and the vault untouched', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient);
           await authenticateAal2(args, { hasRecoveryShare: false });
           const { vault, authPubKey } = controller.state;
 
-          await baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
+          await migrateToEnvelope(args);
 
           expect(
             network.store.has(bytesToHex(vaultKeySetFor().authKeyPair.pk)),
@@ -882,26 +1393,74 @@ describe('SeedlessOnboardingController', () => {
               ([{ dataType }]) => dataType,
             ),
           ).toStrictEqual([
-            EncAccountDataType.KeyEnvelope,
             EncAccountDataType.EnvelopeControl,
+            EncAccountDataType.KeyEnvelope,
           ]);
           expect(controller.state.vault).toBe(vault);
           expect(controller.state.authPubKey).toBe(authPubKey);
         });
       });
 
+      it('compares the live password key with the vault auth key, not the cached authPubKey', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+          updateState(controller, (state) => {
+            state.authPubKey = authPubKeyOf('other-password');
+          });
+
+          await migrateToEnvelope(args);
+
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+        });
+      });
+
+      it('records the key index of the live password key in the control record', async () => {
+        await withUnlockedController(async (args) => {
+          const { toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          network.setGlobalPassword(MOCK_PASSWORD);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+
+          await migrateToEnvelope(args);
+
+          expect(await fetchControlRecords(network)).toStrictEqual([
+            expectedControlRecord({ keyIndex: 2 }),
+          ]);
+        });
+      });
+
+      it('names the auth connection as the verifier without a grouped auth connection', async () => {
+        await withUnlockedController(
+          async (args) => {
+            const { controller, toprfClient } = args;
+            const network = mockNetwork(toprfClient);
+            await authenticateAal2(args, { hasRecoveryShare: false });
+
+            await migrateToEnvelope(args);
+
+            expect(
+              (await fetchControlRecords(network))[0].passwordNamespace
+                .verifier,
+            ).toBe(controller.state.authConnectionId);
+          },
+          { groupedAuthConnectionId: undefined },
+        );
+      });
+
       it('evaluates an already registered Recovery Secret instead of registering it', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient, {
             recoverySecret: RECOVERY_SECRET_HEX,
           });
           await authenticateAal2(args, { hasRecoveryShare: true });
+          const checkpoints = watchCheckpoints(args.baseMessenger);
 
-          await baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
+          await migrateToEnvelope(args);
 
           expect(network.spies.createLocalKey).not.toHaveBeenCalled();
           expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
@@ -913,6 +1472,9 @@ describe('SeedlessOnboardingController', () => {
               password: RECOVERY_SECRET_HEX,
             }),
           );
+          expect((await readCheckpoints(checkpoints))[0]).toStrictEqual(
+            registeredCheckpoint({ id: expect.any(String) }),
+          );
           expect(
             await openStoredEnvelope(
               network,
@@ -920,28 +1482,27 @@ describe('SeedlessOnboardingController', () => {
               'recovery-secret',
             ),
           ).toStrictEqual(vaultKeySetFor());
-          expect(controller.state.envelope).toBeDefined();
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
         });
       });
 
       it('throws RecoveryKeyShareConflict when the registered key belongs to another Recovery Secret', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient, trackEvent } = args;
           const network = mockNetwork(toprfClient, {
-            recoverySecret: bytesToHex(new Uint8Array(32).fill(8)),
+            recoverySecret: OTHER_RECOVERY_SECRET_HEX,
           });
           await authenticateAal2(args, { hasRecoveryShare: true });
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.RecoveryKeyShareConflict,
           );
 
+          expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
           expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          expect(trackEvent).not.toHaveBeenCalled();
           expect(controller.state.envelope).toBeUndefined();
           expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
         });
@@ -949,7 +1510,7 @@ describe('SeedlessOnboardingController', () => {
 
       it('rethrows other recovery verifier errors', async () => {
         await withUnlockedController(async (args) => {
-          const { toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient, {
             recoverySecret: RECOVERY_SECRET_HEX,
           });
@@ -958,19 +1519,17 @@ describe('SeedlessOnboardingController', () => {
           );
           await authenticateAal2(args, { hasRecoveryShare: true });
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow('nodes unavailable');
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            'nodes unavailable',
+          );
           expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
         });
       });
 
       it('throws Aal2Required and clears the session when the aal2 tokens expire', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient, {
             recoverySecret: RECOVERY_SECRET_HEX,
           });
@@ -979,21 +1538,31 @@ describe('SeedlessOnboardingController', () => {
           );
           await authenticateAal2(args, { hasRecoveryShare: true });
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.Aal2Required,
           );
           expect(controller.state.recoverySession).toBeUndefined();
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+        });
+      });
+
+      it('throws Aal2Required without a recovery session', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.Aal2Required,
+          );
+          expect(network.spies.createLocalKey).not.toHaveBeenCalled();
+          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
         });
       });
 
       it('completes when resetting the Recovery Secret rate limit fails', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient, {
             recoverySecret: RECOVERY_SECRET_HEX,
           });
@@ -1004,143 +1573,571 @@ describe('SeedlessOnboardingController', () => {
           }));
           await authenticateAal2(args, { hasRecoveryShare: true });
 
-          await baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
+          await migrateToEnvelope(args);
 
-          expect(controller.state.envelope).toBeDefined();
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
         });
       });
 
       it('completes when releasing the metadata lock fails', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient);
           network.spies.releaseMetadataLock.mockRejectedValueOnce(
             new Error('release'),
           );
           await authenticateAal2(args, { hasRecoveryShare: false });
 
-          await baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
+          await migrateToEnvelope(args);
 
-          expect(controller.state.envelope).toBeDefined();
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
         });
       });
 
-      it('names the auth connection as the verifier without a grouped auth connection', async () => {
-        await withUnlockedController(
-          async (args) => {
-            const { controller, toprfClient, baseMessenger } = args;
-            const network = mockNetwork(toprfClient);
-            await authenticateAal2(args, { hasRecoveryShare: false });
-
-            await baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            );
-
-            expect(
-              (await fetchControlRecords(network))[0].passwordNamespace
-                .verifier,
-            ).toBe(controller.state.authConnectionId);
-          },
-          { groupedAuthConnectionId: undefined },
-        );
-      });
-
-      it('throws InvalidEnvelope when the stored envelope seals other vault keys', async () => {
+      it('does not checkpoint when registering the Recovery Secret fails', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient);
-          const addSecretDataItem =
-            network.spies.addSecretDataItem.getMockImplementation();
-          network.spies.addSecretDataItem.mockImplementationOnce(
-            async (params) =>
-              addSecretDataItem?.({
-                ...params,
-                secretData: serializeEnvelope(
-                  await sealEnvelope(
-                    deriveTestEnvelopeKeys(stringToBytes(RECOVERY_SECRET_HEX))
-                      .wrapKey,
-                    'recovery-secret',
-                    vaultKeySetFor('other-password'),
-                  ),
-                ),
-              }),
+          network.spies.persistLocalKey.mockRejectedValueOnce(
+            new Error('network'),
           );
           await authenticateAal2(args, { hasRecoveryShare: false });
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+          await expect(migrateToEnvelope(args)).rejects.toThrow('network');
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+          expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
+
+          await migrateToEnvelope(args);
+
+          expect(network.spies.createLocalKey).toHaveBeenCalledTimes(2);
+          expect(network.spies.persistLocalKey).toHaveBeenCalledTimes(2);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
           );
-          expect(controller.state.envelope).toBeUndefined();
         });
       });
 
-      it('throws Aal2Required without a recovery session', async () => {
-        await withUnlockedController(async ({ toprfClient, baseMessenger }) => {
-          const network = mockNetwork(toprfClient);
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.Aal2Required,
-          );
-          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
-        });
-      });
-
-      it('throws OutdatedPassword when the password changed elsewhere', async () => {
+      it('throws OutdatedPassword after registering the Recovery Secret when the password changed elsewhere', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient } = args;
           const network = mockNetwork(toprfClient, {
             globalPassword: NEW_PASSWORD,
           });
           await authenticateAal2(args, { hasRecoveryShare: false });
+          const checkpoints = watchCheckpoints(args.baseMessenger);
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
           );
-          expect(network.spies.createLocalKey).not.toHaveBeenCalled();
+
+          expect(network.spies.persistLocalKey).toHaveBeenCalledTimes(1);
+          expect(await readCheckpoints(checkpoints)).toStrictEqual([
+            registeredCheckpoint({ id: expect.any(String) }),
+          ]);
+          expect(
+            await readCheckpoint(controller.state.pendingEnvelopeMigration),
+          ).toStrictEqual(registeredCheckpoint({ id: expect.any(String) }));
+          expect(network.spies.acquireMetadataLock).not.toHaveBeenCalled();
           expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
           expect(controller.state.envelope).toBeUndefined();
         });
       });
 
-      it('discards the checkpoint when the password changes before the envelopes are written', async () => {
+      it('rolls back to RS_TOPRF_REGISTERED when the password changes under the metadata lock', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
+          const { controller, toprfClient, trackEvent } = args;
           const network = mockNetwork(toprfClient);
           network.spies.acquireMetadataLock.mockImplementationOnce(async () => {
             network.setGlobalPassword(NEW_PASSWORD);
             return LOCK_ID;
           });
           await authenticateAal2(args, { hasRecoveryShare: false });
+          const checkpoints = watchCheckpoints(args.baseMessenger);
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+          );
+
+          const [registered] = await readCheckpoints(checkpoints);
+          expect(registered).toStrictEqual(
+            registeredCheckpoint({ id: expect.any(String) }),
+          );
+          expect(
+            await readCheckpoint(controller.state.pendingEnvelopeMigration),
+          ).toStrictEqual(registered);
+          expect(network.spies.releaseMetadataLock).toHaveBeenCalledWith(
+            vaultKeySetFor().authKeyPair,
+            LOCK_ID,
+          );
+          expect(network.spies.fetchAllSecretDataItems).not.toHaveBeenCalled();
+          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          expect(trackEvent.mock.calls).toStrictEqual([
+            [checkpointEvent('RS_TOPRF_REGISTERED', false)],
+            [checkpointEvent('ENVELOPES_SEALED', false)],
+          ]);
+          expect(controller.state.envelope).toBeUndefined();
+
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+          );
+
+          expect(network.spies.createLocalKey).toHaveBeenCalledTimes(1);
+          expect(network.spies.persistLocalKey).toHaveBeenCalledTimes(1);
+          expect(network.spies.recoverEncKey).toHaveBeenCalledTimes(1);
+          expect(network.spies.recoverEncKey).toHaveBeenCalledWith(
+            expect.objectContaining({
+              authConnectionId: AAL2_AUTH_CONNECTION_ID,
+              password: RECOVERY_SECRET_HEX,
+            }),
+          );
+          expect(network.spies.acquireMetadataLock).toHaveBeenCalledTimes(1);
+          expect(
+            await readCheckpoint(controller.state.pendingEnvelopeMigration),
+          ).toStrictEqual(registered);
+        });
+      });
+
+      it.each([
+        [
+          'RS_TOPRF_REGISTERED',
+          'the password check',
+          SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          1,
+          (network: MockNetwork): void =>
+            failOnce(network.spies.fetchAuthPubKey),
+        ],
+        [
+          'ENVELOPES_SEALED',
+          'acquiring the metadata lock',
+          'network',
+          0,
+          (network: MockNetwork): void =>
+            failOnce(network.spies.acquireMetadataLock),
+        ],
+        [
+          'ENVELOPES_SEALED',
+          'fetching the control records',
+          SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+          0,
+          (network: MockNetwork): void =>
+            failOnce(
+              network.spies.fetchAllSecretDataItems,
+              ({ authKeyPair }) => partitionOf(authKeyPair) === 'control',
+            ),
+        ],
+        [
+          'ENVELOPES_SEALED',
+          'writing the control record',
+          'network',
+          0,
+          (network: MockNetwork): void =>
+            failOnce(
+              network.spies.addSecretDataItem,
+              ({ dataType }) => dataType === EncAccountDataType.EnvelopeControl,
+            ),
+        ],
+        [
+          'ENVELOPES_SEALED',
+          'writing the Recovery Secret envelope',
+          'network',
+          0,
+          (network: MockNetwork): void =>
+            failOnce(
+              network.spies.addSecretDataItem,
+              ({ dataType }) => dataType === EncAccountDataType.KeyEnvelope,
+            ),
+        ],
+        [
+          'ENVELOPES_SEALED',
+          'reading back the Recovery Secret envelope',
+          SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+          0,
+          (network: MockNetwork): void =>
+            failOnce(
+              network.spies.fetchAllSecretDataItems,
+              ({ authKeyPair }) => partitionOf(authKeyPair) === 'rbek',
+            ),
+        ],
+      ] as const)(
+        'resumes from %s after %s fails, writing the same bytes',
+        async (phase, _step, error, recoverEncKeyCalls, failStep) => {
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient } = args;
+            const network = mockNetwork(toprfClient);
+            await authenticateAal2(args, { hasRecoveryShare: false });
+            const checkpoints = watchCheckpoints(args.baseMessenger);
+            failStep(network);
+
+            await expect(migrateToEnvelope(args)).rejects.toThrow(error);
+            expect(
+              (await readCheckpoint(controller.state.pendingEnvelopeMigration))
+                ?.phase,
+            ).toBe(phase);
+            expect(controller.state.envelope).toBeUndefined();
+
+            await migrateToEnvelope(args);
+
+            expect(network.spies.createLocalKey).toHaveBeenCalledTimes(1);
+            expect(network.spies.persistLocalKey).toHaveBeenCalledTimes(1);
+            expect(network.spies.recoverEncKey).toHaveBeenCalledTimes(
+              recoverEncKeyCalls,
+            );
+            expect(
+              new Set(writtenItems(network, EncAccountDataType.KeyEnvelope))
+                .size,
+            ).toBe(1);
+            expect(
+              new Set(writtenItems(network, EncAccountDataType.EnvelopeControl))
+                .size,
+            ).toBe(1);
+            expect(new Set(await readCheckpointIds(checkpoints)).size).toBe(1);
+            expect(await fetchControlRecords(network)).toStrictEqual([
+              expectedControlRecord(),
+            ]);
+            expect(
+              await openStoredEnvelope(
+                network,
+                RECOVERY_SECRET_HEX,
+                'recovery-secret',
+              ),
+            ).toStrictEqual(vaultKeySetFor());
+            expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+            expect(controller.state.envelope).toStrictEqual(
+              expectedEnvelopeState(),
+            );
+          });
+        },
+      );
+
+      it('resumes RS_TOPRF_REGISTERED by re-deriving the Recovery Secret keys without registering them again', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient, {
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await authenticateAal2(args, { hasRecoveryShare: true });
+          await seedCheckpoint(controller, registeredCheckpoint());
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+
+          await migrateToEnvelope(args);
+
+          expect(
+            await readTimeline(network, checkpoints, trackEvent),
+          ).toStrictEqual([
+            'recoverEncKey',
+            'fetchAuthPubKey',
+            'checkpoint:ENVELOPES_SEALED',
+            'trackEvent:ENVELOPES_SEALED',
+            ...WRITE_STEPS,
+          ]);
+          expect(network.spies.recoverEncKey).toHaveBeenCalledWith(
+            expect.objectContaining({
+              nodeAuthTokens: AAL2_NODE_AUTH_TOKENS,
+              authConnectionId: AAL2_AUTH_CONNECTION_ID,
+              password: RECOVERY_SECRET_HEX,
+            }),
+          );
+          expect(await readCheckpointIds(checkpoints)).toStrictEqual([
+            MIGRATION_ID,
+            MIGRATION_ID,
+          ]);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+        });
+      });
+
+      it.each([
+        [
+          'the nodes return another Recovery Secret auth key',
+          {
+            registered: RECOVERY_SECRET_HEX,
+            rsAuthPubKey: authPubKeyOf(OTHER_RECOVERY_SECRET_HEX),
+          },
+        ],
+        [
+          'the nodes hold another Recovery Secret',
+          {
+            registered: OTHER_RECOVERY_SECRET_HEX,
+            rsAuthPubKey: authPubKeyOf(RECOVERY_SECRET_HEX),
+          },
+        ],
+      ])(
+        'throws RecoveryKeyShareConflict on resume and keeps the checkpoint when %s',
+        async (_name, { registered, rsAuthPubKey }) => {
+          await withUnlockedController(async (args) => {
+            const { controller, toprfClient, trackEvent } = args;
+            const network = mockNetwork(toprfClient, {
+              recoverySecret: registered,
+            });
+            await authenticateAal2(args, { hasRecoveryShare: true });
+            const seeded = await seedCheckpoint(
+              controller,
+              registeredCheckpoint({ rsAuthPubKey }),
+            );
+
+            await expect(migrateToEnvelope(args)).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.RecoveryKeyShareConflict,
+            );
+
+            expect(controller.state.pendingEnvelopeMigration).toBe(seeded);
+            expect(network.spies.recoverEncKey).toHaveBeenCalledTimes(1);
+            expect(network.spies.createLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
+            expect(network.spies.acquireMetadataLock).not.toHaveBeenCalled();
+            expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+            expect(trackEvent).not.toHaveBeenCalled();
+            expect(controller.state.envelope).toBeUndefined();
+          });
+        },
+      );
+
+      it('resumes ENVELOPES_SEALED without a recovery session and writes the checkpointed envelopes', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient);
+          const sealed = await sealedCheckpoint();
+          await seedCheckpoint(controller, sealed);
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+
+          await migrateToEnvelope(args);
+
+          expect(
+            await readTimeline(network, checkpoints, trackEvent),
+          ).toStrictEqual(WRITE_STEPS);
+          expect(await readCheckpoints(checkpoints)).toStrictEqual([
+            {
+              v: 1,
+              phase: 'ENVELOPES_WRITTEN',
+              id: MIGRATION_ID,
+              vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            },
+            undefined,
+          ]);
+          expect(await storedRecoveryEnvelopeCts(network)).toStrictEqual([
+            sealed.recoveryEnvelope.envelope.ct,
+          ]);
+          expect(await fetchControlRecords(network)).toStrictEqual([
+            sealed.control,
+          ]);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+        });
+      });
+
+      it('keeps the ENVELOPES_SEALED checkpoint when the password check under the metadata lock fails', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          const sealed = await sealedCheckpoint();
+          await seedCheckpoint(controller, sealed);
+          failOnce(network.spies.fetchAuthPubKey);
+
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          );
+
+          expect(
+            await readCheckpoint(controller.state.pendingEnvelopeMigration),
+          ).toStrictEqual(sealed);
+          expect(network.spies.releaseMetadataLock).toHaveBeenCalledTimes(1);
+          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+
+          await migrateToEnvelope(args);
+
+          expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+          expect(await storedRecoveryEnvelopeCts(network)).toStrictEqual([
+            sealed.recoveryEnvelope.envelope.ct,
+          ]);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+        });
+      });
+
+      it('rolls a resumed ENVELOPES_SEALED checkpoint back to RS_TOPRF_REGISTERED when the password changed', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient, {
+            globalPassword: NEW_PASSWORD,
+          });
+          const sealed = await sealedCheckpoint();
+          await seedCheckpoint(controller, sealed);
+
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+          );
+
+          expect(
+            await readCheckpoint(controller.state.pendingEnvelopeMigration),
+          ).toStrictEqual(
+            registeredCheckpoint({
+              id: sealed.id,
+              recoverySecret: sealed.recoverySecret,
+              rsAuthPubKey: sealed.rsAuthPubKey,
+            }),
+          );
+          expect(network.spies.releaseMetadataLock).toHaveBeenCalledTimes(1);
+          expect(network.spies.fetchAllSecretDataItems).not.toHaveBeenCalled();
+          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          expect(trackEvent).not.toHaveBeenCalled();
+          expect(controller.state.envelope).toBeUndefined();
+        });
+      });
+
+      it('completes an ENVELOPES_WRITTEN checkpoint without remote calls', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient);
+          await seedCheckpoint(controller, {
+            v: 1,
+            phase: 'ENVELOPES_WRITTEN',
+            id: MIGRATION_ID,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+          });
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+
+          await migrateToEnvelope(args);
+
+          expect(
+            await readTimeline(network, checkpoints, trackEvent),
+          ).toStrictEqual(['checkpoint:cleared', 'trackEvent:COMPLETED']);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+        });
+      });
+
+      it('resumes a pending checkpoint when the envelope state is already set', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient);
+          updateState(controller, (state) => {
+            state.envelope = {
+              v: 1,
+              vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            };
+          });
+          await seedCheckpoint(controller, {
+            v: 1,
+            phase: 'ENVELOPES_WRITTEN',
+            id: MIGRATION_ID,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+          });
+
+          await migrateToEnvelope(args);
+
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+        });
+      });
+
+      it('does nothing when the envelope state is set and the checkpoint is not usable', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient);
+          const envelope: SeedlessOnboardingControllerState['envelope'] = {
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+          };
+          updateState(controller, (state) => {
+            state.envelope = envelope;
+          });
+          await seedCheckpoint(controller, 'not-a-checkpoint');
+
+          await migrateToEnvelope(args);
+
+          for (const spy of Object.values(network.spies)) {
+            expect(spy).not.toHaveBeenCalled();
+          }
+          expect(trackEvent).not.toHaveBeenCalled();
+          expect(controller.state.envelope).toStrictEqual(envelope);
+        });
+      });
+
+      it('writes only the Recovery Secret envelope when another device migrated the vault first', async () => {
+        const store: MetadataStore = new Map();
+        await withUnlockedController(async (args) => {
+          await migrate(args, mockNetwork(args.toprfClient, { store }));
+        });
+
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          await authenticateAal2(args, { hasRecoveryShare: true });
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+          expect(controller.state.envelope).toBeUndefined();
+
+          await migrateToEnvelope(args);
+
+          expect(
+            await readTimeline(network, checkpoints, trackEvent),
+          ).toStrictEqual([
+            'recoverEncKey',
+            'checkpoint:RS_TOPRF_REGISTERED',
+            'trackEvent:RS_TOPRF_REGISTERED',
+            'fetchAuthPubKey',
+            'checkpoint:ENVELOPES_SEALED',
+            'trackEvent:ENVELOPES_SEALED',
+            'acquireMetadataLock',
+            'fetchAuthPubKey',
+            'fetchAllSecretDataItems:control',
+            'releaseMetadataLock',
+            'addSecretDataItem:rbek',
+            'fetchAllSecretDataItems:rbek',
+            'checkpoint:ENVELOPES_WRITTEN',
+            'trackEvent:ENVELOPES_WRITTEN',
+            'checkpoint:cleared',
+            'trackEvent:COMPLETED',
+          ]);
+          expect(await fetchControlRecords(network)).toHaveLength(1);
+          expect(await storedRecoveryEnvelopeCts(network)).toHaveLength(2);
+          expect(
+            await openStoredEnvelope(
+              network,
+              RECOVERY_SECRET_HEX,
+              'recovery-secret',
+            ),
+          ).toStrictEqual(vaultKeySetFor());
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+        });
+      });
+
+      it('throws EnvelopeControlRecordNotFound when no stored control record matches the live password key', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          await network.envelopeStore.writeControlRecord(
+            deriveControlKeys(vaultKeySetFor()),
+            {
+              ...expectedControlRecord(),
+              passwordNamespace: {
+                ...expectedControlRecord().passwordNamespace,
+                authSk: bigIntToHex(keysFor('other-password').authKeyPair.sk),
+              },
+              migratedAt: 1,
+            },
+          );
+          network.spies.addSecretDataItem.mockClear();
+          await authenticateAal2(args, { hasRecoveryShare: false });
+
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
           );
 
           expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
@@ -1148,126 +2145,182 @@ describe('SeedlessOnboardingController', () => {
             vaultKeySetFor().authKeyPair,
             LOCK_ID,
           );
-          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
-          expect(controller.state.envelope).toBeUndefined();
-        });
-      });
-
-      it('resumes from the checkpoint after a failed write', async () => {
-        await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
-          const network = mockNetwork(toprfClient);
-          network.spies.addSecretDataItem.mockRejectedValueOnce(
-            new Error('network'),
-          );
-          await authenticateAal2(args, { hasRecoveryShare: false });
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow('network');
-          expect(controller.state.pendingEnvelopeMigration).toStrictEqual(
-            expect.any(String),
-          );
-          expect(controller.state.envelope).toBeUndefined();
-          const recoverEncKeyCalls =
-            network.spies.recoverEncKey.mock.calls.length;
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
-
-          expect(network.spies.recoverEncKey).toHaveBeenCalledTimes(
-            recoverEncKeyCalls,
-          );
-          expect(network.spies.createLocalKey).toHaveBeenCalledTimes(1);
-          expect(network.spies.persistLocalKey).toHaveBeenCalledTimes(1);
           expect(
-            await openStoredEnvelope(
-              network,
-              RECOVERY_SECRET_HEX,
-              'recovery-secret',
-            ),
-          ).toStrictEqual(vaultKeySetFor());
-          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
-          expect(controller.state.envelope).toBeDefined();
-        });
-      });
-
-      it('re-seals when the checkpoint belongs to another Recovery Secret', async () => {
-        await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
-          const otherSecret = new Uint8Array(32).fill(9);
-          const network = mockNetwork(toprfClient);
-          network.spies.addSecretDataItem.mockRejectedValueOnce(
-            new Error('network'),
-          );
-          await authenticateAal2(args, { hasRecoveryShare: false });
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: otherSecret },
-            ),
-          ).rejects.toThrow('network');
-          // the escrow registration was redone with another Recovery Secret
-          network.registerRecoverySecret(RECOVERY_SECRET_HEX);
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
-
-          expect(
-            await openStoredEnvelope(
-              network,
-              RECOVERY_SECRET_HEX,
-              'recovery-secret',
-            ),
-          ).toStrictEqual(vaultKeySetFor());
-          expect(controller.state.envelope).toBeDefined();
-        });
-      });
-
-      it('throws InvalidEnvelope when an envelope does not read back', async () => {
-        await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
-          const network = mockNetwork(toprfClient);
-          network.spies.addSecretDataItem.mockResolvedValueOnce(undefined);
-          await authenticateAal2(args, { hasRecoveryShare: false });
-
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
-          );
+            (await readCheckpoint(controller.state.pendingEnvelopeMigration))
+              ?.phase,
+          ).toBe('ENVELOPES_SEALED');
           expect(controller.state.envelope).toBeUndefined();
-          expect(controller.state.pendingEnvelopeMigration).toBeDefined();
         });
       });
 
-      it('throws InvalidEnvelope when the control record does not read back', async () => {
+      it('throws EnvelopeControlRecordNotFound when the control record does not read back', async () => {
         await withUnlockedController(async (args) => {
-          const { controller, toprfClient, baseMessenger } = args;
-          mockNetwork(toprfClient, {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient, {
             droppedDataTypes: [EncAccountDataType.EnvelopeControl],
           });
           await authenticateAal2(args, { hasRecoveryShare: false });
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
+          );
+
+          expect(
+            writtenItems(network, EncAccountDataType.KeyEnvelope),
+          ).toHaveLength(0);
+          expect(network.spies.releaseMetadataLock).toHaveBeenCalledTimes(1);
+          expect(
+            (await readCheckpoint(controller.state.pendingEnvelopeMigration))
+              ?.phase,
+          ).toBe('ENVELOPES_SEALED');
+          expect(controller.state.envelope).toBeUndefined();
+        });
+      });
+
+      it('throws InvalidEnvelope when the Recovery Secret envelope does not read back', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient, {
+            droppedDataTypes: [EncAccountDataType.KeyEnvelope],
+          });
+          await authenticateAal2(args, { hasRecoveryShare: false });
+
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
+          );
+          expect(
+            (await readCheckpoint(controller.state.pendingEnvelopeMigration))
+              ?.phase,
+          ).toBe('ENVELOPES_SEALED');
+          expect(controller.state.envelope).toBeUndefined();
+        });
+      });
+
+      it('throws InvalidEnvelope when the stored envelope seals other vault keys', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          tamperRecoveryEnvelopeWrites(network);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidEnvelope,
           );
           expect(controller.state.envelope).toBeUndefined();
+        });
+      });
+
+      it('discards a checkpoint of another Recovery Secret and starts over', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient);
+          failOnce(network.spies.acquireMetadataLock);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+          await expect(
+            migrateToEnvelope(args, OTHER_RECOVERY_SECRET),
+          ).rejects.toThrow('network');
+          const stale = await readCheckpoint(
+            controller.state.pendingEnvelopeMigration,
+          );
+          expect(stale).toMatchObject({
+            phase: 'ENVELOPES_SEALED',
+            recoverySecret: OTHER_RECOVERY_SECRET_HEX,
+          });
+          network.registerRecoverySecret(RECOVERY_SECRET_HEX);
+          trackEvent.mockClear();
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+
+          await migrateToEnvelope(args);
+
+          const [registered] = await readCheckpoints(checkpoints);
+          expect(registered).toStrictEqual(
+            registeredCheckpoint({ id: expect.any(String) }),
+          );
+          expect(registered?.id).not.toBe(stale?.id);
+          expect(network.spies.recoverEncKey).toHaveBeenCalledWith(
+            expect.objectContaining({
+              authConnectionId: AAL2_AUTH_CONNECTION_ID,
+              password: RECOVERY_SECRET_HEX,
+            }),
+          );
+          expect(trackEvent.mock.calls).toStrictEqual([
+            [checkpointEvent('RS_TOPRF_REGISTERED', false)],
+            [checkpointEvent('ENVELOPES_SEALED', false)],
+            [checkpointEvent('ENVELOPES_WRITTEN', false)],
+            [checkpointEvent('COMPLETED', false)],
+          ]);
+          expect(
+            await openStoredEnvelope(
+              network,
+              RECOVERY_SECRET_HEX,
+              'recovery-secret',
+            ),
+          ).toStrictEqual(vaultKeySetFor());
+          expect(
+            await openStoredEnvelope(
+              network,
+              OTHER_RECOVERY_SECRET_HEX,
+              'recovery-secret',
+            ),
+          ).toBeUndefined();
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+        });
+      });
+
+      it.each([
+        [
+          'a checkpoint of an unknown version',
+          async (): Promise<string> => {
+            const { iv, ciphertext } = await encrypt(
+              vaultKeySetFor().localWrapKey as Uint8Array<ArrayBuffer>,
+              stringToBytes(
+                JSON.stringify({
+                  v: 2,
+                  recoverySecret: RECOVERY_SECRET_HEX,
+                  passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+                }),
+              ),
+              { additionalData: stringToBytes(PENDING_MIGRATION_AAD) },
+            );
+            return bytesToBase64(concatBytes([iv, ciphertext]));
+          },
+        ],
+        [
+          'a checkpoint that does not decrypt',
+          async (): Promise<string> => 'not-a-checkpoint',
+        ],
+        [
+          'a checkpoint of another vault',
+          async (): Promise<string> =>
+            encryptPendingMigration(
+              registeredCheckpoint(),
+              vaultKeySetFor('other-password').localWrapKey,
+            ),
+        ],
+      ])('ignores %s and starts over', async (_name, createCheckpoint) => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+          await seedCheckpoint(controller, await createCheckpoint());
+          const checkpoints = watchCheckpoints(args.baseMessenger);
+
+          await migrateToEnvelope(args);
+
+          expect(network.spies.createLocalKey).toHaveBeenCalledTimes(1);
+          expect(network.spies.persistLocalKey).toHaveBeenCalledTimes(1);
+          expect((await readCheckpoints(checkpoints))[0]).toStrictEqual(
+            registeredCheckpoint({ id: expect.any(String) }),
+          );
+          expect(
+            trackEvent.mock.calls.map(([{ properties }]) => properties.resumed),
+          ).toStrictEqual([false, false, false, false]);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
         });
       });
 
@@ -1276,38 +2329,88 @@ describe('SeedlessOnboardingController', () => {
           const network = mockNetwork(args.toprfClient);
           await migrate(args, network);
 
-          await args.baseMessenger.call(
-            'SeedlessOnboardingController:migrateToEnvelope',
-            { recoverySecret: RECOVERY_SECRET },
-          );
+          await migrateToEnvelope(args);
 
-          expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
-          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
+          for (const spy of Object.values(network.spies)) {
+            expect(spy).not.toHaveBeenCalled();
+          }
+          expect(args.trackEvent).not.toHaveBeenCalled();
         });
       });
 
-      it('adopts the envelope state when another device migrated the same vault', async () => {
-        const store: MetadataStore = new Map();
+      it('reports each checkpoint and the completion', async () => {
         await withUnlockedController(async (args) => {
-          await migrate(args, mockNetwork(args.toprfClient, { store }));
+          const { toprfClient, trackEvent } = args;
+          mockNetwork(toprfClient);
+          await authenticateAal2(args, { hasRecoveryShare: false });
+
+          await migrateToEnvelope(args);
+
+          expect(trackEvent.mock.calls).toStrictEqual([
+            [checkpointEvent('RS_TOPRF_REGISTERED', false)],
+            [checkpointEvent('ENVELOPES_SEALED', false)],
+            [checkpointEvent('ENVELOPES_WRITTEN', false)],
+            [checkpointEvent('COMPLETED', false)],
+          ]);
         });
+      });
 
-        await withUnlockedController(async ({ controller, toprfClient }) => {
-          const network = mockNetwork(toprfClient, { store });
-          expect(controller.state.envelope).toBeUndefined();
+      it('reports the phases of a resumed migration as resumed', async () => {
+        await withUnlockedController(async (args) => {
+          const { toprfClient, trackEvent } = args;
+          const network = mockNetwork(toprfClient);
+          failOnce(network.spies.acquireMetadataLock);
+          await authenticateAal2(args, { hasRecoveryShare: false });
 
-          await controller.migrateToEnvelope({
-            recoverySecret: RECOVERY_SECRET,
+          await expect(migrateToEnvelope(args)).rejects.toThrow('network');
+          expect(trackEvent.mock.calls).toStrictEqual([
+            [checkpointEvent('RS_TOPRF_REGISTERED', false)],
+            [checkpointEvent('ENVELOPES_SEALED', false)],
+          ]);
+          trackEvent.mockClear();
+
+          await migrateToEnvelope(args);
+
+          expect(trackEvent.mock.calls).toStrictEqual([
+            [checkpointEvent('ENVELOPES_WRITTEN', true)],
+            [checkpointEvent('COMPLETED', true)],
+          ]);
+        });
+      });
+
+      it('completes when reporting a checkpoint fails', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          mockNetwork(toprfClient);
+          trackEvent.mockRejectedValue(new Error('analytics'));
+          await authenticateAal2(args, { hasRecoveryShare: false });
+
+          await migrateToEnvelope(args);
+
+          expect(trackEvent).toHaveBeenCalledTimes(4);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
+        });
+      });
+
+      it('completes when the analytics handler throws', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, trackEvent } = args;
+          mockNetwork(toprfClient);
+          trackEvent.mockImplementation(() => {
+            throw new Error('analytics');
           });
+          await authenticateAal2(args, { hasRecoveryShare: false });
 
-          expect(network.spies.createLocalKey).not.toHaveBeenCalled();
-          expect(network.spies.addSecretDataItem).not.toHaveBeenCalled();
-          expect(await fetchControlRecords(network)).toHaveLength(1);
-          expect(controller.state.envelope).toStrictEqual({
-            v: 1,
-            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
-            passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
-          });
+          await migrateToEnvelope(args);
+
+          expect(trackEvent).toHaveBeenCalledTimes(4);
+          expect(controller.state.envelope).toStrictEqual(
+            expectedEnvelopeState(),
+          );
+          expect(controller.state.pendingEnvelopeMigration).toBeUndefined();
         });
       });
 
@@ -1339,12 +2442,7 @@ describe('SeedlessOnboardingController', () => {
             0 as SeedlessOnboardingMigrationVersion,
           );
 
-          await expect(
-            args.baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationRequiresDataTypes,
           );
           expect(network.spies.createLocalKey).not.toHaveBeenCalled();
@@ -1352,15 +2450,12 @@ describe('SeedlessOnboardingController', () => {
       });
 
       it('throws ControllerLocked when locked', async () => {
-        await withUnlockedController(async ({ baseMessenger }) => {
-          await baseMessenger.call('SeedlessOnboardingController:setLocked');
+        await withUnlockedController(async (args) => {
+          await args.baseMessenger.call(
+            'SeedlessOnboardingController:setLocked',
+          );
 
-          await expect(
-            baseMessenger.call(
-              'SeedlessOnboardingController:migrateToEnvelope',
-              { recoverySecret: RECOVERY_SECRET },
-            ),
-          ).rejects.toThrow(
+          await expect(migrateToEnvelope(args)).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.ControllerLocked,
           );
         });
