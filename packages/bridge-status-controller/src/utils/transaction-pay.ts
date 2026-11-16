@@ -9,7 +9,7 @@ export const setTransactionConfigForMmPay = (
   txMetaId: string,
   refundTo: `0x${string}`,
   operation: Operation,
-) => {
+): void => {
   messenger.call(
     'TransactionPayController:setTransactionConfig',
     txMetaId,
@@ -29,7 +29,7 @@ export const updatePaymentToken = (
   txMetaId: string,
   tokenAddress: `0x${string}`,
   chainId: `0x${string}`,
-) => {
+): void => {
   messenger.call('TransactionPayController:updatePaymentToken', {
     transactionId: txMetaId,
     tokenAddress,

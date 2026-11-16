@@ -203,25 +203,6 @@ const getBatchTransactionCounts = (
     batchId
   ];
 
-export const checkIsBatchIdSubmitted = (
-  messenger: BridgeStatusControllerMessenger,
-  batchId: `0x${string}`,
-) => {
-  // If > 0, batch submission is in progress
-  const batchTransactionCounts = getBatchTransactionCounts(messenger, batchId);
-  if (batchTransactionCounts) {
-    return true;
-  }
-  // If length > 0, batch has been approved
-  const transactions = getTransactionMetaByBatchId({
-    messenger,
-    batchId,
-  });
-  if (transactions.length > 0) {
-    return true;
-  }
-};
-
 const waitForHashAndReturnFinalTxMeta = async (
   messenger: BridgeStatusControllerMessenger,
   hashPromise?: Awaited<

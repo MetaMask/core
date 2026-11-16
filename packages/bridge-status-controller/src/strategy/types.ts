@@ -5,7 +5,6 @@ import type {
   QuoteResponseV1,
   Trade,
   TxData,
-  QuoteResponse,
 } from '@metamask/bridge-controller';
 import type {
   TransactionController,

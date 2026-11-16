@@ -138,7 +138,7 @@ export type Operation = (typeof Operation)[keyof typeof Operation];
 
 export type NextAction = {
   operation: 'swap' | 'deposit';
-  partialQuote: Omit<QuoteResponseV1, 'quote'>;
+  partialQuote: Omit<QuoteResponseV1<Trade, Trade>, 'quote'>;
 };
 
 /**
