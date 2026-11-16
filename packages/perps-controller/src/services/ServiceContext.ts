@@ -1,8 +1,10 @@
 import type { PerpsControllerState } from '../PerpsController.js';
 import type {
+  AccountState,
   Order,
   PerpsFeeResolution,
   PerpsGlobalSnapshotRequest,
+  PerpsProviderType,
   PerpsSubscriptionFeeWaiverStatus,
   Position,
 } from '../types/index.js';
@@ -77,6 +79,17 @@ export type ServiceContext = {
   };
 
   /**
+   * Guards a REST account-state write against the venue that currently backs
+   * account reads. A response that resolves after the default venue changed
+   * must not overwrite the new venue's snapshot, so `isCurrent` compares the
+   * response's captured `providerId` with the current account-data context.
+   * Omitted for callers that do not route account reads by venue.
+   */
+  accountDataContext?: {
+    isCurrent: (accountState: AccountState) => boolean;
+  };
+
+  /**
    * Cached subscription fee-waiver status for read-only fee previews.
    * Read by the controller from `RewardsIntegrationService` — the same cached
    * benefits snapshot the fee resolver uses — and omitted entirely when no
@@ -94,9 +107,15 @@ export type ServiceContext = {
   feeResolution?: PerpsFeeResolution;
 
   /**
-   * Callback functions for controller-specific operations
+   * Callback functions for controller-specific operations. `providerId` is
+   * the venue the placement was routed to; it keys the persisted trade
+   * configuration so a value saved on one venue never applies to another.
    */
-  saveTradeConfiguration?: (symbol: string, leverage: number) => void;
+  saveTradeConfiguration?: (
+    symbol: string,
+    leverage: number,
+    providerId?: PerpsProviderType,
+  ) => void;
 
   /**
    * Feature flag configuration callbacks

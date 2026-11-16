@@ -39,13 +39,13 @@ describe('ed25519', () => {
       'returns the 0-padded public key for a private key',
       async ({ keys }) => {
         for (const { privateKey, publicKey } of keys) {
-          expect(bytesToHex(getPublicKey(hexToBytes(privateKey)))).toBe(
+          expect(bytesToHex(await getPublicKey(hexToBytes(privateKey)))).toBe(
             publicKey,
           );
 
-          expect(bytesToHex(getPublicKey(hexToBytes(privateKey), true))).toBe(
-            publicKey,
-          );
+          expect(
+            bytesToHex(await getPublicKey(hexToBytes(privateKey), true)),
+          ).toBe(publicKey);
         }
       },
     );

@@ -74,26 +74,31 @@ describe('RecoveryRegistrationLockProvider', () => {
       'acquire',
       'POST',
       '/recovery/lock',
-      { body: JSON.stringify({ lock_id: 'operation-1' }) },
+      {
+        headers: {
+          Authorization: 'Bearer hydra-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ lock_id: 'operation-1' }),
+      },
     ],
-    ['release', 'DELETE', '/recovery/lock/operation-1', {}],
+    // The service rejects a JSON content type with an empty body.
+    [
+      'release',
+      'DELETE',
+      '/recovery/lock/operation-1',
+      { headers: { Authorization: 'Bearer hydra-token' } },
+    ],
   ] as const)(
     'sends an authenticated %s request',
-    async (action, method, path, body) => {
+    async (action, method, path, init) => {
       const { provider, fetchMock } = setup();
 
       await provider[action]('operation-1');
 
       expect(fetchMock).toHaveBeenCalledWith(
         `https://registration.example${path}`,
-        {
-          method,
-          headers: {
-            Authorization: 'Bearer hydra-token',
-            'Content-Type': 'application/json',
-          },
-          ...body,
-        },
+        { method, ...init },
       );
     },
   );

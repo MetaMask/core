@@ -12,6 +12,8 @@ export type SentinelMeta = {
   clientVersion?: string;
   wallet?: string;
   origin?: string;
+  // Hardware wallet manufacturer. Omitted when the signer is not a hardware wallet.
+  accountHardwareType?: string;
 };
 
 // This list does not belong here, but as these are reported to tx-sentinel, it is ok to have it here for now.
