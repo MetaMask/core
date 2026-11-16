@@ -96,7 +96,7 @@
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
-      "count": 12
+      "count": 11
     },
     "TS2352": {
       "count": 2
