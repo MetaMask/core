@@ -66,6 +66,7 @@ import type {
   DeserializedVaultData,
 } from './types.js';
 import {
+  assertIdTokenMatchesUserId,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -303,20 +304,25 @@ export class SeedlessOnboardingController<
     params: SeedlessAuthData & { skipLock?: boolean },
   ): Promise<AuthenticateResult> {
     const doAuthenticateWithNodes = async (): Promise<AuthenticateResult> => {
-      try {
-        const {
-          idTokens,
-          authConnectionId,
-          groupedAuthConnectionId,
-          userId,
-          authConnection,
-          socialLoginEmail,
-          refreshToken,
-          revokeToken,
-          accessToken,
-          metadataAccessToken,
-        } = params;
+      const {
+        idTokens,
+        authConnectionId,
+        groupedAuthConnectionId,
+        userId,
+        authConnection,
+        socialLoginEmail,
+        refreshToken,
+        revokeToken,
+        accessToken,
+        metadataAccessToken,
+      } = params;
 
+      // Fail fast if the idToken does not belong to the provided user, before
+      // making any network request. This detects caller-side inconsistencies
+      // (e.g. a userId sourced from a different login than the idTokens).
+      assertIdTokenMatchesUserId(idTokens, userId);
+
+      try {
         const authenticationResult = await this.toprfClient.authenticate({
           authConnectionId,
           userId,

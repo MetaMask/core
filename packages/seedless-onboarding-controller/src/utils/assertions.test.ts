@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { utf8ToBytes } from '@noble/ciphers/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  bytesToString,
+} from '@metamask/utils';
 
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
-import { VaultData } from '../types.js';
+import { DecodedBaseJWTToken, VaultData } from '../types.js';
 import {
+  assertIdTokenMatchesUserId,
   assertIsEncryptedKeyringEncryptionKeySet,
   assertIsEncryptedSeedlessEncryptionKeySet,
   assertIsPasswordOutdatedCacheValid,
@@ -233,5 +240,74 @@ describe('encrypted key assertions', () => {
     }).toThrow(
       SeedlessOnboardingControllerErrorMessage.EncryptedSeedlessEncryptionKeyNotSet,
     );
+  });
+});
+
+describe('assertIdTokenMatchesUserId', () => {
+  /**
+   * Creates a mock JWT idToken with the given payload claims.
+   *
+   * @param params - The payload claims for the token.
+   * @returns The encoded JWT token (header.payload.signature).
+   */
+  const createMockIdToken = (
+    params: Partial<DecodedBaseJWTToken> & { sub?: string } = {},
+  ): string => {
+    const defaultPayload: DecodedBaseJWTToken = {
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      aud: 'mock_audience',
+      iss: 'mock_issuer',
+      sub: 'mock_user_id',
+    };
+    const payload = { ...defaultPayload, ...params };
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const encode = (value: Record<string, unknown>): string =>
+      bytesToBase64(utf8ToBytes(JSON.stringify(value)));
+    return `${encode(header)}.${encode(payload)}.${'mock_signature'}`;
+  };
+
+  it('should not throw when idToken sub matches the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId([createMockIdToken({ sub: 'user-1' })], 'user-1');
+    }).not.toThrow();
+  });
+
+  it('should throw IdentityMismatch when idToken sub does not match the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId([createMockIdToken({ sub: 'user-A' })], 'user-B');
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should only validate the first idToken', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-1' }), createMockIdToken({ sub: 'other' })],
+        'user-1',
+      );
+    }).not.toThrow();
+  });
+
+  it('should not throw when the idToken has no sub claim (defer to server-side validation)', () => {
+    const tokenWithoutSub = createMockIdToken();
+    // Rebuild payload without sub
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const encode = (value: Record<string, unknown>): string =>
+      bytesToBase64(utf8ToBytes(JSON.stringify(value)));
+    const payload = JSON.parse(
+      bytesToString(base64ToBytes(tokenWithoutSub.split('.')[1])),
+    ) as Record<string, unknown>;
+    delete payload.sub;
+    const token = `${encode(header)}.${encode(payload)}.${'mock_signature'}`;
+
+    expect(() => {
+      assertIdTokenMatchesUserId([token], 'any-user');
+    }).not.toThrow();
+  });
+
+  it('should not throw when the idToken cannot be decoded (defer to server-side validation)', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(['not-a-jwt'], 'user-1');
+    }).not.toThrow();
   });
 });

@@ -1,5 +1,7 @@
 import { SeedlessOnboardingControllerErrorMessage } from '../constants.js';
+import { SeedlessOnboardingError } from '../errors.js';
 import type { AuthenticatedUserDetails, VaultData } from '../types.js';
+import { decodeJWTToken } from './utils.js';
 
 /**
  * Assert that the provided password is a valid non-empty string.
@@ -157,6 +159,41 @@ export function assertIsValidVaultData(
   if (!('accessToken' in value) || typeof value.accessToken !== 'string') {
     throw new Error(
       SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
+    );
+  }
+}
+
+/**
+ * Assert that the first idToken's `sub` claim matches the userId being sent to
+ * the TOPRF nodes. The nodes reject mismatched pairs server-side, but failing
+ * locally first avoids a wasted network round-trip and surfaces a
+ * distinguishable error instead of a generic authentication failure.
+ *
+ * Lenient by design: if the token cannot be decoded or has no `sub` claim,
+ * validation is deferred to the server side so that flows are not broken.
+ *
+ * @param idTokens - The id tokens to check. Only the first token is validated.
+ * @param userId - The user id the token should belong to.
+ * @throws If the idToken's `sub` claim does not match the provided userId.
+ */
+export function assertIdTokenMatchesUserId(
+  idTokens: string[],
+  userId: string,
+): void {
+  let decodedSub: string | undefined;
+  try {
+    decodedSub = decodeJWTToken(idTokens[0]).sub;
+  } catch {
+    // Undecodable token: defer to server-side validation.
+    return;
+  }
+
+  if (decodedSub !== undefined && decodedSub !== userId) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+      {
+        details: 'The idToken `sub` claim does not match the provided userId.',
+      },
     );
   }
 }

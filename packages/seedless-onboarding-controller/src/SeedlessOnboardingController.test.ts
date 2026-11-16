@@ -1111,6 +1111,73 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should throw IdentityMismatch and skip authentication when the idToken sub does not match the userId', async () => {
+      await withController(
+        async ({ controller, toprfClient, baseMessenger }) => {
+          const authenticateSpy = vi
+            .spyOn(toprfClient, 'authenticate')
+            .mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+          await expect(
+            baseMessenger.call('SeedlessOnboardingController:authenticate', {
+              idTokens: [createMockJWTToken({ sub: 'different-user' })],
+              authConnectionId,
+              userId,
+              authConnection,
+              socialLoginEmail,
+              refreshToken,
+              revokeToken,
+              accessToken,
+              metadataAccessToken,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+          );
+
+          expect(authenticateSpy).not.toHaveBeenCalled();
+          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+            false,
+          );
+          expect(controller.state.userId).toBeUndefined();
+        },
+      );
+    });
+
+    it('should authenticate when the idToken sub matches the userId', async () => {
+      await withController(
+        async ({ controller, toprfClient, baseMessenger }) => {
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          const authResult = await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens: [createMockJWTToken({ sub: userId })],
+              authConnectionId,
+              userId,
+              authConnection,
+              socialLoginEmail,
+              refreshToken,
+              revokeToken,
+              accessToken,
+              metadataAccessToken,
+            },
+          );
+
+          expect(authResult.isNewUser).toBe(false);
+          expect(controller.state.userId).toBe(userId);
+          expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+            true,
+          );
+        },
+      );
+    });
   });
 
   describe('checkPasswordOutdated', () => {
