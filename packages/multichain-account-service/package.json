@@ -75,7 +75,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/eth-hd-keyring": "^15.0.0",
+    "@metamask/eth-hd-keyring": "^16.0.0",
     "@metamask/key-tree": "^11.0.0",
     "@metamask/providers": "^22.1.1",
     "@typescript/native": "npm:typescript@^7.0.2",
