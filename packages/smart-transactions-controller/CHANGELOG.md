@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `fetchSmartTransactionsStatus` now calls `SentinelApiService:getBatchStatus`. It still resolves to a `Record<string, SmartTransactionsStatus>` keyed by UUID.
   - A non-2xx response from `getBatchStatus` or `cancel` is still thrown as `Fetch error: <status>` with the response body on `data`.
   - A batch status response that does not match the Sentinel batch status schema now throws instead of being processed.
-  - The controller no longer calls `AuthenticationController:getBearerToken`, and `@metamask/profile-sync-controller` is no longer a dependency.
+  - Remove `AuthenticationController:getBearerToken` from `SmartTransactionsControllerMessenger`'s allowed actions; consumers must stop delegating it to the `SmartTransactionsController` messenger (delegate it to the `SentinelApiService` messenger instead). `@metamask/profile-sync-controller` is no longer a dependency.
   - `Feature` and `Kind` are no longer exported. `SentinelMeta` is now re-exported from `@metamask/sentinel-api-service`.
   - Re-export `SentinelCancellationReason`, `SentinelMinedTxStatus` and `SentinelOriginalTransactionStatus` from `@metamask/sentinel-api-service`, and use them for the `cancellationReason`, `minedTx` and `originalTransactionStatus` types of `SmartTransactionsStatus`.
   - `calculateStatus` no longer special-cases `minedTx === 'unknown'`; any unrecognised `minedTx` value resolves to `SmartTransactionStatuses.UNKNOWN`.
