@@ -11,17 +11,14 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import type {
-  AutoManagedNetworkClient,
-  CustomNetworkClientConfiguration,
-  NetworkState,
-} from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
 import {
+  createMockAutoManagedNetworkClient,
   createMockMessengers,
   registerAssetsControllerActions,
   registerKeyringUnlockMock,
@@ -5650,8 +5647,8 @@ describe('AssetsController', () => {
               'NetworkEnablementController:getState',
               () => ({
                 enabledNetworkMap: {
-                  eip155: { '1': true, '11155111': true },
-                } as NetworkEnablementControllerState['enabledNetworkMap'],
+                  eip155: { '0x1': true, '0xaa36a7': true },
+                },
                 nativeAssetIdentifiers: {
                   'eip155:1': 'eip155:1/slip44:60',
                   'eip155:11155111': 'eip155:11155111/slip44:60',
@@ -5665,13 +5662,9 @@ describe('AssetsController', () => {
             rootMessenger.registerActionHandler(
               'NetworkController:getNetworkClientById',
               (networkClientId) =>
-                ({
-                  provider: {},
-                  configuration: {
-                    chainId:
-                      networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
-                  },
-                }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+                createMockAutoManagedNetworkClient(
+                  networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+                ),
             );
             rootMessenger.registerActionHandler(
               'ClientController:getState',
@@ -5794,8 +5787,8 @@ describe('AssetsController', () => {
               'NetworkEnablementController:getState',
               () => ({
                 enabledNetworkMap: {
-                  eip155: { '1': true, '11155111': true },
-                } as NetworkEnablementControllerState['enabledNetworkMap'],
+                  eip155: { '0x1': true, '0xaa36a7': true },
+                },
                 nativeAssetIdentifiers: {
                   'eip155:1': 'eip155:1/slip44:60',
                   'eip155:11155111': 'eip155:11155111/slip44:60',
@@ -5809,13 +5802,9 @@ describe('AssetsController', () => {
             rootMessenger.registerActionHandler(
               'NetworkController:getNetworkClientById',
               (networkClientId) =>
-                ({
-                  provider: {},
-                  configuration: {
-                    chainId:
-                      networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
-                  },
-                }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+                createMockAutoManagedNetworkClient(
+                  networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+                ),
             );
             rootMessenger.registerActionHandler(
               'ClientController:getState',
