@@ -35,6 +35,7 @@ const baseTheme: ChartTheme = {
 type ChartMock = {
   getSeries: Mock;
   detachToRight: Mock;
+  getPanes?: Mock;
 };
 
 type WidgetMock = {
@@ -43,10 +44,21 @@ type WidgetMock = {
   applyOverrides: Mock;
 };
 
-const makeWidget = (chartImpl: Partial<ChartMock> = {}): WidgetMock => {
+const makeWidget = (
+  chartImpl: Partial<ChartMock> = {},
+  // Number of right price scales reported by pane 0. When >= 1 the main series
+  // is already on a right scale, so the detach must be skipped.
+  rightScaleCount = 0,
+): WidgetMock => {
   const chart: ChartMock = {
     detachToRight: chartImpl.detachToRight ?? vi.fn(),
     getSeries: vi.fn(),
+    getPanes: vi.fn().mockReturnValue([
+      {
+        getRightPriceScales: () =>
+          Array.from({ length: rightScaleCount }, () => ({})),
+      },
+    ]),
   };
   chart.getSeries.mockReturnValue({ detachToRight: chart.detachToRight });
   const applyOverrides = vi.fn();
@@ -100,6 +112,27 @@ describe('applyScaleLayout', () => {
     applyScaleLayout();
     expect(applyOverrides).toHaveBeenCalledTimes(1);
     expect(chart.detachToRight).toHaveBeenCalledTimes(1);
+  });
+
+  // -- idempotent detach: skip when already on a right scale -----------------
+
+  it('detaches the main series when no right price scale exists yet', () => {
+    initThemeFromConfig(baseTheme);
+    const { widget, chart } = makeWidget({}, 0);
+    setWidget(widget);
+    setChartReady(true);
+    applyScaleLayout();
+    expect(chart.detachToRight).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the detach when the main series is already on a right scale', () => {
+    initThemeFromConfig(baseTheme);
+    const { widget, chart } = makeWidget({}, 1);
+    setWidget(widget);
+    setChartReady(true);
+    applyScaleLayout();
+    // Re-detaching would mint a second scale and orphan any overlay study.
+    expect(chart.detachToRight).not.toHaveBeenCalled();
   });
 
   it('includes correct static scale properties', () => {

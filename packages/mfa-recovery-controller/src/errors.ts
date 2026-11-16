@@ -30,14 +30,26 @@ export class IncompleteMutationError extends MfaRecoveryError {
 }
 
 /**
- * Thrown when an escrow refuses a mutation without applying it.
+ * Thrown when an escrow refuses a mutation without applying it, or when Auth no
+ * longer approves a mutation no escrow has applied.
  *
- * When every escrow does this and none has a receipt, the controller clears
- * the pending mutation. Start a new mutation; do not call `resume()`.
+ * When every remaining escrow refuses, or Auth does, the controller clears the
+ * pending mutation. Start a new mutation; do not call `resume()`.
  */
 export class MutationRejectedError extends MfaRecoveryError {
   constructor(message: string) {
     super(message, 'mutation_rejected');
     this.name = 'MutationRejectedError';
   }
+}
+
+/**
+ * @returns The error for a mutation cleared because another write already
+ * updated one of its escrows.
+ */
+export function mutationSupersededError(): MfaRecoveryError {
+  return new MfaRecoveryError(
+    'Escrows were updated by another write; reread state',
+    'mutation_superseded',
+  );
 }

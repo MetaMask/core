@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [74.0.0]
+
+### Changed
+
+- **BREAKING:** Detect Permit2 `approve(address token, address spender, uint160 amount, uint48 expiration)` transactions as `tokenMethodApprove` instead of `contractInteraction` ([#11416](https://github.com/MetaMask/core/pull/11416))
+  - This applies wherever the type is detected from the transaction data, including nested batch transactions without an explicit `type`.
+  - `txParams.to` is the Permit2 contract rather than the token. Consumers that read the token from `txParams.to`, or decode `tokenMethodApprove` data as ERC-20 `approve(spender, amount)`, must read the token, spender, amount and expiration from the Permit2 calldata instead.
+- Bump `@metamask/core-backend` from `^14.0.0` to `^14.1.0` ([#11454](https://github.com/MetaMask/core/pull/11454))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
 ## [73.1.2]
 
 ### Changed
@@ -2902,7 +2916,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...HEAD
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...@metamask/transaction-controller@74.0.0
 [73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2
 [73.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.0...@metamask/transaction-controller@73.1.1
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.0.0...@metamask/transaction-controller@73.1.0

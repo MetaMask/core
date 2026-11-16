@@ -6,7 +6,6 @@ import {
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
   safelyExecute,
-  timeoutFetch,
 } from '@metamask/controller-utils';
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
 import type * as BN from 'bn.js';
@@ -14,6 +13,7 @@ import type * as BN from 'bn.js';
 import {
   getFormattedIpfsUrl,
   ethersBigNumberToBN,
+  getTokenUriImage,
 } from '../../../assetsUtil.js';
 
 export class ERC1155Standard {
@@ -239,17 +239,7 @@ export class ERC1155Standard {
     ]);
 
     if (tokenURI) {
-      try {
-        const response = await timeoutFetch(tokenURI);
-        const object = await response.json();
-        image = object?.image;
-        if (image?.startsWith('ipfs://')) {
-          image = getFormattedIpfsUrl(ipfsGateway, image, true);
-        }
-      } catch {
-        // Catch block should be kept empty to ignore exceptions, and
-        // pass as much information as possible to the return statement
-      }
+      image = await getTokenUriImage(tokenURI, ipfsGateway);
     }
 
     // TODO consider querying to the metadata to get name.

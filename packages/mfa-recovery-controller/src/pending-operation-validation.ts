@@ -1,13 +1,13 @@
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import { hash } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
-import { isMutationReceipt } from './escrow-utils.js';
 import {
   countDistinctIdentifiers,
   getIdentifierAuthMode,
   MIN_IDENTIFIERS,
 } from './identifier-auth.js';
-import { assertSameAudienceIds } from './state-machine.js';
+import { isMutationReceipt } from './receipt-utils.js';
+import { assertConfiguredAudienceIds } from './state-machine.js';
 import type {
   Identifier,
   Mutation,
@@ -62,7 +62,7 @@ export async function assertValidPendingOperation(
     throwInvalidPendingOperation();
   }
   const mutation = mutationValue as unknown as Mutation;
-  assertSameAudienceIds(mutation.audiences, escrowIds);
+  assertConfiguredAudienceIds(mutation.audiences, escrowIds);
 
   const { payload } = pending;
   if (!isPendingPayload(mutation.operation, payload)) {
@@ -128,19 +128,22 @@ export async function assertValidPendingOperation(
 }
 
 /**
- * Escrows reject payload identifiers that are not exactly (verifier included)
- * in the approval's list, and the rejection leaves the write unabortable.
+ * Escrows reject non-SIWE payload identifiers that are not exactly (verifier
+ * included) in the approval's list, and the rejection leaves the write
+ * unabortable. SIWE identifiers are proven by their own authorizations.
  *
  * @param identifiers - Payload identifiers.
  * @param approvedIdentifiers - The approval's identifiers.
- * @returns Whether every payload identifier is in the approval.
+ * @returns Whether every non-SIWE payload identifier is in the approval.
  */
 async function isApprovedSubset(
   identifiers: Identifier[],
   approvedIdentifiers: Identifier[],
 ): Promise<boolean> {
   const approved = new Set(await Promise.all(approvedIdentifiers.map(hash)));
-  const hashes = await Promise.all(identifiers.map(hash));
+  const hashes = await Promise.all(
+    identifiers.filter(({ type }) => type !== 'siwe').map(hash),
+  );
   return hashes.every((identifierHash) => approved.has(identifierHash));
 }
 

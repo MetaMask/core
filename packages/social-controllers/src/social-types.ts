@@ -391,6 +391,12 @@ export type Position = {
    * social-api builds; `null` when the deployment sends an explicit empty mark.
    */
   flags?: string[] | null;
+  /**
+   * Profile ID of the trader who owns the position. Lets a client confirm that
+   * a position belongs to a given trader before attributing it to them. Absent
+   * on social-api builds that predate the field.
+   */
+  profileId?: string;
 };
 
 export type Pagination = {
@@ -472,8 +478,8 @@ export type FeedItem = Position & {
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
   /**
-   * Latest author Call in the current intent phase. On the all and trending
-   * feeds, a comment item carries its own comment instead and a trade item
+   * Latest author Call in the current intent phase. On the all, trending and
+   * following_v1 feeds, a comment item carries its own comment instead and a trade item
    * carries `null`. Absent on older social-api builds; `null` when that phase
    * has no comment.
    */
@@ -504,9 +510,9 @@ export type FeedItem = Position & {
   entryPriceUsd?: number | null;
   /**
    * Id of this feed item, the `feedItemId` its `social.v1.feed.all` revisions
-   * carry. A position can hold several items on the all and trending feeds
-   * (its trade plus one per author comment), so key rows on this rather than
-   * `positionId`. Set on the all and trending feeds only; absent on older
+   * carry. A position can hold several items on the all, trending and
+   * following_v1 feeds (its trade plus one per author comment), so key rows on
+   * this rather than `positionId`. Set on those feeds only; absent on older
    * social-api builds.
    */
   feedItemId?: string;
@@ -860,9 +866,12 @@ export type FetchTokenFeedOptions = {
 export type FetchFeedOptions = {
   /**
    * Which feed to fetch: `following` (personalized to the current user,
-   * identified server-side from the JWT), `leaderboard` (generic, shared by
-   * all users), or `all` (the shared feed-all projection). Defaults to
-   * `following` server-side when omitted.
+   * identified server-side from the JWT; one item per position, ordered by its
+   * latest trade), `following_v1` (the `all` items of the profiles the current
+   * user follows, without the user's own, ordered by `occurredAt`, with
+   * `feedItemId`), `leaderboard` (generic, shared by all users), `all` (the
+   * shared feed-all projection), or `trending`. Defaults to `following`
+   * server-side when omitted.
    */
   scope?: FeedScope;
   /**
@@ -894,7 +903,12 @@ export type FetchFeedOptions = {
   newerThan?: string;
 };
 
-export type FeedScope = 'following' | 'leaderboard' | 'all' | 'trending';
+export type FeedScope =
+  | 'following'
+  | 'following_v1'
+  | 'leaderboard'
+  | 'all'
+  | 'trending';
 
 export type FetchPositionByIdOptions = {
   /** Unique position ID (UUID). */

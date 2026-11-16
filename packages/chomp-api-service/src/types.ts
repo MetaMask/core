@@ -15,6 +15,24 @@ export type ChompIntentType =
   | 'cash-withdrawal-premium'
   | 'cash-subscription';
 
+/**
+ * The CHOMP intent types that complete the Money Account migration steps
+ * signed by the predecessor address. They can only be created through
+ * `POST /v2/intent`.
+ *
+ * - `cash-migration-root`: root delegation from the predecessor to the
+ * successor.
+ * - `cash-migration-transfer`: open delegation that lets any redeemer
+ * transfer one token (mUSD or vmUSD) from the predecessor only to the
+ * successor.
+ * - `cash-migration-premium-transfer`: delegation from the predecessor to
+ * CHOMP that moves the pvmUSD balance to the successor. Premium only.
+ */
+export type ChompMigrationIntentType =
+  | 'cash-migration-root'
+  | 'cash-migration-transfer'
+  | 'cash-migration-premium-transfer';
+
 export type DelegationCaveat = {
   enforcer: Hex;
   terms: Hex;
@@ -90,6 +108,40 @@ export type SendIntentParams = {
   delegationHash: Hex;
   chainId: Hex;
   metadata: IntentMetadataParams;
+};
+
+export type IntentDataParams = {
+  allowance: Hex;
+  tokenSymbol: string;
+  tokenAddress: Hex;
+};
+
+export type SendIntentV2Params = {
+  account: Hex;
+  delegationHash: Hex;
+  chainId: Hex;
+  intent:
+    | {
+        type:
+          | ChompIntentType
+          | Exclude<
+              ChompMigrationIntentType,
+              'cash-migration-premium-transfer'
+            >;
+        data: IntentDataParams;
+      }
+    | {
+        type: 'cash-migration-premium-transfer';
+        data: IntentDataParams & {
+          /**
+           * The predecessor's `personal_sign` signature of the raw digest
+           * `keccak256(abi.encode(vaultMigrationHelper, chainId, predecessor,
+           * successor, delegationHash))`, which binds the successor as the
+           * destination of this delegation.
+           */
+          userSignature: Hex;
+        };
+      };
 };
 
 export type CreateWithdrawalParams = {
@@ -197,6 +249,18 @@ export type IntentMetadataResponse = {
 export type SendIntentResponse = {
   delegationHash: Hex;
   metadata: IntentMetadataResponse;
+  createdAt: string;
+};
+
+export type SendIntentV2Response = {
+  delegationHash: Hex;
+  intent: {
+    type: ChompIntentType | ChompMigrationIntentType;
+    data: IntentDataParams & {
+      /** Only returned for `cash-migration-premium-transfer` intents. */
+      userSignature?: Hex;
+    };
+  };
   createdAt: string;
 };
 
@@ -310,6 +374,18 @@ export type AddressIdentityResponse = {
   };
 };
 
+/**
+ * Returned by POST /v1/money-account/identities/address/:address/funds-transfer.
+ * Addresses are lowercased.
+ */
+export type FundsTransferStart = {
+  from: Hex;
+  to: Hex;
+  transfer: MigrationTransfer | null;
+  /** Stays `null` for a standard link, and until CHOMP creates it. */
+  premiumTransfer: MigrationTransfer | null;
+};
+
 // === SERVICE DETAILS TYPES ===
 
 export type ServiceDetailsSupportedToken = {
@@ -325,6 +401,11 @@ export type ServiceDetailsProtocol = {
 
 export type ServiceDetailsChain = {
   autoDepositDelegate: Hex;
+  /**
+   * The VaultMigrationHelper contract, which redeems the premium migration
+   * transfer delegation. Not yet served on every environment.
+   */
+  vaultMigrationHelperAddress?: Hex;
   protocol: {
     vedaProtocol: ServiceDetailsProtocol;
     vedaPremiumProtocol?: ServiceDetailsProtocol;

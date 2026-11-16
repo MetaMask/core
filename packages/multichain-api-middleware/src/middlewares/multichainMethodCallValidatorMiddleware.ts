@@ -9,7 +9,7 @@ import type {
   OpenrpcDocument,
   ReferenceObject,
 } from '@open-rpc/meta-schema';
-import { dereferenceDocument } from '@open-rpc/schema-utils-js';
+import { parseOpenRPCDocument } from '@open-rpc/schema-utils-js';
 import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-rpc-document.js';
 import type { Schema, ValidationError } from 'jsonschema';
 import { Validator } from 'jsonschema';
@@ -37,9 +37,13 @@ const transformError = (
 
 const v = new Validator();
 
-const dereffedPromise = dereferenceDocument(
+const dereffedPromise = parseOpenRPCDocument(
   MultiChainOpenRPCDocument as unknown as OpenrpcDocument,
-  makeCustomResolver({}),
+  {
+    dereference: true,
+    validate: false,
+    resolver: makeCustomResolver({}),
+  },
 );
 
 /**

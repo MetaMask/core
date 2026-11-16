@@ -22,10 +22,7 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@ethereumjs/util': ['^8.1.0'],
-  '@ethereumjs/rlp': ['^4.0.1'],
-};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
 
 /**
  * Whether `yarn constraints --fix` may resolve a dependency range disagreement

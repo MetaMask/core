@@ -21,7 +21,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { accountSupports7702 } from '../../utils/7702.js';
+import { accountSupports7702 } from '../../utils/account.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,

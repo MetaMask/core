@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isMutationReceipt } from './escrow-utils.js';
+import { isMutationReceipt } from './receipt-utils.js';
 
 const RECEIPT = {
   mutationId: '0x1',

@@ -731,7 +731,9 @@ export const FUNDING_RATE_CONFIG = {
  * Decimal places shown for each displayed perps value, shared by Mobile,
  * Extension and Terminal. Pass one as the `decimals` option of the display
  * formatters (`formatPercentage`, `formatPnl`, `formatPerpsFiat`,
- * `formatFundingRate`). Prices follow `PRICE_RANGES_UNIVERSAL` instead.
+ * `formatFundingRate`, `formatFeeBps`, `formatLiquidationDistance`,
+ * `formatPerpsCompact`, `formatPerpsUsdInput`). Prices follow
+ * `PRICE_RANGES_UNIVERSAL` instead.
  */
 export const PERPS_DISPLAY_PRECISION = {
   // Generic percentage, such as the 24h change: "+5.25%"
@@ -750,6 +752,24 @@ export const PERPS_DISPLAY_PRECISION = {
   SlippageEstimatePercent: 4,
   // Most decimals a displayed price may have (Hyperliquid limit)
   MaxPriceDecimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals,
+  // Most decimals of a fee in basis points: "4.5 bps", "1.44 bps"
+  FeeBps: 2,
+  // Distance from the liquidation price as a percentage: "30.00%"
+  LiquidationDistancePercent: 2,
+  // Most decimals of TWAP progress as a percentage: "25%", "33.33%"
+  TwapProgressPercent: 2,
+  // Most decimals of a typed USD amount: "12.34"
+  UsdInput: 2,
+  // Most digits of a typed USD amount, integer and fraction together
+  UsdInputMaxDigits: 9,
+  // Volume and open interest from $1M up, and below $1K: "$1.23M", "$999.50"
+  VolumeCompact: 2,
+  // Volume and open interest in thousands: "$123K"
+  VolumeCompactThousands: 0,
+  // Order book size and total from 1K up: "$2.1K", "604.9K"
+  OrderBookCompact: 1,
+  // Most decimals of an abbreviated order book price: "$61.47K"
+  OrderBookAbbreviatedPriceMax: 3,
 } as const;
 
 /**

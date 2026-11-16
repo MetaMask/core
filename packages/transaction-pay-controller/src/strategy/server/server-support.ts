@@ -24,12 +24,6 @@ export enum ServerUnsupportedReason {
 
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
-
-  /** Reserving the HyperLiquid activation fee is not implemented. */
-  HyperliquidActivationFee = 'hyperliquidActivationFee',
-
-  /** Two-phase max-amount gas station probing is not implemented. */
-  MaxAmount = 'maxAmount',
 }
 
 /**
@@ -88,16 +82,8 @@ export function getServerUnsupportedReason({
 function getRequestUnsupportedReason(
   request: QuoteRequest,
 ): ServerUnsupportedReason | undefined {
-  if (request.hyperliquidActivationFeeUsd !== undefined) {
-    return ServerUnsupportedReason.HyperliquidActivationFee;
-  }
-
   if (request.isDirectMusdMoneyAccount === true) {
     return ServerUnsupportedReason.DirectMusdMoneyAccount;
-  }
-
-  if (request.isMaxAmount === true) {
-    return ServerUnsupportedReason.MaxAmount;
   }
 
   return undefined;

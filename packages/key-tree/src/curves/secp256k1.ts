@@ -25,13 +25,13 @@ export const isValidPrivateKey = (
 const getGetPublicKey = (): ((
   privateKey: Uint8Array<ArrayBuffer>,
   compressed?: boolean,
-) => Uint8Array<ArrayBuffer>) => {
+) => Promise<Uint8Array<ArrayBuffer>>) => {
   let hasPrecomputed = false;
 
-  const getPublicKey = (
+  const getPublicKey = async (
     privateKey: Uint8Array<ArrayBuffer>,
     compressed = false,
-  ): Uint8Array<ArrayBuffer> => {
+  ): Promise<Uint8Array<ArrayBuffer>> => {
     if (!hasPrecomputed) {
       secp256k1.Point.BASE.precompute(4);
       hasPrecomputed = true;

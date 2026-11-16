@@ -567,9 +567,14 @@ export class TradingService {
       });
     }
 
-    // Save executed trade configuration for this market
+    // Save executed trade configuration for this market, keyed by the venue
+    // the placement was routed to
     if (params.leverage && context.saveTradeConfiguration) {
-      context.saveTradeConfiguration(params.symbol, params.leverage);
+      context.saveTradeConfiguration(
+        params.symbol,
+        params.leverage,
+        params.providerId,
+      );
     }
 
     // Report to data lake (fire-and-forget with retry)
@@ -2948,9 +2953,11 @@ export class TradingService {
     provider: PerpsProvider;
     symbol: string;
     amount: string;
+    /** Explicit venue route, forwarded so aggregated routing reaches it. */
+    providerId?: PerpsProviderType;
     context: ServiceContext;
   }): Promise<{ success: boolean; error?: string }> {
-    const { provider, symbol, amount, context } = options;
+    const { provider, symbol, amount, providerId, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
 
@@ -2968,7 +2975,11 @@ export class TradingService {
       });
 
       // Call provider method
-      const result = await provider.updateMargin?.({ symbol, amount });
+      const result = await provider.updateMargin?.({
+        symbol,
+        amount,
+        providerId,
+      });
 
       if (!result) {
         throw new Error('Provider does not support margin adjustment');

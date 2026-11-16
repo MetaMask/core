@@ -13,11 +13,13 @@ export type {
 } from './MfaRecoveryController.js';
 export type {
   MfaRecoveryControllerAbortAction,
+  MfaRecoveryControllerAcquireLockAction,
   MfaRecoveryControllerAuthenticateIdentifierAction,
   MfaRecoveryControllerGetIdentifiersAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,
   MfaRecoveryControllerRegisterAction,
+  MfaRecoveryControllerReleaseLockAction,
   MfaRecoveryControllerResumeAction,
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
@@ -29,6 +31,11 @@ export type {
   AuthApiRecoveryAuthProviderMessenger,
   AuthApiRecoveryAuthProviderOptions,
 } from './auth-api-recovery-provider.js';
+export { RecoveryRegistrationLockProvider } from './recovery-registration-lock-provider.js';
+export type {
+  RecoveryRegistrationLockProviderMessenger,
+  RecoveryRegistrationLockProviderOptions,
+} from './recovery-registration-lock-provider.js';
 export {
   IncompleteMutationError,
   MfaRecoveryError,
@@ -37,15 +44,20 @@ export {
 export {
   IDENTIFIER_AUTH_MODES,
   MIN_IDENTIFIERS,
+  expectedSeedlessAuthConnection,
   getIdentifierAuthMode,
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
   EncryptedPendingOperation,
   GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
+  KeyBoundIdentifierLogin,
+  KeyBoundIdentifierToken,
+  KeyBoundIdentifierTokenRequest,
   Mutation,
   MutationPayload,
   MutationReceipt,
@@ -61,8 +73,10 @@ export type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryIdentifiers,
+  RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
+  SeedlessAuthData,
   WrappedSecret,
   WrappedSecretOutput,
 } from './types.js';

@@ -1,19 +1,21 @@
 import {
-  bufferToInt,
+  bytesToInt,
   ecrecover,
   fromRpcSig,
   fromSigned,
   isHexString,
-  toBuffer,
-  ToBufferInputTypes,
+  toBytes,
   toUnsigned,
 } from '@ethereumjs/util';
+import type { ToBytesInputTypes } from '@ethereumjs/util';
 import {
   numberToHex,
   remove0x,
   add0x,
   bytesToHex,
   numberToBytes,
+  stringToBytes,
+  Hex,
 } from '@metamask/utils';
 
 /**
@@ -56,16 +58,19 @@ export function isNullish(value: unknown): boolean {
 }
 
 /**
- * Convert a value to a Buffer. This function should be equivalent to the `toBuffer` function in
- * `ethereumjs-util@5.2.1`.
+ * Convert a value to bytes. This function should be equivalent to the `toBuffer` function in
+ * `ethereumjs-util@5.2.1`, with the following exceptions:
  *
- * @param value - The value to convert to a Buffer.
- * @returns The given value as a Buffer.
+ * - It returns a `Uint8Array` instead of a `Buffer`.
+ * - Objects with a `toArray` or `toBuffer` method are not supported.
+ *
+ * @param value - The value to convert to bytes.
+ * @returns The given value as a `Uint8Array`.
  */
-export function legacyToBuffer(value: ToBufferInputTypes): Buffer {
+export function legacyToBytes(value: ToBytesInputTypes): Uint8Array {
   return typeof value === 'string' && !isHexString(value)
-    ? Buffer.from(value)
-    : toBuffer(value);
+    ? stringToBytes(value)
+    : toBytes(value);
 }
 
 /**
@@ -76,12 +81,12 @@ export function legacyToBuffer(value: ToBufferInputTypes): Buffer {
  * @param s - The 's' portion of the signature.
  * @returns The concatenated ECDSA signature as a '0x'-prefixed string.
  */
-export function concatSig(v: Buffer, r: Buffer, s: Buffer): string {
+export function concatSig(v: Uint8Array, r: Uint8Array, s: Uint8Array): string {
   const rSig = fromSigned(r);
   const sSig = fromSigned(s);
-  const vSig = bufferToInt(v);
-  const rStr = padWithZeroes(toUnsigned(rSig).toString('hex'), 64);
-  const sStr = padWithZeroes(toUnsigned(sSig).toString('hex'), 64);
+  const vSig = bytesToInt(v);
+  const rStr = padWithZeroes(remove0x(bytesToHex(toUnsigned(rSig))), 64);
+  const sStr = padWithZeroes(remove0x(bytesToHex(toUnsigned(sSig))), 64);
   const vStr = remove0x(numberToHex(vSig));
   return add0x(rStr.concat(sStr, vStr));
 }
@@ -94,10 +99,10 @@ export function concatSig(v: Buffer, r: Buffer, s: Buffer): string {
  * @returns The public key of the signer.
  */
 export function recoverPublicKey(
-  messageHash: Buffer,
+  messageHash: Uint8Array,
   signature: string,
-): Buffer {
-  const sigParams = fromRpcSig(signature);
+): Uint8Array {
+  const sigParams = fromRpcSig(signature as Hex);
   return ecrecover(messageHash, sigParams.v, sigParams.r, sigParams.s);
 }
 

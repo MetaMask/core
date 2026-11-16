@@ -49,6 +49,41 @@ The package exports the controller's parameter, result, provider, and
 messenger types for client integrations. Provider availability and aggregated
 routing are controlled by client configuration and feature flags.
 
+## Multi-provider rollout prerequisites
+
+`perpsMultiProviderModeEnabled` is version-gated. Before enabling it for Mobile,
+set its `minimumVersion` to the first release that removes automatic
+navigation-driven calls to `switchProvider`. Do not enable the flag for older
+Mobile releases that still perform these switches.
+
+In particular, remove the automatic switch to `market.providerId` in
+`PerpsMarketDetailsRouter` and the switch to Lighter when opening an order in
+`usePerpsNavigation`. These calls must not switch the controller out of
+aggregated mode just to open a market or order. Keep aggregated mode active and
+pass a provider route to venue-specific operations instead.
+
+`switchProvider` represents an explicit mode selection, including a call that
+selects the already-active direct provider. A direct selection persists
+`hasExplicitProviderSelection` and prevents automatic migration back to
+aggregated mode across initialization and restarts. Reserve it for intentional
+mode changes. Use `setDefaultProvider` to change the aggregated routing
+preference without switching modes or reconnecting providers.
+
+When an aggregated provider has multiple registered venues, `placeOrder`,
+`editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`,
+`replacePositionTPSLLeg`, `updateMargin` and `withdraw` must name a
+`providerId`, and `flipPosition` must name `position.providerId`. Without a
+route they return `PROVIDER_ROUTE_REQUIRED`. An aggregated wrapper with only one
+registered venue, including HyperLiquid-only fallback when Lighter is
+unavailable, accepts these writes without an explicit route because there is
+only one destination.
+
+`cancelOrders` and `closePositions` cannot name a venue yet, so while multiple
+venues are registered they always return `PROVIDER_ROUTE_REQUIRED` instead of
+reaching the default venue. Cancel-all and close-all therefore stay unavailable
+in multi-venue aggregated mode until a release routes each order or position to
+its own venue and Lighter implements `cancelOrders` and `closePositions`.
+
 ## Rewards discounts and fee previews
 
 The client-owned RewardsController exposes two independent fee candidates.

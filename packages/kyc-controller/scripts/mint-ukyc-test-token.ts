@@ -103,6 +103,6 @@ if (flags['expires-at']) {
   );
 }
 
-const result = mintUkycTestToken(params);
+const result = await mintUkycTestToken(params);
 
 console.log(JSON.stringify(result, null, 2));

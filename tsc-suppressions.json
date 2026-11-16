@@ -98,13 +98,7 @@
     "TS2322": {
       "count": 12
     },
-    "TS2345": {
-      "count": 1
-    },
     "TS2352": {
-      "count": 2
-    },
-    "TS2445": {
       "count": 2
     },
     "TS2493": {
@@ -114,7 +108,7 @@
       "count": 1
     },
     "TS2554": {
-      "count": 9
+      "count": 7
     },
     "TS2739": {
       "count": 4
@@ -456,9 +450,6 @@
     }
   },
   "packages/eth-sig-util/src/sign-typed-data.test.ts": {
-    "TS2322": {
-      "count": 12
-    },
     "TS2351": {
       "count": 1
     },

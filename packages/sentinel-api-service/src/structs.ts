@@ -75,3 +75,73 @@ const SentinelSmartTransactionStruct = type({
 export const SentinelSmartTransactionResponseStruct = type({
   transactions: array(SentinelSmartTransactionStruct),
 });
+
+/**
+ * Validates one fee level from the `/getFees` endpoint.
+ */
+const SentinelSmartTransactionFeeStruct = type({
+  maxFeePerGas: number(),
+  maxPriorityFeePerGas: number(),
+});
+
+/**
+ * Validates the fee quote for a single transaction. Loose so additional
+ * fields returned by the API are ignored.
+ */
+const SentinelSmartTransactionFeesStruct = type({
+  cancelFees: array(SentinelSmartTransactionFeeStruct),
+  feeEstimate: number(),
+  fees: array(SentinelSmartTransactionFeeStruct),
+  gasLimit: number(),
+  gasUsed: number(),
+});
+
+/**
+ * Validates the `/getFees` response body.
+ */
+export const SentinelGetFeesResponseStruct = type({
+  txs: array(SentinelSmartTransactionFeesStruct),
+});
+
+/**
+ * Validates the `/submitTransactions` response body.
+ */
+export const SentinelSubmitTransactionsResponseStruct = type({
+  uuid: string(),
+});
+
+/**
+ * Validates the `/cancel` response body.
+ */
+export const SentinelCancelResponseStruct = type({
+  affected: number(),
+  cancelled: boolean(),
+  uuid: string(),
+});
+
+/**
+ * Validates one UUID's entry in the `/batchStatus` response. The closed-set
+ * fields are checked as strings, matching the loose validation used for other
+ * Sentinel status fields.
+ */
+const SentinelBatchedTransactionStatusStruct = type({
+  cancellationFeeWei: number(),
+  cancellationReason: string(),
+  deadlineRatio: number(),
+  duplicated: boolean(),
+  isSettled: boolean(),
+  minedHash: string(),
+  minedTx: string(),
+  originalTransactionStatus: string(),
+  proxied: boolean(),
+  timedOut: boolean(),
+  wouldRevertMessage: string(),
+});
+
+/**
+ * Validates the `/batchStatus` response body (a map keyed by UUID).
+ */
+export const SentinelBatchStatusResponseStruct = record(
+  string(),
+  SentinelBatchedTransactionStatusStruct,
+);
