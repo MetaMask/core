@@ -46,6 +46,7 @@ import type {
   MfaSignerContext,
   MfaRequirement,
   MfaWhitelistConfig,
+  MfaWhitelistRule,
   MoneyAccountSignatureRequest,
 } from './types.js';
 
@@ -218,8 +219,10 @@ function buildChompSuccessorMessage(
   return `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nAssociate ${successor} as the successor of ${predecessor} for CHOMP Money Account migration.\n\nURI: ${uri}\nVersion: 1\nChain ID: ${chainId}\nNonce: f60ff0d2a6c02b70ce5106097dabd163\nIssued At: ${issuedAt}\nExpiration Time: ${expirationTime}\nRequest ID: bcde79a3-12a8-419a-b404-579f7b5f69c3\nResources:\n- urn:chomp:profile:79678b20-061e-4246-a1de-5dc1a8074564\n- urn:chomp:purpose:ASSOCIATE_SUCCESSOR\n- urn:chomp:predecessor:${resourcePredecessor}`;
 }
 
-const whitelistedAs = (rule: string): MfaRequirement =>
-  ({ mfaRequired: false, rule }) as MfaRequirement;
+const whitelistedAs = (rule: MfaWhitelistRule): MfaRequirement => ({
+  mfaRequired: false,
+  rule,
+});
 
 const mfaRequired = (reason: string): MfaRequirement => ({
   mfaRequired: true,

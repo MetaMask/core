@@ -109,6 +109,7 @@ export type MoneyAccountSignatureRequest =
 export type MfaWhitelistRule =
   | 'chomp-authentication'
   | 'card-sign-in'
+  | 'chomp-successor-association'
   | 'rewards-binding'
   | 'eip7702-authorization'
   | 'vault-standing-delegation'
