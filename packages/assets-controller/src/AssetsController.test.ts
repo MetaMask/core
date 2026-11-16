@@ -11,7 +11,11 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import type { NetworkState } from '@metamask/network-controller';
+import { RpcEndpointType } from '@metamask/network-controller';
+import type {
+  NetworkConfiguration,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { describe, expect, it, vi } from 'vitest';
@@ -5389,17 +5393,17 @@ describe('AssetsController', () => {
   describe('network changes', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': true,
+                '0x1': true,
+                '0x89': true,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
               'eip155:137': 'eip155:137/slip44:966',
             },
           },
@@ -5416,6 +5420,19 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         await activateTracking(messenger);
 
+        messenger.publish(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {
+              eip155: { '0x1': true },
+            },
+            nativeAssetIdentifiers: {
+              'eip155:1': 'eip155:1/slip44:60',
+            },
+          },
+          [],
+        );
+
         let musdPresentAtPriceFetch: boolean | undefined;
         const fetchSpy = vi
           .spyOn(PriceDataSource.prototype, 'fetch')
@@ -5427,19 +5444,11 @@ describe('AssetsController', () => {
           });
 
         try {
-          (
-            messenger as unknown as {
-              publish: (
-                topic: string,
-                payload?: unknown,
-                patches?: unknown,
-              ) => void;
-            }
-          ).publish(
+          messenger.publish(
             'NetworkEnablementController:stateChange',
             {
               enabledNetworkMap: {
-                eip155: { '1': true, '59144': true },
+                eip155: { '0x1': true, '0xe708': true },
               },
               nativeAssetIdentifiers: {
                 'eip155:1': 'eip155:1/slip44:60',
@@ -5553,34 +5562,34 @@ describe('AssetsController', () => {
 
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': true,
+                '0x1': true,
+                '0x89': true,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
               'eip155:137': 'eip155:137/slip44:966',
             },
           },
           [],
         );
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': false,
+                '0x1': true,
+                '0x89': false,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
             },
           },
           [],
@@ -5591,15 +5600,24 @@ describe('AssetsController', () => {
     });
 
     it('refreshes assets when a network is added or removed', async () => {
+      const polygonNetwork: NetworkConfiguration = {
+        blockExplorerUrls: [],
+        chainId: '0x89',
+        defaultRpcEndpointIndex: 0,
+        name: 'Polygon',
+        nativeCurrency: 'POL',
+        rpcEndpoints: [
+          {
+            networkClientId: 'polygon',
+            type: RpcEndpointType.Custom,
+            url: 'https://polygon-rpc.com',
+          },
+        ],
+      };
+
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
-          'NetworkController:networkAdded',
-          { chainId: '0x89' },
-        );
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
-          'NetworkController:networkRemoved',
-          { chainId: '0x89' },
-        );
+        messenger.publish('NetworkController:networkAdded', polygonNetwork);
+        messenger.publish('NetworkController:networkRemoved', polygonNetwork);
 
         expect(true).toBe(true);
       });
