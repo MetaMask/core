@@ -57,13 +57,13 @@
     "@metamask/eth-money-keyring": "^4.0.2",
     "@metamask/eth-money-mpc-keyring": "^0.2.0",
     "@metamask/keyring-api": "^24.3.0",
-    "@metamask/keyring-controller": "^28.2.0",
+    "@metamask/keyring-controller": "^28.2.1",
     "@metamask/messenger": "^3.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
     "@metamask/keyring-utils": "^5.0.0",
-    "@metamask/utils": "^12.0.1",
+    "@metamask/utils": "^12.0.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.3",
     "typedoc": "^0.28.20",

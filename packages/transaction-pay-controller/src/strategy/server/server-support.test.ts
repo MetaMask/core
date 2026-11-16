@@ -117,16 +117,10 @@ describe('server-support', () => {
 
     it.each([
       [
-        'hyperliquidActivationFeeUsd',
-        { hyperliquidActivationFeeUsd: '1' },
-        ServerUnsupportedReason.HyperliquidActivationFee,
-      ],
-      [
         'isDirectMusdMoneyAccount',
         { isDirectMusdMoneyAccount: true },
         ServerUnsupportedReason.DirectMusdMoneyAccount,
       ],
-      ['isMaxAmount', { isMaxAmount: true }, ServerUnsupportedReason.MaxAmount],
     ] as const)(
       'returns %s reason for an unsupported capability',
       (_name, overrides, expected) => {
@@ -139,9 +133,18 @@ describe('server-support', () => {
     it('returns a reason when any request is unsupported', () => {
       expect(
         getReason({
-          requests: [REQUEST_MOCK, { ...REQUEST_MOCK, isMaxAmount: true }],
+          requests: [
+            REQUEST_MOCK,
+            { ...REQUEST_MOCK, isDirectMusdMoneyAccount: true },
+          ],
         }),
-      ).toBe(ServerUnsupportedReason.MaxAmount);
+      ).toBe(ServerUnsupportedReason.DirectMusdMoneyAccount);
+    });
+
+    it('supports max amount requests', () => {
+      expect(
+        getReason({ requests: [{ ...REQUEST_MOCK, isMaxAmount: true }] }),
+      ).toBeUndefined();
     });
 
     it('supports non-atomic requests', () => {
