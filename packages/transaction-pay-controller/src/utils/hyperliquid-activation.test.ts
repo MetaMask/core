@@ -4,19 +4,19 @@ import type { Hex } from '@metamask/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
+import { HYPERLIQUID_INFO_URL } from '../constants.js';
 import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
-} from '../../types.js';
-import { getHyperliquidActivationFeeConfig } from '../../utils/feature-flags.js';
-import { HYPERLIQUID_INFO_URL } from './constants.js';
+} from '../types.js';
+import { getHyperliquidActivationFeeConfig } from './feature-flags.js';
 import type { HyperLiquidLedgerUpdate } from './hyperliquid-activation.js';
 import {
   applyHyperliquidActivationFee,
   isHyperLiquidAccountActivated,
 } from './hyperliquid-activation.js';
 
-vi.mock(import('../../utils/feature-flags.js'), () => ({
+vi.mock(import('./feature-flags.js'), () => ({
   getHyperliquidActivationFeeConfig: vi.fn(),
 }));
 

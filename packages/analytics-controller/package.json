@@ -56,7 +56,7 @@
     "@metamask/config-registry-controller": "^6.0.0",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/utils": "^12.0.1",
+    "@metamask/utils": "^12.0.2",
     "lodash-es": "^4.18.1",
     "uuid": "^14.0.2"
   },

@@ -1,5 +1,6 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { KeyringControllerMessenger } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -30,9 +31,13 @@ type TestMockType = any;
 type GlobalActions = MessengerActions<
   AssetsControllerMessenger | KeyringControllerMessenger
 >;
-type GlobalEvents = MessengerEvents<
-  AssetsControllerMessenger | KeyringControllerMessenger
+type AssetsControllerStateChangedEvent = ControllerStateChangedEvent<
+  'AssetsController',
+  AssetsControllerState
 >;
+type GlobalEvents =
+  | MessengerEvents<AssetsControllerMessenger | KeyringControllerMessenger>
+  | AssetsControllerStateChangedEvent;
 
 export type MockRootMessenger = Messenger<
   MockAnyNamespace,
@@ -68,9 +73,12 @@ export function registerKeyringUnlockMock(
   });
 }
 
-export function createMockRootMessenger(): MockRootMessenger {
+export function createMockRootMessenger(options?: {
+  captureException?: (error: Error) => void;
+}): MockRootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: options?.captureException,
   });
 }
 
@@ -122,6 +130,7 @@ export function createMockAssetsControllerMessenger(
       'KeyringController:unlock',
       'PreferencesController:stateChange',
       'TransactionController:unapprovedTransactionAdded',
+      'MultichainTransactionsController:transactionConfirmed',
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
@@ -147,13 +156,14 @@ export function createMockAssetsControllerMessenger(
 
 export function createMockMessengers(options?: {
   registerCustomRootActions?: (rootMessenger: MockRootMessenger) => void;
+  captureException?: (error: Error) => void;
 }): {
   rootMessenger: MockRootMessenger;
   assetsControllerMessenger: AssetsControllerMessenger;
 } {
-  const { registerCustomRootActions } = options ?? {};
+  const { registerCustomRootActions, captureException } = options ?? {};
 
-  const rootMessenger = createMockRootMessenger();
+  const rootMessenger = createMockRootMessenger({ captureException });
 
   registerCustomRootActions?.(rootMessenger);
 

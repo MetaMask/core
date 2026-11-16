@@ -238,7 +238,7 @@ export async function createBip39KeyFromSeed(
     'Invalid private key: The private key must greater than 0 and less than the curve order.',
   );
 
-  const publicKey = curve.getPublicKey(privateKey, false);
+  const publicKey = await curve.getPublicKey(privateKey, false);
   const masterFingerprint = getFingerprint(
     curve.compressPublicKey(publicKey),
     curve.compressedPublicKeyLength,
@@ -299,7 +299,7 @@ export async function entropyToCip3MasterNode(
 
   assert(curve.isValidPrivateKey(privateKey), 'Invalid private key.');
 
-  const publicKey = curve.getPublicKey(privateKey, false);
+  const publicKey = await curve.getPublicKey(privateKey, false);
   const masterFingerprint = getFingerprint(
     curve.compressPublicKey(publicKey),
     curve.compressedPublicKeyLength,
