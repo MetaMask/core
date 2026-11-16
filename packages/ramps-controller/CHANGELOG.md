@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `getQuoteWithFees` sets the Transak partner API key from the `depositConfig.providerApiKey` remote flag on `TransakService` before the native buy-quote lookup, so the native fee is available without the host calling `transakSetApiKey` first
+- `getQuoteWithFees` sets the Transak partner API key from the `depositConfig.providerApiKey` remote flag on `TransakService` before the native buy-quote lookup, so the native fee is available without the host calling `transakSetApiKey` first ([#11550](https://github.com/MetaMask/core/pull/11550))
 
 ## [30.0.0]
 
