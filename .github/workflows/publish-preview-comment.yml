@@ -4,6 +4,8 @@ on:
   issue_comment:
     types: created
 
+permissions: {}
+
 jobs:
   notify:
     name: Notify about new "Publish preview" workflow
