@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(multichain-account-service): Remove unused `key-tree` dependency ([#11468](https://github.com/MetaMask/core/pull/11468))
+- chore(key-tree): move to `packages` ([#11367](https://github.com/MetaMask/core/pull/11367))
+- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
+- chore(deps): bump uuid from 14.0.1 to 14.0.2 ([#11305](https://github.com/MetaMask/core/pull/11305))
+- test: turn coverage off by default and add test:coverage ([#11061](https://github.com/MetaMask/core/pull/11061))
+- test: switch Vitest coverage provider to `v8` ([#11261](https://github.com/MetaMask/core/pull/11261))
+- chore(deps): bump uuid from 14.0.0 to 14.0.1 ([#11179](https://github.com/MetaMask/core/pull/11179))
+- ci: validate all changelogs in a single run ([#11199](https://github.com/MetaMask/core/pull/11199))
+- chore(deps): bump uuid from 11.1.1 to 14.0.0 ([#10941](https://github.com/MetaMask/core/pull/10941))
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: run accounts packages on Vitest ([#10974](https://github.com/MetaMask/core/pull/10974))
+- chore: note the unpublished test helpers in the changelogs ([#10928](https://github.com/MetaMask/core/pull/10928))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- chore(dev-deps): bump `oxfmt` from `^0.44.0` to `^0.72.0` ([#10785](https://github.com/MetaMask/core/pull/10785))
+- chore(deps): update dependency @metamask/providers to ^22.1.1 ([#10709](https://github.com/MetaMask/core/pull/10709))
+- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
+- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
+- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
+- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
+- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
+
 ### Added
 
 - Register `XlmAccountProvider` in `MultichainAccountService` built-in providers and accept `providerConfigs[XLM_ACCOUNT_PROVIDER_NAME]` ([#10867](https://github.com/MetaMask/core/pull/10867))

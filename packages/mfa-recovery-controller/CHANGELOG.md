@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: detect and repair lagging recovery escrows ([#11200](https://github.com/MetaMask/core/pull/11200))
+
 ### Added
 
 - `authenticateIdentifier` returns an `IdentifierSession` from one identifier login: key-bound recovery material for `getRecoverySecret`, plus optional `seedlessAuthData` on that session when the login returned it (social logins; passkey / SIWE omit it) ([#11224](https://github.com/MetaMask/core/pull/11224))
