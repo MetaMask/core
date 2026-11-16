@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `getShouldFetchFirstQuoteImmediately` constructor option to `BridgeController` ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Add optional `getShouldFetchFirstQuoteImmediately` constructor option to `BridgeController` ([#11541](https://github.com/MetaMask/core/pull/11541))
   - When it returns `true`, `updateBridgeQuoteRequestParams` starts the first quote fetch right after `startPolling` instead of waiting for the polling controller's 0ms timer, and the first poll awaits that fetch instead of fetching again
 
 ### Changed
