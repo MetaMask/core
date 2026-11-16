@@ -1,4 +1,15 @@
 import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
+import {
+  boolean,
+  enums,
+  is,
+  literal,
+  nonempty,
+  number,
+  refine,
+  string,
+  type,
+} from '@metamask/superstruct';
 import type {
   KeyPair,
   SEC1EncodedPublicKey,
@@ -67,6 +78,13 @@ type SerializedVaultKeySet = {
   localWrapKey: string;
 };
 
+const EnvelopeStruct = type({
+  v: literal(1),
+  path: enums(['password', 'recovery-secret'] as const),
+  vaultAuthPubKey: string(),
+  ct: string(),
+});
+
 /**
  * @returns The error thrown for any malformed envelope or control record.
  */
@@ -121,9 +139,7 @@ export function pubKeysEqual(
   a: SEC1EncodedPublicKey,
   b: SEC1EncodedPublicKey,
 ): boolean {
-  return secp256k1.Point.fromHex(a).equals(
-    secp256k1.Point.fromHex(b),
-  );
+  return secp256k1.Point.fromHex(a).equals(secp256k1.Point.fromHex(b));
 }
 
 /**
@@ -247,13 +263,7 @@ export function serializeEnvelope(envelope: Envelope): Uint8Array {
  */
 export function parseEnvelope(data: Uint8Array): Envelope {
   const value = parseJsonBytes(data);
-  if (
-    !isObject(value) ||
-    value.v !== 1 ||
-    (value.path !== 'password' && value.path !== 'recovery-secret') ||
-    typeof value.vaultAuthPubKey !== 'string' ||
-    typeof value.ct !== 'string'
-  ) {
+  if (!is(value, EnvelopeStruct)) {
     throw createInvalidEnvelopeError();
   }
   return {
@@ -274,29 +284,9 @@ export function serializeControlRecord(record: ControlRecord): Uint8Array {
 
 /**
  * @param value - The value to check.
- * @param min - The smallest allowed value.
- * @returns Whether the value is a safe integer of at least `min`.
- */
-function isSafeIntegerAtLeast(value: unknown, min: number): value is number {
-  return Number.isSafeInteger(value) && (value as number) >= min;
-}
-
-/**
- * @param value - The value to check.
- * @returns Whether the value is a non-empty string.
- */
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0;
-}
-
-/**
- * @param value - The value to check.
  * @returns Whether the value is a hex encoded secp256k1 private key.
  */
-function isAuthSk(value: unknown): value is string {
-  if (typeof value !== 'string') {
-    return false;
-  }
+function isAuthSk(value: string): boolean {
   try {
     derivePubKey(hexToBigInt(value));
     return true;
@@ -304,6 +294,31 @@ function isAuthSk(value: unknown): value is string {
     return false;
   }
 }
+
+const SafeSeqStruct = refine(
+  number(),
+  'safe integer of at least 1',
+  (value) => Number.isSafeInteger(value) && value >= 1,
+);
+
+const SafeNonNegativeIntegerStruct = refine(
+  number(),
+  'safe integer of at least 0',
+  (value) => Number.isSafeInteger(value) && value >= 0,
+);
+
+const ControlRecordStruct = type({
+  v: literal(1),
+  seq: SafeSeqStruct,
+  passwordNamespace: type({
+    verifier: nonempty(string()),
+    verifierId: nonempty(string()),
+    authSk: refine(string(), 'hex encoded secp256k1 private key', isAuthSk),
+    keyIndex: SafeNonNegativeIntegerStruct,
+    enabled: boolean(),
+  }),
+  migratedAt: SafeNonNegativeIntegerStruct,
+});
 
 /**
  * Validate a value as a control record and copy its known fields.
@@ -313,22 +328,10 @@ function isAuthSk(value: unknown): value is string {
  * value is not a control record.
  */
 export function toControlRecord(value: unknown): ControlRecord | undefined {
-  if (!isObject(value) || !isObject(value.passwordNamespace)) {
+  if (!is(value, ControlRecordStruct)) {
     return undefined;
   }
   const { passwordNamespace: ns } = value;
-  if (
-    value.v !== 1 ||
-    !isSafeIntegerAtLeast(value.seq, 1) ||
-    !isSafeIntegerAtLeast(value.migratedAt, 0) ||
-    !isNonEmptyString(ns.verifier) ||
-    !isNonEmptyString(ns.verifierId) ||
-    !isAuthSk(ns.authSk) ||
-    !isSafeIntegerAtLeast(ns.keyIndex, 0) ||
-    typeof ns.enabled !== 'boolean'
-  ) {
-    return undefined;
-  }
   return {
     v: 1,
     seq: value.seq,
