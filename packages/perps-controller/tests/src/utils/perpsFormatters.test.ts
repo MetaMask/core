@@ -1127,6 +1127,15 @@ describe('TAT-4574 display formatters', () => {
       expect(formatCrossMarginRatio(-0.174, { sign: 'never' })).toBe('17.4%');
     });
 
+    it('honors decimals for the fraction and the zero threshold', () => {
+      expect(formatCrossMarginRatio(0.004, { decimals: 0 })).toBe('0%');
+      expect(formatCrossMarginRatio(-0.004, { decimals: 0 })).toBe('0%');
+      expect(formatCrossMarginRatio(0.005, { decimals: 0 })).toBe('1%');
+      expect(formatCrossMarginRatio(-0.005, { decimals: 0 })).toBe('-1%');
+      expect(formatCrossMarginRatio(0.17456, { decimals: 2 })).toBe('17.46%');
+      expect(formatCrossMarginRatio(-0.00004, { decimals: 2 })).toBe('0%');
+    });
+
     // Mobile formats these with Intl percent style, so a decimal tie rounds
     // the way the shortest decimal form of the ratio reads, not the way the
     // binary value of `ratio * 100` rounds with `toFixed`.
@@ -1204,13 +1213,26 @@ describe('TAT-4574 display formatters', () => {
       );
     });
 
-    it('keeps the locale minus sign on a negative ratio', () => {
+    it('prefixes the shared minus on a negative ratio', () => {
       expect(formatCrossMarginRatio(-0.174, { formatters: intl('tr') })).toBe(
         '-%17,4',
       );
       expect(formatCrossMarginRatio(-0.174, { formatters: de })).toBe(
         `-17,4${NBSP}%`,
       );
+    });
+
+    it('uses percent style where formatPercentage still appends a bare %', () => {
+      expect(formatCrossMarginRatio(0.174, { formatters: de })).toBe(
+        `17,4${NBSP}%`,
+      );
+      expect(
+        formatPercentage(17.4, {
+          decimals: 1,
+          sign: 'never',
+          formatters: de,
+        }),
+      ).toBe('17,4%');
     });
   });
 

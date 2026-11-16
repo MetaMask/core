@@ -968,18 +968,12 @@ export const formatCrossMarginRatio = (
   // A ratio that rounds to 0 at the shown precision has no sign, so a tiny
   // negative ratio is `0%`, not `-0%`. The threshold is half of the last
   // shown digit, with the half rounded away from zero as `Intl` does.
-  if (magnitude < Number(`5e-${decimals + 3}`)) {
-    return `${sign === 'always' ? '+' : ''}${formatters.formatNumber(
-      0,
-      percentOptions,
-    )}`;
-  }
-  if (parsed < 0 && sign !== 'never') {
-    // `Intl` prefixes the locale's own minus sign
-    return formatters.formatNumber(parsed, percentOptions);
-  }
-  const plus = parsed > 0 && (sign === 'always' || sign === 'exceptZero');
-  return `${plus ? '+' : ''}${formatters.formatNumber(magnitude, percentOptions)}`;
+  // The sign itself is the shared prefix, not the locale's minus glyph.
+  const isZero = magnitude < Number(`5e-${decimals + 3}`);
+  return `${_signPrefix(parsed, isZero, sign)}${formatters.formatNumber(
+    isZero ? 0 : magnitude,
+    percentOptions,
+  )}`;
 };
 
 /**
