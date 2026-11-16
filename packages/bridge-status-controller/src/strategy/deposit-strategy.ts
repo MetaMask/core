@@ -10,14 +10,13 @@ import type { QuoteAndTxMetadata } from '../types.js';
 import { getVaultConfig } from '../utils/feature-flags.js';
 import { getPrimaryMoneyAccount } from '../utils/money-account.js';
 import { getWeb3Provider } from '../utils/network.js';
-import { waitForMMPayFeeQuotes } from '../utils/subscriptions.js';
 import { getReceivedAmountFromTxHash } from '../utils/swap-received-amount.js';
 import {
-  findAllTransactionsInBatch,
   getAddTransactionBatchParams,
   getTransactionMetaByBatchId,
   shouldDisable7702,
 } from '../utils/transaction.js';
+import { withMmPayApproval } from '../utils/with-mm-pay-approval.js';
 import { SubmitStep } from './types.js';
 import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
@@ -182,16 +181,17 @@ export async function* submitDepositHandler(
   try {
     // After TransactionController adds the unapproved transaction,
     // update the txMeta with MM Pay quotes then approve the batch
-    waitForMMPayFeeQuotes({
-      messenger,
-      batchId,
-      primaryMoneyAccount,
-      underlyingToken: vaultConfig.underlyingToken,
-      chainId: vaultConfig.chainId,
-      operation: Operation.DEPOSIT,
-    });
-
-    await addTransactionBatchFn(transactionParams);
+    await withMmPayApproval(
+      {
+        messenger,
+        batchId,
+        primaryMoneyAccount,
+        underlyingToken: vaultConfig.underlyingToken,
+        chainId: vaultConfig.chainId,
+        operation: Operation.DEPOSIT,
+      },
+      () => addTransactionBatchFn(transactionParams),
+    );
 
     const tradeMeta = getTransactionMetaByBatchId({
       messenger,
@@ -219,13 +219,12 @@ export async function* submitDepositHandler(
       },
     };
   } catch (error) {
-    const quoteAndTxMetas = findAllTransactionsInBatch({
+    const tradeMeta = getTransactionMetaByBatchId({
       messenger,
       batchId,
-      tradeData,
-    });
+    })[0];
     // If txMeta has not been added to the TransactionController, propagate the error
-    if (!quoteAndTxMetas.some(({ txMeta }) => txMeta)) {
+    if (!tradeMeta?.id) {
       throw error;
     }
   }

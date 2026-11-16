@@ -73,6 +73,7 @@ import * as historyUtils from './utils/history.js';
 import * as intentApi from './utils/intent-api.js';
 import * as metricsUtils from './utils/metrics.js';
 import * as networkUtils from './utils/network.js';
+import { tradeUpdateHandler } from './utils/subscriptions.js';
 import * as transactionUtils from './utils/transaction.js';
 import { IntentOrderStatus } from './utils/validators.js';
 
@@ -127,6 +128,7 @@ vi.mock('@metamask/money-account-utils', async (importOriginal) => {
   };
 });
 
+const ADD_BATCH_TX_TIMEOUT_MS = 120_000;
 const MockStatusResponse = {
   getPending: ({
     srcTxHash = '0xsrcTxHash1',
@@ -557,6 +559,7 @@ function getControllerMessenger(
       'TransactionPayController:setTransactionConfig',
       'TransactionPayController:updatePaymentToken',
       'ApprovalController:acceptRequest',
+      'ApprovalController:rejectRequest',
     ],
     events: [
       'TransactionController:transactionStatusUpdated',
@@ -4364,6 +4367,7 @@ describe('BridgeStatusController (deposit)', () => {
             return;
           case 'ApprovalController:acceptRequest':
             return Promise.resolve();
+          case 'ApprovalController:rejectRequest':
           default:
         }
       });
@@ -4388,6 +4392,102 @@ describe('BridgeStatusController (deposit)', () => {
       rootMessenger.publish('TransactionController:transactionStatusUpdated', {
         transactionMeta,
       });
+    };
+
+    const countAction = (messengerCall: Mock, action: string) =>
+      messengerCall.mock.calls.filter(([name]) => name === action).length;
+
+    const publishPayQuotes = (
+      rootMessenger: RootMessenger,
+      quotes: unknown[],
+    ) => {
+      rootMessenger.publish(
+        'TransactionPayController:stateChange',
+        {
+          transactionData: {
+            [DEPOSIT_TX_ID]: { quotes, tokens: [] },
+          },
+        } as never,
+        [],
+      );
+    };
+
+    const publishUnapprovedDeposit = (rootMessenger: RootMessenger) => {
+      rootMessenger.publish(
+        'TransactionController:unapprovedTransactionAdded',
+        {
+          ...depositTxMeta(DEPOSIT_HASH),
+          status: TransactionStatus.unapproved,
+        },
+      );
+    };
+
+    const completeMmPay = async (rootMessenger: RootMessenger) => {
+      publishUnapprovedDeposit(rootMessenger);
+      await flushPromises();
+      publishPayQuotes(rootMessenger, [{}]);
+      await flushPromises();
+    };
+
+    const flushDeposit = async () => {
+      await flushPromises();
+      await flushPromises();
+      await flushPromises();
+      await flushPromises();
+    };
+
+    const withMmPayQuoteSubscription = async (
+      transactions: TransactionMeta[],
+      run: (args: {
+        rootMessenger: RootMessenger;
+        messenger: BridgeStatusControllerMessenger;
+        messengerCall: Mock;
+        getStateCount: () => number;
+        acceptCount: () => number;
+        rejectCount: () => number;
+      }) => void | Promise<void>,
+      options: {
+        messengerCall?: Mock;
+        onMessenger?: (messenger: BridgeStatusControllerMessenger) => void;
+      } = {},
+    ) => {
+      const messengerCall =
+        options.messengerCall ?? queueDepositMessenger(transactions);
+      addTransactionBatchFnMock = vi.fn();
+
+      await withController(
+        {
+          mockMessengerCall: messengerCall,
+          options: {
+            addTransactionBatchFn: addTransactionBatchFnMock,
+            state: { txHistory: swapHistory() },
+          },
+        },
+        async ({ rootMessenger, messenger }) => {
+          options.onMessenger?.(messenger);
+          addTransactionBatchFnMock.mockImplementation(async () => {
+            publishUnapprovedDeposit(rootMessenger);
+            await flushPromises();
+            await run({
+              rootMessenger,
+              messenger,
+              messengerCall,
+              getStateCount: () =>
+                countAction(messengerCall, 'TransactionController:getState'),
+              acceptCount: () =>
+                countAction(messengerCall, 'ApprovalController:acceptRequest'),
+              rejectCount: () =>
+                countAction(messengerCall, 'ApprovalController:rejectRequest'),
+            });
+            await flushPromises();
+          });
+          publishSwap(rootMessenger, TransactionStatus.confirmed);
+          await flushPromises();
+          await flushPromises();
+          await flushPromises();
+          await flushPromises();
+        },
+      );
     };
 
     let receipt: ReturnType<typeof transactionReceipt>;
@@ -4490,7 +4590,7 @@ describe('BridgeStatusController (deposit)', () => {
 
     it('runs the deposit after the swap confirms and completes only after the deposit', async () => {
       const messengerCall = queueDepositMessenger();
-      addTransactionBatchFnMock = vi.fn().mockResolvedValue(undefined);
+      addTransactionBatchFnMock = vi.fn();
 
       await withController(
         {
@@ -4501,8 +4601,11 @@ describe('BridgeStatusController (deposit)', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
+          addTransactionBatchFnMock.mockImplementation(async () => {
+            await completeMmPay(rootMessenger);
+          });
           publishSwap(rootMessenger, TransactionStatus.confirmed);
-          await flushPromises();
+          await flushDeposit();
 
           expect(mockBuildMoneyAccountDepositBatch).toHaveBeenCalledTimes(1);
           expect(addTransactionBatchFnMock).toHaveBeenCalledTimes(1);
@@ -4547,6 +4650,7 @@ describe('BridgeStatusController (deposit)', () => {
       vi.useFakeTimers();
       vi.spyOn(Date, 'now').mockReturnValue(1729964825189);
       const messengerCall = queueDepositMessenger();
+      addTransactionBatchFnMock = vi.fn();
       vi.spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus').mockResolvedValue({
         status: MockStatusResponse.getComplete({
           srcTxHash: SRC_HASH,
@@ -4559,7 +4663,7 @@ describe('BridgeStatusController (deposit)', () => {
         {
           mockMessengerCall: messengerCall,
           options: {
-            addTransactionBatchFn: vi.fn().mockResolvedValue(undefined),
+            addTransactionBatchFn: addTransactionBatchFnMock,
             state: {
               txHistory: swapHistory({
                 destChainId: 10,
@@ -4570,11 +4674,14 @@ describe('BridgeStatusController (deposit)', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, rootMessenger }) => {
+          addTransactionBatchFnMock.mockImplementation(async () => {
+            await completeMmPay(rootMessenger);
+          });
           controller.startPolling({ bridgeTxMetaId: SWAP_ID });
-          await flushPromises();
+          await flushDeposit();
           vi.advanceTimersByTime(10000);
-          await flushPromises();
+          await flushDeposit();
 
           expect(mockBuildMoneyAccountDepositBatch).toHaveBeenCalledTimes(1);
           expect(trackedEvents(messengerCall)).not.toContain(
@@ -4675,15 +4782,44 @@ describe('BridgeStatusController (deposit)', () => {
       },
     );
 
+    it('publishes failed when underlying token disappears while building deposit txs', async () => {
+      let underlyingTokenReads = 0;
+      mockGetMoneyAccountVaultConfig.mockReturnValue({
+        ...vaultConfig(),
+        get underlyingToken() {
+          underlyingTokenReads += 1;
+          return underlyingTokenReads === 1 ? UNDERLYING_TOKEN : undefined;
+        },
+      });
+      const messengerCall = queueDepositMessenger([]);
+
+      await withController(
+        {
+          mockMessengerCall: messengerCall,
+          options: { state: { txHistory: swapHistory() } },
+        },
+        async ({ controller, rootMessenger }) => {
+          publishSwap(rootMessenger, TransactionStatus.confirmed);
+          await flushPromises();
+
+          expect(mockBuildMoneyAccountDepositBatch).not.toHaveBeenCalled();
+          expect(controller.state.txHistory[SWAP_ID].status.status).toBe(
+            StatusTypes.FAILED,
+          );
+        },
+      );
+    });
+
     it('publishes failed when the deposit batch tx has no hash', async () => {
       mockGetMoneyAccountVaultConfig.mockReturnValue(vaultConfig());
       const messengerCall = queueDepositMessenger([depositTxMeta()]);
+      addTransactionBatchFnMock = vi.fn();
 
       await withController(
         {
           mockMessengerCall: messengerCall,
           options: {
-            addTransactionBatchFn: vi.fn().mockResolvedValue(undefined),
+            addTransactionBatchFn: addTransactionBatchFnMock,
             state: {
               txHistory: swapHistory({
                 destWalletAddress: null,
@@ -4695,8 +4831,11 @@ describe('BridgeStatusController (deposit)', () => {
           },
         },
         async ({ controller, messenger, rootMessenger }) => {
+          addTransactionBatchFnMock.mockImplementation(async () => {
+            await completeMmPay(rootMessenger);
+          });
           publishSwap(rootMessenger, TransactionStatus.confirmed);
-          await flushPromises();
+          await flushDeposit();
 
           expect(controller.state.txHistory[SWAP_ID].status.status).toBe(
             StatusTypes.FAILED,
@@ -5269,7 +5408,7 @@ describe('BridgeStatusController (deposit)', () => {
         vaultConfig(CHAIN_IDS.MONAD),
       );
       const messengerCall = queueDepositMessenger();
-      addTransactionBatchFnMock = vi.fn().mockResolvedValue(undefined);
+      addTransactionBatchFnMock = vi.fn();
 
       await withController(
         {
@@ -5280,14 +5419,433 @@ describe('BridgeStatusController (deposit)', () => {
           },
         },
         async ({ rootMessenger }) => {
+          addTransactionBatchFnMock.mockImplementation(async () => {
+            await completeMmPay(rootMessenger);
+          });
           publishSwap(rootMessenger, TransactionStatus.confirmed);
-          await flushPromises();
+          await flushDeposit();
 
           expect(addTransactionBatchFnMock).toHaveBeenCalledWith(
             expect.objectContaining({ isGasFeeSponsored: true }),
           );
         },
       );
+    });
+
+    it('stays subscribed to MM Pay quotes until they exist', async () => {
+      await withMmPayQuoteSubscription(
+        [depositTxMeta(DEPOSIT_HASH)],
+        ({ rootMessenger, getStateCount }) => {
+          const getStateBefore = getStateCount();
+
+          publishPayQuotes(rootMessenger, []);
+          publishPayQuotes(rootMessenger, []);
+          expect(getStateCount()).toBe(getStateBefore);
+
+          publishPayQuotes(rootMessenger, [{}]);
+          expect(getStateCount()).toBe(getStateBefore + 1);
+        },
+      );
+    });
+
+    it('stays subscribed to MM Pay quotes when trade meta is missing', async () => {
+      const transactions: TransactionMeta[] = [];
+      const messengerCall = queueDepositMessenger(transactions);
+
+      await withMmPayQuoteSubscription(
+        transactions,
+        ({ rootMessenger, getStateCount, acceptCount, rejectCount }) => {
+          const getStateBefore = getStateCount();
+
+          publishPayQuotes(rootMessenger, [{}]);
+          expect(getStateCount()).toBe(getStateBefore + 1);
+          expect(acceptCount()).toBe(0);
+          expect(rejectCount()).toBe(0);
+
+          transactions.push({
+            ...depositTxMeta(DEPOSIT_HASH),
+            status: TransactionStatus.unapproved,
+          });
+          publishPayQuotes(rootMessenger, [{}]);
+          expect(acceptCount()).toBe(1);
+          expect(rejectCount()).toBe(0);
+        },
+        { messengerCall },
+      );
+    });
+
+    it('unsubscribes from MM Pay quotes when trade meta is not unapproved', async () => {
+      await withMmPayQuoteSubscription(
+        [depositTxMeta(DEPOSIT_HASH)],
+        ({ rootMessenger, getStateCount, acceptCount }) => {
+          const getStateBefore = getStateCount();
+
+          publishPayQuotes(rootMessenger, [{}]);
+          publishPayQuotes(rootMessenger, [{}]);
+
+          expect(getStateCount()).toBe(getStateBefore + 1);
+          expect(acceptCount()).toBe(0);
+        },
+      );
+    });
+
+    it('subscribes to MM Pay quotes before the unapproved tx', async () => {
+      const subscribed: string[] = [];
+
+      await withMmPayQuoteSubscription(
+        [
+          {
+            ...depositTxMeta(DEPOSIT_HASH),
+            status: TransactionStatus.unapproved,
+          },
+        ],
+        ({ rootMessenger }) => {
+          publishPayQuotes(rootMessenger, [{}]);
+        },
+        {
+          onMessenger: (messenger) => {
+            const originalSubscribe = messenger.subscribe.bind(messenger);
+            vi.spyOn(messenger, 'subscribe').mockImplementation(
+              (eventType, handler) => {
+                subscribed.push(eventType);
+                return originalSubscribe(eventType, handler);
+              },
+            );
+          },
+        },
+      );
+
+      expect(
+        subscribed.filter(
+          (eventType) =>
+            eventType === 'TransactionPayController:stateChange' ||
+            eventType === 'TransactionController:unapprovedTransactionAdded',
+        ),
+      ).toStrictEqual([
+        'TransactionPayController:stateChange',
+        'TransactionController:unapprovedTransactionAdded',
+      ]);
+    });
+
+    it('approves the deposit once then unsubscribes from MM Pay quotes', async () => {
+      await withMmPayQuoteSubscription(
+        [
+          {
+            ...depositTxMeta(DEPOSIT_HASH),
+            status: TransactionStatus.unapproved,
+          },
+        ],
+        ({ rootMessenger, getStateCount, acceptCount, rejectCount }) => {
+          const getStateBefore = getStateCount();
+
+          publishPayQuotes(rootMessenger, [{}]);
+          publishPayQuotes(rootMessenger, [{}]);
+
+          expect(getStateCount()).toBe(getStateBefore + 1);
+          expect(acceptCount()).toBe(1);
+          expect(rejectCount()).toBe(0);
+        },
+      );
+    });
+
+    it('does not report a submitted swap without a hash', () => {
+      const onReportSubmittedOnce = vi.fn();
+      tradeUpdateHandler({
+        txMeta: {
+          id: SWAP_ID,
+          type: TransactionType.swap,
+          status: TransactionStatus.submitted,
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'arb',
+          time: 1,
+          txParams: { from: '0xaccount1' },
+        },
+        historyKey: SWAP_ID,
+        onTransactionConfirmed: vi.fn(),
+        onTransactionFailed: vi.fn(),
+        onReportSubmittedOnce,
+      });
+      expect(onReportSubmittedOnce).not.toHaveBeenCalled();
+    });
+
+    it('rejects the batch when MM Pay accept fails', async () => {
+      await withMmPayQuoteSubscription(
+        [
+          {
+            ...depositTxMeta(DEPOSIT_HASH),
+            status: TransactionStatus.unapproved,
+          },
+        ],
+        async ({
+          rootMessenger,
+          messenger,
+          messengerCall,
+          acceptCount,
+          rejectCount,
+        }) => {
+          const originalCall = messengerCall.getMockImplementation();
+          messengerCall.mockImplementation(
+            (action: string, ...args: unknown[]) => {
+              if (action === 'ApprovalController:acceptRequest') {
+                return Promise.reject(new Error('accept boom'));
+              }
+              return originalCall?.(action, ...args);
+            },
+          );
+
+          publishPayQuotes(rootMessenger, [{}]);
+          await flushPromises();
+
+          expect(acceptCount()).toBe(1);
+          expect(rejectCount()).toBe(1);
+          expect(messenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({
+              message:
+                'Failed to approve swap/bridge + deposit transaction: accept boom',
+            }),
+          );
+        },
+      );
+    });
+
+    it('rejects the batch when setTransactionConfig throws after the unapproved tx', async () => {
+      const unapproved = [
+        {
+          ...depositTxMeta(DEPOSIT_HASH),
+          status: TransactionStatus.unapproved,
+        },
+      ];
+      const messengerCall = queueDepositMessenger(unapproved);
+      const originalCall = messengerCall.getMockImplementation();
+      messengerCall.mockImplementation((action: string, ...args: unknown[]) => {
+        if (action === 'TransactionPayController:setTransactionConfig') {
+          throw new Error('config boom');
+        }
+        return originalCall?.(action, ...args);
+      });
+
+      await withMmPayQuoteSubscription(
+        unapproved,
+        ({ messenger, messengerCall: call, rejectCount }) => {
+          expect(
+            countAction(call, 'TransactionPayController:setTransactionConfig'),
+          ).toBe(1);
+          expect(rejectCount()).toBe(1);
+          expect(messenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'config boom' }),
+          );
+        },
+        { messengerCall },
+      );
+    });
+
+    it('tries the next approval id when rejectRequest throws', async () => {
+      vi.useFakeTimers();
+      const messengerCall = queueDepositMessenger([
+        {
+          ...depositTxMeta(DEPOSIT_HASH),
+          status: TransactionStatus.unapproved,
+        },
+      ]);
+      addTransactionBatchFnMock = vi.fn();
+
+      try {
+        await withController(
+          {
+            mockMessengerCall: messengerCall,
+            options: {
+              addTransactionBatchFn: addTransactionBatchFnMock,
+              state: { txHistory: swapHistory() },
+            },
+          },
+          async ({ rootMessenger, messenger }) => {
+            const originalCall = messengerCall.getMockImplementation();
+            addTransactionBatchFnMock.mockImplementation(async () => {
+              publishUnapprovedDeposit(rootMessenger);
+              await new Promise((_, reject) => {
+                messengerCall.mockImplementation(
+                  (action: string, ...args: unknown[]) => {
+                    if (action === 'ApprovalController:rejectRequest') {
+                      if (args[0] === DEPOSIT_TX_ID) {
+                        throw new Error('no tx approval');
+                      }
+                      reject(args[1]);
+                      return;
+                    }
+                    return originalCall?.(action, ...args);
+                  },
+                );
+              });
+            });
+
+            publishSwap(rootMessenger, TransactionStatus.confirmed);
+            await flushPromises();
+
+            vi.advanceTimersByTime(ADD_BATCH_TX_TIMEOUT_MS);
+            await flushPromises();
+
+            expect(
+              countAction(messengerCall, 'ApprovalController:rejectRequest'),
+            ).toBe(2);
+            expect(messenger.captureException).toHaveBeenCalledWith(
+              expect.objectContaining({
+                message: 'Transaction failed due to missing tx meta',
+              }),
+            );
+          },
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('captures a non-Error from addTransactionBatchFn', async () => {
+      const messengerCall = queueDepositMessenger([]);
+      addTransactionBatchFnMock = vi.fn().mockRejectedValue('batch boom');
+
+      await withController(
+        {
+          mockMessengerCall: messengerCall,
+          options: {
+            addTransactionBatchFn: addTransactionBatchFnMock,
+            state: { txHistory: swapHistory() },
+          },
+        },
+        async ({ controller, messenger, rootMessenger }) => {
+          publishSwap(rootMessenger, TransactionStatus.confirmed);
+          await flushPromises();
+          await flushPromises();
+
+          expect(controller.state.txHistory[SWAP_ID].status.status).toBe(
+            StatusTypes.FAILED,
+          );
+          expect(messenger.captureException).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'batch boom' }),
+          );
+        },
+      );
+    });
+
+    it('times out waiting for MM Pay quotes, unsubscribes, and rejects the approval', async () => {
+      vi.useFakeTimers();
+      const messengerCall = queueDepositMessenger([
+        {
+          ...depositTxMeta(DEPOSIT_HASH),
+          status: TransactionStatus.unapproved,
+        },
+      ]);
+      addTransactionBatchFnMock = vi.fn();
+
+      try {
+        await withController(
+          {
+            mockMessengerCall: messengerCall,
+            options: {
+              addTransactionBatchFn: addTransactionBatchFnMock,
+              state: { txHistory: swapHistory() },
+            },
+          },
+          async ({ rootMessenger, messenger }) => {
+            const originalCall = messengerCall.getMockImplementation();
+            addTransactionBatchFnMock.mockImplementation(async () => {
+              publishUnapprovedDeposit(rootMessenger);
+              await new Promise((_, reject) => {
+                messengerCall.mockImplementation(
+                  (action: string, ...args: unknown[]) => {
+                    if (action === 'ApprovalController:rejectRequest') {
+                      reject(args[1]);
+                      return;
+                    }
+                    return originalCall?.(action, ...args);
+                  },
+                );
+              });
+            });
+
+            publishSwap(rootMessenger, TransactionStatus.confirmed);
+            await flushPromises();
+
+            vi.advanceTimersByTime(ADD_BATCH_TX_TIMEOUT_MS);
+            await flushPromises();
+
+            const getStateAfterTimeout = countAction(
+              messengerCall,
+              'TransactionController:getState',
+            );
+            publishPayQuotes(rootMessenger, [{}]);
+            publishPayQuotes(rootMessenger, [{}]);
+
+            expect(
+              countAction(messengerCall, 'TransactionController:getState'),
+            ).toBe(getStateAfterTimeout);
+            expect(
+              countAction(messengerCall, 'ApprovalController:acceptRequest'),
+            ).toBe(0);
+            expect(
+              countAction(messengerCall, 'ApprovalController:rejectRequest'),
+            ).toBe(1);
+            expect(messenger.captureException).toHaveBeenCalledWith(
+              expect.objectContaining({
+                message: 'Transaction failed due to missing tx meta',
+              }),
+            );
+          },
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('times out the deposit batch, rejects approval, and unblocks the generator', async () => {
+      vi.useFakeTimers();
+      const messengerCall = queueDepositMessenger([
+        {
+          ...depositTxMeta(DEPOSIT_HASH),
+          status: TransactionStatus.unapproved,
+        },
+      ]);
+      addTransactionBatchFnMock = vi.fn();
+
+      try {
+        await withController(
+          {
+            mockMessengerCall: messengerCall,
+            options: {
+              addTransactionBatchFn: addTransactionBatchFnMock,
+              state: { txHistory: swapHistory() },
+            },
+          },
+          async ({ rootMessenger, messenger }) => {
+            addTransactionBatchFnMock.mockImplementation(async () => {
+              await completeMmPay(rootMessenger);
+              return new Promise(() => undefined);
+            });
+            publishSwap(rootMessenger, TransactionStatus.confirmed);
+            await flushDeposit();
+
+            expect(
+              countAction(messengerCall, 'ApprovalController:rejectRequest'),
+            ).toBe(0);
+
+            vi.advanceTimersByTime(ADD_BATCH_TX_TIMEOUT_MS);
+            await flushDeposit();
+
+            expect(
+              countAction(messengerCall, 'ApprovalController:rejectRequest'),
+            ).toBe(1);
+            expect(
+              countAction(messengerCall, 'ApprovalController:acceptRequest'),
+            ).toBe(1);
+            expect(messenger.captureException).toHaveBeenCalledWith(
+              expect.objectContaining({
+                message: 'Timed out waiting for deposit batch',
+              }),
+            );
+          },
+        );
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

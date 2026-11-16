@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Require `ApprovalController:rejectRequest` on `BridgeStatusControllerMessenger`. Clients must allow this action so MM Pay quote timeouts can unblock deposit batch approval.
+- Time out the MM Pay quotes waiter, the unapproved-tx waiter, and `addTransactionBatchFn` together after 30s. On timeout, reject the pending approval.
 - Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11645](https://github.com/MetaMask/core/pull/11645))
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11669](https://github.com/MetaMask/core/pull/11669))
 

@@ -2,7 +2,10 @@ import type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerState,
 } from '@metamask/accounts-controller';
-import type { ApprovalControllerAcceptRequestAction } from '@metamask/approval-controller';
+import type {
+  ApprovalControllerAcceptRequestAction,
+  ApprovalControllerRejectRequestAction,
+} from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -448,6 +451,7 @@ export type BridgeStatusControllerEvents =
  */
 type AllowedActions =
   | ApprovalControllerAcceptRequestAction
+  | ApprovalControllerRejectRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction

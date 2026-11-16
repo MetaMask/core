@@ -1,3 +1,4 @@
+import type { ExtractEventHandler, MessengerEvents } from '@metamask/messenger';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
@@ -118,11 +119,10 @@ export const depositUpdateHandler = ({
 
   switch (txMeta.status) {
     case TransactionStatus.confirmed:
-      historyKey &&
-        onTransactionConfirmed({
-          txMeta,
-          historyKey,
-        });
+      onTransactionConfirmed({
+        txMeta,
+        historyKey,
+      });
       break;
     case TransactionStatus.failed:
     case TransactionStatus.dropped:
@@ -134,113 +134,147 @@ export const depositUpdateHandler = ({
   }
 };
 
-const waitForMmPayQuotesAndApprove = ({
-  messenger,
-  txMetaId,
-  batchId,
-}: {
-  messenger: BridgeStatusControllerMessenger;
-  txMetaId: string;
-  batchId: string;
-}): void => {
-  const onAdded = (state: TransactionPayControllerState): void => {
-    if (!state.transactionData[txMetaId]?.quotes?.length) {
-      return;
-    }
+const subscribeOnce = (
+  connect: (
+    resolve: (value: void | PromiseLike<void>) => void,
+    reject: (reason: Error) => void,
+  ) => () => void,
+): { promise: Promise<void>; unsubscribe: () => void } => {
+  const stops: (() => void)[] = [];
+  const promise = new Promise<void>((resolve, reject) => {
+    stops.push(
+      connect(resolve, (reason): void => {
+        reject(reason);
+      }),
+    );
+  });
 
-    if (state.transactionData[txMetaId].quotes.length > 0) {
-      const tradeMeta = getTransactionMetaByBatchId({
-        messenger,
-        batchId,
-      })[0];
+  return {
+    promise,
+    unsubscribe: (): void => {
+      stops[0]();
+    },
+  };
+};
 
-      if (!tradeMeta) {
-        throw new Error('Failed to find trade meta before approval');
+const safeUnsubscribe = <
+  EventType extends MessengerEvents<BridgeStatusControllerMessenger>['type'],
+>(
+  messenger: BridgeStatusControllerMessenger,
+  eventName: EventType,
+  handler: ExtractEventHandler<
+    MessengerEvents<BridgeStatusControllerMessenger>,
+    EventType
+  >,
+): void => {
+  try {
+    messenger.unsubscribe(eventName, handler);
+  } catch {
+    // already unsubscribed
+  }
+};
+
+export const mmPayQuotesReadySubscription = (
+  messenger: BridgeStatusControllerMessenger,
+  batchId: string,
+): { promise: Promise<void>; unsubscribe: () => void } =>
+  subscribeOnce((resolve, reject) => {
+    const handler = ({
+      transactionData,
+    }: TransactionPayControllerState): void => {
+      const txMeta = getTransactionMetaByBatchId({ messenger, batchId })[0];
+      if (!txMeta) {
+        // Wait for next state change
+        return;
       }
-
-      if (tradeMeta?.status !== TransactionStatus.unapproved) {
+      const hasQuotes = (transactionData[txMeta.id]?.quotes?.length ?? 0) > 0;
+      if (!hasQuotes) {
         return;
       }
 
-      acceptApprovalRequest(messenger, txMetaId)
-        .then(() =>
-          messenger.unsubscribe(
-            'TransactionPayController:stateChange',
-            onAdded,
-          ),
-        )
-        .catch((error) => {
-          throw error;
-        });
-    }
-  };
+      safeUnsubscribe(
+        messenger,
+        'TransactionPayController:stateChange',
+        handler,
+      );
 
-  messenger.subscribe('TransactionPayController:stateChange', onAdded);
-};
+      try {
+        if (txMeta.status !== TransactionStatus.unapproved) {
+          // Settle promise, no need to accept approval request
+          resolve();
+          return;
+        }
 
-/**
- * Subscribes to upcoming unapproved transactions for a given batchId
- * and updates its MM Pay transaction fees.
- *
- * Once the fee quotes are populated, {@link waitForMmPayQuotesAndApprove}'s
- * subscription is triggered to approve the transaction.
- *
- * @param params - the parameters for the function
- * @param params.messenger - the messenger to use to subscribe to the transaction events
- * @param params.batchId - the batchId of the withdraw/deposit batch
- * @param params.primaryMoneyAccount - the money account to use for submission
- * @param params.underlyingToken - the token to use for fees (monad:MUSD)
- * @param params.chainId - the hex chainId
- * @param params.operation - withdraw/deposit
- */
-export const waitForMMPayFeeQuotes = ({
-  messenger,
-  batchId,
-  primaryMoneyAccount,
-  underlyingToken,
-  chainId,
-  operation,
-}: {
-  messenger: BridgeStatusControllerMessenger;
-  batchId: string;
-  primaryMoneyAccount: { address: `0x${string}` };
-  underlyingToken: `0x${string}`;
-  chainId: `0x${string}`;
-  operation: Operation;
-}): void => {
-  const onUnapprovedTransactionAdded = (txMeta: TransactionMeta): void => {
-    if (txMeta.batchId?.toLowerCase() !== batchId.toLowerCase()) {
-      return;
-    }
-    if (txMeta.status !== TransactionStatus.unapproved) {
-      return;
-    }
+        resolve(
+          (async (): Promise<void> => {
+            await acceptApprovalRequest(messenger, txMeta.id);
+          })(),
+        );
+      } catch (error) {
+        reject(error as Error);
+      }
+    };
 
-    // Subscribe to TransactionPayController state change then approve tx batch
-    waitForMmPayQuotesAndApprove({
-      messenger,
-      txMetaId: txMeta.id,
-      batchId,
-    });
+    messenger.subscribe('TransactionPayController:stateChange', handler);
 
-    // Populate MM Pay transaction config
-    setTransactionConfigForMmPay(
-      messenger,
-      txMeta.id,
-      primaryMoneyAccount.address,
-      operation,
-    );
-    underlyingToken &&
-      updatePaymentToken(messenger, txMeta.id, underlyingToken, chainId);
+    return (): void => {
+      safeUnsubscribe(
+        messenger,
+        'TransactionPayController:stateChange',
+        handler,
+      );
+    };
+  });
 
-    messenger.unsubscribe(
+export const unapprovedTxSubscription = (
+  messenger: BridgeStatusControllerMessenger,
+  batchId: string,
+  operation: Operation,
+  primaryMoneyAccount: { address: `0x${string}` },
+  underlyingToken: `0x${string}`,
+  chainId: `0x${string}`,
+): { promise: Promise<void>; unsubscribe: () => void } =>
+  subscribeOnce((resolve, reject) => {
+    const handler = (txMeta: TransactionMeta): void => {
+      if (
+        txMeta.batchId?.toLowerCase() !== batchId.toLowerCase() ||
+        txMeta.status !== TransactionStatus.unapproved
+      ) {
+        return;
+      }
+
+      safeUnsubscribe(
+        messenger,
+        'TransactionController:unapprovedTransactionAdded',
+        handler,
+      );
+
+      try {
+        setTransactionConfigForMmPay(
+          messenger,
+          txMeta.id,
+          primaryMoneyAccount.address,
+          operation,
+        );
+
+        updatePaymentToken(messenger, txMeta.id, underlyingToken, chainId);
+
+        resolve();
+      } catch (error) {
+        reject(error as Error);
+      }
+    };
+
+    messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
-      onUnapprovedTransactionAdded,
+      handler,
     );
-  };
 
-  messenger.subscribe(
-    'TransactionController:unapprovedTransactionAdded',
-    onUnapprovedTransactionAdded,
-  );
-};
+    return (): void => {
+      safeUnsubscribe(
+        messenger,
+        'TransactionController:unapprovedTransactionAdded',
+        handler,
+      );
+    };
+  });
