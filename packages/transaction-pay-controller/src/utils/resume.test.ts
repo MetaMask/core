@@ -61,6 +61,22 @@ describe('isPayTransactionResumable', () => {
     );
   });
 
+  it('returns false when transaction is undefined', () => {
+    expect(isPayTransactionResumable(messenger, undefined)).toBe(false);
+  });
+
+  it('returns false when no pay type can be derived', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock({
+          nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
+          type: TransactionType.batch,
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it('returns false when resume flags are empty', () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
