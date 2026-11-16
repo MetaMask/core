@@ -36,9 +36,8 @@ const ADDITIVE_FIELDS = [
 /**
  * Sum one decimal string field across states.
  *
- * Uses `bignumber.js`, never binary floating point. A venue value that is
- * not a finite decimal contributes nothing; a state with an unparseable
- * required field is rejected by its provider adapter before reaching here.
+ * Uses `bignumber.js`, never binary floating point. Callers supply states
+ * whose required additive fields are finite decimal strings.
  *
  * @param states - The available venue states to sum over.
  * @param field - The USD field to sum.
@@ -49,7 +48,7 @@ function sumField(
   field: (typeof ADDITIVE_FIELDS)[number],
 ): string {
   const total = states.reduce(
-    (acc, state) => acc.plus(new BigNumber(state[field] ?? '0')),
+    (acc, state) => acc.plus(state[field]),
     new BigNumber(0),
   );
   return total.toFixed();
@@ -61,7 +60,7 @@ function sumField(
  * Additive USD fields are decimal-summed. `returnOnEquity` is a rate, not a
  * balance: both venues report account-level RoE in percentage points
  * (unrealized PnL relative to margin used), so the combined rate is
- * `100 x sum(unrealizedPnl) / sum(marginUsed)` — PnL-weighted, never summed
+ * `100 x sum(unrealizedPnl) / sum(marginUsed)` — margin-weighted, never summed
  * or averaged. When no margin is used anywhere the combined RoE is '0': with
  * no collateral at work there is no meaningful rate.
  *
@@ -82,10 +81,52 @@ export function aggregateAccountTotals(
   const totalPnl = new BigNumber(totals.unrealizedPnl);
   const totalMarginUsed = new BigNumber(totals.marginUsed);
   const returnOnEquity = totalMarginUsed.isGreaterThan(0)
-    ? totalPnl.dividedBy(totalMarginUsed).multipliedBy(100).toFixed()
+    ? totalPnl.multipliedBy(100).dividedBy(totalMarginUsed).toFixed()
     : '0';
 
   return { ...totals, returnOnEquity };
+}
+
+/**
+ * Classify the enabled venues, rejecting an entire snapshot if any required
+ * balance is missing or non-finite. Also usable when no combined state exists.
+ *
+ * @param entries - One entry per enabled venue.
+ * @returns Completeness metadata over the venues with valid balances.
+ */
+export function getAccountAggregateMetadata(
+  entries: PerpsProviderAccountStateEntry[],
+): AccountAggregateMetadata {
+  const availableProviders: PerpsProviderType[] = [];
+  const unavailableProviders: PerpsProviderType[] = [];
+  const pendingProviders: PerpsProviderType[] = [];
+
+  for (const entry of entries) {
+    if (entry.status === 'pending') {
+      pendingProviders.push(entry.providerId);
+    } else if (
+      entry.status === 'available' &&
+      ADDITIVE_FIELDS.every(
+        (field) =>
+          typeof entry.state[field] === 'string' &&
+          new BigNumber(entry.state[field]).isFinite(),
+      )
+    ) {
+      availableProviders.push(entry.providerId);
+    } else {
+      unavailableProviders.push(entry.providerId);
+    }
+  }
+
+  return {
+    status:
+      unavailableProviders.length + pendingProviders.length > 0
+        ? 'partial'
+        : 'complete',
+    availableProviders,
+    unavailableProviders,
+    ...(pendingProviders.length > 0 && { pendingProviders }),
+  };
 }
 
 /**
@@ -107,32 +148,16 @@ export function buildAggregatedAccountState(params: {
   entries: PerpsProviderAccountStateEntry[];
 }): AccountState | null {
   const { entries } = params;
-
-  const availableStates: AccountState[] = [];
-  const availableProviders: PerpsProviderType[] = [];
-  const unavailableProviders: PerpsProviderType[] = [];
-  const pendingProviders: PerpsProviderType[] = [];
-
-  for (const entry of entries) {
-    if (entry.status === 'available') {
-      availableStates.push(entry.state);
-      availableProviders.push(entry.providerId);
-    } else if (entry.status === 'unavailable') {
-      unavailableProviders.push(entry.providerId);
-    } else {
-      pendingProviders.push(entry.providerId);
-    }
-  }
-
-  const metadata: AccountAggregateMetadata = {
-    status:
-      unavailableProviders.length + pendingProviders.length > 0
-        ? 'partial'
-        : 'complete',
-    availableProviders,
-    unavailableProviders,
-    ...(pendingProviders.length > 0 && { pendingProviders }),
-  };
+  const metadata = getAccountAggregateMetadata(entries);
+  const validatedEntries = entries.map((entry) =>
+    entry.status === 'available' &&
+    metadata.unavailableProviders.includes(entry.providerId)
+      ? { status: 'unavailable' as const, providerId: entry.providerId }
+      : entry,
+  );
+  const availableStates = validatedEntries.flatMap((entry) =>
+    entry.status === 'available' ? [entry.state] : [],
+  );
 
   if (availableStates.length === 0) {
     return null;
@@ -141,7 +166,7 @@ export function buildAggregatedAccountState(params: {
   return {
     ...aggregateAccountTotals(availableStates),
     providerStates: Object.fromEntries(
-      entries.map((entry) => [entry.providerId, entry]),
+      validatedEntries.map((entry) => [entry.providerId, entry]),
     ),
     aggregate: metadata,
   };

@@ -196,6 +196,32 @@ describe('aggregateAccountStates', () => {
     expect(parseFloat(result.unrealizedPnl)).toBeCloseTo(17, 0);
   });
 
+  it('uses exact decimals for margin, PnL and the combined RoE', () => {
+    const state: AccountState = {
+      totalBalance: '1',
+      spendableBalance: '1',
+      withdrawableBalance: '1',
+      marginUsed: '0.1',
+      unrealizedPnl: '0.01',
+      returnOnEquity: '10',
+    };
+    expect(
+      aggregateAccountStates([
+        state,
+        {
+          ...state,
+          marginUsed: '0.2',
+          unrealizedPnl: '0.08',
+          returnOnEquity: '40',
+        },
+      ]),
+    ).toMatchObject({
+      marginUsed: '0.3',
+      unrealizedPnl: '0.09',
+      returnOnEquity: '30',
+    });
+  });
+
   it('preserves the exact subtotal when aggregating DEX states', () => {
     const stateA: AccountState = {
       spendableBalance: '0.0000009',

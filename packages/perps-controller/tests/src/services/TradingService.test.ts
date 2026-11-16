@@ -2258,6 +2258,119 @@ describe('TradingService', () => {
       ]);
     });
 
+    it.each([true, false])(
+      'matches scoped order IDs on both venue and ID (batch: %s)',
+      async (batch) => {
+        const orders: Order[] = [
+          { ...mockOrders[0], providerId: 'hyperliquid' },
+          { ...mockOrders[0], providerId: 'lighter' },
+        ];
+        mockGetOpenOrders.mockResolvedValue(orders);
+        vi.mocked(mockProvider.cancelOrders)?.mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [],
+        });
+        if (!batch) {
+          delete mockProvider.cancelOrders;
+          mockProvider.cancelOrder.mockResolvedValue({
+            success: true,
+            orderId: 'order-1',
+          });
+        }
+        await tradingService.cancelOrders({
+          provider: mockProvider,
+          params: { orders: [{ orderId: 'order-1', providerId: 'lighter' }] },
+          context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+          withStreamPause: mockWithStreamPause,
+        });
+        const target = {
+          orderId: 'order-1',
+          symbol: 'BTC',
+          providerId: 'lighter',
+        };
+        if (batch) {
+          expect(mockProvider.cancelOrders).toHaveBeenCalledExactlyOnceWith([
+            target,
+          ]);
+        } else {
+          expect(mockProvider.cancelOrder).toHaveBeenCalledExactlyOnceWith(
+            target,
+          );
+        }
+      },
+    );
+
+    it('matches a direct provider scoped target even when its orders are untagged', async () => {
+      mockGetOpenOrders.mockResolvedValue([mockOrders[0]]);
+      vi.mocked(mockProvider.cancelOrders)?.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [],
+      });
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { orders: [{ orderId: 'order-1', providerId: 'hyperliquid' }] },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+      expect(mockProvider.cancelOrders).toHaveBeenCalledExactlyOnceWith([
+        { orderId: 'order-1', symbol: 'BTC' },
+      ]);
+    });
+
+    it('keeps legacy bare order IDs as an explicit cross-venue filter', async () => {
+      vi.mocked(mockProvider.cancelOrders)?.mockResolvedValue({
+        success: true,
+        successCount: 2,
+        failureCount: 0,
+        results: [],
+      });
+      mockGetOpenOrders.mockResolvedValue([
+        { ...mockOrders[0], providerId: 'hyperliquid' },
+        { ...mockOrders[0], providerId: 'lighter' },
+      ]);
+      await tradingService.cancelOrders({
+        provider: mockProvider,
+        params: { orderIds: ['order-1'] },
+        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+        withStreamPause: mockWithStreamPause,
+      });
+      expect(mockProvider.cancelOrders).toHaveBeenCalledExactlyOnceWith([
+        { orderId: 'order-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'order-1', symbol: 'BTC', providerId: 'lighter' },
+      ]);
+    });
+
+    it.each([
+      { orders: [] },
+      { orders: [{ orderId: 'absent', providerId: 'lighter' as const }] },
+      { orderIds: [] },
+      { symbols: [] },
+    ])(
+      'does not turn an empty or unmatched filter into a cancel-all: %j',
+      async (params) => {
+        vi.mocked(mockProvider.cancelOrders)?.mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [],
+        });
+        mockGetOpenOrders.mockResolvedValue(mockOrders);
+        const result = await tradingService.cancelOrders({
+          provider: mockProvider,
+          params,
+          context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+          withStreamPause: mockWithStreamPause,
+        });
+        expect(result.results).toStrictEqual([]);
+        expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+        expect(mockProvider.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
+
     it('allows canceling TP/SL orders when specified by orderId', async () => {
       const params: CancelOrdersParams = {
         orderIds: ['order-2', 'order-3'],

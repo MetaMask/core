@@ -118,7 +118,10 @@ import type {
   PerpsFeeResolution,
 } from '../types/index.js';
 import { carryProviderErrorCause } from '../utils/errorContext.js';
-import { buildAggregatedAccountState } from '../utils/accountAggregation.js';
+import {
+  buildAggregatedAccountState,
+  getAccountAggregateMetadata,
+} from '../utils/accountAggregation.js';
 import { ensureError } from '../utils/errorUtils.js';
 
 /** Error returned when only some providers suspend their Chase orders. */
@@ -740,7 +743,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
     // No venue reported usable data: refuse to manufacture an all-zero
     // successful total. The first failure is the most specific cause.
-    if (entries.every((entry) => entry.status === 'unavailable')) {
+    const account = buildAggregatedAccountState({ entries });
+    if (!account) {
       const firstFailure = failures[0]?.reason;
       throw firstFailure instanceof Error
         ? firstFailure
@@ -753,7 +757,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           );
     }
 
-    return buildAggregatedAccountState({ entries }) as AccountState;
+    return account;
   }
 
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
@@ -1954,11 +1958,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * With more than one venue registered, each venue is subscribed through
    * the multiplexer, and every emission carries the same contract as a REST
    * read: combined totals over the venues with data, one `providerStates`
-   * entry per enabled venue (available or explicitly unavailable), and
-   * `aggregate` completeness metadata. A venue's `null` update marks that
-   * venue unavailable instead of keeping its previous value as current;
-   * when no venue has data, the consumer gets `null` — never an all-zero
-   * total.
+   * entry per enabled venue (available, pending or unavailable), and
+   * `aggregate` completeness metadata. Before a venue's first snapshot, even
+   * a `null` leaves it pending. A subsequent `null` makes it unavailable.
+   * When no venue has usable data, the consumer gets `null` plus completeness
+   * metadata — never an all-zero total.
    *
    * This is venue fan-out, not default routing: changing the routing default
    * neither re-subscribes these streams nor invalidates the still-valid
@@ -1994,10 +1998,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         },
       });
     }
-    // Per-subscription report state: distinguishes a venue whose latest
-    // update was null (`unavailable`) from one that has not reported yet
-    // (`pending`). A not-yet-reported venue has no verdict: consumers must
-    // keep its previously persisted data until it reports.
+    // A null before the first snapshot leaves the venue pending. After a
+    // snapshot (even an invalid one), a null means it became unavailable.
     const lastReport = new Map<PerpsProviderType, 'available'>();
     return this.#subscriptionMux.subscribeToAccount({
       ...(params.accountId !== undefined && { accountId: params.accountId }),
@@ -2019,7 +2021,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
               ? { status: 'unavailable', providerId }
               : { status: 'pending', providerId };
           });
-        params.callback(buildAggregatedAccountState({ entries }));
+        const account = buildAggregatedAccountState({ entries });
+        params.callback(
+          account,
+          account?.aggregate ?? getAccountAggregateMetadata(entries),
+        );
       },
     });
   }
@@ -2028,10 +2034,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // Explicit route: pinned to that venue. A venue without the stream never
     // silently falls back to a different venue's data.
     if (params.providerId !== undefined) {
-      return this.#resolveExplicitStreamRoute(
-        params.providerId,
-        params,
-      ).subscribeToOICaps(params);
+      return (
+        this.#resolveExplicitStreamRoute(
+          params.providerId,
+          params,
+        )?.subscribeToOICaps(params) ?? (() => undefined)
+      );
     }
     return this.#trackDefaultRoutedSubscription({
       open: (provider) => provider.subscribeToOICaps(params),
@@ -2043,10 +2051,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // the same symbol and the data must come from a specific one. A pinned
     // stream does not follow the routing default.
     if (params.providerId !== undefined) {
-      return this.#resolveExplicitStreamRoute(
-        params.providerId,
-        params,
-      ).subscribeToCandles(params);
+      return (
+        this.#resolveExplicitStreamRoute(
+          params.providerId,
+          params,
+        )?.subscribeToCandles(params) ?? (() => undefined)
+      );
     }
     return this.#trackDefaultRoutedSubscription({
       open: (provider) => provider.subscribeToCandles(params),
@@ -2055,10 +2065,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
     if (params.providerId !== undefined) {
-      return this.#resolveExplicitStreamRoute(
-        params.providerId,
-        params,
-      ).subscribeToOrderBook(params);
+      return (
+        this.#resolveExplicitStreamRoute(
+          params.providerId,
+          params,
+        )?.subscribeToOrderBook(params) ?? (() => undefined)
+      );
     }
     return this.#trackDefaultRoutedSubscription({
       open: (provider) => provider.subscribeToOrderBook(params),
@@ -2128,13 +2140,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    *
    * @param providerId - The venue the caller named.
    * @param params - The subscription params carrying the route and error handler.
-   * @returns The provider to open the stream on.
+   * @returns The provider, or undefined after reporting a missing route.
    */
   #resolveExplicitStreamRoute(
     providerId: PerpsProviderType,
     params: { onError?: (error: Error) => void } | SubscribeOICapsParams,
-  ): PerpsProvider {
-    const { onError } = params as { onError?: (error: Error) => void };
+  ): PerpsProvider | undefined {
+    const onError = 'onError' in params ? params.onError : undefined;
     const provider = this.#providers.get(providerId);
     if (!provider) {
       const error = new Error(
@@ -2142,11 +2154,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       );
       if (onError) {
         onError(error);
-        return {
-          subscribeToCandles: () => () => undefined,
-          subscribeToOICaps: () => () => undefined,
-          subscribeToOrderBook: () => () => undefined,
-        } as unknown as PerpsProvider;
+        return undefined;
       }
       throw error;
     }
