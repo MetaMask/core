@@ -354,14 +354,6 @@ export type DataRequest = {
    * snapshot. RPC fallback additionally refetches existing balances.
    */
   customAssets?: Caip19AssetId[];
-  /**
-   * When true, the data source should poll only the user's `customAssets`
-   * for the requested chains and skip refreshing the regular tracked
-   * balances. Used by the AssetsController to issue a supplemental RPC
-   * subscription on chains that another data source is already covering
-   * (Accounts API v5 path). Ignored when Accounts API v6 is enabled.
-   */
-  customAssetsOnly?: boolean;
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
   /**
