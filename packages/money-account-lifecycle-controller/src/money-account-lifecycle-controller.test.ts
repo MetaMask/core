@@ -489,6 +489,86 @@ describe('MoneyAccountLifecycleController', () => {
     );
   });
 
+  describe('clearState', () => {
+    it('resets the state to its defaults', async () => {
+      await withController(async ({ controller, init }) => {
+        await init();
+        await flushPromises();
+        expect(controller.state.moneyAccounts).not.toStrictEqual({});
+        expect(controller.state.addressRegistrations).not.toStrictEqual({});
+
+        controller.clearState();
+
+        expect(controller.state).toStrictEqual({
+          moneyAccounts: {},
+          addressRegistrations: {},
+        });
+      });
+    });
+
+    it('does not record the lifecycle again from the derived identities it had already fetched', async () => {
+      await withController(
+        async ({ controller, mocks, init, triggerMoneyAccountChange }) => {
+          await init();
+
+          controller.clearState();
+          await triggerMoneyAccountChange();
+
+          expect(controller.state.moneyAccounts).toStrictEqual({});
+          expect(mocks.getMoneyAccount).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('discards a derived identities response that arrives after it is called', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const { promise, resolve } =
+          createDeferredPromise<DerivedIdentitiesResponse>();
+        mocks.getDerivedIdentities.mockReturnValue(promise);
+
+        controller.init();
+        controller.clearState();
+        resolve({ identities: [SFA_IDENTITY] });
+        await flushPromises();
+
+        expect(controller.state.moneyAccounts).toStrictEqual({});
+      });
+    });
+
+    it('discards a registration status response that arrives after it is called', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        const { promise, resolve } = createDeferredPromise<{
+          isRegistered: boolean;
+        }>();
+        mocks.getRegistrationStatus.mockReturnValue(promise);
+
+        await init();
+        controller.clearState();
+        resolve({ isRegistered: true });
+        await flushPromises();
+
+        expect(controller.state.addressRegistrations).toStrictEqual({});
+      });
+    });
+
+    it('fetches derived identities again when the remote feature flags refresh without changing', async () => {
+      await withController(
+        async ({ controller, mocks, init, triggerFlagChange }) => {
+          await init();
+
+          controller.clearState();
+          await triggerFlagChange();
+
+          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
+          expect(getLifecycle(controller)).toStrictEqual({
+            type: 'sfa',
+            identity: SFA_IDENTITY,
+          });
+        },
+      );
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {
@@ -594,6 +674,21 @@ describe('MoneyAccountLifecycleController', () => {
         );
 
         expect(upgradeMoneyAccountSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('MoneyAccountLifecycleController:clearState', () => {
+    it('calls clearState on the controller', async () => {
+      const clearStateSpy = vi.spyOn(
+        MoneyAccountLifecycleController.prototype,
+        'clearState',
+      );
+
+      await withController(({ rootMessenger }) => {
+        rootMessenger.call('MoneyAccountLifecycleController:clearState');
+
+        expect(clearStateSpy).toHaveBeenCalledTimes(1);
       });
     });
   });

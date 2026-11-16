@@ -118,6 +118,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'refresh',
   'upgradeMoneyAccount',
   'startMigration',
+  'clearState',
 ] as const;
 
 export type MoneyAccountIdentity = Pick<
@@ -497,6 +498,23 @@ export class MoneyAccountLifecycleController extends BaseController<
     } finally {
       this.#isMigrationInFlight = false;
     }
+  }
+
+  /**
+   * Clears all recorded lifecycles and address registrations, for example
+   * when the wallet is reset. Also discards the derived identities and any
+   * identity or registration status request in flight, so nothing from the
+   * previous wallet is recorded afterwards, and the next sync fetches
+   * identities again.
+   */
+  clearState(): void {
+    this.#syncedRemoteFeatureFlags = undefined;
+    this.#derivedIdentitiesRequest = undefined;
+    this.#isFetchingDerivedIdentities = false;
+    this.#derivedIdentities = undefined;
+    this.#registrationStatusRequests.clear();
+
+    this.update(() => getDefaultMoneyAccountLifecycleControllerState());
   }
 
   async #startMigration(): Promise<void> {
