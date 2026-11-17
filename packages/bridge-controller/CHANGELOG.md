@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export getAccountByAddress and getFeatureFlags utils ([#11403](https://github.com/MetaMask/core/pull/11403))
+
 ## [83.2.0]
 
 ### Added
