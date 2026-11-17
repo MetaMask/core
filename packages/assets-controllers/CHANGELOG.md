@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `bitcoin-address-validation` from `^2.2.3` to `^4.0.0` ([#11582](https://github.com/MetaMask/core/pull/11582))
 
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the Multicall3 address map and `SPOT_PRICES_SUPPORT_INFO`, as the network is being terminated ([#11598](https://github.com/MetaMask/core/pull/11598))
+
 ## [113.3.2]
 
 ### Changed
