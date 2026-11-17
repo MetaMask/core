@@ -231,7 +231,7 @@ const config = {
       teams: ['@MetaMask/earn'],
     },
     'money-account-mfa-whitelist': {
-      teams: ['@MetaMask/earn', '@MetaMask/web3auth-platform'],
+      teams: ['@MetaMask/earn', '@MetaMask/mfa-team'],
     },
     'money-account-upgrade-controller': {
       teams: ['@MetaMask/earn', '@MetaMask/delegation'],
