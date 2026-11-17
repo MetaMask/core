@@ -781,10 +781,10 @@ describe('cleanSpamAssets', () => {
       removed: [MONAD_WMON],
     },
     {
-      description: 'drops a token the API leaves out of its response',
+      description: 'keeps a token the API leaves out of its response',
       held: [MAINNET_USDT, OPTIMISM_USDC],
       omittedFromResponse: [MAINNET_USDT],
-      removed: [MAINNET_USDT],
+      removed: [],
     },
     {
       // State keys are EIP-55 checksummed; the API answers in lowercase.
@@ -814,6 +814,89 @@ describe('cleanSpamAssets', () => {
       expect(removedAssetIds(state, nextState)).toStrictEqual(
         [...removed].sort(),
       );
+    },
+  );
+
+  it('preserves omitted holdings in every state slice while removing a reported spam peer', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets({ omit: [MAINNET_USDT] });
+    const state = buildSpamWalletState();
+
+    const nextState = await runCleanup(state);
+
+    expect(nextState.assetsInfo[MAINNET_USDT]).toStrictEqual(
+      state.assetsInfo[MAINNET_USDT],
+    );
+    expect(
+      nextState.assetsBalance[ACCOUNT_ONE_ID]?.[MAINNET_USDT],
+    ).toStrictEqual(state.assetsBalance[ACCOUNT_ONE_ID]?.[MAINNET_USDT]);
+    expect(nextState.assetsPrice[MAINNET_USDT]).toStrictEqual(
+      state.assetsPrice[MAINNET_USDT],
+    );
+    expect(nextState.assetsInfo[MAINNET_SPAM]).toBeUndefined();
+    expect(
+      nextState.assetsBalance[ACCOUNT_ONE_ID]?.[MAINNET_SPAM],
+    ).toBeUndefined();
+    expect(nextState.assetsPrice[MAINNET_SPAM]).toBeUndefined();
+  });
+
+  it.each([
+    { lowercase: false, balanceOnly: false },
+    { lowercase: true, balanceOnly: false },
+    { lowercase: false, balanceOnly: true },
+  ])(
+    'exempts BNB mUSD outside the seeding registry (%j)',
+    async ({ lowercase, balanceOnly }) => {
+      const checksumId =
+        'eip155:56/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
+      const musd = (
+        lowercase ? checksumId.toLowerCase() : checksumId
+      ) as Caip19AssetId;
+      mockSuggestedOccurrenceFloors();
+      const { requestedBatches } = mockV3Assets();
+      const state = buildSpamWalletState({
+        assetsInfo: {
+          ...buildAssetsInfo([MAINNET_SPAM]),
+          ...(!balanceOnly && {
+            [musd]: {
+              type: 'erc20' as const,
+              name: 'MetaMask USD',
+              symbol: 'mUSD',
+              decimals: 6,
+            },
+          }),
+        },
+        assetsBalance: {
+          [ACCOUNT_ONE_ID]: {
+            [musd]: { amount: '1000000' },
+            [MAINNET_SPAM]: { amount: '1' },
+          },
+        },
+        assetsPrice: {
+          [musd]: {
+            price: 1,
+            usdPrice: 1,
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+          },
+        },
+        customAssets: {},
+      });
+
+      const nextState = await runCleanup(state);
+
+      expect(requestedBatches.flat()).toStrictEqual([MAINNET_SPAM]);
+      expect(nextState.assetsInfo[musd]).toStrictEqual(state.assetsInfo[musd]);
+      expect(nextState.assetsBalance[ACCOUNT_ONE_ID]?.[musd]).toStrictEqual(
+        state.assetsBalance[ACCOUNT_ONE_ID]?.[musd],
+      );
+      expect(nextState.assetsPrice[musd]).toStrictEqual(
+        state.assetsPrice[musd],
+      );
+      expect(nextState.assetsInfo[MAINNET_SPAM]).toBeUndefined();
+      expect(
+        nextState.assetsBalance[ACCOUNT_ONE_ID]?.[MAINNET_SPAM],
+      ).toBeUndefined();
     },
   );
 

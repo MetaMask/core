@@ -9,6 +9,7 @@ import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { isMusdAssetId } from '../defaults.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
@@ -52,19 +53,6 @@ export enum CaipAssetNamespace {
   Slip44 = 'slip44',
   Erc20 = 'erc20',
   Token = 'token',
-}
-
-const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
-
-/**
- * Whether a CAIP-19 asset ID (any casing) is mUSD, which is exempt from
- * occurrence-floor filtering.
- *
- * @param assetId - CAIP-19 asset ID.
- * @returns True when the asset is mUSD.
- */
-function isMusdAssetId(assetId: string): boolean {
-  return assetId.toLowerCase().includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`);
 }
 
 // ============================================================================
