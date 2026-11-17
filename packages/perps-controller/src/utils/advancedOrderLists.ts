@@ -1,15 +1,18 @@
 import {
   CHASE_ORDER_CONFIG,
+  CHASE_ORDER_STATUS,
   TWAP_ORDER_CONFIG,
 } from '../constants/perpsConfig.js';
 import type {
   ChaseOrder,
   ChaseOrderLists,
+  PerpsProviderType,
   SubscribeTwapOrdersParams,
   TwapOrder,
 } from '../types/index.js';
 import {
   chaseOrderKey,
+  isChaseOrderRunning,
   isTwapOrderActive,
   mergeChaseOrderHistory,
   mergeTwapOrders,
@@ -27,6 +30,17 @@ export type LiveTwapOrderSource = {
    * another.
    */
   getContextKey?: () => string;
+  /**
+   * Calls the listener when the account, provider or network may have
+   * changed, so held rows clear at once instead of on the next read.
+   */
+  subscribeToContextChanges?: (listener: () => void) => () => void;
+};
+
+/** A chase whose cancel the provider confirmed. */
+export type CanceledChaseOrder = {
+  handle: string;
+  providerId?: PerpsProviderType;
 };
 
 /** Where a live chase list reads chase snapshots from. */
@@ -38,6 +52,19 @@ export type LiveChaseOrderSource = {
    * cancel actions, never show in another.
    */
   getContextKey?: () => string;
+  /**
+   * Calls the listener when the account, provider or network may have
+   * changed, so held lists clear at once instead of on the next read.
+   */
+  subscribeToContextChanges?: (listener: () => void) => () => void;
+  /**
+   * Calls the listener after a chase cancel succeeds. A provider can drop a
+   * canceled chase before the next read, so this is how the list learns the
+   * chase ended rather than guessing from its absence.
+   */
+  subscribeToChaseCancellations?: (
+    listener: (canceled: CanceledChaseOrder) => void,
+  ) => () => void;
 };
 
 /**
@@ -80,7 +107,9 @@ export function createLiveTwapOrderList(params: {
   let streamed = new Set<string>();
   let stopped = false;
   let failed = false;
-  let reading = false;
+  // Generation of the read in flight, if any. A read for a context the list
+  // has left neither blocks nor feeds the new context's reads.
+  let activeRead: number | undefined;
   let readAgain = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let timerDueAt = Number.POSITIVE_INFINITY;
@@ -134,45 +163,55 @@ export function createLiveTwapOrderList(params: {
    * Read the venue, merge the result and schedule the next read.
    */
   async function read(): Promise<void> {
-    if (reading) {
+    if (resetOnContextChange()) {
+      // Clear the old context's rows now, not when this read returns.
+      emit();
+    }
+    if (activeRead === generation) {
       readAgain = true;
       return;
     }
-    reading = true;
+    const readGeneration = generation;
+    activeRead = readGeneration;
+    let result: TwapOrder[] = [];
+    let failure: { error: unknown } | undefined;
     try {
-      if (resetOnContextChange()) {
-        // Clear the old context's rows now, not when this read returns.
-        emit();
-      }
-      const readGeneration = generation;
-      const result = await source.getTwapOrders();
-      if (stopped) {
-        return;
-      }
-      if (resetOnContextChange() || generation !== readGeneration) {
-        // The read answered for the previous context; read the new one.
-        readAgain = true;
-      } else {
-        const readKeys = new Set(result.map(twapOrderKey));
-        orders = mergeTwapOrders(
-          orders.filter((order) => {
-            const key = twapOrderKey(order);
-            return readKeys.has(key) || streamed.has(key);
-          }),
-          result,
-        );
-        listed = readKeys;
-        failed = false;
-      }
-      emit();
+      result = await source.getTwapOrders();
     } catch (error) {
-      failed = true;
-      onError?.(ensureError(error, 'createLiveTwapOrderList'));
-    } finally {
-      reading = false;
+      failure = { error };
     }
     if (stopped) {
       return;
+    }
+    if (resetOnContextChange()) {
+      emit();
+    }
+    if (generation !== readGeneration) {
+      // The read answered for a context the list has left. Start a read for
+      // the new one unless another read already did.
+      if (activeRead === readGeneration) {
+        activeRead = undefined;
+        readAgain = false;
+        schedule(0);
+      }
+      return;
+    }
+    activeRead = undefined;
+    if (failure) {
+      failed = true;
+      onError?.(ensureError(failure.error, 'createLiveTwapOrderList'));
+    } else {
+      const readKeys = new Set(result.map(twapOrderKey));
+      orders = mergeTwapOrders(
+        orders.filter((order) => {
+          const key = twapOrderKey(order);
+          return readKeys.has(key) || streamed.has(key);
+        }),
+        result,
+      );
+      listed = readKeys;
+      failed = false;
+      emit();
     }
     if (readAgain) {
       readAgain = false;
@@ -208,12 +247,21 @@ export function createLiveTwapOrderList(params: {
     },
   });
 
+  const unsubscribeContext = source.subscribeToContextChanges?.(() => {
+    if (!stopped && resetOnContextChange()) {
+      emit();
+      readAgain = false;
+      schedule(0);
+    }
+  });
+
   read().catch(() => undefined);
 
   return () => {
     stopped = true;
     clearTimeout(timer);
     unsubscribe();
+    unsubscribeContext?.();
   };
 }
 
@@ -225,7 +273,8 @@ export function createLiveTwapOrderList(params: {
  * reads, since an aggregated read drops a provider whose read failed. Reads
  * repeat at `refreshIntervalMs` for as long as the list is subscribed, so a
  * chase placed anywhere appears without a manual refresh. Lists reset when the
- * source's context key changes.
+ * source's context key changes. A chase whose cancel the source confirms moves
+ * to history as canceled and stays there after the provider drops it.
  *
  * @param params - Source, listener and cadence.
  * @param params.source - Reads of chase snapshots.
@@ -254,7 +303,11 @@ export function createLiveChaseOrderList(params: {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let context = source.getContextKey?.();
+  let generation = 0;
+  let activeRead: number | undefined;
   let omissions = new Map<string, number>();
+  // Chases whose cancel the provider confirmed, by list key.
+  let canceled = new Set<string>();
 
   const emit = (): void => {
     const next = lists ?? { running: [], history: [] };
@@ -271,9 +324,22 @@ export function createLiveChaseOrderList(params: {
       return false;
     }
     context = current;
+    generation += 1;
     lists = undefined;
     omissions = new Map();
+    canceled = new Set();
     return true;
+  };
+
+  // A confirmed cancel leaves nothing resting. A chase still running ends as
+  // canceled; an ending a read reports wins over that.
+  const settleCanceled = (order: ChaseOrder): ChaseOrder => {
+    if (!canceled.has(chaseOrderKey(order))) {
+      return order;
+    }
+    return isChaseOrderRunning(order)
+      ? { ...order, status: CHASE_ORDER_STATUS.Canceled, restingOrderId: null }
+      : { ...order, restingOrderId: null };
   };
 
   // Running chases this read omits, kept while within their grace reads.
@@ -293,42 +359,106 @@ export function createLiveChaseOrderList(params: {
     return kept;
   };
 
-  const read = async (): Promise<void> => {
-    let delayMs = refreshIntervalMs;
+  const scheduleRead = (delayMs: number): void => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      read().catch(() => undefined);
+    }, delayMs);
+  };
+
+  /**
+   * Read the chases, merge them and schedule the next read.
+   */
+  async function read(): Promise<void> {
+    if (resetOnContextChange()) {
+      // Clear the old context's chases, and their cancels, now.
+      emit();
+    }
+    if (activeRead === generation) {
+      return;
+    }
+    const readGeneration = generation;
+    activeRead = readGeneration;
+    let current: ChaseOrder[] = [];
+    let failure: { error: unknown } | undefined;
     try {
-      if (resetOnContextChange()) {
-        // Clear the old context's chases, and their cancels, now.
-        emit();
+      current = await source.getChaseOrders();
+    } catch (error) {
+      failure = { error };
+    }
+    if (stopped) {
+      return;
+    }
+    if (resetOnContextChange()) {
+      emit();
+    }
+    if (generation !== readGeneration) {
+      // The read answered for a context the list has left. Read the new one
+      // now unless another read already started.
+      if (activeRead === readGeneration) {
+        activeRead = undefined;
+        scheduleRead(0);
       }
-      const current = await source.getChaseOrders();
+      return;
+    }
+    activeRead = undefined;
+    if (failure) {
+      onError?.(ensureError(failure.error, 'createLiveChaseOrderList'));
+    } else {
+      const settled = current.map(settleCanceled);
+      lists = mergeChaseOrderHistory({
+        previous: lists,
+        current: [...settled, ...keepOmitted(settled)],
+        historyLimit,
+      });
+      emit();
+    }
+    scheduleRead(refreshIntervalMs);
+  }
+
+  const unsubscribeContext = source.subscribeToContextChanges?.(() => {
+    if (!stopped && resetOnContextChange()) {
+      emit();
+      scheduleRead(0);
+    }
+  });
+
+  const unsubscribeCancellations = source.subscribeToChaseCancellations?.(
+    ({ handle, providerId }) => {
       if (stopped) {
         return;
       }
-      if (resetOnContextChange()) {
-        // The read answered for the previous context; read the new one.
-        delayMs = 0;
-      } else {
-        lists = mergeChaseOrderHistory({
-          previous: lists,
-          current: [...current, ...keepOmitted(current)],
-          historyLimit,
-        });
+      for (const order of [
+        ...(lists?.running ?? []),
+        ...(lists?.history ?? []),
+      ]) {
+        if (
+          order.handle === handle &&
+          (providerId === undefined ||
+            order.providerId === undefined ||
+            order.providerId === providerId)
+        ) {
+          canceled.add(chaseOrderKey(order));
+        }
       }
+      if (!lists) {
+        return;
+      }
+      lists = mergeChaseOrderHistory({
+        previous: { running: [], history: lists.history.map(settleCanceled) },
+        current: lists.running.map(settleCanceled),
+        historyLimit,
+      });
       emit();
-    } catch (error) {
-      onError?.(ensureError(error, 'createLiveChaseOrderList'));
-    }
-    if (!stopped) {
-      timer = setTimeout(() => {
-        read().catch(() => undefined);
-      }, delayMs);
-    }
-  };
+    },
+  );
 
   read().catch(() => undefined);
 
   return () => {
     stopped = true;
     clearTimeout(timer);
+    unsubscribeContext?.();
+    unsubscribeCancellations?.();
   };
 }

@@ -207,6 +207,7 @@ import {
   createLiveChaseOrderList,
   createLiveTwapOrderList,
 } from './utils/advancedOrderLists.js';
+import type { CanceledChaseOrder } from './utils/advancedOrderLists.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -1349,6 +1350,11 @@ export class PerpsController extends BaseController<
    * so a late read does not drop changes the user already sees.
    */
   readonly #watchlistEditsDuringHydration = new Set<WatchlistEdit[]>();
+
+  // Live chase lists waiting to hear which chase cancels succeeded.
+  readonly #chaseCancellationListeners = new Set<
+    (canceled: CanceledChaseOrder) => void
+  >();
 
   /**
    * Latest toggle number per `network:symbol` whose write is still pending,
@@ -3827,11 +3833,17 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
 
-    return this.#tradingService.cancelOrder({
+    const result = await this.#tradingService.cancelOrder({
       provider,
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+    if (result.success && params.orderType === 'chase') {
+      for (const listener of [...this.#chaseCancellationListeners]) {
+        listener({ handle: params.orderId, providerId: params.providerId });
+      }
+    }
+    return result;
   }
 
   /**
@@ -7403,6 +7415,8 @@ export class PerpsController extends BaseController<
         subscribeToTwapOrders: (streamParams) =>
           this.subscribeToTwapOrders(streamParams),
         getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
       },
       callback: params.callback,
       onError: params.onError,
@@ -7424,6 +7438,14 @@ export class PerpsController extends BaseController<
       source: {
         getChaseOrders: async () => await this.getChaseOrders(),
         getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
+        subscribeToChaseCancellations: (listener) => {
+          this.#chaseCancellationListeners.add(listener);
+          return () => {
+            this.#chaseCancellationListeners.delete(listener);
+          };
+        },
       },
       callback: params.callback,
       onError: params.onError,
@@ -7443,6 +7465,37 @@ export class PerpsController extends BaseController<
       this.state.isTestnet ? 'testnet' : 'mainnet',
       account?.address.toLowerCase() ?? '',
     ].join(':');
+  }
+
+  /**
+   * Call a listener whenever the provider, network or selected account may
+   * have changed, so a live list can clear without waiting for its next read.
+   *
+   * @param listener - Called on each possible change.
+   * @returns A function that stops the calls.
+   */
+  #subscribeToOrderListContextChanges(listener: () => void): () => void {
+    const handler = (): void => listener();
+    this.messenger.subscribe('PerpsController:stateChanged', handler);
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      handler,
+    );
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      handler,
+    );
+    return () => {
+      this.messenger.unsubscribe('PerpsController:stateChanged', handler);
+      this.messenger.unsubscribe(
+        'AccountsController:selectedAccountChange',
+        handler,
+      );
+      this.messenger.unsubscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        handler,
+      );
+    };
   }
 
   /**

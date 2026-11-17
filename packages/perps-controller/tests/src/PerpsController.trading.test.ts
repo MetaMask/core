@@ -17,6 +17,7 @@ import {
 
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
+import { CHASE_ORDER_CONFIG } from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -32,6 +33,7 @@ import * as featureFlagConfigurationServiceModule from '../../src/services/Featu
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import type {
+  ChaseOrder,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
@@ -345,6 +347,7 @@ describe('PerpsController', () => {
   let controller: TestablePerpsController;
   let mockProvider: Mocked<HyperLiquidProvider>;
   let mockInfrastructure: Mocked<PerpsPlatformDependencies>;
+  let mockMessenger: ReturnType<typeof createMockMessenger>;
 
   // Helper to mark controller as initialized for tests
   const markControllerAsInitialized = () => {
@@ -546,8 +549,9 @@ describe('PerpsController', () => {
     });
 
     mockInfrastructure = createMockInfrastructure();
+    mockMessenger = createMockMessenger({ call: mockCall });
     controller = new TestablePerpsController({
-      messenger: createMockMessenger({ call: mockCall }),
+      messenger: mockMessenger,
       state: getDefaultPerpsControllerState(),
       infrastructure: mockInfrastructure,
     });
@@ -896,6 +900,74 @@ describe('PerpsController', () => {
           running: [chaseOrder],
           history: [ended],
         });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('keeps a Chase canceled through the controller after the provider drops it', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        // The provider deletes a chase session once its cancel succeeds.
+        mockProvider.getChaseOrders
+          .mockResolvedValueOnce([chaseOrder])
+          .mockResolvedValue([]);
+        vi.spyOn(mockTradingServiceInstance, 'cancelOrder').mockResolvedValue({
+          success: true,
+          orderId: chaseOrder.handle,
+        });
+        const callback = vi.fn();
+
+        const stop = controller.subscribeToChaseOrderLists({ callback });
+        await vi.advanceTimersByTimeAsync(0);
+        await controller.cancelOrder({
+          orderId: chaseOrder.handle,
+          symbol: chaseOrder.symbol,
+          orderType: 'chase',
+        });
+        await vi.advanceTimersByTimeAsync(
+          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
+        );
+        stop();
+
+        expect(callback).toHaveBeenLastCalledWith({
+          running: [],
+          history: [
+            { ...chaseOrder, status: 'canceled', restingOrderId: null },
+          ],
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('clears the Chase lists at once when the network changes during a read', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getChaseOrders
+          .mockResolvedValueOnce([chaseOrder])
+          .mockImplementation(
+            async () => new Promise<ChaseOrder[]>(() => undefined),
+          );
+        const callback = vi.fn();
+
+        const stop = controller.subscribeToChaseOrderLists({ callback });
+        await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+        // The second read is still pending when the network switches.
+        controller.testUpdate((state) => {
+          state.isTestnet = true;
+        });
+        mockMessenger.subscribe.mock.calls
+          .filter(([event]) => event === 'PerpsController:stateChanged')
+          .forEach(([, handler]) => (handler as () => void)());
+        stop();
+
+        expect(mockProvider.getChaseOrders).toHaveBeenCalledTimes(2);
+        expect(callback).toHaveBeenLastCalledWith({ running: [], history: [] });
       } finally {
         vi.useRealTimers();
       }

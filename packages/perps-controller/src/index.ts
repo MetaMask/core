@@ -872,6 +872,7 @@ export type {
   AdvancedOrderValidationResult,
   LiveTwapOrderSource,
   LiveChaseOrderSource,
+  CanceledChaseOrder,
 } from './utils/index.js';
 
 // Error codes (explicit named exports)

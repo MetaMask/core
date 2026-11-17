@@ -16,7 +16,10 @@ import {
   createLiveChaseOrderList,
   createLiveTwapOrderList,
 } from '../../../src/utils/advancedOrderLists.js';
-import type { LiveTwapOrderSource } from '../../../src/utils/advancedOrderLists.js';
+import type {
+  CanceledChaseOrder,
+  LiveTwapOrderSource,
+} from '../../../src/utils/advancedOrderLists.js';
 
 const fill = (fillId: string, size: string, price: string): TwapOrderFill => ({
   fillId,
@@ -493,6 +496,51 @@ describe('createLiveTwapOrderList', () => {
     ]);
   });
 
+  it('clears at once when the context changes during a later read', async () => {
+    let context = 'a';
+    let notify: (() => void) | undefined;
+    let release: ((orders: TwapOrder[]) => void) | undefined;
+    const getTwapOrders = vi
+      .fn()
+      .mockResolvedValueOnce([twap({ orderId: 'a-order' })])
+      .mockImplementationOnce(
+        async () =>
+          new Promise<TwapOrder[]>((resolve) => {
+            release = resolve;
+          }),
+      )
+      .mockResolvedValue([twap({ orderId: 'b-order' })]);
+    const callback = vi.fn();
+
+    createLiveTwapOrderList({
+      source: {
+        getTwapOrders,
+        subscribeToTwapOrders: (): (() => void) => () => undefined,
+        getContextKey: (): string => context,
+        subscribeToContextChanges: (listener): (() => void) => {
+          notify = listener;
+          return () => undefined;
+        },
+      },
+      callback,
+    });
+    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs);
+    // The second read is pending when the account switches.
+    context = 'b';
+    notify?.();
+
+    expect(callback).toHaveBeenLastCalledWith([]);
+
+    await vi.advanceTimersByTimeAsync(0);
+    release?.([twap({ orderId: 'a-order' })]);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(getTwapOrders).toHaveBeenCalledTimes(3);
+    expect(callback).toHaveBeenLastCalledWith([
+      expect.objectContaining({ orderId: 'b-order' }),
+    ]);
+  });
+
   it('stops everything on cleanup', async () => {
     const { source, getTwapOrders, unsubscribe, push } = twapSource([[twap()]]);
     const callback = vi.fn();
@@ -646,6 +694,198 @@ describe('createLiveChaseOrderList', () => {
     expect(callback).not.toHaveBeenCalledWith(
       expect.objectContaining({ running: [chase('h1', 'active')] }),
     );
+  });
+
+  type HeldChaseRead = {
+    resolve?: (orders: ChaseOrder[]) => void;
+    reject?: (error: Error) => void;
+  };
+
+  it.each([
+    [
+      'is pending',
+      (held: HeldChaseRead): void => held.resolve?.([chase('h1', 'active')]),
+    ],
+    [
+      'rejects',
+      (held: HeldChaseRead): void =>
+        held.reject?.(new Error('old read failed')),
+    ],
+  ])(
+    'clears at once and reads the new context when the context changes while a later read %s',
+    async (_label, settleOldRead) => {
+      let context = 'a';
+      let notify: (() => void) | undefined;
+      const held: HeldChaseRead = {};
+      const getChaseOrders = vi
+        .fn()
+        .mockResolvedValueOnce([chase('h1', 'active')])
+        .mockImplementationOnce(
+          async () =>
+            new Promise<ChaseOrder[]>((resolve, reject) => {
+              held.resolve = resolve;
+              held.reject = reject;
+            }),
+        )
+        .mockResolvedValue([chase('h2', 'active')]);
+      const callback = vi.fn();
+      const onError = vi.fn();
+
+      createLiveChaseOrderList({
+        source: {
+          getChaseOrders,
+          getContextKey: (): string => context,
+          subscribeToContextChanges: (listener): (() => void) => {
+            notify = listener;
+            return () => undefined;
+          },
+        },
+        callback,
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+      context = 'b';
+      notify?.();
+
+      expect(callback).toHaveBeenLastCalledWith({ running: [], history: [] });
+
+      await vi.advanceTimersByTimeAsync(0);
+      settleOldRead(held);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(getChaseOrders).toHaveBeenCalledTimes(3);
+      expect(onError).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenLastCalledWith({
+        running: [chase('h2', 'active')],
+        history: [],
+      });
+    },
+  );
+
+  describe('after a confirmed cancel', () => {
+    const canceled = (order: ChaseOrder): ChaseOrder => ({
+      ...order,
+      status: 'canceled',
+      restingOrderId: null,
+    });
+
+    /**
+     * Start a list whose reads return the queued results and whose source
+     * reports cancels through the returned function.
+     *
+     * @param reads - Results of successive reads; the last one repeats.
+     * @returns The read spy, the callback and a way to report a cancel.
+     */
+    function startList(reads: ChaseOrder[][]): {
+      callback: Mock;
+      cancel: (handle: string, providerId?: ChaseOrder['providerId']) => void;
+    } {
+      const getChaseOrders = vi.fn();
+      for (const result of reads.slice(0, -1)) {
+        getChaseOrders.mockResolvedValueOnce(result);
+      }
+      getChaseOrders.mockResolvedValue(reads.at(-1));
+      let report: ((canceled: CanceledChaseOrder) => void) | undefined;
+      const callback = vi.fn();
+      createLiveChaseOrderList({
+        source: {
+          getChaseOrders,
+          subscribeToChaseCancellations: (listener): (() => void) => {
+            report = listener;
+            return () => undefined;
+          },
+        },
+        callback,
+      });
+      return {
+        callback,
+        cancel: (handle, providerId): void => report?.({ handle, providerId }),
+      };
+    }
+
+    it('keeps a running chase in history once the provider drops it', async () => {
+      const { callback, cancel } = startList([[chase('h1', 'active')], []]);
+      await vi.advanceTimersByTimeAsync(0);
+      cancel('h1');
+
+      expect(callback).toHaveBeenLastCalledWith({
+        running: [],
+        history: [canceled(chase('h1', 'active'))],
+      });
+
+      await vi.advanceTimersByTimeAsync(
+        CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
+      );
+
+      expect(callback).toHaveBeenLastCalledWith({
+        running: [],
+        history: [canceled(chase('h1', 'active'))],
+      });
+    });
+
+    it('does not let a stale read put the chase back in running', async () => {
+      const { callback, cancel } = startList([
+        [chase('h1', 'active')],
+        [chase('h1', 'active')],
+        [],
+      ]);
+      await vi.advanceTimersByTimeAsync(0);
+      cancel('h1');
+      callback.mockClear();
+      await vi.advanceTimersByTimeAsync(
+        CHASE_ORDER_CONFIG.RefreshIntervalMs * 2,
+      );
+
+      // The read that still lists it as active changes nothing visible.
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('takes an ending a later read reports, without the resting order', async () => {
+      const { callback, cancel } = startList([
+        [chase('h1', 'active')],
+        [chase('h1', 'filled')],
+      ]);
+      await vi.advanceTimersByTimeAsync(0);
+      cancel('h1');
+      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+
+      expect(callback).toHaveBeenLastCalledWith({
+        running: [],
+        history: [{ ...chase('h1', 'filled'), restingOrderId: null }],
+      });
+    });
+
+    it('drops the resting order of a stopped chase, keeping its ending', async () => {
+      const { callback, cancel } = startList([
+        [chase('h1', 'max_distance_reached')],
+        [],
+      ]);
+      await vi.advanceTimersByTimeAsync(0);
+      cancel('h1');
+      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+
+      expect(callback).toHaveBeenLastCalledWith({
+        running: [],
+        history: [
+          { ...chase('h1', 'max_distance_reached'), restingOrderId: null },
+        ],
+      });
+    });
+
+    it("ignores a cancel for another provider's chase", async () => {
+      const lighterChase = {
+        ...chase('h1', 'active'),
+        providerId: 'lighter' as const,
+      };
+      const { callback, cancel } = startList([[lighterChase]]);
+      await vi.advanceTimersByTimeAsync(0);
+      cancel('h1', 'hyperliquid');
+
+      expect(callback).toHaveBeenLastCalledWith({
+        running: [lighterChase],
+        history: [],
+      });
+    });
   });
 
   it('bounds history, reports failed reads and keeps polling', async () => {
