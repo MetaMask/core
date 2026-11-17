@@ -51,6 +51,13 @@ export const vendorOnboardingControllerName = 'VendorOnboardingController';
 export type OnboardingVendorState = {
   /** The last step kyc-api answered with. */
   step: KycStep;
+  /**
+   * How verification is going, as of that answer. Separate from the step: a
+   * user asked to redo the identity provider is on the same step as one
+   * doing it the first time, so this is what a "we need another look"
+   * banner keys off.
+   */
+  status: KycStepStatus;
   /** The vendor's UKYC session id, once one exists. */
   sessionId: string | null;
 };
@@ -751,6 +758,19 @@ export class VendorOnboardingController extends BaseController<
     );
   }
 
+  /**
+   * What only this device knows, sent with every step request.
+   *
+   * Empty for Kalshi: kyc-api records its terms as they are accepted, so
+   * there is nothing the server cannot already see.
+   *
+   * @param _vendor - The vendor the step is being read for.
+   * @returns The client context to send.
+   */
+  #clientContext(_vendor: OnboardingVendor): KycClientContext {
+    return {};
+  }
+
   async #readStep(
     vendor: OnboardingVendor,
     { join }: { join: boolean },
@@ -763,13 +783,17 @@ export class VendorOnboardingController extends BaseController<
     this.#stepRequests[vendor] = request;
     const read = (async (): Promise<KycStep> => {
       try {
-        const step = await this.messenger.call('KycService:getStep', vendor);
+        const info = await this.messenger.call(
+          'KycService:getStep',
+          vendor,
+          this.#clientContext(vendor),
+        );
         // Drop the answer when a newer read started while this was in
         // flight, so a slow read cannot overwrite a fresher step.
         if (this.#stepRequests[vendor] === request) {
-          this.#write(vendor, { step });
+          this.#write(vendor, { step: info.step, status: info.status });
         }
-        return step;
+        return info.step;
       } finally {
         // A newer read has taken over from this one.
         if (this.#stepRequests[vendor] === request) {

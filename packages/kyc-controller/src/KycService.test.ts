@@ -1024,30 +1024,37 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/vendors/kalshi/step')
         .matchHeader('authorization', 'Bearer test-bearer')
-        .reply(200, { vendor: 'kalshi', step: 'account_link' });
+        .reply(200, { vendor: 'kalshi', step: 'account_link', status: 'none' });
       const { service } = getService();
 
-      expect(await service.getStep('kalshi')).toBe('account_link');
+      expect(await service.getStep('kalshi')).toStrictEqual({
+        step: 'account_link',
+        status: 'none',
+      });
     });
 
     it('ignores a field kyc-api adds that this version does not know', async () => {
       nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
         vendor: 'kalshi',
         step: 'identity_email_code',
+        status: 'pending',
         somethingNew: true,
       });
       const { service } = getService();
 
-      expect(await service.getStep('kalshi')).toBe('identity_email_code');
+      expect(await service.getStep('kalshi')).toStrictEqual({
+        step: 'identity_email_code',
+        status: 'pending',
+      });
     });
 
     it('turns a step this version does not know into error', async () => {
       nock(MOCK_API_URL)
         .get('/vendors/iron/step')
-        .reply(200, { vendor: 'iron', step: 'brand_new_step' });
+        .reply(200, { vendor: 'iron', step: 'brand_new_step', status: 'none' });
       const { service } = getService();
 
-      expect(await service.getStep('iron')).toBe('error');
+      expect((await service.getStep('iron')).step).toBe('error');
     });
 
     it('throws on a malformed response', async () => {

@@ -1,5 +1,7 @@
 import { BaseDataService } from '@metamask/base-data-service';
 import type {
+  KycClientContext,
+  KycStepInfo,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
@@ -25,7 +27,7 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import { patchKycSessionStatus, toKycStep } from './types.js';
+import { patchKycSessionStatus, toKycStep, toKycStepStatus } from './types.js';
 import type {
   KycConsentRecord,
   KycDataShare,
@@ -181,7 +183,11 @@ const VendorSigningStruct = type({
 const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
 /** `GET /vendors/{vendor}/step`, the only route that reports the step. */
-const StepResponseStruct = type({ vendor: string(), step: string() });
+const StepResponseStruct = type({
+  vendor: string(),
+  step: string(),
+  status: string(),
+});
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
@@ -1129,18 +1135,26 @@ export class KycService extends BaseDataService<
    * @param vendor - The vendor to get the step for.
    * @returns The step.
    */
-  async getStep(vendor: OnboardingVendor): Promise<KycStep> {
+  async getStep(
+    vendor: OnboardingVendor,
+    client: KycClientContext = {},
+  ): Promise<KycStepInfo> {
     const url = new URL(
       `/vendors/${encodeURIComponent(vendor)}/step`,
       this.#baseUrl,
     );
+    // What only this device knows. kyc-api reads it for one answer and
+    // stores none of it.
+    if (client.vendorTermsAcceptedLocally) {
+      url.searchParams.set('vendorTermsAcceptedLocally', 'true');
+    }
     const data = await this.#requestJson(url, { method: 'GET' });
-    const { step } = this.#validateResponse(
+    const { step, status } = this.#validateResponse(
       data,
       StepResponseStruct,
       'vendor step',
     );
-    return toKycStep(step);
+    return { step: toKycStep(step), status: toKycStepStatus(status) };
   }
 
   /**

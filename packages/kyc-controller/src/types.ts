@@ -391,18 +391,74 @@ export type OnboardingVendor = 'iron' | 'kalshi';
  */
 export const KYC_STEPS = [
   'vendor_terms',
+  /**
+   * One step, two screens. The client owns the email screen and the code
+   * screen, so someone who mistyped their email can go back and fix it;
+   * kyc-api only knows whether the account is linked.
+   */
   'account_link',
-  'account_link_code',
   'confirm_identity',
   'identity_email_code',
   'identity_phone',
   'identity_provider',
-  'kyc_pending',
-  'kyc_retry',
-  'kyc_rejected',
-  'approved',
+  /** Nothing left for the user to do. {@link KycStatus} says whether that is
+   * good news. */
+  'done',
   'error',
 ] as const;
+
+/**
+ * How the user's verification is going, reported next to the step.
+ *
+ * Separate from the step: a user asked to redo the identity provider is on
+ * the same step as one doing it for the first time, and the same screen is
+ * shown. Only the status differs, which is what a "we need another look"
+ * banner keys off.
+ */
+export const KYC_STEP_STATUSES = [
+  'none',
+  'pending',
+  'retry',
+  'approved',
+  'rejected',
+] as const;
+
+/**
+ * A status returned alongside a step by kyc-api. Distinct from
+ * {@link KYC_STATUSES}, which is the UKYC session's own vocabulary.
+ */
+export type KycStepStatus = (typeof KYC_STEP_STATUSES)[number];
+
+/**
+ * Narrows a status string from kyc-api. An unknown status reads as `none`,
+ * so an older app shows the step's plain screen rather than guessing.
+ *
+ * @param value - The status string from kyc-api.
+ * @returns The known status, or `none`.
+ */
+export function toKycStepStatus(value: string): KycStepStatus {
+  return (KYC_STEP_STATUSES as readonly string[]).includes(value)
+    ? (value as KycStepStatus)
+    : 'none';
+}
+
+/** Where the user is, and how their verification is going. */
+export type KycStepInfo = { step: KycStep; status: KycStepStatus };
+
+/**
+ * What only the device knows, sent with a step request.
+ *
+ * Kept deliberately small: a fact belongs here only when kyc-api genuinely
+ * cannot see it. kyc-api reads it for one answer and stores none of it.
+ */
+export type KycClientContext = {
+  /**
+   * The user accepted the vendor's terms on this device, before kyc-api
+   * could record them. Needed where a vendor cannot be told about an
+   * acceptance until an account exists.
+   */
+  vendorTermsAcceptedLocally?: boolean;
+};
 
 /** A step returned by kyc-api. See {@link KYC_STEPS}. */
 export type KycStep = (typeof KYC_STEPS)[number];

@@ -154,9 +154,11 @@ export type {
 export {
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  KYC_STEP_STATUSES,
   KYC_STEPS,
   TERMINAL_SESSION_STATUSES,
   toKycStep,
+  toKycStepStatus,
 } from './types.js';
 export type {
   KycCatalogDocument,
@@ -171,8 +173,11 @@ export type {
   KycProduct,
   KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
+  KycClientContext,
   KycSessionStatus,
   KycStep,
+  KycStepInfo,
+  KycStepStatus,
   KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,

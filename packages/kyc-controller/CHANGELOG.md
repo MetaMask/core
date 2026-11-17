@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `KycService.getStep`, `acceptVendorTerms`, `markProviderSubmitted` and `postOnboardingStep`, with the matching `KycService:*` messenger actions ([#11441](https://github.com/MetaMask/core/pull/11441))
   - `getStep` is the only one that reports a step. The others run their action and report nothing about it, so the step has a single source and cannot drift
 - Add the `KYC_STEPS` list, the `KycStep` and `OnboardingVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11441](https://github.com/MetaMask/core/pull/11441))
+- Add `KYC_STEP_STATUSES`, the `KycStepStatus` and `KycStepInfo` types, and `toKycStepStatus` ([#11441](https://github.com/MetaMask/core/pull/11441))
+  - Reported next to the step, because a user asked to redo the identity provider is on the same step as one doing it the first time. `OnboardingVendorState` carries both
+- Add the `KycClientContext` type, sent with a step request for the few facts only the device knows ([#11441](https://github.com/MetaMask/core/pull/11441))
 
 ### Changed
 
