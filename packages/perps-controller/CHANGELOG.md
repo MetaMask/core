@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1425.0.0 ([#11537](https://github.com/MetaMask/core/pull/11537))
+- Release 1424.0.0 ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Release 1422.0.0 ([#11472](https://github.com/MetaMask/core/pull/11472))
+
 ### Added
 
 - Add `AccountState.spotCollateral`, the spot USDC that counts as cross collateral, so clients can pass it to `calculateAccountSummary` instead of assuming spot collateral is `0` ([#11457](https://github.com/MetaMask/core/pull/11457))
