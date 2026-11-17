@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1428.0.0 ([#11546](https://github.com/MetaMask/core/pull/11546))
-- Release 1423.0.0 ([#11474](https://github.com/MetaMask/core/pull/11474))
-
 ## [18.3.1]
 
 ### Changed
