@@ -199,7 +199,7 @@ function createEventResponseMock(
 function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
-  gasCost: number = 0,
+  gasCost: string = '0',
 ): SentinelSimulationResponse {
   return {
     transactions: [
@@ -343,7 +343,7 @@ describe('Balance Change Utils', () => {
       });
 
       it('ignoring gas cost', async () => {
-        const response = createNativeBalanceResponse('0x3', '0x8', 2);
+        const response = createNativeBalanceResponse('0x3', '0x8', '2');
         response.transactions[0].stateDiff = {
           pre: {
             [USER_ADDRESS_MOCK]: { balance: '0x3' },
@@ -374,9 +374,54 @@ describe('Balance Change Utils', () => {
         });
       });
 
+      it('preserves an odd decimal gas cost above Number.MAX_SAFE_INTEGER', async () => {
+        const response = createNativeBalanceResponse(
+          '0xde0b6b3a7640000',
+          '0xd97e19b0b2be5f7',
+          '10500500000021001',
+        );
+        response.transactions[0].gasUsed = '0x5209';
+        response.transactions[0].stateDiff = {
+          pre: {
+            [USER_ADDRESS_MOCK]: { balance: '0xde0b6b3a7640000' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x0' },
+          },
+          post: {
+            [USER_ADDRESS_MOCK]: { balance: '0xd97e19b0b2be5f7' },
+            [OTHER_ADDRESS_MOCK]: { balance: '0x2386f26fc10000' },
+          },
+        };
+        simulateTransactionsMock.mockResolvedValueOnce(response);
+
+        const result = await getBalanceChanges({
+          ...REQUEST_MOCK,
+          txParams: {
+            ...REQUEST_MOCK.txParams,
+            gas: '0xc350',
+            maxFeePerGas: '0x746a528801',
+            value: '0x2386f26fc10000',
+          },
+        });
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x2386f26fc10000',
+              isDecrease: true,
+              newBalance: '0xdbd2fc137a30000',
+              previousBalance: '0xde0b6b3a7640000',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: '0x5209',
+          simulationRevert: undefined,
+        });
+      });
+
       it('does not ignore gas cost when transaction has no fee per gas', async () => {
         simulateTransactionsMock.mockResolvedValueOnce(
-          createNativeBalanceResponse('0x10', '0xb', 7),
+          createNativeBalanceResponse('0x10', '0xb', '7'),
         );
 
         const result = await getBalanceChanges({
@@ -405,7 +450,7 @@ describe('Balance Change Utils', () => {
       });
 
       it('ignores gas cost when transaction has gas price but no max fee per gas', async () => {
-        const response = createNativeBalanceResponse('0x10', '0xb', 3);
+        const response = createNativeBalanceResponse('0x10', '0xb', '3');
         response.transactions[0].stateDiff = {
           pre: {
             [USER_ADDRESS_MOCK]: { balance: '0x10' },
@@ -448,7 +493,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 7,
+              gasCost: '7',
               stateDiff: {
                 pre: {
                   [USER_ADDRESS_MOCK]: { balance: '0x10' },
@@ -493,7 +538,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 498346296506492,
+              gasCost: '498346296506492',
               gasUsed: '0x6e56',
               stateDiff: {
                 pre: {
@@ -525,7 +570,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 373521438549000,
+              gasCost: '373521438549000',
               gasUsed: '0x5208',
               stateDiff: {
                 pre: {
@@ -564,7 +609,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 498346296506492,
+              gasCost: '498346296506492',
               gasUsed: '0x6e56',
               stateDiff: {
                 pre: {
@@ -601,7 +646,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 373521438549000,
+              gasCost: '373521438549000',
               gasUsed: '0x5208',
               stateDiff: {
                 pre: {
@@ -639,7 +684,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 373521438549000,
+              gasCost: '373521438549000',
               gasUsed: '0x5208',
               stateDiff: {
                 pre: {
@@ -678,7 +723,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: '498346296506492' as unknown as number,
+              gasCost: '498346296506492',
               gasUsed: '0x6e56',
               stateDiff: {
                 pre: {
@@ -716,7 +761,7 @@ describe('Balance Change Utils', () => {
             transactions: [
               {
                 ...defaultResponseTx,
-                gasCost: 498346296506492,
+                gasCost: '498346296506492',
                 gasUsed,
                 stateDiff: {
                   pre: {
@@ -754,7 +799,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 498346296506492,
+              gasCost: '498346296506492',
               gasUsed: '0x6e56',
               stateDiff: {
                 pre: {
@@ -786,7 +831,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 498346296506492,
+              gasCost: '498346296506492',
               gasUsed: '0x6e56',
               stateDiff: {
                 pre: {
@@ -830,7 +875,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 498346296506492,
+              gasCost: '498346296506492',
               gasUsed: '0x6e56',
               stateDiff: {
                 pre: {
@@ -873,7 +918,7 @@ describe('Balance Change Utils', () => {
           transactions: [
             {
               ...defaultResponseTx,
-              gasCost: 498346296506492,
+              gasCost: '498346296506492',
               gasUsed: '0x6e56',
               stateDiff: {
                 pre: {
