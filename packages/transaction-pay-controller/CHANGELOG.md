@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds
+- Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds ([#11566](https://github.com/MetaMask/core/pull/11566))
   - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
 
 ## [31.3.0]
