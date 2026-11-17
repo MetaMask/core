@@ -144,7 +144,10 @@ Each venue's own snapshot is in `providerStates[providerId]`: either
 `crossMarginSummary` and `subAccountBreakdown` (never merged into the top
 level — cross-venue collateral is not mutually usable), or
 `{ status: 'unavailable', error?, providerId }` for a venue whose read failed
-or whose snapshot has a missing or non-finite additive field. A stream venue
+or whose snapshot has a missing or non-finite additive field. Aggregated
+account reads request that failure strictly: a HyperLiquid DEX clearinghouse
+read or spot clearinghouse read that fails rejects the venue, so the combined
+total is `partial` instead of a complete portfolio value. A stream venue
 is `{ status: 'pending', providerId }` until its first snapshot, even if it
 emits `null`. A rejected subscription setup is immediately `unavailable` instead
 of pending. Lighter can only serve the selected wallet: requesting another
@@ -163,17 +166,14 @@ state is `null`, so pending and unavailable venues remain distinguishable.
 
 The controller writes `perpsBalances[providerId]` from live account updates —
 one entry per available venue with `totalBalance`, `unrealizedPnl` and
-`lastUpdated`. A venue whose data becomes unavailable has its entry removed
-rather than left looking live. Pending venues retain their persisted entries
-and history, including when the first stream update is `null`; a `null` total
-clears `accountState` but only explicitly unavailable venues lose their entries.
-Each entry records the `accountAddress` and
-`isTestnet` it was observed for; an optional `accountValue1dAgo` carries
-forward only within that same account and network, and entries for another
-account or network are dropped when the selected account changes or the
-network is toggled. Combined `spendableBalance` and
-`withdrawableBalance` span venues: neither is a limit any single venue will
-enforce on a new order or a withdrawal.
+`lastUpdated`. Live updates leave `accountValue1dAgo` unset. A venue whose
+data becomes unavailable has its entry removed rather than left looking live.
+A pending venue keeps its stored entry until it reports a snapshot, including
+when the first stream update is `null`. A `null` total clears `accountState`
+and removes only explicitly unavailable venues' entries. Every balance entry
+is cleared when the selected account changes or the network is toggled.
+Combined `spendableBalance` and `withdrawableBalance` span venues: neither is
+a limit any single venue will enforce on a new order or a withdrawal.
 
 Market streams (`subscribeToCandles`, `subscribeToOICaps`,
 `subscribeToOrderBook`) take an optional `providerId`. An explicit route

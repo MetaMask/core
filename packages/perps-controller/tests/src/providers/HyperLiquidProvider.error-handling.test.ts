@@ -1433,6 +1433,109 @@ describe('HyperLiquidProvider', () => {
           dex: 'xyz',
         });
       });
+
+      it('rejects a partial HIP-3 account read when throwOnUnavailable is set', async () => {
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+        });
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            perpDexs: vi
+              .fn()
+              .mockResolvedValue([
+                null,
+                { name: 'xyz', url: 'https://xyz.com' },
+              ]),
+            clearinghouseState: vi
+              .fn()
+              .mockImplementation((params?: { dex?: string }) => {
+                if (params?.dex === 'xyz') {
+                  return Promise.reject(new Error('xyz DEX unavailable'));
+                }
+
+                return Promise.resolve({
+                  marginSummary: {
+                    totalMarginUsed: '500',
+                    accountValue: '10500',
+                  },
+                  withdrawable: '9500',
+                  assetPositions: [],
+                  crossMarginSummary: {
+                    accountValue: '10500',
+                    totalMarginUsed: '500',
+                  },
+                });
+              }),
+            spotClearinghouseState: vi.fn().mockResolvedValue({
+              balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
+            }),
+          }),
+        );
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+        await expect(
+          hip3Provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(
+          'Failed to fetch account state (failedDexs=[xyz], spotError=none)',
+        );
+      });
+
+      it('keeps a perps-only total when the spot read fails', async () => {
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: {
+                totalMarginUsed: '500',
+                accountValue: '10500',
+              },
+              withdrawable: '9500',
+              assetPositions: [],
+              crossMarginSummary: {
+                accountValue: '10500',
+                totalMarginUsed: '500',
+              },
+            }),
+            spotClearinghouseState: vi
+              .fn()
+              .mockRejectedValue(new Error('spot clearinghouse down')),
+          }),
+        );
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+        const accountState = await provider.getAccountState();
+
+        expect(accountState.totalBalance).toBe('10500');
+      });
+
+      it('rejects a failed spot read when throwOnUnavailable is set', async () => {
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: {
+                totalMarginUsed: '500',
+                accountValue: '10500',
+              },
+              withdrawable: '9500',
+              assetPositions: [],
+              crossMarginSummary: {
+                accountValue: '10500',
+                totalMarginUsed: '500',
+              },
+            }),
+            spotClearinghouseState: vi
+              .fn()
+              .mockRejectedValue(new Error('spot clearinghouse down')),
+          }),
+        );
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+        await expect(
+          provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(
+          'Failed to fetch account state (failedDexs=[], spotError=spot clearinghouse down)',
+        );
+      });
     });
 
     describe('getMarketDataWithPrices error scenarios', () => {

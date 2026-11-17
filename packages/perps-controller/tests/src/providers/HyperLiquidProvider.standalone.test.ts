@@ -1797,6 +1797,54 @@ describe('HyperLiquidProvider', () => {
         expect(parseFloat(accountState.marginUsed)).toBe(1500);
       });
 
+      it('rejects a partial standalone account read when throwOnUnavailable is set', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockImplementation(
+          (params?: { dex?: string }) => {
+            if (params?.dex === 'xyz') {
+              return Promise.reject(new Error('xyz DEX unavailable'));
+            }
+            return Promise.resolve({
+              assetPositions: [],
+              marginSummary: {
+                totalMarginUsed: '1000',
+                accountValue: '50000',
+              },
+              withdrawable: '45000',
+            });
+          },
+        );
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('xyz DEX unavailable');
+      });
+
+      it('rejects a failed standalone spot read when throwOnUnavailable is set', async () => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+          marginSummary: {
+            totalMarginUsed: '1000',
+            accountValue: '50000',
+          },
+          withdrawable: '45000',
+        });
+        mockStandaloneInfoClient.spotClearinghouseState.mockRejectedValue(
+          new Error('spot clearinghouse down'),
+        );
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('spot clearinghouse down');
+      });
+
       it('does not poison fully-initialized cache when standalone perpDexs() fails', async () => {
         // Arrange: standalone perpDexs fails (transient network error)
         mockStandaloneInfoClient.perpDexs.mockRejectedValue(

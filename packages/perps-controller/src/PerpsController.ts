@@ -4383,9 +4383,6 @@ export class PerpsController extends BaseController<
         transaction,
         assetChainId,
         currentDepositId: depositId,
-        // The chosen route names the venue that settles this deposit. Captured
-        // before any asynchronous work so later default changes cannot
-        // re-attribute the record.
         providerId: depositProviderId,
       } = await this.#depositService.prepareTransaction({
         provider,
@@ -4418,9 +4415,6 @@ export class PerpsController extends BaseController<
           amount: amount ?? '0', // Use provided amount or default to '0'
           asset: USDC_SYMBOL,
           accountAddress, // Track which account initiated deposit
-          // Venue attribution: the chosen route names the venue in
-          // aggregated mode; in direct mode the active provider is the
-          // venue. Never relabeled later.
           ...(depositVenueId === undefined
             ? {}
             : { providerId: depositVenueId }),
@@ -7770,10 +7764,8 @@ export class PerpsController extends BaseController<
                         // rather than keep exposing a stale value as live.
                         delete state.perpsBalances[providerId];
                       }
-                      // A `pending` venue has not reported on this stream
-                      // yet: no verdict about its balances, so its persisted
-                      // entry stays
-                      // until the venue reports a snapshot.
+                      // A pending venue has not reported on this stream yet.
+                      // Its persisted entry stays until it reports a snapshot.
                     }
                   } else {
                     const directVenueId =

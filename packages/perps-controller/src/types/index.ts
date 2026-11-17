@@ -1196,7 +1196,8 @@ export type ClosePositionsParams = {
   /**
    * Explicit provider-tagged close targets. Each target is closed on its
    * named venue only, so identical symbols on different venues are
-   * independent. Takes precedence over `symbols`.
+   * independent. Non-empty targets take precedence over `closeAll` and
+   * `symbols`.
    */
   targets?: ClosePositionsTarget[];
 };
@@ -1986,13 +1987,14 @@ export type GetAccountStateParams = {
   /** Required for standalone reads. Unsupported wallet scopes reject as above. */
   userAddress?: string;
   /**
-   * Optional: throw instead of returning zero-valued state when the core
-   * read fails (session, account payload, malformed venue numbers). Lighter
-   * throws `ACCOUNT_STATE_FAILED` (with the cause attached); a wallet
-   * without a Lighter account still reads as empty. The optional
-   * venue-local `crossMarginSummary` stays best-effort: a read whose
-   * balances are valid is never failed because its margin metadata could
-   * not be loaded.
+   * Optional: throw instead of returning an incomplete or zero-valued state
+   * when the core read fails. Lighter throws `ACCOUNT_STATE_FAILED` (with
+   * the cause attached); a wallet without a Lighter account still reads as
+   * empty. HyperLiquid rejects the read when any DEX clearinghouse read or
+   * the spot clearinghouse read fails, instead of summing the reachable
+   * DEXs. The optional venue-local `crossMarginSummary` stays best-effort:
+   * a read whose balances are valid is never failed because its margin
+   * metadata could not be loaded.
    */
   throwOnUnavailable?: boolean;
 };
