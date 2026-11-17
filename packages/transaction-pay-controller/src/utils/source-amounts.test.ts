@@ -981,7 +981,7 @@ describe('Source Amounts Utils', () => {
         ]);
       });
 
-      it('uses the balance on max when the transaction has no encoded amount', () => {
+      it('emits no source amount on max when the transaction has no encoded amount', () => {
         const getBalance = vi.fn().mockReturnValue({
           balanceRaw: '21046127',
         });
@@ -1007,17 +1007,60 @@ describe('Source Amounts Utils', () => {
           getBalance,
         );
 
-        expect(transactionData.sourceAmounts).toStrictEqual([
-          {
-            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
-            sourceAmountRaw: '21046127',
-            sourceBalanceRaw: '21046127',
-            sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
-            sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
-            targetTokenAddress: DESTINATION_TOKEN_ADDRESS_MOCK,
-          },
-        ]);
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
       });
+
+      it.each([
+        ['a HyperLiquid source', { isHyperliquidSource: true }],
+        [
+          'a Polymarket deposit wallet source',
+          { isPolymarketDepositWallet: true },
+        ],
+        [
+          'a payment override',
+          { paymentOverride: PaymentOverride.MoneyAccount },
+        ],
+      ] as const)(
+        'uses the balance on max when %s has no encoded amount',
+        (_label, sourceFlags) => {
+          const getBalance = vi.fn().mockReturnValue({
+            balanceRaw: '21046127',
+          });
+
+          const transactionData: TransactionData = {
+            isLoading: false,
+            isMaxAmount: true,
+            isPostQuote: true,
+            paymentToken: DESTINATION_TOKEN_MOCK,
+            ...sourceFlags,
+            tokens: [
+              {
+                ...TRANSACTION_TOKEN_MOCK,
+                amountRaw: '0',
+                skipIfBalance: false,
+              },
+            ],
+          };
+
+          updateSourceAmounts(
+            TRANSACTION_ID_MOCK,
+            transactionData,
+            messenger,
+            getBalance,
+          );
+
+          expect(transactionData.sourceAmounts).toStrictEqual([
+            {
+              sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+              sourceAmountRaw: '21046127',
+              sourceBalanceRaw: '21046127',
+              sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+              sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+              targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+            },
+          ]);
+        },
+      );
 
       it('does not cap the max source amount for a HyperLiquid source', () => {
         const getBalance = vi.fn().mockReturnValue({
