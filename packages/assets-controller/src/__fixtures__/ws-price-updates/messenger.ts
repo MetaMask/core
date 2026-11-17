@@ -65,7 +65,6 @@ function buildMainnetNetworkState(): NetworkState {
             networkClientId: MAINNET_NETWORK_CLIENT_ID,
             url: MAINNET_RPC_URL,
             type: RpcEndpointType.Custom,
-            failoverUrls: [],
           },
         ],
       },

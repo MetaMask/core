@@ -773,7 +773,11 @@ describe('TradingService', () => {
         reportOrderToDataLake: mockReportOrderToDataLake,
       });
 
-      expect(mockSaveTradeConfiguration).toHaveBeenCalledWith('BTC', 10);
+      expect(mockSaveTradeConfiguration).toHaveBeenCalledWith(
+        'BTC',
+        10,
+        undefined,
+      );
     });
 
     it('tracks analytics event when order succeeds', async () => {
@@ -3841,6 +3845,148 @@ describe('TradingService', () => {
             }),
           },
         }),
+      );
+    });
+  });
+
+  describe('replacePositionTPSLLeg', () => {
+    const legPosition: Position = {
+      symbol: 'BTC',
+      size: '0.5',
+      entryPrice: '50000',
+      liquidationPrice: '45000',
+      leverage: { type: 'cross', value: 10 },
+      marginUsed: '2500',
+      maxLeverage: 20,
+      positionValue: '25000',
+      returnOnEquity: '0.2',
+      unrealizedPnl: '5000',
+      cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+      takeProfitCount: 1,
+      stopLossCount: 1,
+    };
+
+    it.each([
+      {
+        leg: 'tp' as const,
+        triggerPrice: '60000',
+        action: PERPS_EVENT_VALUE.ACTION.TP,
+        priceProperty: { take_profit_price: 60000 },
+      },
+      {
+        leg: 'sl' as const,
+        triggerPrice: '45000',
+        action: PERPS_EVENT_VALUE.ACTION.SL,
+        priceProperty: { stop_loss_price: 45000 },
+      },
+    ])(
+      'replaces the $leg leg, records state and reports only that leg',
+      async ({ leg, triggerPrice, action, priceProperty }) => {
+        const replacePositionTPSLLeg = vi
+          .fn()
+          .mockResolvedValue({ success: true });
+        mockProvider.replacePositionTPSLLeg = replacePositionTPSLLeg;
+        mockGetPositions.mockResolvedValue([legPosition]);
+        const params = { symbol: 'BTC', leg, triggerPrice, limitPrice: '1' };
+
+        const result = await tradingService.replacePositionTPSLLeg({
+          provider: mockProvider,
+          params,
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(result).toStrictEqual({ success: true });
+        expect(replacePositionTPSLLeg).toHaveBeenCalledWith(params);
+        expect(mockProvider.updatePositionTPSL).not.toHaveBeenCalled();
+        expect(mockContext.stateManager?.update).toHaveBeenCalled();
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenLastCalledWith(
+          PerpsAnalyticsEvent.RiskManagement,
+          expect.objectContaining({
+            status: 'executed',
+            asset: 'BTC',
+            has_take_profit: leg === 'tp',
+            has_stop_loss: leg === 'sl',
+            action,
+            ...priceProperty,
+          }),
+        );
+      },
+    );
+
+    it('prices the fee from the replaced trigger over the whole position', async () => {
+      mockProvider.replacePositionTPSLLeg = vi
+        .fn()
+        .mockResolvedValue({ success: true });
+      mockGetPositions.mockResolvedValue([legPosition]);
+
+      await tradingService.replacePositionTPSLLeg({
+        provider: mockProvider,
+        params: { symbol: 'BTC', leg: 'tp', triggerPrice: '60000' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      // 0.5 BTC at the 60000 trigger.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        30000,
+        hyperliquidMainnetScope,
+      );
+    });
+
+    it('prices a limit leg at its fill price, not its trigger', async () => {
+      mockProvider.replacePositionTPSLLeg = vi
+        .fn()
+        .mockResolvedValue({ success: true });
+      mockGetPositions.mockResolvedValue([legPosition]);
+
+      await tradingService.replacePositionTPSLLeg({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          leg: 'tp',
+          triggerPrice: '60000',
+          limitPrice: '62000',
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      // 0.5 BTC fills at 62000: 31000, past a 30000 allowance that the
+      // trigger alone would fully cover.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        31000,
+        hyperliquidMainnetScope,
+      );
+    });
+
+    it('rejects with the typed unsupported error when the provider cannot replace a leg', async () => {
+      mockProvider.replacePositionTPSLLeg = undefined;
+      mockGetPositions.mockResolvedValue([legPosition]);
+
+      await expect(
+        tradingService.replacePositionTPSLLeg({
+          provider: mockProvider,
+          params: { symbol: 'BTC', leg: 'sl', triggerPrice: '45000' },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        }),
+      ).rejects.toMatchObject({
+        errorCode: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+      });
+
+      expect(mockProvider.updatePositionTPSL).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'replacePositionTPSLLeg',
+            }),
+          }),
+        }),
+      );
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenLastCalledWith(
+        PerpsAnalyticsEvent.RiskManagement,
+        expect.objectContaining({ status: 'failed', has_stop_loss: true }),
       );
     });
   });

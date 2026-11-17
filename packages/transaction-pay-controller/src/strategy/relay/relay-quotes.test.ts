@@ -1,4 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
   GasFeeToken,
@@ -204,6 +205,12 @@ describe('Relay Quotes Utils', () => {
     getRemoteFeatureFlagControllerStateMock,
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
+
+  // The destructure above widens the mocks to `any`. Re-type the keyring mock
+  // so new assertions do not add `no-unsafe-call` violations to this file.
+  const keyringStateMock = getKeyringControllerStateMock as MockedFunction<
+    KeyringControllerGetStateAction['handler']
+  >;
 
   messenger.registerActionHandler(
     'TransactionPayController:getAmountData',
@@ -468,6 +475,28 @@ describe('Relay Quotes Utils', () => {
           tradeType: 'EXACT_INPUT',
         }),
       );
+    });
+
+    it('returns gasless max quote without transaction steps', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.metamask.isExecute = true;
+      quoteMock.steps = [];
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      });
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('sends request with EXACT_INPUT trade type for token transfers', async () => {
@@ -1814,6 +1843,71 @@ describe('Relay Quotes Utils', () => {
         }),
       );
     });
+
+    it.each([
+      ['no account override', undefined, FROM_MOCK],
+      [
+        'an account override',
+        '0xaa00000000000000000000000000000000000001',
+        '0xaa00000000000000000000000000000000000001',
+      ],
+    ])(
+      'quotes Predict Safe withdraws from the transaction account with %s',
+      async (_title, accountOverride, recipient) => {
+        const safeAddress = '0x5afe000000000000000000000000000000000001' as Hex;
+        const withdrawCall = {
+          data: '0xa9059cbb' as Hex,
+          to: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        };
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        });
+
+        estimateGasBatchMock.mockResolvedValue({
+          totalGasLimit: 100000,
+          gasLimits: [50000, 50000],
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              accountOverride: accountOverride as Hex | undefined,
+              isPostQuote: true,
+              refundTo: safeAddress,
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+            chainId: '0x1',
+            txParams: { ...withdrawCall, from: FROM_MOCK },
+          },
+        });
+
+        expect(result[0].original.request).toStrictEqual(
+          expect.objectContaining({
+            recipient,
+            refundTo: safeAddress,
+            user: FROM_MOCK,
+          }),
+        );
+        expect(estimateGasBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            from: safeAddress,
+            transactions: [
+              expect.objectContaining(withdrawCall),
+              expect.objectContaining({ data: '0x123', to: '0x2' }),
+            ],
+          }),
+        );
+      },
+    );
 
     it('uses original from for non-predictWithdraw post-quote gas estimation', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
@@ -4114,6 +4208,71 @@ describe('Relay Quotes Utils', () => {
 
         expect(result[0].request.atomic).toBe(false);
         expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not attempt promotion when the signing keyring requires MFA', async () => {
+        mockRelayResponses();
+        // `updateQuotes` already cleared `atomic` for this account, but
+        // promotion ignores that hint, so the guard has to re-check here.
+        // `txParams.from` signs the delegation an atomic quote needs, so the
+        // MFA check reads that rather than the request's payer account.
+        keyringStateMock.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'MPC Money Keyring',
+              accounts: [MONEY_ACCOUNT_MAX_TRANSACTION.txParams.from],
+              metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+            },
+          ],
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [MONEY_ACCOUNT_MAX_REQUEST],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(result[0].request.atomic).toBe(false);
+        expect(getAmountDataMock).not.toHaveBeenCalled();
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+
+        // The real guarantee: no target calls embedded, so no delegation is
+        // signed per quote.
+        const [, requestInit] = successfulFetchMock.mock.calls[0] as [
+          unknown,
+          RequestInit | undefined,
+        ];
+        const body = JSON.parse(requestInit?.body as string) as {
+          txs?: unknown;
+        };
+        expect(body.txs).toBeUndefined();
+      });
+
+      it('promotes when a non-MFA keyring holds the signing account', async () => {
+        mockRelayResponses();
+        keyringStateMock.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'Money Keyring',
+              accounts: [MONEY_ACCOUNT_MAX_TRANSACTION.txParams.from],
+              metadata: { id: 'money-keyring', name: 'Money Keyring' },
+            },
+          ],
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [MONEY_ACCOUNT_MAX_REQUEST],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(result[0].request.atomic).toBe(true);
       });
 
       it('does not attempt promotion when the discovery quote is not subsidized', async () => {

@@ -1,8 +1,9 @@
 import type {
+  AddressIdentityResponse,
   DerivedIdentitiesResponse,
   DerivedIdentity,
   DerivedIdentityMigration,
-  IntentEntry,
+  FundsTransferStart,
 } from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
@@ -17,10 +18,19 @@ import type {
   GetMoneyAccountSelector,
   MoneyAccount,
 } from '@metamask/money-account-controller';
+import type { MoneyAccountRegistrationStatus } from '@metamask/money-account-upgrade-controller';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerState,
 } from '@metamask/remote-feature-flag-controller';
+import type {
+  PreparedSubscriptionDelegation,
+  PrepareSubscriptionDelegationRequest,
+  PricingResponse,
+  Subscription,
+  UpdatePaymentMethodCardResponse,
+  UpdatePaymentMethodOpts,
+} from '@metamask/subscription-controller';
 import type { Hex } from '@metamask/utils';
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -28,7 +38,6 @@ import type { Mock } from 'vitest';
 import type { MoneyAccountLifecycle } from '../src/get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from '../src/money-account-lifecycle-controller.js';
 import type { MoneyAccountLifecycleControllerMessenger } from '../src/money-account-lifecycle-controller.js';
-import type { RegistrationStatus } from '../src/money-account-upgrade-controller-registration-status.js';
 
 const SFA_ACCOUNT_ID = 'sfa-account-id';
 export const MPC_ACCOUNT_ID = 'mpc-account-id';
@@ -78,6 +87,103 @@ export const MIGRATING_IDENTITY: DerivedIdentity & {
   },
 };
 
+/**
+ * Builds the CHOMP identity response of the money account while it migrates
+ * to the MPC Money Account.
+ *
+ * @param steps - The migration steps CHOMP reports.
+ * @returns The identity response.
+ */
+export function buildLinkedIdentityResponse(
+  steps: DerivedIdentityMigration['steps'] = MIGRATING_IDENTITY.migration.steps,
+): AddressIdentityResponse {
+  const to = MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex;
+  return {
+    identity: {
+      ...MIGRATING_IDENTITY,
+      migration: { ...MIGRATING_IDENTITY.migration, to, steps },
+    },
+    address: {
+      address: MONEY_ACCOUNT_KEY as Hex,
+      role: 'CURRENT',
+      predecessor: null,
+      successor: to,
+    },
+  };
+}
+
+export const SUBSCRIPTION_DELEGATION_HASH =
+  '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+export const MONEY_ACCOUNT_PLUS_SUBSCRIPTION: Subscription = {
+  id: 'money-account-plus-subscription-id',
+  products: [
+    {
+      name: 'money_account_plus',
+      currency: 'usd',
+      unitAmount: 999,
+      unitDecimals: 2,
+    },
+  ],
+  currentPeriodStart: '2026-11-01T00:00:00Z',
+  currentPeriodEnd: '2026-12-01T00:00:00Z',
+  status: 'active',
+  interval: 'month',
+  paymentMethod: {
+    type: 'crypto',
+    crypto: {
+      payerAddress: MONEY_ACCOUNT_ADDRESS,
+      chainId: '0x8f',
+      tokenSymbol: 'mUSD',
+    },
+  },
+  cancelType: 'allowed_at_period_end',
+  isEligibleForSupport: true,
+};
+
+const MONEY_ACCOUNT_PLUS_PRICING: PricingResponse = {
+  products: [
+    {
+      name: 'shield',
+      prices: [
+        {
+          interval: 'month',
+          unitAmount: 999,
+          unitDecimals: 2,
+          currency: 'usd',
+          trialPeriodDays: 0,
+          minBillingCycles: 1,
+          minBillingCyclesForBalance: 1,
+        },
+      ],
+    },
+    {
+      name: 'money_account_plus',
+      prices: [
+        {
+          interval: 'year',
+          unitAmount: 9999,
+          unitDecimals: 2,
+          currency: 'usd',
+          trialPeriodDays: 0,
+          minBillingCycles: 1,
+          minBillingCyclesForBalance: 1,
+        },
+        {
+          interval: 'month',
+          unitAmount: 999,
+          unitDecimals: 2,
+          currency: 'usd',
+          trialPeriodDays: 0,
+          minBillingCycles: 12,
+          minBillingCyclesForBalance: 3,
+        },
+      ],
+    },
+  ],
+  paymentMethods: [],
+};
+
 type RootMessenger = Messenger<
   MockAnyNamespace,
   MessengerActions<MoneyAccountLifecycleControllerMessenger>,
@@ -96,15 +202,38 @@ type Gates = {
 
 type Mocks = {
   getDerivedIdentities: Mock<() => Promise<DerivedIdentitiesResponse>>;
-  getIntentsByAddress: Mock<(address: Hex) => Promise<IntentEntry[]>>;
+  getDerivedIdentityByAddress: Mock<
+    (address: Hex) => Promise<AddressIdentityResponse | null>
+  >;
+  startFundsTransfer: Mock<(address: Hex) => Promise<FundsTransferStart>>;
   createMoneyAccount: Mock<
     (params: CreateMoneyAccountParams) => Promise<MoneyAccount>
   >;
   getMoneyAccount: Mock<
     (selector?: GetMoneyAccountSelector) => MoneyAccount | undefined
   >;
-  getRegistrationStatus: Mock<(address: string) => Promise<RegistrationStatus>>;
+  getRegistrationStatus: Mock<
+    (address: Hex) => Promise<MoneyAccountRegistrationStatus>
+  >;
   upgradeAccount: Mock<(address: Hex) => Promise<void>>;
+  upgradeSuccessorAccount: Mock<
+    (address: Hex, predecessorAddress: Hex) => Promise<void>
+  >;
+  registerMigrationIntents: Mock<
+    (predecessorAddress: Hex, successorAddress: Hex) => Promise<void>
+  >;
+  getSubscriptions: Mock<() => Promise<Subscription[]>>;
+  getPricing: Mock<() => Promise<PricingResponse>>;
+  prepareDelegation: Mock<
+    (
+      request: PrepareSubscriptionDelegationRequest,
+    ) => Promise<PreparedSubscriptionDelegation>
+  >;
+  updatePaymentMethod: Mock<
+    (
+      opts: UpdatePaymentMethodOpts,
+    ) => Promise<UpdatePaymentMethodCardResponse | Subscription[]>
+  >;
   setDefaultMoneyAccount: Mock<(id: string) => void>;
   isEnabled: Mock<(remoteFeatureFlags: FeatureFlags) => boolean>;
   captureException: Mock<(error: Error) => void>;
@@ -177,14 +306,21 @@ function getMessenger(
   rootMessenger.delegate({
     actions: [
       'ChompApiService:getDerivedIdentities',
-      'ChompApiService:getIntentsByAddress',
+      'ChompApiService:getDerivedIdentityByAddress',
+      'ChompApiService:startFundsTransfer',
       'KeyringController:getState',
       'MoneyAccountController:createMoneyAccount',
       'MoneyAccountController:getMoneyAccount',
       'MoneyAccountController:setDefaultMoneyAccount',
       'MoneyAccountUpgradeController:getRegistrationStatus',
       'MoneyAccountUpgradeController:upgradeAccount',
+      'MoneyAccountUpgradeController:upgradeSuccessorAccount',
+      'MoneyAccountUpgradeController:registerMigrationIntents',
       'RemoteFeatureFlagController:getState',
+      'SubscriptionController:getPricing',
+      'SubscriptionController:getSubscriptions',
+      'SubscriptionController:updatePaymentMethod',
+      'SubscriptionDelegationService:prepareDelegation',
     ],
     events: [
       'KeyringController:stateChange',
@@ -229,9 +365,17 @@ export async function withController<ReturnValue>(
     getDerivedIdentities: vi
       .fn<() => Promise<DerivedIdentitiesResponse>>()
       .mockResolvedValue({ identities: [SFA_IDENTITY] }),
-    getIntentsByAddress: vi
-      .fn<(address: Hex) => Promise<IntentEntry[]>>()
-      .mockResolvedValue([]),
+    getDerivedIdentityByAddress: vi
+      .fn<(address: Hex) => Promise<AddressIdentityResponse | null>>()
+      .mockResolvedValue(buildLinkedIdentityResponse()),
+    startFundsTransfer: vi
+      .fn<(address: Hex) => Promise<FundsTransferStart>>()
+      .mockResolvedValue({
+        from: MONEY_ACCOUNT_KEY as Hex,
+        to: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+        transfer: { requestId: 'transfer-request-id', status: 'PENDING' },
+        premiumTransfer: null,
+      }),
     createMoneyAccount: vi
       .fn<(params: CreateMoneyAccountParams) => Promise<MoneyAccount>>()
       .mockResolvedValue(MFA_MONEY_ACCOUNT),
@@ -261,11 +405,40 @@ export async function withController<ReturnValue>(
           : sfaAccount;
       }),
     getRegistrationStatus: vi
-      .fn<(address: string) => Promise<RegistrationStatus>>()
+      .fn<(address: Hex) => Promise<MoneyAccountRegistrationStatus>>()
       .mockResolvedValue({ isRegistered: true }),
     upgradeAccount: vi
       .fn<(address: Hex) => Promise<void>>()
       .mockResolvedValue(undefined),
+    upgradeSuccessorAccount: vi
+      .fn<(address: Hex, predecessorAddress: Hex) => Promise<void>>()
+      .mockResolvedValue(undefined),
+    registerMigrationIntents: vi
+      .fn<(predecessorAddress: Hex, successorAddress: Hex) => Promise<void>>()
+      .mockResolvedValue(undefined),
+    getSubscriptions: vi
+      .fn<() => Promise<Subscription[]>>()
+      .mockResolvedValue([]),
+    getPricing: vi
+      .fn<() => Promise<PricingResponse>>()
+      .mockResolvedValue(MONEY_ACCOUNT_PLUS_PRICING),
+    prepareDelegation: vi
+      .fn<
+        (
+          request: PrepareSubscriptionDelegationRequest,
+        ) => Promise<PreparedSubscriptionDelegation>
+      >()
+      .mockResolvedValue({
+        delegationHash: SUBSCRIPTION_DELEGATION_HASH,
+        disposition: 'created',
+      }),
+    updatePaymentMethod: vi
+      .fn<
+        (
+          opts: UpdatePaymentMethodOpts,
+        ) => Promise<UpdatePaymentMethodCardResponse | Subscription[]>
+      >()
+      .mockResolvedValue([]),
     setDefaultMoneyAccount: vi
       .fn<(id: string) => void>()
       .mockImplementation(() => {
@@ -283,8 +456,12 @@ export async function withController<ReturnValue>(
     mocks.getDerivedIdentities,
   );
   rootMessenger.registerActionHandler(
-    'ChompApiService:getIntentsByAddress',
-    mocks.getIntentsByAddress,
+    'ChompApiService:getDerivedIdentityByAddress',
+    mocks.getDerivedIdentityByAddress,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:startFundsTransfer',
+    mocks.startFundsTransfer,
   );
   rootMessenger.registerActionHandler(
     'MoneyAccountController:createMoneyAccount',
@@ -308,6 +485,30 @@ export async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'MoneyAccountUpgradeController:upgradeAccount',
     mocks.upgradeAccount,
+  );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountUpgradeController:upgradeSuccessorAccount',
+    mocks.upgradeSuccessorAccount,
+  );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountUpgradeController:registerMigrationIntents',
+    mocks.registerMigrationIntents,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:getSubscriptions',
+    mocks.getSubscriptions,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:getPricing',
+    mocks.getPricing,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionDelegationService:prepareDelegation',
+    mocks.prepareDelegation,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:updatePaymentMethod',
+    mocks.updatePaymentMethod,
   );
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',

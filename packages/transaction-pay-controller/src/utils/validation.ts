@@ -14,6 +14,7 @@ import {
   simulateQuoteTransactions,
   TransactionPaySimulationError,
 } from './simulation.js';
+import type { QuoteSimulation } from './simulation.js';
 import {
   getLiveTokenBalanceOrUndefined,
   getNativeToken,
@@ -26,15 +27,24 @@ const log = createModuleLogger(projectLogger, 'validation');
 
 const erc20Interface = new Interface(abiERC20);
 
-export type QuoteSimulation = {
-  transactions: SimulationTransaction[];
-};
-
 export type QuoteExecutionRequest = {
   messenger: TransactionPayControllerMessenger;
   quote: TransactionPayQuote<unknown>;
   signal?: AbortSignal;
   simulation: QuoteSimulation;
+};
+
+export type ValidateQuotesRequest<QuoteType> = {
+  /**
+   * Build the simulation for a quote, or return `undefined` to skip
+   * validating it.
+   */
+  buildSimulation: (
+    quote: TransactionPayQuote<QuoteType>,
+  ) => Promise<QuoteSimulation | undefined>;
+  messenger: TransactionPayControllerMessenger;
+  quotes: TransactionPayQuote<QuoteType>[];
+  signal?: AbortSignal;
 };
 
 export class QuoteError extends Error {
@@ -47,6 +57,50 @@ export class QuoteError extends Error {
     this.name = 'QuoteError';
     this.info = info;
     this.quotes = quotes;
+  }
+}
+
+/**
+ * Validate each quote in turn by checking the live source balance and
+ * simulating the transactions it would submit.
+ *
+ * @param request - Validation request.
+ */
+export async function validateQuotes<QuoteType>(
+  request: ValidateQuotesRequest<QuoteType>,
+): Promise<void> {
+  const { buildSimulation, messenger, quotes, signal } = request;
+
+  for (const quote of quotes) {
+    try {
+      const simulation = await buildSimulation(quote);
+
+      if (!simulation) {
+        continue;
+      }
+
+      await validateQuoteExecution({
+        messenger,
+        quote,
+        signal,
+        simulation,
+      });
+    } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
+      const quoteError = toQuoteError(error);
+
+      if (quoteError.info.reason === 'insufficient-source-balance') {
+        // Backwards compatibility: keep the entire quote batch (including
+        // quotes that may have passed or not yet been validated) so that
+        // clients can still show quote details alongside the balance error.
+        throw new QuoteError(quoteError.info, quotes);
+      }
+
+      throw quoteError;
+    }
   }
 }
 
@@ -353,6 +407,18 @@ function decodeTransferAmount(data: Hex): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function toQuoteError(error: unknown): QuoteError {
+  if (isQuoteError(error)) {
+    return error;
+  }
+
+  return new QuoteError({
+    message: 'Quote simulation failed',
+    reason: 'simulation-failed',
+    detail: [(error as Error).message],
+  });
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

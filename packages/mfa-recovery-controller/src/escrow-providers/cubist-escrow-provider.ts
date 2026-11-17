@@ -3,7 +3,16 @@ import type {
   InvokePolicyResponse,
   Version,
 } from '@cubist-labs/cubesigner-sdk';
-import { integer, is, literal, min, string, type } from '@metamask/superstruct';
+import {
+  array,
+  integer,
+  is,
+  literal,
+  min,
+  string,
+  type,
+  unknown,
+} from '@metamask/superstruct';
 import {
   bytesToHex,
   bytesToString,
@@ -17,9 +26,11 @@ import {
   verifySignature,
 } from '../crypto.js';
 import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
-import { isMutationReceipt } from '../escrow-utils.js';
+import { isMutationReceipt } from '../receipt-utils.js';
 import type {
   AuthControllerToken,
+  GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   GetRecoverySecretResponse,
   Identifier,
   IdentifierAuthorization,
@@ -33,7 +44,7 @@ import type {
 const ESCROW_ID = 'cubist';
 const DEFAULT_FUNCTION_ID = 'cubist_secret_escrow';
 // cubist-secret-escrow 0.1.0
-const DEFAULT_VERSION: Version = 'v10';
+const DEFAULT_VERSION: Version = 'v11';
 
 /**
  * CubeSigner C2F client for the Cubist recovery escrow.
@@ -45,9 +56,11 @@ const DEFAULT_VERSION: Version = 'v10';
  */
 export type CubistEscrowProviderOptions = {
   /**
-   * Authenticated CubeSigner client used to invoke the escrow C2F.
+   * Returns the authenticated CubeSigner client used to invoke the escrow C2F.
+   * Called for every command, so the caller owns session caching and refresh.
+   * Commands propagate its errors unchanged; `isAvailable` resolves `false`.
    */
-  client: CubeSignerClient;
+  getClient: () => Promise<CubeSignerClient>;
   /**
    * Must match the escrow's AUTH_CONTROLLER_AUDIENCE configuration.
    */
@@ -57,7 +70,7 @@ export type CubistEscrowProviderOptions = {
    */
   functionId?: string;
   /**
-   * C2F version to invoke. Defaults to `v10`.
+   * C2F version to invoke. Defaults to `v11`.
    */
   version?: Version;
   /**
@@ -79,20 +92,21 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
 
   readonly #receiptPublicKey: Uint8Array;
 
-  readonly #client: CubeSignerClient;
+  readonly #getClient: () => Promise<CubeSignerClient>;
 
   readonly #functionId: string;
 
   readonly #version: Version;
 
   /**
-   * @param options - CubeSigner client, pinned keys, and optional C2F id/version.
+   * @param options - CubeSigner client getter, pinned keys, and optional C2F
+   * id/version.
    */
   constructor(options: CubistEscrowProviderOptions) {
     this.authAudience = options.authAudience;
     this.wrapPublicKey = options.wrapPublicKey;
     this.#receiptPublicKey = options.receiptPublicKey;
-    this.#client = options.client;
+    this.#getClient = options.getClient;
     this.#functionId = options.functionId ?? DEFAULT_FUNCTION_ID;
     this.#version = options.version ?? DEFAULT_VERSION;
   }
@@ -110,10 +124,53 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
+   * @param authControllerToken - Approval for the profile the challenge is for.
    * @returns A proof-of-possession challenge for this escrow.
    */
-  async generateChallenge(): Promise<PoPChallenge> {
-    return await this.#invoke('generateChallenge', {}, parseChallenge);
+  async generateChallenge(
+    authControllerToken: AuthControllerToken,
+  ): Promise<PoPChallenge> {
+    return await this.#invoke(
+      'generateChallenge',
+      { authControllerToken },
+      parseChallenge,
+    );
+  }
+
+  /**
+   * @param authControllerToken - Approval for the profile to read.
+   * @returns The enrolled identifiers and record version.
+   */
+  async getIdentifiers(
+    authControllerToken: AuthControllerToken,
+  ): Promise<GetIdentifiersResponse> {
+    return await this.#invoke(
+      'getIdentifiers',
+      { authControllerToken },
+      parseIdentifiers,
+    );
+  }
+
+  /**
+   * @param authControllerToken - Approval for the profile to read.
+   * @param mutation - Mutation the receipt must acknowledge.
+   * @returns The receipt, or `null` when the escrow has none for `mutation`,
+   * and the record's current version.
+   */
+  async getMutationReceipt(
+    authControllerToken: AuthControllerToken,
+    mutation: Mutation,
+  ): Promise<GetMutationReceiptResponse> {
+    return await this.#invoke(
+      'getMutationReceipt',
+      {
+        authControllerToken,
+        version: mutation.newVersion,
+        mutationId: mutation.id,
+        requestHash: mutation.requestHash,
+      },
+      parseReceiptResponse,
+    );
   }
 
   /**
@@ -144,16 +201,16 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   /**
    * @param mutation - Mutation to apply.
    * @param authControllerToken - Request-bound AuthController token.
-   * @param identifierAuthorization - Identifier proof. `null` for register.
+   * @param identifierAuthorizations - Identifier proofs sharing one challenge.
    * @param payload - Per-escrow mutation payload.
-   * @param approvedIdentifiers - The approval's identifiers, which payload
-   * identifiers must be drawn from.
+   * @param approvedIdentifiers - The approval's identifiers, which non-SIWE
+   * payload identifiers must be drawn from.
    * @returns The escrow's mutation receipt.
    */
   async applyMutation(
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
@@ -162,7 +219,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       {
         mutation,
         authControllerToken,
-        identifierAuthorization,
+        identifierAuthorizations,
         payload,
         approvedIdentifiers,
       },
@@ -213,9 +270,10 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     parse: (value: unknown) => Result,
     denyIsRejection = false,
   ): Promise<Result> {
+    const client = await this.#getClient();
     let invocation: InvokePolicyResponse;
     try {
-      invocation = await this.#client.apiClient.policyInvoke(
+      invocation = await client.apiClient.policyInvoke(
         this.#functionId,
         this.#version,
         { request: toWire({ cmd, ...body }) },
@@ -259,6 +317,18 @@ const ChallengeStruct = type({
   expiresAt: integer(),
 });
 
+const IdentifiersStruct = type({
+  identifiers: array(
+    type({
+      type: string(),
+      namespace: string(),
+      value: string(),
+      verifier: unknown(),
+    }),
+  ),
+  version: min(integer(), 0),
+});
+
 const GetSecretResponseStruct = type({
   recoverySecret: type({ ciphertext: string() }),
   version: min(integer(), 0),
@@ -286,6 +356,26 @@ function parseChallenge(value: unknown): PoPChallenge {
     id: value.id,
     escrowId: value.escrowId,
     expiresAt: value.expiresAt,
+  };
+}
+
+function parseIdentifiers(value: unknown): GetIdentifiersResponse {
+  if (!is(value, IdentifiersStruct)) {
+    throw new MfaRecoveryError(
+      'Invalid identifiers response',
+      'escrow_response_invalid',
+    );
+  }
+  return {
+    identifiers: value.identifiers.map((identifier) => ({
+      type: identifier.type,
+      namespace: identifier.namespace,
+      value: identifier.value,
+      ...(identifier.verifier === undefined
+        ? {}
+        : { verifier: identifier.verifier }),
+    })),
+    version: value.version,
   };
 }
 
@@ -332,4 +422,17 @@ function parseReceipt(value: unknown): MutationReceipt {
     );
   }
   return value;
+}
+
+function parseReceiptResponse(value: unknown): GetMutationReceiptResponse {
+  if (!is(value, type({ receipt: unknown(), version: min(integer(), 0) }))) {
+    throw new MfaRecoveryError(
+      'Invalid mutation receipt',
+      'escrow_response_invalid',
+    );
+  }
+  return {
+    receipt: value.receipt === null ? null : parseReceipt(value.receipt),
+    version: value.version,
+  };
 }

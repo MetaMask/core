@@ -342,6 +342,124 @@ export function sumCrossMarginSummaries(
 }
 
 /**
+ * A {@link CrossMarginSummary} whose figures may already be numbers.
+ */
+export type CrossMarginSummaryInput = Record<
+  keyof CrossMarginSummary,
+  number | string
+>;
+
+/**
+ * Account figures derived from the venue's cross margin. Each is undefined
+ * while its inputs are unknown.
+ */
+export type PerpsAccountSummary = {
+  /** Maintenance margin the cross positions require, in USD. */
+  maintenanceMargin: number | undefined;
+  /**
+   * Cross maintenance margin over cross collateral (0.5 = 50%). Cross
+   * positions are liquidated when it reaches 1.
+   */
+  accountRatio: number | undefined;
+  /** Cross notional as a multiple of total account equity. */
+  accountLeverage: number | undefined;
+  /** Cross margin used over cross collateral (0.25 = 25%). */
+  crossMarginUsage: number | undefined;
+};
+
+/**
+ * Inputs to {@link calculateAccountSummary}.
+ */
+export type CalculateAccountSummaryParams = {
+  /**
+   * Total account equity in USD, isolated margin included
+   * (`AccountState.totalBalance`).
+   */
+  totalEquity: number | string;
+  /** The venue's cross margin figures; undefined until read. */
+  crossMarginSummary: CrossMarginSummaryInput | undefined;
+  /**
+   * Spot USDC the venue counts as cross collateral (0 when it counts none);
+   * undefined until read.
+   */
+  spotCollateral: number | string | undefined;
+};
+
+function toFiniteNumber(
+  value: number | string | undefined,
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function share(
+  part: number | undefined,
+  whole: number | undefined,
+): number | undefined {
+  return part === undefined || whole === undefined || whole <= 0
+    ? undefined
+    : part / whole;
+}
+
+/**
+ * The collateral the cross positions draw on: the cross account value plus
+ * the spot USDC the venue counts as collateral.
+ *
+ * @param crossMarginSummary - The venue's cross margin figures.
+ * @param spotCollateral - Spot USDC counted as cross collateral.
+ * @returns The cross collateral in USD, or undefined until both are known.
+ */
+export function getCrossCollateral(
+  crossMarginSummary: CrossMarginSummaryInput | undefined,
+  spotCollateral: number | string | undefined,
+): number | undefined {
+  const accountValue = toFiniteNumber(crossMarginSummary?.accountValue);
+  const spot = toFiniteNumber(spotCollateral);
+  return accountValue === undefined || spot === undefined
+    ? undefined
+    : accountValue + spot;
+}
+
+/**
+ * Derive the account summary from the venue's cross margin figures, matching
+ * Hyperliquid: account leverage divides cross notional by total account
+ * equity, isolated margin included; account ratio and cross margin usage
+ * divide the cross maintenance margin and margin used by cross collateral.
+ *
+ * @param params - The account inputs.
+ * @param params.totalEquity - Total account equity in USD.
+ * @param params.crossMarginSummary - The venue's cross margin figures.
+ * @param params.spotCollateral - Spot USDC counted as cross collateral.
+ * @returns The summary; a ratio is undefined while its inputs are unknown or
+ * its denominator is not positive.
+ */
+export function calculateAccountSummary({
+  totalEquity,
+  crossMarginSummary,
+  spotCollateral,
+}: CalculateAccountSummaryParams): PerpsAccountSummary {
+  const collateral = getCrossCollateral(crossMarginSummary, spotCollateral);
+  const maintenanceMargin = toFiniteNumber(
+    crossMarginSummary?.maintenanceMargin,
+  );
+  return {
+    maintenanceMargin,
+    accountRatio: share(maintenanceMargin, collateral),
+    accountLeverage: share(
+      toFiniteNumber(crossMarginSummary?.notional),
+      toFiniteNumber(totalEquity),
+    ),
+    crossMarginUsage: share(
+      toFiniteNumber(crossMarginSummary?.marginUsed),
+      collateral,
+    ),
+  };
+}
+
+/**
  * Aggregate multiple per-DEX AccountState objects into one by summing numeric
  * fields exactly. Collateral subtotals retain their full precision so spot
  * collateral can be added before the final USDC canonicalization.

@@ -9,8 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.2.0` ([#11546](https://github.com/MetaMask/core/pull/11546))
+
+## [31.3.0]
+
+### Added
+
+- Support max-amount quotes in `ServerStrategy`, using the same max flow as `RelayStrategy` ([#11418](https://github.com/MetaMask/core/pull/11418))
+  - Re-quote with a reduced source amount so origin gas can be paid from the source token when the user lacks native balance.
+  - Quote subsidized routes atomically when `payStrategies.relay.atomicMaxEnabled` is enabled, embedding the transaction's calls re-encoded for the max amount.
+
+### Changed
+
+- Reserve the HyperLiquid activation fee in `ServerStrategy` for Perps withdrawals from HyperCore accounts that are not yet activated ([#11475](https://github.com/MetaMask/core/pull/11475))
+  - Previously the full withdrawable balance was quoted, so HyperLiquid's `sendAsset` failed for insufficient balance.
+  - The reserved fee is added to the provider fee, matching `RelayStrategy`.
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/ramps-controller` from `^29.0.0` to `^30.0.0` ([#11543](https://github.com/MetaMask/core/pull/11543))
+
+## [31.2.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^20.4.0` to `^20.4.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [31.2.0]
+
+### Added
+
+- Add `confirmations_pay_extended.payStrategies.server.gaslessEnabled` feature flag to disable gasless quotes in `ServerStrategy`, enabled by default ([#11432](https://github.com/MetaMask/core/pull/11432))
+
+### Changed
+
+- Skip Relay and Server quote simulation when the payer is an MPC Money account ([#11408](https://github.com/MetaMask/core/pull/11408))
+  - Perps and Predict deposits funded by a Money Account set `paymentOverride` to `moneyAccount` and put that account on `refundTo`. Simulation rebuilds the submit calls, which signs a delegation and prompts for MFA. Submit still signs once.
+- Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
+  - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
+  - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
+  - Resolved when building quote requests, so it applies to every strategy and to both the max and non-max quote paths.
+- Make the max-amount gas station in `RelayStrategy` tolerate small gas cost changes between the probe and adjusted quotes ([#11434](https://github.com/MetaMask/core/pull/11434))
+  - Reserve a buffer on top of the probe's gas cost when reducing the source amount, configurable with the `confirmations_pay_extended.gasStationCostBuffer` feature flag (defaults to `1.0`, no buffer).
+  - Remove the gas limit checks on the adjusted quote, since the affordability check already covers any gas cost change.
+- Bump `@metamask/assets-controller` from `^20.3.1` to `^20.4.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
+## [31.1.0]
+
+### Added
+
+- Add quote simulation to `ServerStrategy`, gated by the `confirmations_pay_extended.payStrategies.server.validationEnabled` feature flag ([#11198](https://github.com/MetaMask/core/pull/11198))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^20.2.2` to `^20.3.1` ([#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/gas-fee-controller` from `^27.1.0` to `^27.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Request and submit post-quote quotes from the transaction's own `from`, so `accountOverride` only receives the output and never signs ([#10992](https://github.com/MetaMask/core/pull/10992))
+  - Previously `accountOverride` also sent post-quote quotes, so an account that cannot sign, such as a hardware wallet, could not receive a withdrawal.
+  - Clients must keep the post-quote source funds on the transaction's `from`. For example, a Money Account withdrawal that needs a quote must no longer transfer the withdrawn mUSD to `accountOverride` in its nested calls.
+
+## [30.4.3]
+
+### Changed
+
 - Bump `@metamask/assets-controller` from `^20.2.1` to `^20.2.2` ([#11300](https://github.com/MetaMask/core/pull/11300))
 - Bump `@metamask/transaction-controller` from `^73.1.0` to `^73.1.1` ([#11300](https://github.com/MetaMask/core/pull/11300))
+
+### Fixed
+
+- Re-derive source amounts, using the `getBalance` callback if provided, before each periodic requote ([#10911](https://github.com/MetaMask/core/pull/10911))
+- Requote max-amount transactions using a per-transaction-type interval from the `maxBalanceRefreshInterval` feature flag ([#10911](https://github.com/MetaMask/core/pull/10911))
 
 ## [30.4.2]
 
@@ -1820,7 +1897,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...HEAD
+[31.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.1...@metamask/transaction-pay-controller@31.3.0
+[31.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.0...@metamask/transaction-pay-controller@31.2.1
+[31.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.1.0...@metamask/transaction-pay-controller@31.2.0
+[31.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.0.0...@metamask/transaction-pay-controller@31.1.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.3...@metamask/transaction-pay-controller@31.0.0
+[30.4.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.2...@metamask/transaction-pay-controller@30.4.3
 [30.4.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.1...@metamask/transaction-pay-controller@30.4.2
 [30.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.0...@metamask/transaction-pay-controller@30.4.1
 [30.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.3...@metamask/transaction-pay-controller@30.4.0

@@ -2343,6 +2343,116 @@ describe('NetworkEnablementController', () => {
       expect(controller.isNetworkEnabled('0x2105')).toBe(false);
       expect(controller.isNetworkEnabled('0x999')).toBe(false);
     });
+
+    it('keeps newly added popular network enabled after restore in popular mode', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      const snapshot = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      );
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa86a',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Avalanche',
+        nativeCurrency: 'AVAX',
+        rpcEndpoints: [
+          {
+            url: 'https://api.avax.network/ext/bc/C/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+
+      controller.restoreEnabledNetworkMap(snapshot);
+
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(true);
+    });
+
+    it('disables newly added network after restore when single network was selected', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      controller.enableNetwork('0x1');
+
+      const snapshot = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      );
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x999',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Custom Network',
+        nativeCurrency: 'CUSTOM',
+        rpcEndpoints: [
+          {
+            url: 'https://custom.network/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(controller.isNetworkEnabled('0x999')).toBe(true);
+
+      controller.restoreEnabledNetworkMap(snapshot);
+
+      expect(controller.isNetworkEnabled('0x999')).toBe(false);
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+    });
+
+    it('disables newly added EVM network after restore when only Solana was selected', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      controller.enableNetwork('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+
+      const snapshot = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      );
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0xa86a',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Avalanche',
+        nativeCurrency: 'AVAX',
+        rpcEndpoints: [
+          {
+            url: 'https://api.avax.network/ext/bc/C/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
+
+      controller.restoreEnabledNetworkMap(snapshot);
+
+      expect(controller.isNetworkEnabled('0xa86a')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+    });
   });
 
   describe('isNetworkEnabled', () => {

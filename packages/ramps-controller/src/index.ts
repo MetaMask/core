@@ -240,7 +240,10 @@ export {
 } from './order-syncing/index.js';
 export type {
   TransakServiceActions,
+  TransakServiceCacheUpdatedEvent,
   TransakServiceEvents,
+  TransakServiceGranularCacheUpdatedEvent,
+  TransakServiceInvalidateQueriesAction,
   TransakServiceMessenger,
   TransakAccessToken,
   TransakUserDetails,
@@ -319,6 +322,7 @@ export type {
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  SepaDepositInstructions,
   UsBankDepositInstructions,
   UsBankDepositRail,
 } from './autoramp-types.js';
@@ -364,6 +368,7 @@ export {
   serviceName as neoBankServiceName,
   mapNeoBankAutorampToRemoteSnapshot,
   extractPixDepositInstructions,
+  extractSepaDepositInstructions,
   extractUsBankDepositInstructions,
 } from './NeoBankService.js';
 export type {

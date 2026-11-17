@@ -41,6 +41,7 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'eip155:137': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
   'eip155:143': 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
   'eip155:146': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
+  'eip155:166': 'eip155:166/slip44:11111166', // Nomina - Native symbol: NOM (no registered slip44; synthetic 11111<chainId>)
   'eip155:196': 'eip155:196/erc20:0x0000000000000000000000000000000000000000', // X Layer Mainnet - Native symbol: OKB
   'eip155:232': 'eip155:232/erc20:0x0000000000000000000000000000000000000000', // Lens Mainnet - Native symbol: GHO
   'eip155:250': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
@@ -50,6 +51,7 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'eip155:324': 'eip155:324/slip44:60', // zkSync Era Mainnet (Ethereum L2) - Native symbol: ETH
   'eip155:336': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
   'eip155:361': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
+  'eip155:698': 'eip155:698/slip44:714', // Matchain - Native symbol: BNB
   'eip155:747': 'eip155:747/slip44:539', // Flow evm - Native symbol: Flow
   'eip155:988': 'eip155:988/erc20:0x0000000000000000000000000000000000000000', // Stable - Native symbol: USDT0
   'eip155:999': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: HYPE

@@ -1,15 +1,19 @@
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import {
   generateEIP7702BatchTransaction,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { PaymentOverride } from '../../constants.js';
 import type { TransactionPayQuote } from '../../types.js';
-import { QuoteError, validateQuoteExecution } from '../../utils/validation.js';
+import { validateQuoteExecution } from '../../utils/validation.js';
+import type { ValidateQuotesRequest } from '../../utils/validation.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
 import { getRelaySubmitCalls } from './relay-submit.js';
 import { validateRelayQuotes } from './relay-validation.js';
@@ -17,10 +21,31 @@ import type { RelayQuote } from './types.js';
 
 vi.mock(import('./relay-submit.js'));
 vi.mock(import('./relay-submit-execute.js'));
-vi.mock(import('../../utils/validation.js'), async (importOriginal) => ({
-  ...(await importOriginal()),
-  validateQuoteExecution: vi.fn(),
-}));
+vi.mock(import('../../utils/validation.js'), async (importOriginal) => {
+  const actual = await importOriginal();
+  const validateQuoteExecutionFn =
+    vi.fn<typeof actual.validateQuoteExecution>();
+
+  return {
+    ...actual,
+    validateQuoteExecution: validateQuoteExecutionFn,
+    validateQuotes: vi.fn(
+      async ({
+        buildSimulation,
+        quotes,
+        ...rest
+      }: ValidateQuotesRequest<unknown>) => {
+        for (const quote of quotes) {
+          const simulation = await buildSimulation(quote);
+
+          if (simulation) {
+            await validateQuoteExecutionFn({ ...rest, quote, simulation });
+          }
+        }
+      },
+    ) as typeof actual.validateQuotes,
+  };
+});
 vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
   ...(await importOriginal()),
   generateEIP7702BatchTransaction: vi.fn(),
@@ -135,9 +160,16 @@ const generateEIP7702BatchTransactionMock = vi.mocked(
 describe('validateRelayQuotes', () => {
   const {
     messenger,
+    getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
+
+  // The destructure above widens the mocks to `any`. Re-type the keyring mock
+  // so new assertions do not add `no-unsafe-call` violations to this file.
+  const keyringStateMock = getKeyringControllerStateMock as MockedFunction<
+    KeyringControllerGetStateAction['handler']
+  >;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -159,6 +191,60 @@ describe('validateRelayQuotes', () => {
       to: '0xbatchto',
       value: '0x0',
     });
+  });
+
+  it('skips validation when the Money Account payer is an MPC keyring', async () => {
+    keyringStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'MPC Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+        },
+      ],
+    });
+
+    const quote = buildQuote({
+      paymentOverride: PaymentOverride.MoneyAccount,
+      refundTo: REFUND_TO_MOCK,
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('validates a Money Account quote when the payer keyring does not require MFA', async () => {
+    keyringStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'money-keyring', name: 'Money Keyring' },
+        },
+      ],
+    });
+
+    const quote = buildQuote({
+      paymentOverride: PaymentOverride.MoneyAccount,
+      refundTo: REFUND_TO_MOCK,
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelaySubmitCallsMock).toHaveBeenCalledTimes(1);
+    expect(validateQuoteExecutionMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips validation for Hyperliquid source quotes', async () => {
@@ -246,121 +332,6 @@ describe('validateRelayQuotes', () => {
 
     expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
     expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
-  });
-
-  it('re-throws error as-is when signal is aborted', async () => {
-    const controller = new AbortController();
-    const abortError = new Error('Quote validation aborted');
-
-    validateQuoteExecutionMock.mockImplementation(async () => {
-      controller.abort();
-      throw abortError;
-    });
-
-    const quote = buildQuote();
-
-    await expect(
-      validateRelayQuotes({
-        messenger,
-        quotes: [quote],
-        signal: controller.signal,
-        transaction: TRANSACTION_MOCK,
-      }),
-    ).rejects.toThrow('Quote validation aborted');
-  });
-
-  it('wraps unknown errors in QuoteError via toQuoteError', async () => {
-    validateQuoteExecutionMock.mockRejectedValue(new Error('unexpected error'));
-
-    const quote = buildQuote();
-
-    await expect(
-      validateRelayQuotes({
-        messenger,
-        quotes: [quote],
-        transaction: TRANSACTION_MOCK,
-      }),
-    ).rejects.toMatchObject({
-      info: {
-        message: 'Quote simulation failed',
-        reason: 'simulation-failed',
-        detail: ['unexpected error'],
-      },
-    });
-  });
-
-  it('re-wraps insufficient-source-balance QuoteError with request.quotes attached', async () => {
-    const quoteError = new QuoteError({
-      message: 'Insufficient source balance for quote',
-      reason: 'insufficient-source-balance',
-    });
-
-    validateQuoteExecutionMock.mockRejectedValue(quoteError);
-
-    const quote = buildQuote();
-
-    await expect(
-      validateRelayQuotes({
-        messenger,
-        quotes: [quote],
-        transaction: TRANSACTION_MOCK,
-      }),
-    ).rejects.toMatchObject({
-      info: {
-        message: 'Insufficient source balance for quote',
-        reason: 'insufficient-source-balance',
-      },
-      quotes: [quote],
-    });
-  });
-
-  it('attaches the entire quote batch (not just the failing quote) when insufficient-source-balance is thrown', async () => {
-    const quoteError = new QuoteError({
-      message: 'Insufficient source balance for quote',
-      reason: 'insufficient-source-balance',
-    });
-
-    // Only the first quote triggers the error; the second has not yet been validated.
-    validateQuoteExecutionMock
-      .mockRejectedValueOnce(quoteError)
-      .mockResolvedValue(undefined);
-
-    const quote1 = buildQuote();
-    const quote2 = buildQuote();
-
-    const thrownError = await validateRelayQuotes({
-      messenger,
-      quotes: [quote1, quote2],
-      transaction: TRANSACTION_MOCK,
-    }).catch((caughtError: unknown) => caughtError);
-
-    expect((thrownError as QuoteError).quotes).toStrictEqual([quote1, quote2]);
-  });
-
-  it('throws QuoteError without quotes for non-insufficient-source-balance reason', async () => {
-    const quoteError = new QuoteError({
-      message: 'Quote simulation failed',
-      reason: 'simulation-failed',
-      detail: ['revert'],
-    });
-
-    validateQuoteExecutionMock.mockRejectedValue(quoteError);
-
-    const quote = buildQuote();
-
-    const thrownError = await validateRelayQuotes({
-      messenger,
-      quotes: [quote],
-      transaction: TRANSACTION_MOCK,
-    }).catch((caughtError: unknown) => caughtError);
-
-    expect(thrownError).toMatchObject({
-      info: {
-        message: 'Quote simulation failed',
-        reason: 'simulation-failed',
-      },
-    });
-    expect((thrownError as QuoteError).quotes).toBeUndefined();
   });
 
   it('validates multiple quotes sequentially', async () => {

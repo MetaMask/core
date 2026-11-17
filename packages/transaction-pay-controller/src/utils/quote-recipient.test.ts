@@ -72,6 +72,20 @@ describe('resolveQuoteRecipient', () => {
     },
   );
 
+  it('pays the account override for ordinary withdrawals', async () => {
+    expect(
+      await resolveQuoteRecipient({
+        messenger,
+        request: {
+          ...REQUEST_MOCK,
+          accountOverride: PAYOUT_RECIPIENT_MOCK,
+          isPostQuote: true,
+        },
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).toBe(PAYOUT_RECIPIENT_MOCK);
+  });
+
   it.each([false, true])(
     'preserves an explicit atomic recipient when isPostQuote is %s',
     async (isPostQuote) => {

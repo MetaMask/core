@@ -8,7 +8,10 @@ import {
 import { isTPSLOrder } from '../constants/orderTypes.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import { PerpsControllerError } from '../errors.js';
+import {
+  createTpslLegReplaceUnsupportedError,
+  PerpsControllerError,
+} from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   PerpsAnalyticsEvent,
@@ -31,6 +34,7 @@ import type {
   Position,
   TrackingData,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
   PerpsFeeResolution,
@@ -52,6 +56,7 @@ import {
   isLimitExecutionOrderType,
   SCALE_ORDER_COUNT,
 } from '../utils/orderTypes.js';
+import { toPositionTpslLegPrices } from '../utils/positionProtection.js';
 import { environmentTypeProperty } from './environmentTypeProperty.js';
 import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
 import type { ServiceContext } from './ServiceContext.js';
@@ -562,9 +567,14 @@ export class TradingService {
       });
     }
 
-    // Save executed trade configuration for this market
+    // Save executed trade configuration for this market, keyed by the venue
+    // the placement was routed to
     if (params.leverage && context.saveTradeConfiguration) {
-      context.saveTradeConfiguration(params.symbol, params.leverage);
+      context.saveTradeConfiguration(
+        params.symbol,
+        params.leverage,
+        params.providerId,
+      );
     }
 
     // Report to data lake (fire-and-forget with retry)
@@ -2641,7 +2651,76 @@ export class TradingService {
     params: UpdatePositionTPSLParams;
     context: ServiceContext;
   }): Promise<OrderResult> {
+    const { provider, params } = options;
+    return this.#writePositionTpsl({
+      ...options,
+      operationName: 'updatePositionTPSL',
+      operation: () => provider.updatePositionTPSL(params),
+    });
+  }
+
+  /**
+   * Replace one TP/SL leg of an existing position, leaving the other leg as
+   * it is. Tracing, fee discounts, state and analytics match
+   * {@link updatePositionTPSL}, reported for the replaced leg only.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The leg replacement parameters.
+   * @param options.context - The service context for dependencies.
+   * @returns The result of the operation.
+   */
+  async replacePositionTPSLLeg(options: {
+    provider: PerpsProvider;
+    params: ReplacePositionTPSLLegParams;
+    context: ServiceContext;
+  }): Promise<OrderResult> {
     const { provider, params, context } = options;
+    const { symbol, leg, triggerPrice, limitPrice, trackingData, providerId } =
+      params;
+    return this.#writePositionTpsl({
+      provider,
+      context,
+      params: {
+        symbol,
+        ...toPositionTpslLegPrices({ leg, triggerPrice }),
+        ...(trackingData && { trackingData }),
+        ...(providerId && { providerId }),
+      },
+      limitPrice,
+      operationName: 'replacePositionTPSLLeg',
+      operation: async () => {
+        if (!provider.replacePositionTPSLLeg) {
+          throw createTpslLegReplaceUnsupportedError();
+        }
+        return provider.replacePositionTPSLLeg(params);
+      },
+    });
+  }
+
+  /**
+   * Shared orchestration for position TP/SL writes.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - The TP/SL being written, used for fees, tracing and analytics.
+   * @param options.context - The service context for dependencies.
+   * @param options.limitPrice - Fill price of a single replaced leg. The fee
+   * notional uses it instead of the trigger, as the venue fills at it.
+   * @param options.operationName - Method name reported in error context.
+   * @param options.operation - The provider write to run.
+   * @returns The result of the operation.
+   */
+  async #writePositionTpsl(options: {
+    provider: PerpsProvider;
+    params: UpdatePositionTPSLParams;
+    context: ServiceContext;
+    limitPrice?: string;
+    operationName: 'updatePositionTPSL' | 'replacePositionTPSLLeg';
+    operation: () => Promise<OrderResult>;
+  }): Promise<OrderResult> {
+    const { provider, params, context, limitPrice, operationName, operation } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData: { success: boolean; error?: string } | undefined;
@@ -2711,7 +2790,8 @@ export class TradingService {
                 triggerSize === undefined
                   ? undefined
                   : Math.abs(Number.parseFloat(triggerSize)).toString(),
-              price,
+              price: limitPrice,
+              triggerPrice: price,
             });
           }),
       );
@@ -2737,7 +2817,7 @@ export class TradingService {
             context,
             params.providerId,
           ),
-        operation: () => provider.updatePositionTPSL(params),
+        operation,
       });
 
       if (result.success) {
@@ -2759,10 +2839,10 @@ export class TradingService {
       traceData = { success: false, error: errorMessage };
 
       this.#deps.logger.error(
-        ensureError(error, 'TradingService.updatePositionTPSL'),
+        ensureError(error, `TradingService.${operationName}`),
         this.#getErrorContext(
           context,
-          'updatePositionTPSL',
+          operationName,
           {
             operation: PERPS_ERROR_OPERATION.PositionManagement,
             action: PERPS_ERROR_ACTION.PositionTpslUpdate,
@@ -2873,9 +2953,11 @@ export class TradingService {
     provider: PerpsProvider;
     symbol: string;
     amount: string;
+    /** Explicit venue route, forwarded so aggregated routing reaches it. */
+    providerId?: PerpsProviderType;
     context: ServiceContext;
   }): Promise<{ success: boolean; error?: string }> {
-    const { provider, symbol, amount, context } = options;
+    const { provider, symbol, amount, providerId, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
 
@@ -2893,7 +2975,11 @@ export class TradingService {
       });
 
       // Call provider method
-      const result = await provider.updateMargin?.({ symbol, amount });
+      const result = await provider.updateMargin?.({
+        symbol,
+        amount,
+        providerId,
+      });
 
       if (!result) {
         throw new Error('Provider does not support margin adjustment');

@@ -67,7 +67,6 @@ function buildBscNetworkState(): NetworkState {
             networkClientId: BSC_NETWORK_CLIENT_ID,
             url: BSC_RPC_URL,
             type: RpcEndpointType.Custom,
-            failoverUrls: [],
           },
         ],
       },

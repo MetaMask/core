@@ -10,6 +10,15 @@ export type {
   AnalyticsControllerOptions,
 } from './AnalyticsController.js';
 
+export {
+  DEFAULT_ERROR_TRACKING_OPTIONS,
+  ERROR_OCCURRED_EVENT_NAME,
+} from './track-error-as-analytics.js';
+export type {
+  TrackErrorAsAnalyticsOptions,
+  TrackErrorVolumeControls,
+} from './track-error-as-analytics.js';
+
 // Export errors
 export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError.js';
 
@@ -63,6 +72,7 @@ export type {
 } from './AnalyticsController.js';
 export type {
   AnalyticsControllerTrackEventAction,
+  AnalyticsControllerTrackErrorAsAnalyticsAction,
   AnalyticsControllerIdentifyAction,
   AnalyticsControllerTrackViewAction,
   AnalyticsControllerOptInAction,

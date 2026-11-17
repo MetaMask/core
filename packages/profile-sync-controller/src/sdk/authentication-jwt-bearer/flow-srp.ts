@@ -333,16 +333,20 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    *
    * @param type - Credential type to verify.
    * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @param accessToken - Profile access token to use instead of signing in
+   * with the entropy source.
    * @returns Verification challenge for the client ceremony.
    */
   async beginMfaVerification(
     type: MfaCredentialType,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<VerificationChallenge> {
-    const accessToken = await this.getAccessToken(entropySourceId);
-    const result = await mfaVerify(this.#config.env, accessToken, {
-      credential_type: type,
-    });
+    const result = await mfaVerify(
+      this.#config.env,
+      accessToken ?? (await this.getAccessToken(entropySourceId)),
+      { credential_type: type },
+    );
 
     if (type === 'passkey') {
       if (!result.publicKey) {
@@ -371,21 +375,27 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * @param flowId - Identifier returned by the begin call.
    * @param proof - Platform assertion, or email or authenticator app code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @param accessToken - Profile access token to use instead of signing in
+   * with the entropy source.
    * @returns Assertion issued after verification.
    */
   async completeMfaVerification(
     flowId: string,
     proof: VerificationProof,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<MfaVerificationAssertion> {
-    const accessToken = await this.getAccessToken(entropySourceId);
-    return await mfaVerifyComplete(this.#config.env, accessToken, {
-      credential_type: proof.type,
-      flow_id: flowId,
-      ...(proof.type === 'passkey'
-        ? { passkey_assertion: proof.assertion }
-        : { otp_code: proof.code }),
-    });
+    return await mfaVerifyComplete(
+      this.#config.env,
+      accessToken ?? (await this.getAccessToken(entropySourceId)),
+      {
+        credential_type: proof.type,
+        flow_id: flowId,
+        ...(proof.type === 'passkey'
+          ? { passkey_assertion: proof.assertion }
+          : { otp_code: proof.code }),
+      },
+    );
   }
 
   /**
@@ -432,13 +442,18 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * Gets credentials enrolled on the primary profile.
    *
    * @param entropySourceId - Entropy source whose profile owns the credentials.
+   * @param accessToken - Profile access token to use instead of signing in
+   * with the entropy source.
    * @returns Supported enrolled credentials.
    */
   async getMfaCredentials(
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<EnrolledCredential[]> {
-    const accessToken = await this.getAccessToken(entropySourceId);
-    return await getMfaCredentials(this.#config.env, accessToken);
+    return await getMfaCredentials(
+      this.#config.env,
+      accessToken ?? (await this.getAccessToken(entropySourceId)),
+    );
   }
 
   /**

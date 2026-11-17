@@ -10,7 +10,10 @@ const config: KnipConfig = {
         '.prettierrc.cjs',
       ],
       project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
-      ignore: ['scripts/create-package/package-template/**'],
+      ignore: [
+        'scripts/create-package/package-template/**',
+        'merged-packages/**',
+      ],
       // `bats` (used to run the shell script tests) ships a non-standard `bin`
       // field, so it has no `.bin` shim and is invoked by path. knip can't tie
       // that invocation back to the dependency, so both are declared here.
@@ -18,11 +21,12 @@ const config: KnipConfig = {
       ignoreDependencies: ['bats'],
     },
     'packages/perps-controller': {
-      // Run directly (`npx tsx tests/e2e/...`) rather than imported, so knip
-      // needs telling it is an entry point — otherwise the dependencies only
-      // it uses look unused.
+      // Run directly (`yarn workspace @metamask/perps-controller exec tsx
+      // tests/e2e/...`) rather than imported, so knip needs telling it is an
+      // entry point — otherwise the dependencies only it uses look unused. It
+      // can't tie the `tsx` runner itself back to those scripts either.
       entry: ['tests/e2e/*.ts'],
-      ignoreDependencies: ['@metamask/accounts-controller'],
+      ignoreDependencies: ['@metamask/accounts-controller', 'tsx'],
     },
 
     // -- Per-workspace `ignoreDependencies` snapshots --

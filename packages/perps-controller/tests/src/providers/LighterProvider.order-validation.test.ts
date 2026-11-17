@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { TradingService } from '../../../src/services/TradingService.js';
 import type {
   CandleData,
@@ -38,6 +39,28 @@ vi.mock('../../../src/services/LighterWalletService');
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
+
+  describe('replacePositionTPSLLeg', () => {
+    it.each([
+      ['tp', '110000'],
+      ['sl', '80000'],
+    ] as const)(
+      'rejects a %s leg replace as unsupported before any venue read or signature',
+      async (leg, triggerPrice) => {
+        const { provider, calls, clientInstance } = buildProvider();
+
+        await expect(
+          provider.replacePositionTPSLLeg({ symbol: 'BTC', leg, triggerPrice }),
+        ).rejects.toMatchObject({
+          errorCode: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+          message: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+        });
+        // Never a sweep: no account read, no cancel, no signer call.
+        expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+        expect(calls).toHaveLength(0);
+      },
+    );
+  });
 
   describe('round-11 TP/SL local preflight', () => {
     it('malformed live position sizes abort TP/SL replacement before any cancellation or signer call', async () => {

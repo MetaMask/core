@@ -20,9 +20,13 @@ import {
   getFeatureFlags,
   getSlippage,
   isEIP7702Chain,
+  isServerGaslessEnabled,
 } from '../../utils/feature-flags.js';
 import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
+import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
+import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
+import type { MaxQuotesRequest } from '../../utils/max-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
@@ -32,14 +36,18 @@ import {
 import { TradeType } from '../../utils/trade-type.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
+import { validateServerQuotes } from './server-validation.js';
+import type { ServerQuote } from './types.js';
 
 vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   getFeatureFlags: vi.fn(),
   getSlippage: vi.fn(),
   isEIP7702Chain: vi.fn(),
+  isServerGaslessEnabled: vi.fn(),
 }));
 vi.mock(import('./server-api.js'));
+vi.mock(import('./server-validation.js'));
 // `resolveGasPayment` is a pure resolver, so keep the real implementation and
 // only stub the gas station lookup that performs network work. This lets the
 // sponsorship and gas-fee-token modes be exercised for real.
@@ -48,6 +56,8 @@ vi.mock(import('../../utils/gas-payment.js'), async (importOriginal) => ({
   resolveGasStationCost: vi.fn(),
 }));
 vi.mock(import('../../utils/gas.js'));
+vi.mock(import('../../utils/hyperliquid-activation.js'));
+vi.mock(import('../../utils/max-quote.js'));
 vi.mock(import('../../utils/quote-gas.js'));
 vi.mock(import('../../utils/token.js'));
 
@@ -199,6 +209,7 @@ describe('server-quotes', () => {
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
+    vi.mocked(isServerGaslessEnabled).mockReturnValue(true);
     vi.mocked(getFeatureFlags).mockReturnValue({
       relayFallbackGas: '0x5208',
     } as never);
@@ -224,6 +235,64 @@ describe('server-quotes', () => {
       totalGasLimit: '0x7530',
     } as never);
     vi.mocked(resolveGasStationCost).mockResolvedValue({ isAvailable: false });
+    vi.mocked(getMaxQuotes).mockImplementation(
+      async ({ fullRequest, getQuotes, request }) =>
+        getQuotes(request, fullRequest.transaction),
+    );
+    vi.mocked(isAtomicMaxSupported).mockReturnValue(false);
+    vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+      async (request) => request,
+    );
+  });
+
+  it('validates the normalized quotes', async () => {
+    const abortController = new AbortController();
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      signal: abortController.signal,
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(vi.mocked(validateServerQuotes)).toHaveBeenCalledWith({
+      messenger,
+      quotes: result,
+      signal: abortController.signal,
+      transaction: TRANSACTION_META_MOCK,
+    });
+  });
+
+  it('does not validate when there are no quotes', async () => {
+    fetchServerQuoteMock.mockResolvedValue({ results: [] });
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(vi.mocked(validateServerQuotes)).not.toHaveBeenCalled();
+  });
+
+  it('throws validation errors', async () => {
+    vi.mocked(validateServerQuotes).mockRejectedValue(
+      new Error('Quote simulation failed'),
+    );
+
+    await expect(
+      getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      }),
+    ).rejects.toThrow('Quote simulation failed');
   });
 
   it('maps transactions without bundled calls to EXACT_INPUT quote requests', async () => {
@@ -475,6 +544,26 @@ describe('server-quotes', () => {
     );
   });
 
+  it('leaves supportsGasless false when the gasless flag is disabled', async () => {
+    isEIP7702ChainMock.mockReturnValue(true);
+    vi.mocked(isServerGaslessEnabled).mockReturnValue(false);
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(isServerGaslessEnabled).toHaveBeenCalledWith(messenger);
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ supportsGasless: false }),
+      undefined,
+    );
+  });
+
   it.each([
     ['account does not support 7702', false, true],
     ['source chain is not an EIP-7702 chain', true, false],
@@ -573,7 +662,11 @@ describe('server-quotes', () => {
           provider: FULFILLED_RESULT_MOCK.provider,
           steps: quote.steps,
         },
-        request: { ...QUOTE_REQUEST_MOCK, recipient: FROM_MOCK },
+        request: {
+          ...QUOTE_REQUEST_MOCK,
+          hyperliquidActivationFeeUsd: undefined,
+          recipient: FROM_MOCK,
+        },
         requiresSecondLeg: false,
         sourceAmount: {
           fiat: '0',
@@ -2134,6 +2227,366 @@ describe('server-quotes', () => {
       });
 
       expect(fetchServerQuoteMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('max amount', () => {
+    const MAX_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      isMaxAmount: true,
+    };
+
+    const getMaxQuotesMock = vi.mocked(getMaxQuotes);
+    const isAtomicMaxSupportedMock = vi.mocked(isAtomicMaxSupported);
+
+    function getMaxQuotesRequest(): MaxQuotesRequest<ServerQuote> {
+      return getMaxQuotesMock.mock.calls[0][0] as MaxQuotesRequest<ServerQuote>;
+    }
+
+    async function getMaxQuoteDetails(): Promise<
+      ReturnType<Parameters<typeof getMaxQuotes>[0]['getQuoteDetails']>
+    > {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [MAX_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const { fullRequest, getQuoteDetails, getQuotes, request } =
+        getMaxQuotesRequest();
+      const [quote] = await getQuotes(request, fullRequest.transaction);
+
+      return getQuoteDetails(quote);
+    }
+
+    it('returns the max quotes', async () => {
+      const maxQuote = { id: 'max' } as never;
+      getMaxQuotesMock.mockResolvedValue([maxQuote]);
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [MAX_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result).toStrictEqual([maxQuote]);
+      expect(getMaxQuotesRequest()).toStrictEqual(
+        expect.objectContaining({
+          fullRequest: expect.objectContaining({ messenger }),
+          request: MAX_REQUEST_MOCK,
+        }),
+      );
+    });
+
+    it('returns no quotes if max quoting fails', async () => {
+      getMaxQuotesMock.mockRejectedValue(new Error('Test error'));
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [MAX_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('describes non-gasless quotes by their transaction steps', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
+      });
+
+      expect(await getMaxQuoteDetails()).toStrictEqual({
+        gasLimits: [25000],
+        gasStationTransactions: {
+          firstStepData: {
+            data: DEPOSIT_STEP_MOCK.data,
+            to: DEPOSIT_STEP_MOCK.to,
+            value: DEPOSIT_STEP_MOCK.value,
+          },
+          totalItemCount: 1,
+        },
+        isGasless: false,
+        isSubsidized: NON_GASLESS_DEPOSIT_RESULT_MOCK.quote.fees.subsidized,
+        targetAmountRaw: NON_GASLESS_DEPOSIT_RESULT_MOCK.quote.output.raw,
+      });
+    });
+
+    it('describes gasless quotes as gasless', async () => {
+      expect((await getMaxQuoteDetails()).isGasless).toBe(true);
+    });
+
+    it('describes subsidized quotes as subsidized', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...FULFILLED_RESULT_MOCK,
+            quote: {
+              ...FULFILLED_RESULT_MOCK.quote,
+              fees: { ...FULFILLED_RESULT_MOCK.quote.fees, subsidized: true },
+            },
+          },
+        ],
+      });
+
+      expect((await getMaxQuoteDetails()).isSubsidized).toBe(true);
+    });
+
+    it('describes signature-only quotes as gasless without transactions', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_DEPOSIT_RESULT_MOCK,
+            quote: { ...NON_GASLESS_DEPOSIT_RESULT_MOCK.quote, steps: [] },
+          },
+        ],
+      });
+
+      expect(await getMaxQuoteDetails()).toStrictEqual(
+        expect.objectContaining({
+          gasStationTransactions: undefined,
+          isGasless: true,
+        }),
+      );
+    });
+
+    it('quotes with the provided transaction', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [MAX_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const { getQuotes, request } = getMaxQuotesRequest();
+      const transaction = { ...TRANSACTION_META_MOCK, id: 'updated' };
+      const [quote] = await getQuotes(request, transaction);
+
+      expect(quote.original.id).toBe('quote-id');
+    });
+
+    it('re-quotes the same provider', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [MAX_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const { fullRequest, getQuotes, request, requote } =
+        getMaxQuotesRequest();
+      const [quote] = await getQuotes(request, fullRequest.transaction);
+
+      const requoted = await requote(
+        quote,
+        { ...quote.request, sourceTokenAmount: '500' },
+        fullRequest.transaction,
+      );
+
+      expect(fetchServerQuoteMock).toHaveBeenLastCalledWith(
+        messenger,
+        expect.objectContaining({
+          amount: '500',
+          providers: [FULFILLED_RESULT_MOCK.provider],
+        }),
+        undefined,
+      );
+      expect(requoted.original.provider).toBe(FULFILLED_RESULT_MOCK.provider);
+    });
+
+    it('is not used for requests that are not max amount', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(getMaxQuotesMock).not.toHaveBeenCalled();
+    });
+
+    describe('atomic', () => {
+      const SPONSORED_TRANSACTION_MOCK = {
+        ...CONTRACT_CALL_TRANSACTION_MOCK,
+        chainId: QUOTE_REQUEST_MOCK.targetChainId,
+        isGasFeeSponsored: true,
+      } as TransactionMeta;
+
+      beforeEach(() => {
+        isEIP7702ChainMock.mockReturnValue(true);
+      });
+
+      it('embeds calls as an exact output quote if atomic max is supported', async () => {
+        isAtomicMaxSupportedMock.mockReturnValue(true);
+
+        await getServerQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [{ ...MAX_REQUEST_MOCK, atomic: true }],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        const body = fetchServerQuoteMock.mock.calls[0][1];
+
+        expect(body.calls).toHaveLength(2);
+        expect(body.amount).toBe(QUOTE_REQUEST_MOCK.targetAmountMinimum);
+        expect(body.tradeType).toBe(TradeType.ExactOutput);
+        expect(body.supportsDeferredCalls).toBeUndefined();
+        expect(isAtomicMaxSupportedMock).toHaveBeenCalledWith({
+          messenger,
+          request: expect.objectContaining({ isMaxAmount: true }),
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+      });
+
+      it('does not embed calls if atomic max is not supported', async () => {
+        await getServerQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [{ ...MAX_REQUEST_MOCK, atomic: true }],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        const body = fetchServerQuoteMock.mock.calls[0][1];
+
+        expect(body.calls).toBeUndefined();
+        expect(body.tradeType).toBe(TradeType.ExactInput);
+      });
+
+      it('does not embed calls if not atomic', async () => {
+        isAtomicMaxSupportedMock.mockReturnValue(true);
+
+        await getServerQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [{ ...MAX_REQUEST_MOCK, atomic: false }],
+          transaction: SPONSORED_TRANSACTION_MOCK,
+        });
+
+        expect(fetchServerQuoteMock.mock.calls[0][1].calls).toBeUndefined();
+      });
+    });
+  });
+
+  describe('HyperLiquid activation fee', () => {
+    const HYPERLIQUID_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      isHyperliquidSource: true,
+      isPostQuote: true,
+      sourceChainId: CHAIN_ID_ARBITRUM,
+      sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+      sourceTokenAmount: '4800000',
+      targetAmountMinimum: '0',
+    };
+
+    const reserveFeeMock = async (
+      request: QuoteRequest,
+    ): Promise<QuoteRequest> => ({
+      ...request,
+      hyperliquidActivationFeeUsd: '1',
+      sourceTokenAmount: '380000000',
+    });
+
+    it('applies the fee to the HyperCore-normalized request', async () => {
+      const abortController = new AbortController();
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        signal: abortController.signal,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(vi.mocked(applyHyperliquidActivationFee)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceChainId: CHAIN_ID_HYPERCORE,
+          sourceTokenAmount: '480000000',
+        }),
+        messenger,
+        TRANSACTION_META_MOCK,
+        abortController.signal,
+      );
+    });
+
+    it('quotes the amount remaining after the fee is reserved', async () => {
+      vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+        reserveFeeMock,
+      );
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock.mock.calls[0][1].amount).toBe('380000000');
+    });
+
+    it('adds the reserved fee to the provider fee', async () => {
+      vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+        reserveFeeMock,
+      );
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '1.25',
+        usd: '1.25',
+      });
+      expect(result[0].request.hyperliquidActivationFeeUsd).toBe('1');
+    });
+
+    it('keeps the original source amount on the quote request', async () => {
+      vi.mocked(applyHyperliquidActivationFee).mockImplementation(
+        reserveFeeMock,
+      );
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].request.sourceTokenAmount).toBe('4800000');
+    });
+
+    it('does not set the fee on the quote request when none is reserved', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].request.hyperliquidActivationFeeUsd).toBeUndefined();
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '0.25',
+        usd: '0.25',
+      });
     });
   });
 });

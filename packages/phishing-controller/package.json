@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "18.3.0",
+  "version": "18.3.1",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -55,7 +56,7 @@
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/transaction-controller": "^73.1.1",
+    "@metamask/transaction-controller": "^74.0.0",
     "@noble/hashes": "^1.8.0",
     "@types/punycode": "^2.1.4",
     "ethereum-cryptography": "^3.2.0",
@@ -64,7 +65,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
-    "@metamask/eth-sig-util": "^9.0.0",
+    "@metamask/eth-sig-util": "^10.0.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "nock": "^15.0.5",
     "rimraf": "^6.1.3",

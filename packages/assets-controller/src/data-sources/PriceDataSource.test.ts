@@ -1,6 +1,6 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
@@ -14,8 +14,6 @@ import type {
 import { normalizeAssetId } from '../utils/index.js';
 import type { PriceDataSourceOptions } from './PriceDataSource.js';
 import { PriceDataSource } from './PriceDataSource.js';
-
-vi.useFakeTimers();
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const CHAIN_POLYGON = 'eip155:137' as ChainId;
@@ -193,7 +191,7 @@ function setupController(
 }
 
 describe('PriceDataSource', () => {
-  afterAll(() => {
+  afterEach(() => {
     vi.useRealTimers();
   });
 
@@ -770,6 +768,7 @@ describe('PriceDataSource', () => {
   });
 
   it('subscribe polls at specified interval', async () => {
+    vi.useFakeTimers();
     const { controller, apiClient } = setupController({
       pollInterval: 5000,
       balanceState: {
@@ -798,6 +797,7 @@ describe('PriceDataSource', () => {
   });
 
   it('subscribe uses request updateInterval when provided', async () => {
+    vi.useFakeTimers();
     const { controller, apiClient } = setupController({
       pollInterval: 60000,
       balanceState: {
@@ -983,6 +983,7 @@ describe('PriceDataSource', () => {
   });
 
   it('unsubscribe stops polling', async () => {
+    vi.useFakeTimers();
     const { controller, apiClient } = setupController({
       pollInterval: 5000,
       balanceState: {
@@ -1280,6 +1281,7 @@ describe('PriceDataSource', () => {
   });
 
   it('re-fetches prices after the freshness TTL expires', async () => {
+    vi.useFakeTimers();
     const { controller, apiClient } = setupController({
       pollInterval: 10_000,
       balanceState: {
@@ -1313,6 +1315,7 @@ describe('PriceDataSource', () => {
     // be skipped, making the subscription re-fetch only every other poll.
     const fetchLatencyMs = 500;
 
+    vi.useFakeTimers();
     vi.setSystemTime(fetchLatencyMs);
 
     const { controller, apiClient } = setupController({
@@ -1390,6 +1393,7 @@ describe('PriceDataSource', () => {
   });
 
   it('coalesces parallel fetches for the same asset into a single API call', async () => {
+    vi.useFakeTimers();
     let resolveApi: ((value: Record<string, unknown>) => void) | undefined;
     const apiPromise = new Promise<Record<string, unknown>>((resolve) => {
       resolveApi = resolve;
@@ -1529,6 +1533,7 @@ describe('PriceDataSource', () => {
   });
 
   it('destroy cleans up all subscriptions', async () => {
+    vi.useFakeTimers();
     const polygonAsset =
       'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
 

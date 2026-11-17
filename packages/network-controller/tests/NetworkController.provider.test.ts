@@ -285,14 +285,11 @@ describe('NetworkController provider tests', () => {
     await withController(
       {
         rpcFailoverMode: 'enabled',
+        failoverUrls: { '0x1': [secondaryEndpointUrl] },
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
-              rpcEndpoints: [
-                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                  failoverUrls: [secondaryEndpointUrl],
-                }),
-              ],
+              rpcEndpoints: [buildInfuraRpcEndpoint(InfuraNetworkType.mainnet)],
             }),
           },
           networksMetadata: {
@@ -385,14 +382,11 @@ describe('NetworkController provider tests', () => {
     await withController(
       {
         rpcFailoverMode: 'enabled',
+        failoverUrls: { '0x1': [secondaryEndpointUrl] },
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
-              rpcEndpoints: [
-                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                  failoverUrls: [secondaryEndpointUrl],
-                }),
-              ],
+              rpcEndpoints: [buildInfuraRpcEndpoint(InfuraNetworkType.mainnet)],
             }),
           },
           networksMetadata: {
@@ -492,14 +486,11 @@ describe('NetworkController provider tests', () => {
     await withController(
       {
         rpcFailoverMode: 'enabled',
+        failoverUrls: { '0x1': [secondaryEndpointUrl] },
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
-              rpcEndpoints: [
-                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                  failoverUrls: [secondaryEndpointUrl],
-                }),
-              ],
+              rpcEndpoints: [buildInfuraRpcEndpoint(InfuraNetworkType.mainnet)],
             }),
           },
           networksMetadata: {
@@ -572,14 +563,11 @@ describe('NetworkController provider tests', () => {
     await withController(
       {
         rpcFailoverMode: 'enabled',
+        failoverUrls: { '0x1': [secondaryEndpointUrl] },
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
-              rpcEndpoints: [
-                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                  failoverUrls: [secondaryEndpointUrl],
-                }),
-              ],
+              rpcEndpoints: [buildInfuraRpcEndpoint(InfuraNetworkType.mainnet)],
             }),
           },
           networksMetadata: {
@@ -675,6 +663,7 @@ describe('NetworkController provider tests', () => {
     await withController(
       {
         rpcFailoverMode: 'enabled',
+        failoverUrls: { '0x1': [failoverEndpointUrl] },
         state: {
           networkConfigurationsByChainId: {
             // The network offers both an Infura and a custom endpoint, with the
@@ -685,7 +674,6 @@ describe('NetworkController provider tests', () => {
                 buildCustomRpcEndpoint({
                   networkClientId,
                   url: customEndpointUrl,
-                  failoverUrls: [failoverEndpointUrl],
                 }),
               ],
               defaultRpcEndpointIndex: 1,

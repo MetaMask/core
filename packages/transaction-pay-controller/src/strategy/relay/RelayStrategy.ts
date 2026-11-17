@@ -1,10 +1,15 @@
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
+  PayStrategyGetRefreshIntervalRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types.js';
-import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import {
+  getMaxBalanceRefreshInterval,
+  getPayStrategiesConfig,
+} from '../../utils/feature-flags.js';
+import { getTransaction } from '../../utils/transaction.js';
 import { getRelayQuotes } from './relay-quotes.js';
 import { submitRelayQuotes } from './relay-submit.js';
 import type { RelayQuote } from './types.js';
@@ -19,6 +24,22 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
     request: PayStrategyGetQuotesRequest,
   ): Promise<TransactionPayQuote<RelayQuote>[]> {
     return getRelayQuotes(request);
+  }
+
+  async getRefreshInterval(
+    request: PayStrategyGetRefreshIntervalRequest,
+  ): Promise<number | undefined> {
+    const { messenger, transactionId } = request;
+    const transactionData = messenger.call('TransactionPayController:getState')
+      .transactionData[transactionId];
+
+    if (!transactionData?.isMaxAmount) {
+      return undefined;
+    }
+
+    const transaction = getTransaction(transactionId, messenger);
+
+    return getMaxBalanceRefreshInterval(messenger, transaction);
   }
 
   async execute(

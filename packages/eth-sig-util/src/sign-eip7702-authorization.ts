@@ -1,0 +1,166 @@
+import { encode } from '@ethereumjs/rlp';
+import { ecsign, publicToAddress } from '@ethereumjs/util';
+import {
+  bigIntToBytes,
+  bytesToHex,
+  concatBytes,
+  Hex,
+  isValidHexAddress,
+} from '@metamask/utils';
+import { keccak256 } from 'ethereum-cryptography/keccak';
+
+import { concatSig, isNullish, recoverPublicKey } from './utils.js';
+
+const CHAIN_ID_MAX_BITLENGTH = 256;
+const NONCE_MAX_BITLENGTH = 64;
+const ADDRESS_BYTE_LENGTH = 20;
+
+/**
+ * The authorization struct as defined in EIP-7702.
+ *
+ * @property chainId - The chain ID or 0 for any chain.
+ * @property contractAddress - The address of the contract being authorized.
+ * @property nonce - The nonce of the signing account (at the time of submission).
+ */
+export type EIP7702Authorization = [
+  chainId: number,
+  contractAddress: string,
+  nonce: number,
+];
+
+/**
+ * Sign an authorization message with the provided private key.
+ *
+ * @param options - The signing options.
+ * @param options.privateKey - The private key to sign with.
+ * @param options.authorization - The authorization data to sign.
+ * @returns The '0x'-prefixed hex encoded signature.
+ */
+export function signEIP7702Authorization({
+  privateKey,
+  authorization,
+}: {
+  privateKey: Uint8Array;
+  authorization: EIP7702Authorization;
+}): string {
+  validateEIP7702Authorization(authorization);
+
+  if (isNullish(privateKey)) {
+    throw new Error('Missing privateKey parameter');
+  }
+
+  const messageHash = hashEIP7702Authorization(authorization);
+
+  const { r, s, v } = ecsign(messageHash, privateKey);
+
+  // v is either 27n or 28n so is guaranteed to be a single byte
+  const vBytes = bigIntToBytes(v);
+
+  return concatSig(vBytes, r, s);
+}
+
+/**
+ * Recover the address of the account that created the given authorization
+ * signature.
+ *
+ * @param options - The signature recovery options.
+ * @param options.signature - The '0x'-prefixed hex encoded message signature.
+ * @param options.authorization - The authorization data that was signed.
+ * @returns The '0x'-prefixed hex address of the signer.
+ */
+export function recoverEIP7702Authorization({
+  signature,
+  authorization,
+}: {
+  signature: string;
+  authorization: EIP7702Authorization;
+}): string {
+  validateEIP7702Authorization(authorization);
+
+  if (isNullish(signature)) {
+    throw new Error('Missing signature parameter');
+  }
+
+  const messageHash = hashEIP7702Authorization(authorization);
+
+  const publicKey = recoverPublicKey(messageHash, signature);
+
+  const sender = publicToAddress(publicKey);
+
+  return bytesToHex(sender);
+}
+
+/**
+ * Hash an authorization message according to the signing scheme.
+ * The message is encoded according to EIP-7702.
+ *
+ * @param authorization - The authorization data to hash.
+ * @returns The hash of the authorization message as a `Uint8Array`.
+ */
+export function hashEIP7702Authorization(
+  authorization: EIP7702Authorization,
+): Uint8Array {
+  validateEIP7702Authorization(authorization);
+
+  const encodedAuthorization = encode(authorization);
+
+  const message = concatBytes([Uint8Array.of(0x05), encodedAuthorization]);
+
+  return keccak256(message);
+}
+
+/**
+ * Validates an authorization object to ensure all required parameters are present.
+ *
+ * @param authorization - The authorization object to validate.
+ * @throws {Error} If the authorization object or any of its required parameters are missing.
+ */
+function validateEIP7702Authorization(
+  authorization: EIP7702Authorization,
+): void {
+  if (isNullish(authorization)) {
+    throw new Error('Missing authorization parameter');
+  }
+
+  const [chainId, contractAddress, nonce] = authorization;
+
+  if (isNullish(chainId)) {
+    throw new Error('Missing chainId parameter');
+  }
+
+  if (isNullish(contractAddress)) {
+    throw new Error('Missing contractAddress parameter');
+  }
+
+  if (isNullish(nonce)) {
+    throw new Error('Missing nonce parameter');
+  }
+
+  if (
+    typeof chainId !== 'number' ||
+    !Number.isSafeInteger(chainId) ||
+    chainId >= 2 ** CHAIN_ID_MAX_BITLENGTH ||
+    chainId < 0
+  ) {
+    throw new Error(
+      `Invalid chainId: must be a non-negative number less than 2^${CHAIN_ID_MAX_BITLENGTH}`,
+    );
+  }
+
+  if (
+    typeof nonce !== 'number' ||
+    !Number.isSafeInteger(nonce) ||
+    nonce >= 2 ** NONCE_MAX_BITLENGTH ||
+    nonce < 0
+  ) {
+    throw new Error(
+      `Invalid nonce: must be a non-negative number less than 2^${NONCE_MAX_BITLENGTH}`,
+    );
+  }
+
+  if (!isValidHexAddress(contractAddress as Hex)) {
+    throw new Error(
+      `Invalid contractAddress: must be a ${ADDRESS_BYTE_LENGTH} byte hex string`,
+    );
+  }
+}
