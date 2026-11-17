@@ -6309,7 +6309,7 @@ __metadata:
     deep-freeze-strict: "npm:^1.1.1"
     klona: "npm:^2.0.6"
     rimraf: "npm:^6.1.3"
-    safe-stable-stringify: "npm:^2.5.0"
+    safe-stable-stringify: "npm:^3.0.1"
     typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     vitest: "npm:5.0.3"
@@ -24271,10 +24271,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"safe-stable-stringify@npm:^2.5.0":
-  version: 2.5.0
-  resolution: "safe-stable-stringify@npm:2.5.0"
-  checksum: 10/2697fa186c17c38c3ca5309637b4ac6de2f1c3d282da27cd5e1e3c88eca0fb1f9aea568a6aabdf284111592c8782b94ee07176f17126031be72ab1313ed46c5c
+"safe-stable-stringify@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "safe-stable-stringify@npm:3.0.1"
+  checksum: 10/02f0c7d0b4d77fee2331146204a6a30fee6124d6098da29161746ce1c2a33478746bf97976d502d48197727dc2b995310f8929f2e72ffe49155c34d2bfdddc55
   languageName: node
   linkType: hard
 
