@@ -151,6 +151,8 @@ import type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   SubscribePublicTradesParams,
@@ -201,6 +203,10 @@ import {
   TransactionStatus,
 } from './types/transactionTypes.js';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import {
+  createLiveChaseOrderList,
+  createLiveTwapOrderList,
+} from './utils/advancedOrderLists.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -1153,7 +1159,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToAccount',
   'subscribeToAvailableToTrade',
   'subscribeToCandles',
+  'subscribeToChaseOrderLists',
   'subscribeToConnectionState',
+  'subscribeToLiveTwapOrders',
   'subscribeToOICaps',
   'subscribeToOrderBook',
   'subscribeToOrderFills',
@@ -7377,6 +7385,64 @@ export class PerpsController extends BaseController<
         // No-op
       };
     }
+  }
+
+  /**
+   * Keep one merged, live TWAP list for the active provider: reads and the
+   * venue stream merged by schedule, execution totals raised from slice
+   * fills, and re-reads while a schedule runs. Split it with
+   * `partitionTwapOrders`. Follows the selected account.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads and the stream.
+   */
+  subscribeToLiveTwapOrders(params: SubscribeLiveTwapOrdersParams): () => void {
+    return createLiveTwapOrderList({
+      source: {
+        getTwapOrders: async () => await this.getTwapOrders(),
+        subscribeToTwapOrders: (streamParams) =>
+          this.subscribeToTwapOrders(streamParams),
+        getContextKey: () => this.#getOrderListContextKey(),
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Keep running and history chase lists for the active provider. Ended
+   * chases stay in history after the provider drops them, up to
+   * `CHASE_ORDER_CONFIG.HistoryLimit`.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads.
+   */
+  subscribeToChaseOrderLists(
+    params: SubscribeChaseOrderListsParams,
+  ): () => void {
+    return createLiveChaseOrderList({
+      source: {
+        getChaseOrders: async () => await this.getChaseOrders(),
+        getContextKey: () => this.#getOrderListContextKey(),
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Name the account, provider and network that order reads answer for, so a
+   * live list can drop rows when any of them changes.
+   *
+   * @returns Context key for live order lists.
+   */
+  #getOrderListContextKey(): string {
+    const account = getSelectedEvmAccountFromMessenger(this.messenger);
+    return [
+      this.state.activeProvider,
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      account?.address.toLowerCase() ?? '',
+    ].join(':');
   }
 
   /**

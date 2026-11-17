@@ -32,6 +32,22 @@ import {
 import type { MockClient } from '../../helpers/hyperLiquidStrategyOrders.js';
 import { createDeferred } from '../../helpers/serviceMocks.js';
 
+// Venue rules HyperLiquid reports for every market it runs strategies on.
+const HYPERLIQUID_STRATEGY_RULES = {
+  twap: {
+    minDurationMinutes: 5,
+    maxDurationMinutes: 1440,
+    minNotionalUsd: 100,
+    sliceIntervalSeconds: 30,
+  },
+  chase: {
+    maxActiveSessions: 5,
+    defaultIntervalMs: 15000,
+    minIntervalMs: 1000,
+  },
+  scale: { minOrders: 2, maxOrders: 20 },
+};
+
 vi.mock('../../../src/services/HyperLiquidClientService');
 vi.mock('../../../src/services/HyperLiquidWalletService');
 vi.mock('../../../src/services/HyperLiquidSubscriptionService');
@@ -116,6 +132,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -151,6 +168,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -183,6 +201,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -230,6 +249,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -334,6 +354,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -463,6 +484,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -498,6 +520,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -589,6 +612,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -622,6 +646,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -678,6 +703,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -703,6 +729,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -812,6 +839,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -940,6 +968,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1009,6 +1038,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1058,6 +1088,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1114,6 +1145,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1349,6 +1381,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',

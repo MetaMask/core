@@ -834,6 +834,73 @@ describe('PerpsController', () => {
       expect(await controller.getTwapOrders()).toStrictEqual([twapOrder]);
     });
 
+    it('keeps a live TWAP list from the provider stream and reads, with totals from fills', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const sliceFill = {
+          fillId: 'f1',
+          orderId: 's1',
+          side: 'buy' as const,
+          price: '3000',
+          size: '0.5',
+          fee: '0',
+          feeToken: 'USDC',
+          timestamp: 3,
+          transactionHash: '0x1',
+        };
+        mockProvider.getTwapOrders.mockResolvedValue([
+          { ...twapOrder, fills: [sliceFill] },
+        ]);
+        const stopStream = vi.fn();
+        mockProvider.subscribeToTwapOrders = vi.fn(() => stopStream);
+        const callback = vi.fn();
+
+        const stop = controller.subscribeToLiveTwapOrders({ callback });
+        await vi.advanceTimersByTimeAsync(0);
+        stop();
+
+        expect(mockProvider.subscribeToTwapOrders).toHaveBeenCalledTimes(1);
+        expect(callback).toHaveBeenCalledWith([
+          expect.objectContaining({
+            orderId: twapOrder.orderId,
+            executedSize: '0.5',
+            averagePrice: '3000',
+          }),
+        ]);
+        expect(stopStream).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('keeps running and history Chase lists from the active provider', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const ended = {
+          ...chaseOrder,
+          handle: 'chase-2',
+          status: 'filled' as const,
+        };
+        mockProvider.getChaseOrders.mockResolvedValue([chaseOrder, ended]);
+        const callback = vi.fn();
+
+        const stop = controller.subscribeToChaseOrderLists({ callback });
+        await vi.advanceTimersByTimeAsync(0);
+        stop();
+
+        expect(callback).toHaveBeenCalledWith({
+          running: [chaseOrder],
+          history: [ended],
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('suspends Chase loops through the active provider', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

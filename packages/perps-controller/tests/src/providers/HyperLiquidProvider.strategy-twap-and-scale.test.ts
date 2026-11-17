@@ -759,6 +759,81 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    it('raises execution totals from slice fills while the venue still reports none', async () => {
+      const sliceFill = {
+        coin: 'ETH',
+        side: 'B',
+        startPosition: '0',
+        dir: 'Open Long',
+        closedPnl: '0',
+        crossed: true,
+        fee: '0.1',
+        feeToken: 'USDC',
+        twapId: 987,
+      };
+      useStrategyClients({
+        info: {
+          twapHistory: vi.fn().mockResolvedValue([
+            {
+              time: 1_700_000_030,
+              twapId: 987,
+              state: {
+                coin: 'ETH',
+                executedNtl: '0',
+                executedSz: '0',
+                minutes: 10,
+                randomize: false,
+                reduceOnly: false,
+                side: 'B',
+                sz: '1',
+                timestamp: startedAt,
+                user: userAddress,
+              },
+              status: { status: 'activated' },
+            },
+          ]),
+          userTwapSliceFills: vi.fn().mockResolvedValue([
+            {
+              twapId: 987,
+              fill: {
+                ...sliceFill,
+                px: '3000',
+                sz: '0.1',
+                time: startedAt + 30_000,
+                hash: '0x1',
+                oid: 11,
+                tid: 1,
+              },
+            },
+            {
+              twapId: 987,
+              fill: {
+                ...sliceFill,
+                px: '3010',
+                sz: '0.1',
+                time: startedAt + 60_000,
+                hash: '0x2',
+                oid: 12,
+                tid: 2,
+              },
+            },
+          ]),
+        },
+      });
+
+      expect(await provider.getTwapOrders()).toStrictEqual([
+        expect.objectContaining({
+          orderId: '987',
+          status: 'active',
+          executedSize: '0.2',
+          remainingSize: '0.8',
+          executedNotional: '601',
+          averagePrice: '3005',
+          fillProgressBps: 2000,
+        }),
+      ]);
+    });
+
     it('deduplicates history and distinguishes an underfilled completion', async () => {
       useStrategyClients({
         info: {

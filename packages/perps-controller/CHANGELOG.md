@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add venue-neutral TWAP, chase and scale rules to `getOrderCapabilities`, and helpers that read them, so clients no longer copy advanced-order logic
+  - `PerpsOrderCapabilities` gains optional `strategyRules` (type `PerpsStrategyRules`): `twap` (`minDurationMinutes`, `maxDurationMinutes`, `minNotionalUsd`, `sliceIntervalSeconds`), `chase` (`maxActiveSessions` when the venue caps it, `defaultIntervalMs`, `minIntervalMs`) and `scale` (`minOrders`, `maxOrders`). HyperLiquid reports all three; Lighter reports `scale`, and `chase` without a session cap where it runs chase. A strategy missing from `supportedStrategies` has no rules, and the helpers below return `ORDER_STRATEGY_MARKET_UNSUPPORTED` for it
+  - `getStrategyRules(capabilities, strategy)` reads one strategy's rules
+- Add TWAP helpers and a live TWAP list
+  - `TWAP_ORDER_ACTIVE_STATUSES`, `isTwapOrderActive` and `partitionTwapOrders` split active from ended TWAPs. They replace Mobile `proTwapViews.ts` `selectActiveTwapOrders`/`selectHistoricalTwapOrders` and the Terminal `TwapOrders.tsx` status filter
+  - `reconcileTwapExecution` raises execution totals from slice fills, and `mergeTwapOrders` merges reads and stream pushes by schedule. They replace Mobile `utils/twapOrderUtils.ts` `reconcileTwapOrderExecution` with `hooks/usePerpsTwapOrders.ts` `mergeTwapOrder`, and Terminal `infra/perps-controller/twap-execution.ts`
+  - `PerpsController.subscribeToLiveTwapOrders({ callback, onError? })` (messenger action `PerpsController:subscribeToLiveTwapOrders`, type `PerpsControllerSubscribeToLiveTwapOrdersAction`) and `createLiveTwapOrderList({ source, callback })` keep one list from reads and the stream. They re-read once when a push reports a TWAP or status no read explains, and every `TWAP_ORDER_CONFIG.RefreshIntervalMs` (5 s) while a TWAP runs or after a failed read. The controller list drops held rows when the selected account, active provider or network changes (`LiveTwapOrderSource.getContextKey`). They replace the stream and poll merging in Mobile `hooks/usePerpsTwapOrders.ts` and Terminal `queries/account-history-queries.ts` `useTwapOrders`/`streamIsAhead`
+  - `validateTwapOrder({ rules, durationMinutes, usdAmount })` checks running time and minimum value, replacing Mobile `usePerpsProOrderForm.ts` TWAP duration and minimum checks and Terminal `domain/Order/validation.ts` TWAP rules
+  - `computeTwapSlicePreview({ rules, durationMinutes, size, sizeDecimals, price? })` returns the slice count, interval, a size per slice floored to the venue grid, and the value per slice. It replaces Mobile's `usePerpsProOrderForm.ts` suborder preview and `PERPS_TWAP_UI_CONFIG.SuborderIntervalSeconds`, and Terminal `order/utils/twapSummary.ts` `formatTwapSuborderSize`/`SUBORDERS_PER_MINUTE`
+  - `HYPERLIQUID_TWAP_LIMITS.SliceIntervalSeconds` (30) and `TWAP_ORDER_CONFIG`
+- Add chase helpers and live chase lists
+  - `CHASE_ORDER_RUNNING_STATUSES`, `isChaseOrderRunning` and `isChaseOrderCancelable` (running, or stopped with a child still resting). They replace Mobile `CHASE_RETAINED_STATUSES`/`CHASE_HISTORY_STATUSES` and Terminal `isRunningChase`
+  - `checkChasePlacement({ rules, chaseOrders })` pre-checks the venue's active-chase cap and counts only chases still chasing, as the provider does. It replaces Mobile's `usePerpsProOrderForm.ts` `occupiesChasePlacementSlot`, which also counted chases waiting on a cancel
+  - `mergeChaseOrderHistory`, `PerpsController.subscribeToChaseOrderLists({ callback, onError? })` (messenger action `PerpsController:subscribeToChaseOrderLists`, type `PerpsControllerSubscribeToChaseOrderListsAction`) and `createLiveChaseOrderList({ source, callback })` return `{ running, history }` lists (type `ChaseOrderLists`). They re-read every `CHASE_ORDER_CONFIG.RefreshIntervalMs` (1 s), keep up to `CHASE_ORDER_CONFIG.HistoryLimit` (50) ended chases after the provider drops them, and keep a running chase one read omits for `CHASE_ORDER_CONFIG.OmissionGraceReads` (1) read, since an aggregated read drops a provider whose read failed. The controller lists reset when the selected account, active provider or network changes (`LiveChaseOrderSource.getContextKey`), so a chase from another account never offers a cancel. They replace Mobile `hooks/usePerpsChaseOrders.ts` history retention and polling, and Terminal `account-history-queries.ts` `boundedChases`/`CHASE_HISTORY_LIMIT`/`CHASE_REFRESH_MS`
+  - Chase validation and the quote price stay on `validateOrderParams`, `CHASE_ORDER_CONFIG` and `computeChaseQuotePrice`, which replace Terminal `domain/Order/validation.ts` chase rules, Mobile's `usePerpsProOrderForm.ts` reference price and Terminal `OrderFormManualPanel.tsx` `ChasePriceRow` best bid/ask
+- Add scale helpers
+  - `sizeScaleLadder({ prices, sizeDecimals, skew?, size | usdAmount })` sizes a ladder by one rule for any venue: an exact size is split as given, and a USD amount buys the largest grid size whose ladder value stays within it. Lighter sizing now runs through it; HyperLiquid placement and `getScalePriceLadder` are unchanged
+  - `validateScaleOrder({ rules, minPrice, maxPrice, count, skew?, preview? })` checks the range, rung count, skew and, given a venue preview, the per-rung minimum. It replaces Mobile `usePerpsProOrderForm.ts` scale validation and sizing (lines 1489-1683) and Terminal `domain/Order/validation.ts` scale rules with their literal $10 rung minimum
+  - `classifyScalePriceWarnings({ prices, isBuy, bestBid?, bestAsk?, reduceOnly? })` returns `crosses_market` and `partially_crosses_market` against the opposite touch (best ask for a buy), and `far_from_market` (with `distancePercent`) past `ORDER_PRICE_WARNING_CONFIG.FarFromMarketRatio` (5%) from the near touch (best bid for a buy). It replaces Mobile `utils/triggerOrderValidation.ts` `getScalePriceCrossingWarning` and the scale branch of `utils/limitPriceFarFromMarket.ts`
+- Add `formatPerpsDuration(durationMs, { formatters?, unitDisplay? })` (type `PerpsDurationFormatOptions`) to render TWAP running and elapsed time, slice intervals and chase windows in the client's locale ("1 hr 30 min"). It replaces Mobile `PerpsProTwapFields.tsx` `formatTwapRuntimeSummary` and Terminal `twapSummary.ts` `formatTwapRuntime`
+- Add types `TwapSlicePreview`, `ChaseOrderLists`, `ChasePlacementCheck`, `ScaleLadderSizing`, `ScalePriceWarning`, `SubscribeLiveTwapOrdersParams`, `SubscribeChaseOrderListsParams`, `AdvancedOrderValidationResult`, `LiveTwapOrderSource` and `LiveChaseOrderSource`
+
 ## [24.1.0]
 
 ### Added
@@ -74,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Never held back: order submission, nonce and transaction lookups, the order-book and exact-order reads that chase flows check for freshness, and every request made during an order, close, edit, cancel, TP/SL, recovery-protection, margin or withdrawal call, including its fresh-price, market, account and signer reads
   - A read still held when the provider disconnects is cancelled without being sent
   - A non-2xx Lighter response with a non-JSON body (such as a rate-limit page) now fails with the HTTP status as its error code instead of a JSON parse error
+
+### Fixed
+
+- HyperLiquid TWAP reads raise `executedSize`, `remainingSize`, `executedNotional`, `averagePrice` and `fillProgressBps` from slice fills, so they rise while a TWAP runs instead of staying at the venue's stale 0
 
 ## [24.0.0]
 
