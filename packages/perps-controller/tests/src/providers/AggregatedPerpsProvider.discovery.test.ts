@@ -335,6 +335,53 @@ describe('aggregated account and destructive-operation discovery', () => {
     ]);
   });
 
+  it('merges venue-internal partial orders into aggregated strict discovery', async () => {
+    const { aggregate, hyperliquid, clientInstance } = setup();
+    // A venue that itself aggregates DEXs (e.g. HyperLiquid HIP-3) reports the
+    // orders it did fetch; the aggregate must keep them.
+    hyperliquid.getOpenOrders.mockRejectedValue(
+      new OrderDiscoveryError({
+        orders: [hyperliquidOrder],
+        failures: [{ providerId: 'hyperliquid', error: 'xyz: dex down' }],
+      }),
+    );
+    clientInstance.getActiveOrders.mockRejectedValue(new Error('orders down'));
+
+    const read = aggregate.getOpenOrders({ throwOnUnavailable: true });
+    await expect(read).rejects.toBeInstanceOf(OrderDiscoveryError);
+    await expect(read).rejects.toMatchObject({
+      orders: [{ ...hyperliquidOrder, providerId: 'hyperliquid' }],
+      failures: [
+        { providerId: 'hyperliquid', error: 'hyperliquid: xyz: dex down' },
+        { providerId: 'lighter', error: 'orders down' },
+      ],
+    });
+  });
+
+  it('returns a structured cancel result when a direct venue read fails entirely', async () => {
+    const { hyperliquid, infrastructure } = setup();
+    hyperliquid.getOpenOrders.mockRejectedValue(new Error('HL down'));
+
+    const result = await new TradingService(infrastructure).cancelOrders({
+      provider: hyperliquid,
+      params: { cancelAll: true },
+      context: createMockServiceContext({
+        getOpenOrders: (params?: GetOrdersParams) =>
+          hyperliquid.getOpenOrders(params),
+      }),
+      withStreamPause: async (operation) => operation(),
+    });
+
+    expect(result).toStrictEqual({
+      success: false,
+      successCount: 0,
+      failureCount: 1,
+      error: 'HL down',
+      results: [],
+    });
+    expect(hyperliquid.cancelOrders).not.toHaveBeenCalled();
+  });
+
   it('does not report an unrelated venue failure for a healthy scoped target', async () => {
     const { aggregate, clientInstance, infrastructure } = setup();
     clientInstance.getActiveOrders.mockRejectedValue(new Error('orders down'));

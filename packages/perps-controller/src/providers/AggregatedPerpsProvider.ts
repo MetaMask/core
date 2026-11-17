@@ -858,6 +858,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
           orders.push(...result.value);
+        } else if (result.reason instanceof OrderDiscoveryError) {
+          // A venue may itself aggregate DEXs (e.g. HyperLiquid HIP-3) and
+          // report the orders it did fetch; keep them usable.
+          orders.push(
+            ...result.reason.orders.map((order) => ({
+              ...order,
+              providerId: providers[index][0],
+            })),
+          );
+          failures.push({
+            providerId: providers[index][0],
+            error: result.reason.message,
+          });
         } else {
           failures.push({
             providerId: providers[index][0],

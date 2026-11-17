@@ -2028,7 +2028,7 @@ export type GetOrFetchFillsParams = {
 
 export type GetOrdersParams = {
   /** Reject unavailable open-order discovery instead of returning an empty list.
-   * Aggregated reads throw OrderDiscoveryError with successful venue orders. */
+   * Strict reads throw OrderDiscoveryError carrying any successfully fetched orders. */
   throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   startTime?: number; // Optional: start timestamp (Unix milliseconds)

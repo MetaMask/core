@@ -2142,7 +2142,16 @@ export class TradingService {
           orders = await context.getOpenOrders({ throwOnUnavailable: true });
         } catch (error) {
           if (!(error instanceof OrderDiscoveryError)) {
-            throw error;
+            // A total discovery failure (e.g. a direct venue read) has no
+            // cancellable orders; report a structured result instead of
+            // throwing so batch callers always receive a CancelOrdersResult.
+            return {
+              success: false,
+              successCount: 0,
+              failureCount: 1,
+              error: error instanceof Error ? error.message : String(error),
+              results: [],
+            };
           }
           orders = error.orders;
           for (const failure of error.failures) {

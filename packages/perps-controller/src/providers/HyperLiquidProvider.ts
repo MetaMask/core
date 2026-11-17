@@ -48,7 +48,7 @@ import {
   WITHDRAWAL_CONSTANTS,
 } from '../constants/perpsConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
-import { PerpsControllerError } from '../errors.js';
+import { OrderDiscoveryError, PerpsControllerError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import {
@@ -14479,9 +14479,24 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       if (failedDexs.length > 0) {
         if (params?.throwOnUnavailable) {
-          throw new Error(
-            `Open order discovery failed: ${failedDexs.map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`).join('; ')}`,
-          );
+          // Strict discovery must preserve the orders it did fetch: an
+          // unrelated HIP-3 DEX outage must not block cancels on the main
+          // DEX (or other reachable DEXs).
+          const partialOrders = orderResults
+            .flatMap((result) => result.data)
+            .map((order) => adaptOrderFromSDK(order, undefined));
+          this.#restoreScaleOrderGroups(partialOrders);
+          throw new OrderDiscoveryError({
+            orders: partialOrders,
+            failures: [
+              {
+                providerId: 'hyperliquid',
+                error: failedDexs
+                  .map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`)
+                  .join('; '),
+              },
+            ],
+          });
         }
         this.#deps.debugLogger.log(
           'Partial multi-DEX open order fetch completed with failures',
