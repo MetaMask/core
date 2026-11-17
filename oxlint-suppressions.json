@@ -356,11 +356,6 @@
       "count": 17
     }
   },
-  "packages/advanced-chart-core/src/platform/iframeHost.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/platform/reactNativeHost.ts": {
     "no-shadow": {
       "count": 2

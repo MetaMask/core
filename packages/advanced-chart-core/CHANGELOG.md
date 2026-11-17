@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `createIframeHost` now accepts scheme-only entries in `allowedOrigins` (e.g. `moz-extension:`), matching any origin that uses that scheme ([#11580](https://github.com/MetaMask/core/pull/11580))
+  - Firefox assigns each install a random `moz-extension://<uuid>` that cannot be pinned, so the scheme is allowlisted instead; exact origins (e.g. `chrome-extension://<id>`, `https://…`) continue to match exactly
+
 ## [1.1.1]
 
 ### Fixed

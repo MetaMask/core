@@ -30,9 +30,15 @@ export type IframeHostOptions = {
   targetOrigin?: string;
   /**
    * Origins from which inbound messages are accepted. Messages whose
-   * `event.origin` is not in this list are silently dropped. When the list
+   * `event.origin` is not permitted are silently dropped. When the list
    * is empty or omitted every origin is accepted (the parent controls the
    * frame contents).
+   *
+   * Each entry is either an exact origin (e.g. `https://app` or
+   * `chrome-extension://<id>`) or a scheme-only token ending in `:` (e.g.
+   * `moz-extension:`), which matches any origin using that scheme. Firefox
+   * assigns each install a random `moz-extension://<uuid>` that cannot be
+   * pinned, so the scheme is allowlisted instead.
    */
   allowedOrigins?: string[];
   /** Explicit chart config; falls back to `window.CONFIG` when omitted. */
@@ -40,6 +46,32 @@ export type IframeHostOptions = {
   /** Outbound message target; defaults to `window.parent`. */
   target?: PostMessageTarget;
 };
+
+/**
+ * Checks whether an origin is permitted by the allowlist. An entry matches
+ * either exactly (e.g. `https://app`, `chrome-extension://<id>`) or as a
+ * scheme-only token ending in `:` (e.g. `moz-extension:`), which matches any
+ * origin using that scheme. Firefox assigns each install a random
+ * `moz-extension://<uuid>` that cannot be pinned, so the scheme is allowlisted
+ * instead.
+ *
+ * @param candidateOrigin - The concrete origin to test.
+ * @param allowedOrigins - The configured allowlist entries.
+ * @returns `true` when the origin is permitted.
+ */
+function isOriginAllowed(
+  candidateOrigin: string,
+  allowedOrigins: string[],
+): boolean {
+  if (allowedOrigins.includes(candidateOrigin)) {
+    return true;
+  }
+  try {
+    return allowedOrigins.includes(new URL(candidateOrigin).protocol);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Resolves the outbound `targetOrigin` from `document.referrer` when an
@@ -52,7 +84,7 @@ function resolveTargetOrigin(allowedOrigins: string[]): string {
   try {
     if (document.referrer) {
       const candidate = new URL(document.referrer).origin;
-      if (allowedOrigins.includes(candidate)) {
+      if (isOriginAllowed(candidate, allowedOrigins)) {
         return candidate;
       }
     }
@@ -90,14 +122,14 @@ export function createIframeHost(
     },
 
     subscribe(onMessage: InboundTransportListener): () => void {
-      const dispatch = (event: MessageEvent): void => {
+      const dispatch = (messageEvent: MessageEvent): void => {
         if (
           allowedOrigins.length > 0 &&
-          !allowedOrigins.includes(event.origin)
+          !isOriginAllowed(messageEvent.origin, allowedOrigins)
         ) {
           return;
         }
-        onMessage(event.data);
+        onMessage(messageEvent.data);
       };
       window.addEventListener('message', dispatch as EventListener);
       return () => {
