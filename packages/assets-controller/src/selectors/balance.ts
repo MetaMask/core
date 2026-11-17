@@ -19,6 +19,7 @@ import type {
   AssetPreferences,
   Caip19AssetId,
 } from '../types.js';
+import { resolvePriceLookupAssetId } from '../utils/resolvePriceLookupAssetId.js';
 import { emitTrace, withTrace } from '../utils/trace.js';
 
 // ============================================================================
@@ -110,7 +111,7 @@ const getPriceDatumFast = (
   assetsPrice: AssetsControllerState['assetsPrice'] | undefined,
   assetId: Caip19AssetId,
 ): PriceDatum => {
-  const raw = assetsPrice?.[assetId];
+  const raw = assetsPrice?.[resolvePriceLookupAssetId(assetId)];
   if (!raw || typeof raw !== 'object') {
     return ZERO_PRICE;
   }

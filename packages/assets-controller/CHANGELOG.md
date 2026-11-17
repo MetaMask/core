@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
+### Fixed
+
+- Value converted mainnet staking balances with the native ETH price in balance selectors and asset getters, and request that price for staking positions; Hoodi behavior is unchanged ([#10067](https://github.com/MetaMask/core/pull/10067))
+
 ## [20.4.1]
 
 ### Changed

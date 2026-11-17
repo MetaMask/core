@@ -1717,3 +1717,43 @@ describe('PriceDataSource', () => {
     );
   });
 });
+
+describe('converted mainnet staking price dependencies', () => {
+  it.each(['poll', 'explicit', 'middleware'] as const)(
+    'requests native once through %s',
+    async (path) => {
+      const vault: Caip19AssetId =
+        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+      const balances = {
+        'mock-account-id': {
+          [vault]: { amount: '0.6' },
+          [MOCK_NATIVE_ASSET]: { amount: '1' },
+        },
+      };
+      const { controller, apiClient } = setupController({
+        priceResponse: { [MOCK_NATIVE_ASSET]: createMockPriceData(2000) },
+        getAssetsState: () =>
+          createTestAssetsState({ assetsBalance: balances }),
+      });
+      try {
+        if (path === 'poll') {
+          await controller.fetch(createDataRequest());
+        } else if (path === 'explicit') {
+          await controller.fetchAssetPrices([vault, MOCK_NATIVE_ASSET]);
+        } else {
+          await controller.assetsMiddleware(
+            createMiddlewareContext({ response: { assetsBalance: balances } }),
+            vi.fn().mockResolvedValue(undefined),
+          );
+        }
+        expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+        expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+          [MOCK_NATIVE_ASSET],
+          { currency: 'usd', includeMarketData: true },
+        );
+      } finally {
+        controller.destroy();
+      }
+    },
+  );
+});
