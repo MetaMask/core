@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Whitelist CHOMP's successor association message for `chompSignInDomain`, so migrating to the MPC Money Account no longer asks for MFA ([#11310](https://github.com/MetaMask/core/pull/11310))
+
 ### Changed
 
 - Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Fixed
+
+- Whitelist single-use vault deposit delegations that carry a `Redeemer` caveat ([#11310](https://github.com/MetaMask/core/pull/11310))
 
 ## [0.2.0]
 
