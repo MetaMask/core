@@ -19,6 +19,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { accountSupports7702 } from '../../utils/account.js';
+import { assertEvmQuoteRequest } from '../../utils/chain.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -276,6 +277,8 @@ async function submitPostNonAtomic({
   submittedSourceHash?: Hex;
   transaction: TransactionMeta;
 }): Promise<{ transactionHash?: Hex }> {
+  assertEvmQuoteRequest(quote.request);
+
   const { from, isPostQuote, recipient, targetChainId, targetTokenAddress } =
     quote.request;
 

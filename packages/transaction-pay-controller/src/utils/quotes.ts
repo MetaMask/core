@@ -551,6 +551,7 @@ function buildQuoteRequests({
       from,
       isMaxAmount,
       paymentOverride,
+      recipient: token.recipient,
       refundTo,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceChainId: paymentToken.chainId,

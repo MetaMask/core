@@ -80,6 +80,15 @@ export class TransactionPayPublishHook {
         throw new Error('Fiat: Missing quote');
       }
 
+      // Publishing the transaction itself cannot deliver tokens to another chain.
+      const hasCrossChainToken = transactionData?.tokens.some(
+        (token) => token.chainId !== transactionMeta.chainId,
+      );
+
+      if (hasCrossChainToken) {
+        throw new Error('Missing quote for required token on another chain');
+      }
+
       log('Skipping as no executable quotes found', { transactionId });
 
       return EMPTY_RESULT;

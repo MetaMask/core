@@ -4,7 +4,7 @@ import type {
   AuthorizationList,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -18,6 +18,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
+import { assertEvmQuoteRequest, isEvmChainId } from '../../utils/chain.js';
 import {
   getSlippage,
   isEIP7702Chain,
@@ -44,6 +45,7 @@ import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import { getTokenFiatRate } from '../../utils/token.js';
 import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
+import { SERVER_NON_EVM_CHAIN_IDS } from './constants.js';
 import { hasServerDepositStep } from './deposit-step.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
@@ -302,7 +304,11 @@ async function buildServerQuoteRequest(
     messenger,
     request: {
       ...normalizedRequest,
-      recipient: override?.recipient ?? tokenTransferRecipient,
+      recipient:
+        override?.recipient ??
+        tokenTransferRecipient ??
+        // Non-EVM targets can only be paid to the required token's recipient.
+        (isEvmChainId(targetChainId) ? undefined : normalizedRequest.recipient),
     },
     transaction,
   });
@@ -320,7 +326,10 @@ async function buildServerQuoteRequest(
 
   const body: ServerQuoteRequestDraft = {
     source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
-    target: { chainId: Number(targetChainId), token: targetTokenAddress },
+    target: {
+      chainId: getServerChainId(targetChainId),
+      token: targetTokenAddress,
+    },
     sender: from,
     recipient,
     slippage: Math.round(
@@ -336,6 +345,8 @@ async function buildServerQuoteRequest(
   const hasNoData = singleData === undefined || singleData === '0x';
   const skipDelegation =
     hasNoData ||
+    // Calls can only be executed on EVM chains.
+    !isEvmChainId(targetChainId) ||
     isTokenTransfer ||
     isHypercore ||
     isHypercoreSource ||
@@ -365,6 +376,8 @@ async function buildServerQuoteRequest(
       );
     }
   } else if (!skipDelegation) {
+    assertEvmQuoteRequest(normalizedRequest);
+
     const delegation = await messenger.call(
       'TransactionPayController:getDelegationTransaction',
       { transaction },
@@ -373,7 +386,7 @@ async function buildServerQuoteRequest(
     body.calls = [
       {
         data: buildTransferData(executionAccount, targetAmountMinimum),
-        to: targetTokenAddress,
+        to: normalizedRequest.targetTokenAddress,
         value: '0x0',
       },
       {
@@ -393,7 +406,7 @@ async function buildServerQuoteRequest(
       canDeferCalls({
         accountSupports7702,
         messenger,
-        targetChainId,
+        targetChainId: normalizedRequest.targetChainId,
         transaction,
       })
     ) {
@@ -954,4 +967,24 @@ function buildTransferData(recipient: Hex, amountRaw: string): Hex {
     recipient,
     amountRaw,
   ]) as Hex;
+}
+
+/**
+ * Get the chain ID used by the server API.
+ *
+ * @param chainId - Hexadecimal or CAIP-2 chain ID.
+ * @returns The numeric server chain ID.
+ */
+function getServerChainId(chainId: Hex | CaipChainId): number {
+  if (isEvmChainId(chainId)) {
+    return Number(chainId);
+  }
+
+  const serverChainId = SERVER_NON_EVM_CHAIN_IDS[chainId];
+
+  if (serverChainId === undefined) {
+    throw new Error(`Unsupported non-EVM target chain: ${chainId}`);
+  }
+
+  return serverChainId;
 }

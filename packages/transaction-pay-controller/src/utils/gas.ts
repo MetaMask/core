@@ -60,7 +60,7 @@ export function calculateTransactionGasCost(
 
   const nativeBalance = getTokenBalance(
     messenger,
-    from as Hex,
+    from,
     chainId,
     getNativeToken(chainId),
   );

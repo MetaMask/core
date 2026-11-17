@@ -176,5 +176,33 @@ describe('server-support', () => {
         }),
       ).toBeUndefined();
     });
+
+    it('supports Solana target requests', () => {
+      expect(
+        getReason({
+          requests: [
+            {
+              ...REQUEST_MOCK,
+              targetChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              targetTokenAddress:
+                'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+            },
+          ],
+        }),
+      ).toBeUndefined();
+    });
+
+    it('returns unsupported target chain for unknown non-EVM target', () => {
+      expect(
+        getReason({
+          requests: [
+            {
+              ...REQUEST_MOCK,
+              targetChainId: 'bip122:000000000019d6689c085ae165831e93',
+            },
+          ],
+        }),
+      ).toBe(ServerUnsupportedReason.UnsupportedTargetChain);
+    });
   });
 });

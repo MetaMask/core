@@ -29,7 +29,7 @@ export async function resolveQuoteRecipient({
   messenger: TransactionPayControllerMessenger;
   request: QuoteRequest;
   transaction: TransactionMeta;
-}): Promise<Hex> {
+}): Promise<string> {
   const executionAccount = transaction.txParams.from as Hex;
 
   if (request.atomic === false && request.isPostQuote) {

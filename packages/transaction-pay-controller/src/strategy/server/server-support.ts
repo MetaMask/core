@@ -5,6 +5,8 @@ import {
 } from '@metamask/transaction-controller';
 
 import type { QuoteRequest } from '../../types.js';
+import { isEvmChainId } from '../../utils/chain.js';
+import { SERVER_NON_EVM_CHAIN_IDS } from './constants.js';
 
 /**
  * Parent transaction types enabled for the server strategy by default.
@@ -24,6 +26,9 @@ export enum ServerUnsupportedReason {
 
   /** The parent transaction type is not in the remote-flag allowlist. */
   DisabledTransactionType = 'disabledTransactionType',
+
+  /** The target is on a non-EVM chain the server strategy does not support. */
+  UnsupportedTargetChain = 'unsupportedTargetChain',
 }
 
 /**
@@ -84,6 +89,13 @@ function getRequestUnsupportedReason(
 ): ServerUnsupportedReason | undefined {
   if (request.isDirectMusdMoneyAccount === true) {
     return ServerUnsupportedReason.DirectMusdMoneyAccount;
+  }
+
+  if (
+    !isEvmChainId(request.targetChainId) &&
+    SERVER_NON_EVM_CHAIN_IDS[request.targetChainId] === undefined
+  ) {
+    return ServerUnsupportedReason.UnsupportedTargetChain;
   }
 
   return undefined;

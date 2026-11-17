@@ -1,4 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -16,11 +17,18 @@ import type {
   TransactionData,
   TransactionPayRequiredToken,
 } from '../types.js';
+import { isEvmChainId } from './chain.js';
 import { isPerpsDepositTransaction } from './perps.js';
 import { getTokenFiatRate, isSameToken } from './token.js';
 import { getTransaction } from './transaction.js';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
+
+/** Required token on an EVM chain. */
+type EvmRequiredToken = TransactionPayRequiredToken & {
+  address: Hex;
+  chainId: Hex;
+};
 
 /**
  * Update the source amounts for a transaction.
@@ -121,7 +129,12 @@ function calculatePostQuoteSourceAmounts(
   hasPaymentOverride?: boolean,
 ): TransactionPaySourceAmount[] {
   return tokens
-    .filter((token) => {
+    .filter((token): token is EvmRequiredToken => {
+      // Post-quote sources must be on an EVM chain.
+      if (!isEvmChainId(token.chainId)) {
+        return false;
+      }
+
       if (token.skipIfBalance) {
         return false;
       }

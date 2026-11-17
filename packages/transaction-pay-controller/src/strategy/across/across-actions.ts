@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { QuoteRequest } from '../../types.js';
+import { assertEvmQuoteRequest } from '../../utils/chain.js';
 import { isPerpsDepositRequest } from '../../utils/perps.js';
 import type { AcrossAction, AcrossActionArg } from './types.js';
 
@@ -161,6 +162,8 @@ function buildAcrossTransferAction(
   call: AcrossDestinationCall,
   request: QuoteRequest,
 ): AcrossAction {
+  assertEvmQuoteRequest(request);
+
   return {
     args: [
       {

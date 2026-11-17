@@ -18,7 +18,7 @@ export type RelayQuoteRequest = {
   originCurrency: Hex;
   originGasOverhead?: string;
   protocolVersion?: string;
-  recipient: Hex;
+  recipient: string;
   refundTo?: Hex;
   slippageTolerance?: string;
   tradeType: TradeType;

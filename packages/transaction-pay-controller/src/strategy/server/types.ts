@@ -60,11 +60,11 @@ export type ServerAuthorization = {
 /** Request body for POST /quote. */
 export type ServerQuoteRequest = {
   source: { chainId: number; token: Hex };
-  target: { chainId: number; token: Hex };
+  target: { chainId: number; token: string };
   amount: string;
   tradeType: TradeType;
   sender: Hex;
-  recipient: Hex;
+  recipient: string;
   refundTo?: Hex;
   slippage?: number;
   providers?: string[];
@@ -153,7 +153,7 @@ export enum ServerStatus {
 export type ServerStatusResponse = {
   status: ServerStatus;
   sourceHash?: Hex;
-  targetHash?: Hex;
+  targetHash?: string;
   error?: string;
 };
 

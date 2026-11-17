@@ -7,12 +7,14 @@ import {
 /**
  * Transaction types whose quote must be priced as an exact output.
  *
- * These transactions embed a call that transfers exactly the target amount, so
- * pricing the quote on the input amount underfunds that transfer and reverts.
+ * These transactions embed a call, or follow up with a transaction, that
+ * transfers exactly the target amount, so pricing the quote on the input amount
+ * underfunds that transfer and reverts.
  */
 const EXACT_OUTPUT_TRANSACTION_TYPES: TransactionType[] = [
   TransactionType.perpsDepositAndOrder,
   TransactionType.predictDepositAndOrder,
+  TransactionType.solanaTest,
 ];
 
 /** Pricing basis requested for a quote. */

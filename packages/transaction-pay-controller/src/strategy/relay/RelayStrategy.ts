@@ -5,6 +5,7 @@ import type {
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types.js';
+import { isEvmQuoteRequest } from '../../utils/chain.js';
 import {
   getMaxBalanceRefreshInterval,
   getPayStrategiesConfig,
@@ -17,7 +18,7 @@ import type { RelayQuote } from './types.js';
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
     const config = getPayStrategiesConfig(request.messenger);
-    return config.relay.enabled;
+    return config.relay.enabled && request.requests.every(isEvmQuoteRequest);
   }
 
   async getQuotes(

@@ -173,6 +173,43 @@ describe('TransactionPayPublishHook', () => {
     expect(updateTransactionMock).not.toHaveBeenCalled();
   });
 
+  it('throws if no quotes and a required token is on another chain', async () => {
+    vi.mocked(getControllerStateMock as () => unknown).mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          tokens: [{ chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' }],
+        },
+      },
+    });
+
+    await expect(
+      hook.getHook()({ ...TRANSACTION_META_MOCK, chainId: '0x1' }, '0x1234'),
+    ).rejects.toThrow(
+      'MetaMask Pay: Missing quote for required token on another chain',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
+  it('does nothing if no quotes and required tokens are on the transaction chain', async () => {
+    vi.mocked(getControllerStateMock as () => unknown).mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          tokens: [{ chainId: '0x1' }],
+        },
+      },
+    });
+
+    const result = await hook.getHook()(
+      { ...TRANSACTION_META_MOCK, chainId: '0x1' },
+      '0x1234',
+    );
+
+    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
   it('sets submittedTime on the transaction before executing strategy', async () => {
     await runHook();
 

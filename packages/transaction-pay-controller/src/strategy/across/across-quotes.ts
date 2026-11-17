@@ -19,6 +19,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getFiatValueFromUsd, sumAmounts } from '../../utils/amounts.js';
+import { assertEvmQuoteRequest } from '../../utils/chain.js';
 import {
   getPayStrategiesConfig,
   getSlippage,
@@ -98,6 +99,8 @@ async function getSingleQuote(
 ): Promise<TransactionPayQuote<AcrossQuote>> {
   const { messenger, signal, transaction } = fullRequest;
   const normalizedRequest = normalizeAcrossRequest(request, transaction);
+  assertEvmQuoteRequest(normalizedRequest);
+
   const {
     from,
     isMaxAmount,

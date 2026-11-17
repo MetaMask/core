@@ -2,7 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import type { AssetsControllerState } from '@metamask/assets-controller';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger } from '@metamask/utils';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -13,6 +13,7 @@ import {
 } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types.js';
+import { isEvmChainId } from './chain.js';
 import { getStablecoins, isChainExcludedFromInfura } from './feature-flags.js';
 import { rpcRequest } from './provider.js';
 
@@ -38,8 +39,8 @@ const assetIds = new Map<string, CaipAssetType>();
  * @returns True if tokens are the same, false otherwise.
  */
 export function isSameToken(
-  token1: { address: Hex; chainId: Hex },
-  token2: { address: Hex; chainId: Hex },
+  token1: { address: string; chainId: Hex | CaipChainId },
+  token2: { address: string; chainId: Hex | CaipChainId },
 ): boolean {
   return (
     token1.address.toLowerCase() === token2.address.toLowerCase() &&
@@ -58,9 +59,9 @@ export function isSameToken(
  */
 export function getTokenBalance(
   messenger: TransactionPayControllerMessenger,
-  account: Hex,
-  chainId: Hex,
-  tokenAddress: Hex,
+  account: string,
+  chainId: Hex | CaipChainId,
+  tokenAddress: string,
 ): string {
   const { accountIdByAddress } = messenger.call('AccountsController:getState');
 
@@ -115,8 +116,8 @@ export function getTokenBalance(
  */
 export function getTokenInfo(
   messenger: TransactionPayControllerMessenger,
-  tokenAddress: Hex,
-  chainId: Hex,
+  tokenAddress: string,
+  chainId: Hex | CaipChainId,
 ): { decimals: number; symbol: string } | undefined {
   const { assetsInfo } = messenger.call('AssetsController:getState');
   const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
@@ -139,8 +140,8 @@ export function getTokenInfo(
  */
 export function getTokenFiatRate(
   messenger: TransactionPayControllerMessenger,
-  tokenAddress: Hex,
-  chainId: Hex,
+  tokenAddress: string,
+  chainId: Hex | CaipChainId,
 ): FiatRates | undefined {
   const { assetsInfo, assetsPrice } = messenger.call(
     'AssetsController:getState',
@@ -152,9 +153,11 @@ export function getTokenFiatRate(
     return undefined;
   }
 
-  const isStablecoin = getStablecoins(messenger)[chainId]?.includes(
-    tokenAddress.toLowerCase() as Hex,
-  );
+  const isStablecoin =
+    isEvmChainId(chainId) &&
+    getStablecoins(messenger)[chainId]?.includes(
+      tokenAddress.toLowerCase() as Hex,
+    );
 
   return {
     fiatRate: String(price.price),
@@ -467,9 +470,13 @@ export function normalizeTokenAddress(
  */
 function getControllerAssetId(
   assetsInfo: AssetsControllerState['assetsInfo'],
-  chainId: Hex,
-  tokenAddress: Hex,
+  chainId: Hex | CaipChainId,
+  tokenAddress: string,
 ): CaipAssetType | undefined {
+  if (!isEvmChainId(chainId)) {
+    return resolveNonEvmAssetId(assetsInfo, chainId, tokenAddress);
+  }
+
   const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`;
   const cached = assetIds.get(cacheKey);
 
@@ -477,7 +484,11 @@ function getControllerAssetId(
     return cached;
   }
 
-  const assetId = resolveControllerAssetId(assetsInfo, chainId, tokenAddress);
+  const assetId = resolveControllerAssetId(
+    assetsInfo,
+    chainId,
+    tokenAddress as Hex,
+  );
 
   // Only cache checksummed (mixed-case) keys, so a lowercase duplicate seen
   // before the canonical entry is indexed cannot stick for the session.
@@ -556,4 +567,26 @@ function resolveControllerAssetId(
   }
 
   return lowercaseMatch;
+}
+
+/**
+ * Locate a non-EVM asset's key in `AssetsController` state.
+ *
+ * Non-EVM addresses are case-sensitive, so the asset is matched exactly by its
+ * CAIP-19 asset reference, such as a Solana token mint.
+ *
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param chainId - CAIP-2 chain ID.
+ * @param tokenAddress - CAIP-19 asset reference, such as a token mint.
+ * @returns The CAIP-19 asset ID as keyed in state, or undefined when the asset
+ * is absent.
+ */
+function resolveNonEvmAssetId(
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  chainId: CaipChainId,
+  tokenAddress: string,
+): CaipAssetType | undefined {
+  return Object.keys(assetsInfo).find(
+    (key) => key.startsWith(`${chainId}/`) && key.endsWith(`:${tokenAddress}`),
+  ) as CaipAssetType | undefined;
 }

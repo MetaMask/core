@@ -29,6 +29,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
+import { assertEvmQuoteRequest } from '../../utils/chain.js';
 import {
   getRelayOriginGasOverhead,
   getSlippage,
@@ -227,6 +228,8 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
+  assertEvmQuoteRequest(request);
+
   const {
     accountSupports7702: supports7702,
     messenger,
@@ -388,6 +391,8 @@ async function processTransactions(
   requestBody: RelayQuoteRequestDraft,
   messenger: TransactionPayControllerMessenger,
 ): Promise<boolean> {
+  assertEvmQuoteRequest(request);
+
   // Skip when skipProcessTransactions (defaulting to isPostQuote) is set — the
   // original transaction is submitted separately, not embedded in the quote.
   // Skip Polymarket deposit wallet flows — the source is already a bridged
@@ -487,6 +492,8 @@ function normalizeRequest(
   request: QuoteRequest,
   transaction: TransactionMeta,
 ): QuoteRequest {
+  assertEvmQuoteRequest(request);
+
   const newRequest = {
     ...request,
     sourceTokenAddress: normalizeTokenAddress(

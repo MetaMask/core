@@ -486,6 +486,24 @@ describe('AcrossStrategy', () => {
     expect(strategy.supports(baseRequest)).toBe(true);
   });
 
+  it('returns false when any request targets a non-EVM chain', () => {
+    const strategy = new AcrossStrategy();
+
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          ...baseRequest.requests,
+          {
+            ...baseRequest.requests[0],
+            targetChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            targetTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
   it('delegates getQuotes to across quotes', async () => {
     const strategy = new AcrossStrategy();
     const quote = { strategy: 'across' } as TransactionPayQuote<AcrossQuote>;

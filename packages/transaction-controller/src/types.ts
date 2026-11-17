@@ -4,7 +4,7 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipChainId, Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -939,6 +939,12 @@ export enum TransactionType {
    * A transaction sending a network's native asset to a recipient.
    */
   smart = 'smart',
+
+  /**
+   * Test transaction that funds a Solana asset using MetaMask Pay.
+   * Placeholder transaction that is never published.
+   */
+  solanaTest = 'solanaTest',
 
   /**
    * A transaction that claims staking rewards.
@@ -2379,11 +2385,23 @@ export type GetGasFeeTokensRequest = {
  * An asset required by a transaction.
  */
 export type RequiredAsset = {
-  /** Contract address of the asset. */
-  address: Hex;
+  /** Contract address of the asset, or the token mint on non-EVM chains. */
+  address: string;
 
   /** Amount of the asset required. */
   amount: Hex;
+
+  /**
+   * CAIP-2 chain ID of the asset.
+   * Defaults to the chain of the transaction.
+   */
+  chainId?: CaipChainId;
+
+  /**
+   * Address to receive the asset.
+   * Defaults to the sender of the transaction, so required for non-EVM chains.
+   */
+  recipient?: string;
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
