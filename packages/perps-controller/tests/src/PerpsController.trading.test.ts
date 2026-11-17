@@ -914,6 +914,48 @@ describe('PerpsController', () => {
         mockProvider.getChaseOrders
           .mockResolvedValueOnce([chaseOrder])
           .mockResolvedValue([]);
+        // The provider reports how the chase ended with the cancel result.
+        const canceledChase = {
+          ...chaseOrder,
+          status: 'canceled' as const,
+          restingOrderId: null,
+        };
+        vi.spyOn(mockTradingServiceInstance, 'cancelOrder').mockResolvedValue({
+          success: true,
+          orderId: chaseOrder.handle,
+          chaseOrder: canceledChase,
+        });
+        const callback = vi.fn();
+
+        const stop = controller.subscribeToChaseOrderLists({ callback });
+        await vi.advanceTimersByTimeAsync(0);
+        await controller.cancelOrder({
+          orderId: chaseOrder.handle,
+          symbol: chaseOrder.symbol,
+          orderType: 'chase',
+        });
+        await vi.advanceTimersByTimeAsync(
+          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
+        );
+        stop();
+
+        expect(callback).toHaveBeenLastCalledWith({
+          running: [],
+          history: [canceledChase],
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('leaves a Chase to its reads when the cancel reports no ending', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getChaseOrders
+          .mockResolvedValueOnce([chaseOrder])
+          .mockResolvedValue([]);
         vi.spyOn(mockTradingServiceInstance, 'cancelOrder').mockResolvedValue({
           success: true,
           orderId: chaseOrder.handle,
@@ -932,12 +974,13 @@ describe('PerpsController', () => {
         );
         stop();
 
-        expect(callback).toHaveBeenLastCalledWith({
-          running: [],
-          history: [
-            { ...chaseOrder, status: 'canceled', restingOrderId: null },
-          ],
-        });
+        // Success alone does not prove canceled, so nothing is invented.
+        expect(callback).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            history: [expect.objectContaining({ status: 'canceled' })],
+          }),
+        );
+        expect(callback).toHaveBeenLastCalledWith({ running: [], history: [] });
       } finally {
         vi.useRealTimers();
       }

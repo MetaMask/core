@@ -356,7 +356,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
           symbol: 'ETH',
           orderType: 'chase',
         }),
-      ).toStrictEqual({ success: true, orderId: result.orderId });
+      ).toStrictEqual({
+        success: true,
+        orderId: result.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      });
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 55 }],
       });
@@ -703,10 +711,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       const results = await Promise.all([first, second]);
 
-      expect(results).toStrictEqual([
-        { success: true, orderId: placed.orderId },
-        { success: true, orderId: placed.orderId },
-      ]);
+      const ended = {
+        success: true,
+        orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      };
+      expect(results).toStrictEqual([ended, ended]);
       expect(cancel).toHaveBeenCalledTimes(1);
     });
 
@@ -722,7 +736,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(
         await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
-      ).toStrictEqual({ success: true, orderId: '55' });
+      ).toStrictEqual({
+        success: true,
+        orderId: '55',
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      });
       expect(await provider.getChaseOrders()).toStrictEqual([]);
     });
 

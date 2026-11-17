@@ -191,6 +191,7 @@ import {
 } from '../utils/accountUtils.js';
 import {
   boundTwapExecution,
+  isChaseOrderRunning,
   reconcileTwapExecution,
   supersedesTwapOrder,
 } from '../utils/advancedOrders.js';
@@ -9719,38 +9720,54 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
         }
 
-        const arrival = Number.parseFloat(session.arrivalPrice);
-        const resting = Number.parseFloat(session.restingPrice);
-        const adverseDistance = session.isBuy
-          ? resting - arrival
-          : arrival - resting;
-        const measuredDistance =
-          Number.isFinite(arrival) &&
-          arrival > 0 &&
-          Number.isFinite(adverseDistance)
-            ? Math.round(
-                (Math.max(0, adverseDistance) / arrival) * BASIS_POINTS_DIVISOR,
-              )
-            : 0;
-        return {
-          handle,
-          symbol: session.symbol,
-          side: session.isBuy ? 'buy' : 'sell',
-          originalSize: session.originalSize,
-          remainingSize: snapshotRemainingSize,
-          arrivalPrice: session.arrivalPrice,
-          restingPrice: session.restingPrice,
-          restingOrderId: session.orderId,
-          distanceChasedBps: measuredDistance,
-          ...(session.maxDistanceBps === undefined
-            ? {}
-            : { maxDistanceBps: session.maxDistanceBps }),
-          repricings: session.repricings,
-          startedAt: session.startedAt,
-          status: session.status,
-        };
+        return this.#chaseSnapshot(handle, session, snapshotRemainingSize);
       }),
     );
+  }
+
+  /**
+   * Build the client-facing snapshot of one chase session.
+   *
+   * @param handle - The session's chase handle.
+   * @param session - The session.
+   * @param remainingSize - Unfilled size to report.
+   * @returns The chase snapshot.
+   */
+  #chaseSnapshot(
+    handle: string,
+    session: ChaseSession,
+    remainingSize: string = session.size,
+  ): ChaseOrder {
+    const arrival = Number.parseFloat(session.arrivalPrice);
+    const resting = Number.parseFloat(session.restingPrice);
+    const adverseDistance = session.isBuy
+      ? resting - arrival
+      : arrival - resting;
+    const measuredDistance =
+      Number.isFinite(arrival) &&
+      arrival > 0 &&
+      Number.isFinite(adverseDistance)
+        ? Math.round(
+            (Math.max(0, adverseDistance) / arrival) * BASIS_POINTS_DIVISOR,
+          )
+        : 0;
+    return {
+      handle,
+      symbol: session.symbol,
+      side: session.isBuy ? 'buy' : 'sell',
+      originalSize: session.originalSize,
+      remainingSize,
+      arrivalPrice: session.arrivalPrice,
+      restingPrice: session.restingPrice,
+      restingOrderId: session.orderId,
+      distanceChasedBps: measuredDistance,
+      ...(session.maxDistanceBps === undefined
+        ? {}
+        : { maxDistanceBps: session.maxDistanceBps }),
+      repricings: session.repricings,
+      startedAt: session.startedAt,
+      status: session.status,
+    };
   }
 
   /**
@@ -10097,11 +10114,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Nothing rests: the order filled, something else cancelled it, or a
     // replacement failed to go up. Either way the session ends cleanly.
     if (session.orderId === null) {
+      // The session already holds its ending, unless it was still running.
+      const chaseOrder = isChaseOrderRunning(session)
+        ? undefined
+        : this.#chaseSnapshot(params.orderId, session);
       session.removeAfterRebalance = true;
       if (await this.#rebalanceChaseSession(session)) {
         this.#chaseSessions.delete(params.orderId);
       }
-      return { success: true, orderId: params.orderId };
+      return {
+        success: true,
+        orderId: params.orderId,
+        ...(chaseOrder ? { chaseOrder } : {}),
+      };
     }
 
     this.#assertProviderLifecycleCurrent(
@@ -10142,13 +10167,35 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
+    // A child the venue reports gone may have filled rather than been
+    // cancelled. Once the cancel lands no fill can reach it, so its status now
+    // is its ending and its unfilled size is final.
+    const remainder = await this.#readOrderRemainder(session.orderId).catch(
+      () => undefined,
+    );
     session.orderId = null;
-    session.status = CHASE_ORDER_STATUS.Canceled;
+    if (remainder?.terminalStatus) {
+      session.status = remainder.terminalStatus;
+      session.size = remainder.remainingSize ?? '0';
+    } else {
+      session.status = CHASE_ORDER_STATUS.Canceled;
+    }
+    // Without the child's status, a gone child's ending is unknown.
+    const endingKnown =
+      Boolean(remainder?.terminalStatus) ||
+      cancelOutcome === CancelChildOutcome.Cancelled;
+    const chaseOrder = endingKnown
+      ? this.#chaseSnapshot(params.orderId, session)
+      : undefined;
     session.removeAfterRebalance = true;
     if (await this.#rebalanceChaseSession(session)) {
       this.#chaseSessions.delete(params.orderId);
     }
-    return { success: true, orderId: params.orderId };
+    return {
+      success: true,
+      orderId: params.orderId,
+      ...(chaseOrder ? { chaseOrder } : {}),
+    };
   }
 
   /**

@@ -1458,6 +1458,13 @@ export type CancelOrderResult = {
   orderId?: string;
   error?: string;
   providerId?: PerpsProviderType; // Multi-provider: source provider identifier
+  /**
+   * For a chase cancel whose ending the provider knows, the chase's final
+   * snapshot (canceled, filled, or the ending it had already stopped with).
+   * Absent when the ending is unknown, for example a child the venue reports
+   * gone whose status could not be read.
+   */
+  chaseOrder?: ChaseOrder;
 };
 
 export type BatchCancelOrdersParams = {

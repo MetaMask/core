@@ -1,6 +1,5 @@
 import {
   CHASE_ORDER_CONFIG,
-  CHASE_ORDER_STATUS,
   TWAP_ORDER_CONFIG,
 } from '../constants/perpsConfig.js';
 import type {
@@ -37,10 +36,12 @@ export type LiveTwapOrderSource = {
   subscribeToContextChanges?: (listener: () => void) => () => void;
 };
 
-/** A chase whose cancel the provider confirmed. */
+/** A chase cancel that succeeded, with the ending the provider reported. */
 export type CanceledChaseOrder = {
   handle: string;
   providerId?: PerpsProviderType;
+  /** The chase's final snapshot, from `CancelOrderResult.chaseOrder`. */
+  chaseOrder: ChaseOrder;
 };
 
 /** Where a live chase list reads chase snapshots from. */
@@ -58,9 +59,9 @@ export type LiveChaseOrderSource = {
    */
   subscribeToContextChanges?: (listener: () => void) => () => void;
   /**
-   * Calls the listener after a chase cancel succeeds. A provider can drop a
-   * canceled chase before the next read, so this is how the list learns the
-   * chase ended rather than guessing from its absence.
+   * Calls the listener after a chase cancel succeeds with a known ending. A
+   * provider can drop a canceled chase before the next read, so this is how
+   * the list learns how the chase ended rather than guessing from its absence.
    */
   subscribeToChaseCancellations?: (
     listener: (canceled: CanceledChaseOrder) => void,
@@ -266,6 +267,41 @@ export function createLiveTwapOrderList(params: {
 }
 
 /**
+ * Whether two snapshots name the same chase. A missing provider matches any,
+ * since single-provider reads leave it unset.
+ *
+ * @param left - One chase.
+ * @param right - The other chase.
+ * @returns True for the same handle on a compatible provider.
+ */
+function isSameChase(
+  left: Pick<ChaseOrder, 'handle' | 'providerId'>,
+  right: Pick<ChaseOrder, 'handle' | 'providerId'>,
+): boolean {
+  return (
+    left.handle === right.handle &&
+    (left.providerId === undefined ||
+      right.providerId === undefined ||
+      left.providerId === right.providerId)
+  );
+}
+
+/**
+ * Copy a snapshot under the provider the list holds it by.
+ *
+ * @param order - The snapshot.
+ * @param providerId - Provider to record, or none.
+ * @returns The snapshot with exactly that provider.
+ */
+function withProvider(
+  order: ChaseOrder,
+  providerId: PerpsProviderType | undefined,
+): ChaseOrder {
+  const { providerId: _previous, ...rest } = order;
+  return providerId === undefined ? rest : { ...rest, providerId };
+}
+
+/**
  * Keep running and history chase lists from repeated reads.
  *
  * Ended chases stay in history after a provider drops them, up to
@@ -273,8 +309,9 @@ export function createLiveTwapOrderList(params: {
  * reads, since an aggregated read drops a provider whose read failed. Reads
  * repeat at `refreshIntervalMs` for as long as the list is subscribed, so a
  * chase placed anywhere appears without a manual refresh. Lists reset when the
- * source's context key changes. A chase whose cancel the source confirms moves
- * to history as canceled and stays there after the provider drops it.
+ * source's context key changes. When a chase cancel succeeds with a known
+ * ending, the list keeps that ending, also for a chase no read has listed yet,
+ * and keeps it in history after the provider drops the session.
  *
  * @param params - Source, listener and cadence.
  * @param params.source - Reads of chase snapshots.
@@ -306,8 +343,8 @@ export function createLiveChaseOrderList(params: {
   let generation = 0;
   let activeRead: number | undefined;
   let omissions = new Map<string, number>();
-  // Chases whose cancel the provider confirmed, by list key.
-  let canceled = new Set<string>();
+  // Endings the provider reported for chases cancelled in this context.
+  let endings: ChaseOrder[] = [];
 
   const emit = (): void => {
     const next = lists ?? { running: [], history: [] };
@@ -327,19 +364,20 @@ export function createLiveChaseOrderList(params: {
     generation += 1;
     lists = undefined;
     omissions = new Map();
-    canceled = new Set();
+    endings = [];
     return true;
   };
 
-  // A confirmed cancel leaves nothing resting. A chase still running ends as
-  // canceled; an ending a read reports wins over that.
-  const settleCanceled = (order: ChaseOrder): ChaseOrder => {
-    if (!canceled.has(chaseOrderKey(order))) {
-      return order;
-    }
-    return isChaseOrderRunning(order)
-      ? { ...order, status: CHASE_ORDER_STATUS.Canceled, restingOrderId: null }
-      : { ...order, restingOrderId: null };
+  const endingOf = (order: ChaseOrder): ChaseOrder | undefined =>
+    endings.find((ending) => isSameChase(ending, order));
+
+  // A read that still lists a chase as running after its cancel reported an
+  // ending is stale; the ending replaces it. An ending the read reports wins.
+  const settle = (order: ChaseOrder): ChaseOrder => {
+    const ending = endingOf(order);
+    return ending && isChaseOrderRunning(order)
+      ? withProvider(ending, order.providerId)
+      : order;
   };
 
   // Running chases this read omits, kept while within their grace reads.
@@ -405,7 +443,7 @@ export function createLiveChaseOrderList(params: {
     if (failure) {
       onError?.(ensureError(failure.error, 'createLiveChaseOrderList'));
     } else {
-      const settled = current.map(settleCanceled);
+      const settled = current.map(settle);
       lists = mergeChaseOrderHistory({
         previous: lists,
         current: [...settled, ...keepOmitted(settled)],
@@ -424,29 +462,32 @@ export function createLiveChaseOrderList(params: {
   });
 
   const unsubscribeCancellations = source.subscribeToChaseCancellations?.(
-    ({ handle, providerId }) => {
+    ({ handle, providerId, chaseOrder }) => {
       if (stopped) {
         return;
       }
-      for (const order of [
-        ...(lists?.running ?? []),
-        ...(lists?.history ?? []),
-      ]) {
-        if (
-          order.handle === handle &&
-          (providerId === undefined ||
-            order.providerId === undefined ||
-            order.providerId === providerId)
-        ) {
-          canceled.add(chaseOrderKey(order));
-        }
-      }
-      if (!lists) {
-        return;
-      }
+      const ending = withProvider({ ...chaseOrder, handle }, providerId);
+      endings = [
+        ...endings.filter((held) => !isSameChase(held, ending)),
+        ending,
+      ];
+      // Recorded even before any read lists the chase, so a read still in
+      // flight cannot bring it back as running.
+      const held = [...(lists?.running ?? []), ...(lists?.history ?? [])];
+      const listed = held.find((order) => isSameChase(order, ending));
       lists = mergeChaseOrderHistory({
-        previous: { running: [], history: lists.history.map(settleCanceled) },
-        current: lists.running.map(settleCanceled),
+        previous: {
+          running: [],
+          history: (lists?.history ?? []).filter(
+            (order) => !isSameChase(order, ending),
+          ),
+        },
+        current: [
+          ...(lists?.running ?? []).filter(
+            (order) => !isSameChase(order, ending),
+          ),
+          listed ? withProvider(ending, listed.providerId) : ending,
+        ],
         historyLimit,
       });
       emit();

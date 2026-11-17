@@ -3838,9 +3838,11 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
-    if (result.success && params.orderType === 'chase') {
+    const { chaseOrder } = result;
+    if (result.success && params.orderType === 'chase' && chaseOrder) {
+      const providerId = params.providerId ?? result.providerId;
       for (const listener of [...this.#chaseCancellationListeners]) {
-        listener({ handle: params.orderId, providerId: params.providerId });
+        listener({ handle: params.orderId, providerId, chaseOrder });
       }
     }
     return result;
