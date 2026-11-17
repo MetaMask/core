@@ -206,8 +206,8 @@ export const twapOrderKey = (
 /**
  * Merge one TWAP record into the one already held for the same schedule.
  * Fills are united by ID; schedule fields come from the record that
- * supersedes (see `supersedesTwapOrder`), and the totals are then raised from
- * the fills.
+ * supersedes (see `supersedesTwapOrder`) or, on an equal version, from the
+ * incoming one, and the totals are then raised from the fills.
  *
  * @param retained - Record already held, if any.
  * @param incoming - Newer record from a read or a stream push.
@@ -224,9 +224,16 @@ function mergeTwapOrder(
   for (const fill of incoming.fills) {
     fills.set(fill.fillId, fill);
   }
-  const schedule = supersedesTwapOrder(incoming, retained)
-    ? incoming
-    : retained;
+  // An equal version still carries fresher read-time fields (elapsed time,
+  // time progress), so it replaces the held record unless that would turn an
+  // ended schedule back into a running one.
+  const sameVersion =
+    incoming.lastUpdated === retained.lastUpdated &&
+    isTwapOrderActive(incoming) === isTwapOrderActive(retained);
+  const schedule =
+    sameVersion || supersedesTwapOrder(incoming, retained)
+      ? incoming
+      : retained;
   return reconcileTwapExecution({
     ...schedule,
     fills: [...fills.values()].sort(
@@ -708,10 +715,12 @@ export function validateScaleOrder(params: {
   }
   if (preview) {
     // Each rung is its own order, so the venue minimum applies to every rung,
-    // not to the ladder's total. An unreadable or mismatched preview fails.
+    // not to the ladder's total. An unreadable preview, or one without exactly
+    // `count` rungs, fails.
     const minimum = new BigNumber(preview.minimumQuoteAmount);
     const belowMinimum =
-      preview.sizes.length !== preview.prices.length ||
+      preview.prices.length !== count ||
+      preview.sizes.length !== count ||
       preview.sizes.some(
         (size, index) =>
           !new BigNumber(size)

@@ -451,6 +451,48 @@ describe('createLiveTwapOrderList', () => {
     expect(callback).toHaveBeenLastCalledWith([]);
   });
 
+  it('discards an old-context read even after a new-context push', async () => {
+    let context = 'a';
+    let release: ((orders: TwapOrder[]) => void) | undefined;
+    let push: SubscribeTwapOrdersParams['callback'] | undefined;
+    const getTwapOrders = vi
+      .fn()
+      .mockImplementationOnce(
+        async () =>
+          new Promise<TwapOrder[]>((resolve) => {
+            release = resolve;
+          }),
+      )
+      .mockResolvedValue([twap({ orderId: 'b-order' })]);
+    const callback = vi.fn();
+
+    createLiveTwapOrderList({
+      source: {
+        getTwapOrders,
+        subscribeToTwapOrders: (params): (() => void) => {
+          push = params.callback;
+          return () => undefined;
+        },
+        getContextKey: (): string => context,
+      },
+      callback,
+    });
+    context = 'b';
+    // The push for the new context moves the list to it first.
+    push?.([twap({ orderId: 'b-order' })]);
+    release?.([twap({ orderId: 'a-order' })]);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(getTwapOrders).toHaveBeenCalledTimes(2);
+    expect(callback).not.toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ orderId: 'a-order' })]),
+    );
+    expect(callback).toHaveBeenLastCalledWith([
+      expect.objectContaining({ orderId: 'b-order' }),
+    ]);
+  });
+
   it('stops everything on cleanup', async () => {
     const { source, getTwapOrders, unsubscribe, push } = twapSource([[twap()]]);
     const callback = vi.fn();

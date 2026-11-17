@@ -322,6 +322,23 @@ describe('advancedOrders', () => {
         ).toMatchObject([{ status: 'completed' }]);
       });
 
+      it('refreshes read-time fields from an equal-version read', () => {
+        const held = twap({
+          lastUpdated: 2_000,
+          elapsedTimeMilliseconds: 60_000,
+          timeProgressBps: 333,
+        });
+        const later = twap({
+          lastUpdated: 2_000,
+          elapsedTimeMilliseconds: 120_000,
+          timeProgressBps: 666,
+        });
+
+        expect(mergeTwapOrders([held], [later])).toMatchObject([
+          { elapsedTimeMilliseconds: 120_000, timeProgressBps: 666 },
+        ]);
+      });
+
       it('keeps the held schedule when the incoming record is older', () => {
         const held = twap({ status: 'completed', lastUpdated: 3_000 });
 
@@ -812,6 +829,14 @@ describe('advancedOrders', () => {
         [
           'an unreadable minimum',
           { prices, sizes: ['1', '1', '1'], minimumQuoteAmount: 'n/a' },
+        ],
+        [
+          'an empty preview',
+          { prices: [], sizes: [], minimumQuoteAmount: '10' },
+        ],
+        [
+          'a preview with one valid rung for three',
+          { prices: ['100000'], sizes: ['1'], minimumQuoteAmount: '10' },
         ],
       ])('refuses %s', (_label, preview) => {
         expect(validateScaleOrder({ ...draft, preview })).toStrictEqual({

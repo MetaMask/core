@@ -85,6 +85,9 @@ export function createLiveTwapOrderList(params: {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let timerDueAt = Number.POSITIVE_INFINITY;
   let context = source.getContextKey?.();
+  // Bumped on every context reset, so a read can tell it outlived one even
+  // when a stream push already moved `context` to the new value.
+  let generation = 0;
 
   const resetOnContextChange = (): boolean => {
     const current = source.getContextKey?.();
@@ -92,6 +95,7 @@ export function createLiveTwapOrderList(params: {
       return false;
     }
     context = current;
+    generation += 1;
     orders = [];
     listed = new Set();
     streamed = new Set();
@@ -140,11 +144,12 @@ export function createLiveTwapOrderList(params: {
         // Clear the old context's rows now, not when this read returns.
         emit();
       }
+      const readGeneration = generation;
       const result = await source.getTwapOrders();
       if (stopped) {
         return;
       }
-      if (resetOnContextChange()) {
+      if (resetOnContextChange() || generation !== readGeneration) {
         // The read answered for the previous context; read the new one.
         readAgain = true;
       } else {
