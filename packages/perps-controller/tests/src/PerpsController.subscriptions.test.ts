@@ -928,6 +928,62 @@ describe('PerpsController', () => {
       });
     });
 
+    it('drops foreign venue balances on a direct-provider stream write', () => {
+      // Direct mode (default): hyperliquid is the only live venue.
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      // A persisted entry left by a previous aggregated session.
+      controller.testUpdate((state) => {
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          lastUpdated: 1,
+        };
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      hlCallback(accountState('100'));
+      expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+        totalBalance: '100',
+      });
+      // The stale venue is not streamed in direct mode: its entry must not
+      // keep looking live.
+      expect(controller.state.perpsBalances.lighter).toBeUndefined();
+    });
+
+    it('drops foreign venue balances on a single-venue aggregated stream write', () => {
+      markControllerAsInitialized();
+      const singleVenueAggregate = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure as never,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testSetActiveProvider(singleVenueAggregate);
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        // Persisted from a session that still streamed the other venue.
+        state.perpsBalances.lighter = {
+          totalBalance: '200',
+          unrealizedPnl: '2',
+          lastUpdated: 1,
+        };
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+      // The single-venue emission carries a top-level providerId and no
+      // providerStates.
+      hlCallback({ ...accountState('100'), providerId: 'hyperliquid' });
+      expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+        totalBalance: '100',
+      });
+      expect(controller.state.perpsBalances.lighter).toBeUndefined();
+    });
+
     it("keeps a not-yet-reported venue's persisted balance entry until that venue reports", () => {
       setupAggregatedMode();
       controller.subscribeToAccount({ callback: vi.fn() });

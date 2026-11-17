@@ -2380,6 +2380,9 @@ export class PerpsController extends BaseController<
             : 'hyperliquid';
           state.effectiveProvider = null;
           state.accountState = null;
+          // The direct stream covers one venue only: entries persisted by the
+          // aggregated session must not keep looking live.
+          state.perpsBalances = {};
         }
       });
       return;
@@ -6969,6 +6972,9 @@ export class PerpsController extends BaseController<
         // network toggle or disconnect/init does not migrate it away.
         state.hasExplicitProviderSelection = providerId !== 'aggregated';
         state.accountState = null;
+        // The new selection streams a different venue set: persisted entries
+        // from the previous topology must not keep looking live.
+        state.perpsBalances = {};
         state.initializationState = InitializationState.Uninitialized;
       });
 
@@ -7875,6 +7881,17 @@ export class PerpsController extends BaseController<
                         : state.activeProvider;
                     const venueId = account.providerId ?? directVenueId;
                     if (venueId) {
+                      // A direct or single-venue emission is the whole live
+                      // topology: entries for venues this stream does not
+                      // serve (persisted by a previous session) must not keep
+                      // looking live.
+                      for (const staleVenue of Object.keys(
+                        state.perpsBalances,
+                      )) {
+                        if (staleVenue !== venueId) {
+                          delete state.perpsBalances[staleVenue];
+                        }
+                      }
                       writeBalance(venueId, account);
                     }
                   }
