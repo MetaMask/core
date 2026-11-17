@@ -6,6 +6,7 @@ import {
   isEvmTxData,
   FeeType,
   BatchSellTransactionType,
+  getAccountByAddress,
 } from '@metamask/bridge-controller';
 import type {
   BatchSellTradesResponse,
@@ -35,7 +36,6 @@ import type { Hex } from '@metamask/utils';
 import { APPROVAL_DELAY_MS } from '../constants.js';
 import type { BridgeStatusControllerMessenger } from '../types.js';
 import type { QuoteAndTxMetadata } from '../types.js';
-import { getAccountByAddress } from './accounts.js';
 import { getNetworkClientIdByChainId } from './network.js';
 
 export const isApprovalTx = (type: TransactionType) =>
@@ -81,11 +81,18 @@ export const shouldDisable7702 = (
   return true;
 };
 
-export const hasNestedSwapTransactions = (txMeta: TransactionMeta) => {
-  return Boolean(
-    txMeta?.nestedTransactions?.some((tx) => tx.type === TransactionType.swap),
-  );
+const hasNestedTransactions = (
+  txMeta: TransactionMeta,
+  txType: TransactionType,
+) => {
+  return Boolean(txMeta?.nestedTransactions?.some((tx) => tx.type === txType));
 };
+
+export const hasNestedSwapTransactions = (txMeta: TransactionMeta) =>
+  hasNestedTransactions(txMeta, TransactionType.swap);
+
+export const hasNestedBridgeTransactions = (txMeta: TransactionMeta) =>
+  hasNestedTransactions(txMeta, TransactionType.bridge);
 
 export const isAtomic7702BatchTx = (txMeta: TransactionMeta): boolean =>
   txMeta.type === TransactionType.batch ||
