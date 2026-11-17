@@ -77,10 +77,10 @@ export const ENDPOINT_SMART_TRANSACTIONS = 'smart-transactions';
 
 /**
  * How long the single network configuration (`/network`) response is
- * considered fresh. The configuration is stable, so caching it avoids
- * re-fetching on every request.
+ * considered fresh. Set to `0` so every request refetches, since the response
+ * carries live liveness and killswitch state that must propagate immediately.
  */
-export const NETWORK_STALE_TIME_MS = 5 * 60 * 1000;
+export const NETWORK_STALE_TIME_MS = 0;
 
 /**
  * How long the network registry (`/networks`) response is considered fresh.

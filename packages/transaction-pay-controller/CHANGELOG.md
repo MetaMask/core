@@ -7,9 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.0]
+
+### Added
+
+- Support non-EVM payment tokens, such as Solana SOL and SPL tokens ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - `updatePaymentToken` accepts a non-EVM `assetId`, reading its metadata, balance, and price from `AssetsController` state.
+  - The non-EVM source account defaults to the account in the same account group as the transaction account that supports the asset chain, or is selected explicitly by `accountOverride`.
+
 ### Changed
 
-- Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.2.0` ([#11546](https://github.com/MetaMask/core/pull/11546))
+- **BREAKING:** `TransactionPaymentToken` is identified by its CAIP-19 `assetId` for every chain ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Remove `address` and `chainId`; derive them from `assetId` where needed.
+- **BREAKING:** `UpdatePaymentTokenRequest` takes `{ transactionId, assetId }` instead of `{ transactionId, tokenAddress, chainId }` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** `accountOverride` in `TransactionConfig` and `TransactionData` is now the ID of an `InternalAccount` instead of an address ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - An EVM account overrides the EVM account as before. The account holding a non-EVM payment token is the override account when it supports the payment token chain, otherwise the account in the same account group as the override account, or as the transaction account, that supports that chain.
+  - Fiat payments throw if the account override is not an EVM account.
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getAccountContext` and `AccountTreeController:getAccountGroupObject` actions ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** The `request` of a `TransactionPayQuote` identifies its source by CAIP identifiers for every protocol ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Remove `sourceChainId` and `sourceTokenAddress`. Add the CAIP-19 `sourceAssetId` and the CAIP-10 `sourceAccountId` of the account holding the source token, and derive an EVM chain ID and token address from `sourceAssetId` where needed.
+  - Quote requests are built the same way for every payment token. Post-quote flows with a non-EVM destination token produce no quote requests.
+  - `AcrossStrategy`, `RelayStrategy`, `ServerStrategy` and `FiatStrategy` only support requests with an `eip155` source asset.
+  - `PayStrategyGetRefreshIntervalRequest.chainId` is the CAIP-2 chain ID of the source asset.
+- Add dependency on `@metamask/account-tree-controller` `^11.2.0` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Always request non-atomic quotes for an MFA signing keyring, for every quote request ([#11476](https://github.com/MetaMask/core/pull/11476))
+  - Cleared once when quotes are dispatched, so Relay, Server, Across, and Fiat all receive non-atomic requests.
+  - Relay applies the same rule to requests built later, such as fiat estimation.
+  - The signing account is `transaction.txParams.from`, the account that signs the embedded delegation.
+- Skip Relay and Server quote simulation for a Money Account payment when the signing account is an MFA keyring ([#11476](https://github.com/MetaMask/core/pull/11476))
+  - Checks both `transaction.txParams.from` and `request.refundTo`. For Perps and Predict deposits, the Money Account is on `refundTo` and signs the delegation inside the payment-override callback.
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.3.0` ([#11546](https://github.com/MetaMask/core/pull/11546), [#11590](https://github.com/MetaMask/core/pull/11590))
 
 ## [31.3.0]
 
@@ -1897,7 +1925,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...@metamask/transaction-pay-controller@32.0.0
 [31.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.1...@metamask/transaction-pay-controller@31.3.0
 [31.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.0...@metamask/transaction-pay-controller@31.2.1
 [31.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.1.0...@metamask/transaction-pay-controller@31.2.0

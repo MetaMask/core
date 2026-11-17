@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2]
+
+### Changed
+
+- `createIframeHost` now accepts scheme-only entries in `allowedOrigins` (e.g. `moz-extension:`), matching any origin that uses that scheme ([#11572](https://github.com/MetaMask/core/pull/11572))
+  - Firefox assigns each install a random `moz-extension://<uuid>` that cannot be pinned, so the scheme is allowlisted instead; exact origins (e.g. `chrome-extension://<id>`, `https://…`) continue to match exactly
+
 ## [1.1.1]
 
 ### Fixed
@@ -30,7 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release: platform-agnostic TradingView Advanced Charts WebView engine copied verbatim from `metamask-mobile`'s `AdvancedChart/webview/src` ([#9762](https://github.com/MetaMask/core/pull/9762), [#10521](https://github.com/MetaMask/core/pull/10521))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.2...HEAD
+[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.1...@metamask/advanced-chart-core@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.0...@metamask/advanced-chart-core@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.0.0...@metamask/advanced-chart-core@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/advanced-chart-core@1.0.0
