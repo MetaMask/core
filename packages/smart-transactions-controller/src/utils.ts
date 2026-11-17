@@ -88,29 +88,22 @@ export const getStxProcessingTime = (
   return Math.round((Date.now() - smartTransactionSubmittedtime) / 1000);
 };
 
-/**
- * Recursively converts object keys to camelCase. Non-objects are returned
- * unchanged. Used for Sentinel error bodies, which use snake_case keys.
- *
- * @param obj - The value to convert.
- * @returns The value with object keys in camelCase.
- */
-export const mapKeysToCamel = (obj: unknown): unknown => {
+export const mapKeysToCamel = (
+  obj: Record<string, any>,
+): Record<string, any> => {
   if (!isObject(obj)) {
     return obj;
   }
-  const mappedValues = mapValues(obj, (val: unknown) => {
+  const mappedValues = mapValues(obj, (val: Record<string, any>) => {
     if (isArray(val)) {
-      return val.map((item: unknown) => mapKeysToCamel(item));
-    }
-    if (isObject(val)) {
+      return val.map(mapKeysToCamel);
+    } else if (isObject(val)) {
       return mapKeysToCamel(val);
     }
     return val;
   });
-  return mapKeys(mappedValues, (_value: unknown, key: string) =>
-    camelCase(key),
-  );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  return mapKeys(mappedValues, (value, key) => camelCase(key));
 };
 
 export const getErrorData = (error: unknown): string => {

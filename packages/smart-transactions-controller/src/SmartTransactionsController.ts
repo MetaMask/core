@@ -1059,7 +1059,10 @@ export class SmartTransactionsController extends StaticIntervalPollingController
   #toFetchError(error: unknown): unknown {
     if (error instanceof HttpError) {
       return Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
-        data: 'data' in error ? mapKeysToCamel(error.data) : undefined,
+        data:
+          'data' in error
+            ? mapKeysToCamel(error.data as Record<string, any>)
+            : undefined,
       });
     }
     return error;
