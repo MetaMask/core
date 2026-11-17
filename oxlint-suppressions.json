@@ -356,11 +356,6 @@
       "count": 17
     }
   },
-  "packages/advanced-chart-core/src/platform/iframeHost.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/platform/reactNativeHost.ts": {
     "no-shadow": {
       "count": 2
@@ -483,9 +478,6 @@
     }
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
-    "id-length": {
-      "count": 10
-    },
     "no-useless-return": {
       "count": 3
     },
@@ -5189,14 +5181,11 @@
     }
   },
   "packages/transaction-controller/src/TransactionController.ts": {
-    "no-useless-return": {
-      "count": 2
-    },
     "typescript/explicit-function-return-type": {
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 3
+      "count": 1
     },
     "typescript/no-unsafe-assignment": {
       "count": 4

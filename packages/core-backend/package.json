@@ -54,7 +54,7 @@
   "dependencies": {
     "@metamask/account-tree-controller": "^11.2.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/keyring-controller": "^28.2.1",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^36.1.2",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
