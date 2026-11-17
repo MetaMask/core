@@ -3907,9 +3907,9 @@ function getOptions(
 
 // Same lease, but the pending mutation was lost, e.g. after a reinstall.
 function restartWithoutPending(
-  controller: MfaRecoveryController,
+  controller: TestController,
   options: ReturnType<typeof getOptions>,
-): MfaRecoveryController {
+): TestController {
   return new MfaRecoveryController({
     ...options,
     messenger: getMessenger(getRootMessenger(options.authProvider)),

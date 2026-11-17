@@ -1,8 +1,5 @@
-import type {
-  EncryptionResultConstraint,
-  Encryptor,
-} from '@metamask/keyring-controller';
 import type { SeedlessAuthData } from '@metamask/seedless-onboarding-controller';
+import type { Json } from '@metamask/utils';
 
 /**
  * MFA recovery protocol types from the recovery ADR.
@@ -396,27 +393,36 @@ export type RecoveryEscrowProvider = {
 };
 
 /**
- * Encryption key type of the default KeyringController {@link Encryptor}.
+ * Default encryption key type of {@link PendingOperationEncryptor}.
  */
-export type DefaultEncryptionKey = Awaited<ReturnType<Encryptor['importKey']>>;
+export type DefaultEncryptionKey = unknown;
 
 /**
- * Encryption result type of the default KeyringController {@link Encryptor}.
+ * Default encryption result type of {@link PendingOperationEncryptor}, matching
+ * the KeyringController encryptor's result.
  */
-export type DefaultEncryptionResult = Awaited<
-  ReturnType<Encryptor['encryptWithKey']>
->;
+export type DefaultEncryptionResult = {
+  data: string;
+  iv: string;
+  salt?: string;
+  keyMetadata?: unknown;
+};
 
 /**
- * The subset of the KeyringController {@link Encryptor} used to import the
- * host-provided pending operation key and encrypt pending mutation state with
- * it. Pass the same instance given to KeyringController.
+ * Imports the host-provided pending operation key and encrypts pending
+ * mutation state with it. The KeyringController encryptor satisfies this; pass
+ * the same instance given to KeyringController.
  */
 export type PendingOperationEncryptor<
   EncryptionKey = DefaultEncryptionKey,
-  EncryptionResult extends EncryptionResultConstraint<unknown> =
-    DefaultEncryptionResult,
-> = Pick<
-  Encryptor<EncryptionKey, unknown, EncryptionResult>,
-  'importKey' | 'encryptWithKey' | 'decryptWithKey'
->;
+  EncryptionResult = DefaultEncryptionResult,
+> = {
+  // Method syntax keeps parameters bivariant, so encryptors with a narrower
+  // key type still satisfy the default `unknown` key.
+  importKey(key: string): Promise<EncryptionKey>;
+  encryptWithKey(key: EncryptionKey, object: Json): Promise<EncryptionResult>;
+  decryptWithKey(
+    key: EncryptionKey,
+    encryptedObject: EncryptionResult,
+  ): Promise<unknown>;
+};

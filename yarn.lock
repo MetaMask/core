@@ -7115,7 +7115,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/cryptography": "npm:^1.1.2"
-    "@metamask/keyring-controller": "npm:^28.2.1"
+    "@metamask/keyring-controller": "npm:^28.2.2"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/seedless-onboarding-controller": "npm:^12.0.0"

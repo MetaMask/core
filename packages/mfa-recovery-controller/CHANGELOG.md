@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner. `CubistEscrowProviderOptions` takes a `getClient` callback instead of a CubeSigner client so callers can create and refresh the session lazily. Commands reject with an `MfaRecoveryError` with code `session_expired` when the CubeSigner session has expired or cannot be refreshed ([#11280](https://github.com/MetaMask/core/pull/11280))
   - Exports `MfaRecoveryError`, `IncompleteMutationError`, and `MutationRejectedError`.
   - Exports `MIN_IDENTIFIERS`, `IDENTIFIER_AUTH_MODES`, and `getIdentifierAuthMode` for identifier authentication.
-  - Exports types for the recovery providers (`RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider`) and `PendingOperationEncryptor`, the subset of KeyringController's `Encryptor` used for pending state, along with the related identifier, mutation, and recovery phase types, including `GetIdentifiersResponse` and `RecoveryIdentifiers` ([#11149](https://github.com/MetaMask/core/pull/11149))
+  - Exports types for the recovery providers (`RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider`) and `PendingOperationEncryptor`, the `importKey` / `encryptWithKey` / `decryptWithKey` interface used for pending state, which KeyringController's `Encryptor` satisfies, along with the related identifier, mutation, and recovery phase types, including `GetIdentifiersResponse` and `RecoveryIdentifiers` ([#11149](https://github.com/MetaMask/core/pull/11149))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed

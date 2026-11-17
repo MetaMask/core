@@ -4,7 +4,6 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { EncryptionResultConstraint } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationControllerRefreshCanonicalProfileIdAction,
@@ -178,8 +177,7 @@ export type MfaRecoveryControllerMessenger = Messenger<
 
 export type MfaRecoveryControllerOptions<
   EncryptionKey = DefaultEncryptionKey,
-  EncryptionResult extends EncryptionResultConstraint<unknown> =
-    DefaultEncryptionResult,
+  EncryptionResult = DefaultEncryptionResult,
 > = {
   /**
    * The messenger suited for this controller.
@@ -254,8 +252,7 @@ type MutateParams = {
  */
 export class MfaRecoveryController<
   EncryptionKey = DefaultEncryptionKey,
-  EncryptionResult extends EncryptionResultConstraint<unknown> =
-    DefaultEncryptionResult,
+  EncryptionResult = DefaultEncryptionResult,
 > extends BaseController<
   typeof CONTROLLER_NAME,
   MfaRecoveryControllerState,
