@@ -27,7 +27,9 @@ export const countSignificantFigures = (priceString: string): number => {
     : trimmedInteger.replace(/0+$/u, '').length ||
       (trimmedInteger.length > 0 ? 1 : 0);
 
-  return effectiveIntegerLength + decimalPart.length;
+  const significantDecimals =
+    trimmedInteger.length === 0 ? decimalPart.replace(/^0+/u, '') : decimalPart;
+  return effectiveIntegerLength + significantDecimals.length;
 };
 
 /**
@@ -88,7 +90,13 @@ export const roundToSignificantFigures = (
     return normalized;
   }
 
-  const allowedDecimalDigits = maxSigFigs - integerSigFigs;
+  // Keep non-positive and fractional caps on their existing rounding path.
+  const leadingFractionalZeros =
+    integerSigFigs === 0 && Number.isInteger(maxSigFigs) && maxSigFigs > 0
+      ? decimalPart.length - decimalPart.replace(/^0+/u, '').length
+      : 0;
+  const allowedDecimalDigits =
+    maxSigFigs - integerSigFigs + leadingFractionalZeros;
 
   if (allowedDecimalDigits <= 0) {
     return Math.round(number).toString();

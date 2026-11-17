@@ -231,6 +231,60 @@ describe('orderCalculations - scale ladder', () => {
   });
 
   describe('computeChaseQuotePrice', () => {
+    it.each([
+      [true, '0.000172'],
+      [false, '0.000174'],
+    ])('rests inside a sub-dollar spread (isBuy=%s)', (isBuy, expected) => {
+      const bestBid = 0.000171;
+      const bestAsk = 0.000175;
+      const quote = computeChaseQuotePrice({
+        bestBid,
+        bestAsk,
+        isBuy,
+        szDecimals: 0,
+      });
+
+      expect(quote).toBe(expected);
+      expect(Number(quote)).toBeGreaterThan(bestBid);
+      expect(Number(quote)).toBeLessThan(bestAsk);
+    });
+
+    it.each([
+      [0.000171, 0.000172, true, '0.000171'],
+      [0.000171, 0.000172, false, '0.000172'],
+      [0.000039, 0.00004, false, '0.00004'],
+      [0.000032, 0.000033, true, '0.000032'],
+      [0.000002, 0.000003, false, '0.000003'],
+    ])(
+      'joins the touch after formatting a one-tick book %s/%s (isBuy=%s)',
+      (bestBid, bestAsk, isBuy, expected) => {
+        const quote = computeChaseQuotePrice({
+          bestBid,
+          bestAsk,
+          isBuy,
+          szDecimals: 0,
+        });
+        expect(quote).toBe(expected);
+        expect(isBuy ? Number(quote) < bestAsk : Number(quote) > bestBid).toBe(
+          true,
+        );
+      },
+    );
+
+    it.each([
+      [0.99999, 1.0001, '1'],
+      [9.9999, 10.001, '10'],
+    ])(
+      'keeps both sides inside a decade boundary %s/%s',
+      (bestBid, bestAsk, expected) => {
+        for (const isBuy of [true, false]) {
+          expect(
+            computeChaseQuotePrice({ bestBid, bestAsk, isBuy, szDecimals: 0 }),
+          ).toBe(expected);
+        }
+      },
+    );
+
     // The venue's definition: one tick above the best bid for a buy, one tick
     // below the best ask for a sell, or the touch itself when the spread is a
     // single tick. ETH-like precision (szDecimals 4) gives a 0.1 tick at ~3000.
@@ -286,6 +340,7 @@ describe('orderCalculations - scale ladder', () => {
   describe('getPriceTick', () => {
     it.each([
       ['decimal-bound at a low price', 12, 4, 0.01],
+      ['decimal-bound below one dollar', 0.000171, 0, 0.000001],
       ['significant-figure-bound at a high price', 50000, 3, 1],
     ])('is %s', (_label, price, szDecimals, expected) => {
       expect(getPriceTick({ price, szDecimals })).toBeCloseTo(expected, 10);
