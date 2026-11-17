@@ -1958,10 +1958,16 @@ export type GetPositionsParams = {
 };
 
 export type GetAccountStateParams = {
-  accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Defaults to the selected account. Providers that cannot query another
+   * wallet reject unsupported scopes rather than returning the selected
+   * wallet's balance, even when `throwOnUnavailable` is false.
+   */
+  accountId?: CaipAccountId;
   source?: string; // Optional: source of the call for tracing (e.g., 'health_check', 'initial_connection')
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
-  userAddress?: string; // Optional: required when standalone is true - user address to query account state for
+  /** Required for standalone reads. Unsupported wallet scopes reject as above. */
+  userAddress?: string;
   /**
    * Optional: throw instead of returning zero-valued state when the core
    * read fails (session, account payload, malformed venue numbers). Lighter
@@ -3409,6 +3415,14 @@ export type PerpsProvider = {
    * @returns The provider id the write will be submitted through.
    */
   getWriteProviderId?(providerId?: PerpsProviderType): PerpsProviderType;
+
+  /**
+   * Registered execution venues for an aggregating provider. Unlike position
+   * reads, this includes venues whose balances or positions are unavailable.
+   *
+   * @returns Every venue a close-all operation will reach.
+   */
+  getProviderIds?(): PerpsProviderType[];
 
   setUserFeeDiscount?(discountBips: number | undefined): void;
   /**

@@ -10283,6 +10283,28 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
+    // This adapter reads through the selected wallet's session. A different
+    // scope must be unavailable, not a successful balance for that wallet.
+    // Keep this outside the lenient read fallback so it cannot become zeros.
+    const requestedAddresses = [
+      params?.accountId?.split(':').at(-1),
+      params?.userAddress,
+    ];
+    if (requestedAddresses.some((address) => address !== undefined)) {
+      const selectedAddress = this.#walletService
+        .getUserAddress()
+        .toLowerCase();
+      if (
+        requestedAddresses.some(
+          (address) =>
+            address !== undefined && address.toLowerCase() !== selectedAddress,
+        )
+      ) {
+        throw new Error(
+          'Lighter account state can only query the selected wallet account',
+        );
+      }
+    }
     const throwOnUnavailable = params?.throwOnUnavailable === true;
     try {
       this.#ensureSessionBinding();

@@ -1162,24 +1162,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           results: misrouted,
         };
       }
-      if (!onlyProvider?.cancelOrders) {
-        return {
-          success: false,
-          successCount: 0,
-          failureCount: params.length,
-          results: [
-            ...routed.map((param) => ({
-              orderId: param.orderId,
-              symbol: param.symbol,
-              success: false,
-              error: 'Batch cancel not supported',
-              providerId: param.providerId ?? onlyProviderId,
-            })),
-            ...misrouted,
-          ],
-        };
+      if (!onlyProvider) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
       }
-      const result = await onlyProvider.cancelOrders(routed);
+      const result = await this.#cancelOrdersOnProvider(onlyProvider, routed);
       return {
         ...result,
         failureCount: result.failureCount + misrouted.length,
@@ -1200,7 +1186,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
     }
 
-    // Group targets by venue and run each venue's own batch.
+    // Group targets by venue and use its batch or individual cancel API.
     const byProvider = new Map<PerpsProviderType, BatchCancelOrdersParams>();
     for (const param of params) {
       const venue = param.providerId as PerpsProviderType;
@@ -1216,10 +1202,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     const results = await Promise.allSettled(
       grouped.map(async ([providerId, targets]) => {
         const provider = this.#providers.get(providerId);
-        if (!provider?.cancelOrders) {
-          throw new Error('Batch cancel not supported');
+        if (!provider) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
         }
-        const result = await provider.cancelOrders(targets);
+        const result = await this.#cancelOrdersOnProvider(provider, targets);
         // Attach venue identity to every per-order outcome.
         return {
           ...result,
@@ -1247,7 +1233,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
           merged.error ??= result.value.error;
         }
       } else {
-        // The venue's batch threw (or its batch API is missing): its targets
+        // The venue's batch threw (or the venue is missing): its targets
         // fail explicitly instead of silently disappearing from the outcome.
         const message =
           result.reason instanceof Error
@@ -1267,6 +1253,49 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
     merged.success = merged.successCount > 0;
     return merged;
+  }
+
+  /**
+   * Cancel on one venue, retaining per-order outcomes when it has no batch API.
+   *
+   * @param provider - The venue that owns every target.
+   * @param targets - Orders to cancel on that venue.
+   * @returns The batch or individual cancellation results.
+   */
+  async #cancelOrdersOnProvider(
+    provider: PerpsProvider,
+    targets: BatchCancelOrdersParams,
+  ): Promise<CancelOrdersResult> {
+    if (provider.cancelOrders) {
+      return provider.cancelOrders(targets);
+    }
+    const settled = await Promise.allSettled(
+      targets.map(async (target) => provider.cancelOrder(target)),
+    );
+    const results = settled.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return {
+          ...targets[index],
+          success: result.value.success,
+          error: result.value.error,
+        };
+      }
+      return {
+        ...targets[index],
+        success: false,
+        error:
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason),
+      };
+    });
+    const successCount = results.filter((result) => result.success).length;
+    return {
+      success: successCount > 0,
+      successCount,
+      failureCount: results.length - successCount,
+      results,
+    };
   }
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {

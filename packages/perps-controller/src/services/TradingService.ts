@@ -1386,15 +1386,15 @@ export class TradingService {
    * default route. Each venue is priced against only its own positions, since
    * each applies its own fee to its own batch.
    *
-   * When positions cannot be read, or nothing matches, a single unscoped route
-   * with no notional is returned, which the resolver reads as "no notional to
-   * blend against".
+   * Execution destinations are captured before reading positions. An unreadable
+   * or unmatched venue keeps its own route with no notional, which the resolver
+   * reads as "no notional to blend against", never another venue's fee scope.
    *
    * @param options - The configuration options.
    * @param options.params - Which positions the batch will close.
    * @param options.provider - The provider that will submit the batch.
    * @returns One entry per venue the batch reaches. `providerId` is omitted
-   * when the provider is not an aggregator, or for the unpriced fallback.
+   * only when the provider is not an aggregator.
    */
   async #resolveBatchCloseFeeRoutes(options: {
     params: ClosePositionsParams;
@@ -1403,12 +1403,29 @@ export class TradingService {
     { providerId?: PerpsProviderType; notionalUsd: number | undefined }[]
   > {
     const { params, provider } = options;
+    const writeRoute = provider.getWriteProviderId?.();
+    let venues: (PerpsProviderType | undefined)[];
+    if (writeRoute === undefined) {
+      venues = [undefined];
+    } else if (params.targets && params.targets.length > 0) {
+      venues = params.targets.map((target) => target.providerId);
+    } else if (
+      params.closeAll === true ||
+      !params.symbols ||
+      params.symbols.length === 0
+    ) {
+      venues = provider.getProviderIds?.() ?? [writeRoute];
+    } else {
+      venues = [writeRoute];
+    }
+    const notionalByVenue = new Map<PerpsProviderType | undefined, number>(
+      venues.map((venue) => [venue, 0]),
+    );
 
     try {
       const positions = await provider.getPositions();
       // A direct provider's positions are untagged and all its own; an
       // aggregator tags each position with the venue that holds it.
-      const writeRoute = provider.getWriteProviderId?.();
       const venueOf = (position: Position): string =>
         position.providerId ?? writeRoute ?? provider.protocolId;
 
@@ -1435,7 +1452,6 @@ export class TradingService {
         );
       }
 
-      const notionalByVenue = new Map<PerpsProviderType | undefined, number>();
       for (const position of selected) {
         // Only an aggregator can apply a venue-scoped resolution.
         const venue =
@@ -1449,13 +1465,6 @@ export class TradingService {
             (Number.isFinite(value) ? value : 0),
         );
       }
-
-      if (notionalByVenue.size > 0) {
-        return Array.from(notionalByVenue, ([providerId, total]) => ({
-          ...(providerId === undefined ? {} : { providerId }),
-          notionalUsd: total > 0 ? total : undefined,
-        }));
-      }
     } catch (error) {
       // Pricing the batch must never fail the close. Without a notional the
       // resolver quotes the full waiver, which is what it did before.
@@ -1467,7 +1476,10 @@ export class TradingService {
         },
       );
     }
-    return [{ notionalUsd: undefined }];
+    return Array.from(notionalByVenue, ([providerId, total]) => ({
+      ...(providerId === undefined ? {} : { providerId }),
+      notionalUsd: total > 0 ? total : undefined,
+    }));
   }
 
   /**

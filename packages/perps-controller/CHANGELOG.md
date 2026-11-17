@@ -217,6 +217,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Exclude Lighter from aggregated account totals when `getAccountState` requests an `accountId` or standalone `userAddress` other than the selected wallet; unsupported account scopes now reject instead of returning the selected wallet's balance ([#11421](https://github.com/MetaMask/core/pull/11421))
+- Keep batch-close fee resolutions scoped to their execution venues when position pricing fails or returns no matching positions; the optional `PerpsProvider.getProviderIds` method exposes registered venues independently of position availability ([#11421](https://github.com/MetaMask/core/pull/11421))
+- Fall back to individual order cancellations for venues without `cancelOrders`, including Lighter, preserving each order's venue and success or failure in mixed-venue batches ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Preserve exact decimal `marginUsed` and `unrealizedPnl` totals and the margin-weighted `returnOnEquity` in `aggregateAccountStates` by sharing the account-total calculation with cross-venue aggregation instead of using binary floating-point arithmetic ([#11552](https://github.com/MetaMask/core/pull/11552))
 - Avoid cancelling all orders when `CancelOrdersParams.orderIds` or `symbols` is an empty list; empty filters now select no orders ([#11552](https://github.com/MetaMask/core/pull/11552))
 - Stop a HyperLiquid Chase from re-pricing one tick above its own order when it rests at a whole-number price: the book prints that level as `74676.0` while the order was placed at `74676`, so the Chase no longer reads its own order as the touch and walks its price every interval ([#11459](https://github.com/MetaMask/core/pull/11459))

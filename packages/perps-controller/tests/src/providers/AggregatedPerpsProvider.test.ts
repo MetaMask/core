@@ -1522,35 +1522,97 @@ describe('AggregatedPerpsProvider', () => {
       ]);
     });
 
-    it('reports an explicit per-target failure for a venue without batch cancel support', async () => {
-      delete (mockHLProvider as Partial<MockPerpsProvider>).cancelOrders;
-      mockLighterProvider.cancelOrders.mockResolvedValue(
-        cancelResult('lt-1', 'BTC'),
+    it('falls back to individual Lighter cancels in a mixed batch and preserves every outcome', async () => {
+      delete (mockLighterProvider as Partial<MockPerpsProvider>).cancelOrders;
+      mockHLProvider.cancelOrders.mockResolvedValue(
+        cancelResult('same-id', 'BTC'),
       );
+      mockLighterProvider.cancelOrder
+        .mockResolvedValueOnce({ success: true })
+        .mockResolvedValueOnce({ success: false, error: 'order not found' })
+        .mockRejectedValueOnce(new Error('cancel offline'))
+        .mockRejectedValueOnce('cancel rejected');
+      const lighterTargets = [
+        { orderId: 'same-id', symbol: 'BTC', providerId: 'lighter' },
+        { orderId: 'lt-2', symbol: 'ETH', providerId: 'lighter' },
+        { orderId: 'lt-3', symbol: 'SOL', providerId: 'lighter' },
+        { orderId: 'lt-4', symbol: 'BTC', providerId: 'lighter' },
+      ] as const;
 
       const result = await aggregatedProvider.cancelOrders([
-        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
-        { orderId: 'lt-1', symbol: 'BTC', providerId: 'lighter' },
+        { orderId: 'same-id', symbol: 'BTC', providerId: 'hyperliquid' },
+        ...lighterTargets,
       ]);
 
-      expect(result.success).toBe(true);
-      expect(result.successCount).toBe(1);
-      expect(result.failureCount).toBe(1);
+      expect(mockHLProvider.cancelOrders).toHaveBeenCalledExactlyOnceWith([
+        { orderId: 'same-id', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrder).toHaveBeenCalledTimes(4);
+      lighterTargets.forEach((target, index) => {
+        expect(mockLighterProvider.cancelOrder).toHaveBeenNthCalledWith(
+          index + 1,
+          target,
+        );
+      });
+      expect(result).toEqual({
+        success: true,
+        successCount: 2,
+        failureCount: 3,
+        results: [
+          {
+            orderId: 'same-id',
+            symbol: 'BTC',
+            success: true,
+            providerId: 'hyperliquid',
+          },
+          { ...lighterTargets[0], success: true },
+          { ...lighterTargets[1], success: false, error: 'order not found' },
+          { ...lighterTargets[2], success: false, error: 'cancel offline' },
+          { ...lighterTargets[3], success: false, error: 'cancel rejected' },
+        ],
+      });
+    });
+
+    it('reports no success when every individual cancellation fails', async () => {
+      delete (mockLighterProvider as Partial<MockPerpsProvider>).cancelOrders;
+      mockLighterProvider.cancelOrder.mockRejectedValue(
+        new Error('cancel offline'),
+      );
+      const target = {
+        orderId: 'lt-1',
+        symbol: 'BTC',
+        providerId: 'lighter',
+      } as const;
+
+      const result = await aggregatedProvider.cancelOrders([target]);
+
+      expect(result).toEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [{ ...target, success: false, error: 'cancel offline' }],
+      });
+    });
+
+    it('reports an unregistered cancel venue without executing on the default', async () => {
+      const targets = [
+        {
+          orderId: 'bad-1',
+          symbol: 'BTC',
+          providerId: 'missing' as PerpsProviderType,
+        },
+      ];
+      const result = await aggregatedProvider.cancelOrders(targets);
       expect(result.results).toEqual([
         {
-          orderId: 'hl-1',
-          symbol: 'BTC',
+          ...targets[0],
           success: false,
-          error: 'Batch cancel not supported',
-          providerId: 'hyperliquid',
-        },
-        {
-          orderId: 'lt-1',
-          symbol: 'BTC',
-          success: true,
-          providerId: 'lighter',
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
         },
       ]);
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
     });
 
     it('refuses untagged targets while multiple venues are registered', async () => {
@@ -1649,34 +1711,52 @@ describe('AggregatedPerpsProvider', () => {
       ]);
     });
 
-    it('keeps the foreign-venue refusal code when the only venue cannot batch cancel', async () => {
-      aggregatedProvider.removeProvider('lighter');
-      delete (mockHLProvider as Partial<MockPerpsProvider>).cancelOrders;
+    it('falls back to individual cancels on the only venue without forwarding foreign targets', async () => {
+      aggregatedProvider.removeProvider('hyperliquid');
+      delete (mockLighterProvider as Partial<MockPerpsProvider>).cancelOrders;
+      mockLighterProvider.cancelOrder
+        .mockResolvedValueOnce({ success: true })
+        .mockResolvedValueOnce({ success: false, error: 'not found' });
 
       const result = await aggregatedProvider.cancelOrders([
-        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
-        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'hl-1', symbol: 'ETH', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'BTC' },
+        { orderId: 'lt-2', symbol: 'ETH', providerId: 'lighter' },
       ]);
 
-      expect(result.success).toBe(false);
-      expect(result.successCount).toBe(0);
-      expect(result.failureCount).toBe(2);
-      expect(result.results).toEqual([
-        {
-          orderId: 'hl-1',
-          symbol: 'BTC',
-          success: false,
-          error: 'Batch cancel not supported',
-          providerId: 'hyperliquid',
-        },
-        {
-          orderId: 'lt-1',
-          symbol: 'ETH',
-          success: false,
-          error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
-          providerId: 'lighter',
-        },
-      ]);
+      expect(mockLighterProvider.cancelOrder).toHaveBeenCalledTimes(2);
+      expect(mockLighterProvider.cancelOrder).toHaveBeenNthCalledWith(1, {
+        orderId: 'lt-1',
+        symbol: 'BTC',
+      });
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: true,
+        successCount: 1,
+        failureCount: 2,
+        results: [
+          {
+            orderId: 'lt-1',
+            symbol: 'BTC',
+            success: true,
+            providerId: 'lighter',
+          },
+          {
+            orderId: 'lt-2',
+            symbol: 'ETH',
+            success: false,
+            error: 'not found',
+            providerId: 'lighter',
+          },
+          {
+            orderId: 'hl-1',
+            symbol: 'ETH',
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+            providerId: 'hyperliquid',
+          },
+        ],
+      });
     });
 
     it('refuses an all-foreign batch as not found even when the only venue cannot batch cancel', async () => {
