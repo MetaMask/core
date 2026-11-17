@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make `BaseBip44AccountProvider.init` replace tracked account IDs, including clearing them for an empty snapshot ([#10069](https://github.com/MetaMask/core/pull/10069))
+  - Callers and subclasses must pass the complete snapshot on each initialization.
+- Omit unresolved controller entries from `BaseBip44AccountProvider.getAccounts` ([#10069](https://github.com/MetaMask/core/pull/10069))
 - Now throws if two providers share the same `getName()` value ([#11161](https://github.com/MetaMask/core/pull/11161))
   - This verification is run on both default and custom providers, enforcing name uniqueness.
 
