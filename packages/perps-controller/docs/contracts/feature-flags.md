@@ -1,0 +1,40 @@
+# Perps feature flags read by Core
+
+Core reads remote flags from `RemoteFeatureFlagController:getState` and refreshes HIP-3, geo-blocking and multi-provider mode on `RemoteFeatureFlagController:stateChange`. Client selectors, env variables and A/B flags are in [metamask-mobile/docs/perps/feature-flags.md](https://github.com/MetaMask/metamask-mobile/blob/main/docs/perps/feature-flags.md).
+
+Code: `src/PerpsController.ts` constructor, `refreshEligibilityOnFeatureFlagChange`; `src/types/messenger.ts`
+
+## Version-gated flags
+
+A version-gated flag has the shape `{ enabled: boolean, minimumVersion: string }`. Core checks the shape with `isVersionGatedFeatureFlag` and asks the client's `featureFlags.validateVersionGated` for the result, since reading the app version is platform-specific. The result is `true`, `false`, or `undefined` for a misconfigured or overridden flag.
+
+Code: `src/types/index.ts` `VersionGatedFeatureFlag`, `isVersionGatedFeatureFlag`, `PerpsPlatformDependencies`
+
+## Flags
+
+| Flag key                                                             | Controls                                                                                                                                                                                                  | Read in                                                    | Default (flag absent or invalid)                       |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------ |
+| `perpsHip3Enabled`                                                   | HIP-3 (builder-deployed DEX) master switch. Version-gated                                                                                                                                                 | `FeatureFlagConfigurationService.refreshHip3Config`        | `clientConfig.fallbackHip3Enabled`, else `false`       |
+| `perpsHip3AllowlistMarkets`                                          | HIP-3 market allowlist. Comma-separated string or string array. On mainnet, an empty allowlist leaves only the main DEX (`MAINNET_HIP3_CONFIG.AutoDiscoverAll` is false)                                  | `FeatureFlagConfigurationService.refreshHip3Config`        | `clientConfig.fallbackHip3AllowlistMarkets`, else `[]` |
+| `perpsHip3BlocklistMarkets`                                          | HIP-3 market blocklist, same format                                                                                                                                                                       | `FeatureFlagConfigurationService.refreshHip3Config`        | `clientConfig.fallbackHip3BlocklistMarkets`, else `[]` |
+| `perpsPerpTradingGeoBlockedCountriesV2`                              | Geo-blocked regions, as `{ blockedRegions: string[] }`                                                                                                                                                    | `FeatureFlagConfigurationService.refreshEligibility`       | `clientConfig.fallbackBlockedRegions`, else `[]`       |
+| `perpsLighterProviderEnabled`                                        | Registers the Lighter provider. Version-gated. Applies only when the client passes `providerCredentials.lighter.signerBridge`. A local `providerCredentials.lighter.enabled: true` turns it on regardless | `PerpsController.#isLighterProviderEnabled`                | `false`                                                |
+| `perpsMultiProviderModeEnabled`                                      | Moves a direct provider to aggregated mode. Version-gated. `enabled: false` is a kill switch that restores direct mode, also on a connected session. Added in 24.0.0                                      | `PerpsController.#getMultiProviderModeEnabled`             | No change to the persisted mode                        |
+| `perpsSubscriptionFeeWaiverEnabled` (`SUBSCRIPTION_FEE_WAIVER_FLAG`) | The subscription fee-waiver source, on its own. Rewards and the default builder fee are unaffected                                                                                                        | `RewardsIntegrationService.getSubscriptionFeeWaiverStatus` | Enabled. Only an explicit `false` disables it          |
+
+- Invalid HIP-3 market patterns are dropped.
+- The HIP-3 and geo-blocking defaults are starting values. Later, an absent flag keeps the current value, and so does a HIP-3 list that is empty after parsing. Geo-blocking checks only that `blockedRegions` is an array, so a malformed list such as `[123]` still replaces the current one.
+- Once a remote blocked-region list is applied, the fallback list never replaces it.
+- Core never reads the deprecated `perpsPerpTradingGeoBlockedCountries` (no `V2`).
+
+Code: `src/services/FeatureFlagConfigurationService.ts` `refreshHip3Config`, `refreshEligibility`, `setBlockedRegions`; `src/services/DexDiscoveryCacheManager.ts`; `src/constants/hyperLiquidConfig.ts` `MAINNET_HIP3_CONFIG`; `src/PerpsController.ts` `#isLighterProviderEnabled`, `#getMultiProviderModeEnabled`, `#migrateActiveProviderForMultiProviderIfNeeded`, `#refreshMultiProviderModeOnFeatureFlagChange`; `src/services/RewardsIntegrationService.ts` `#isSubscriptionFeeWaiverEnabled`; `src/constants/perpsConfig.ts` `SUBSCRIPTION_FEE_WAIVER_FLAG`; `src/types/index.ts` `PerpsControllerConfig`
+
+## Not read by Core
+
+| Name                                  | What Core does instead                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `perpsAssetMarketTypes`               | Named only in a comment. `HyperLiquidProvider` always uses the static `HIP3_ASSET_MARKET_TYPES` map                                                                                                                                                                                                                                                                                     |
+| `perpsPayWithAnyTokenAllowlistAssets` | Read by the client. See the Mobile doc                                                                                                                                                                                                                                                                                                                                                  |
+| Terminal market list source           | Not a flag. A configured `terminalApi.globalSnapshotUrl` makes the schema-v4 snapshot the market list, except for `skipFilters: true` calls and calls without a snapshot context, which use the provider. Core validates it and falls back to the provider when it is unavailable or invalid. The caller's `useTerminalApi` option chooses the v1 path only when no snapshot URL is set |
+
+Code: `src/constants/hyperLiquidConfig.ts` `HIP3_ASSET_MARKET_TYPES`; `src/providers/HyperLiquidProvider.ts`; `src/services/MarketDataService.ts` `getMarkets`; `src/services/TerminalMarketService.ts` `fetchGlobalSnapshot`
