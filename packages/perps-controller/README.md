@@ -99,11 +99,21 @@ symbol, so they are separate from `results`. `failureCount` includes unresolved
 IDs, or one failure per unavailable venue when the order count is unknown;
 `error` is the stable `BATCH_INCOMPLETE` code even when `success` is true.
 Already discovered scoped targets are not counted as discovery failures, even
-when another DEX on the same venue is unavailable. Clients should check both
-`error` and `discoveryFailures` before presenting a batch as complete.
-Close-all similarly retains successful closes and returns `BATCH_INCOMPLETE`
-with venue details in `ClosePositionsResult.failures` (`{ providerId, error }[]`).
-A venue whose position discovery throws contributes one failure when the number
+when another DEX on the same venue is unavailable. Before presenting a batch as
+complete, clients must inspect `failureCount` and per-item `results` as well as
+`error`, `discoveryFailures` and `failures`.
+A complete direct-venue discovery failure uses the same code and attributes
+its unresolved targets to the provider's validated protocol identity, never a
+tracing tag. If an unknown protocol cannot be attributed safely, the result
+still returns `BATCH_INCOMPLETE` without inventing a venue.
+
+Both multi-venue cancel and close execution batches return `BATCH_INCOMPLETE`
+when a venue throws or returns a batch error. `CancelOrdersResult.failures` and
+`ClosePositionsResult.failures` retain every venue detail as
+`{ providerId, error }[]`; discovery failures remain separate from execution
+failures and per-item `results`. Successful work on other venues is preserved.
+For close-all, a venue whose position discovery throws contributes one failure
+when the number
 of unclosed positions is unknown. Direct single-venue batch errors are preserved.
 
 Batch closes resolve fees only for venues that consume fee resolutions or

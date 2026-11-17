@@ -465,10 +465,59 @@ describe('aggregated account and destructive-operation discovery', () => {
       success: false,
       successCount: 0,
       failureCount: 1,
-      error: 'HL down',
+      error: 'BATCH_INCOMPLETE',
+      discoveryFailures: [{ providerId: 'hyperliquid', error: 'HL down' }],
       results: [],
     });
     expect(hyperliquid.cancelOrders).not.toHaveBeenCalled();
+  });
+
+  it('attributes a complete direct discovery failure to every unresolved requested ID', async () => {
+    const { hyperliquid, infrastructure } = setup();
+    hyperliquid.getOpenOrders.mockRejectedValue(new Error('HL down'));
+    const result = await new TradingService(infrastructure).cancelOrders({
+      provider: hyperliquid,
+      params: { orderIds: ['one', 'two', 'one'] },
+      context: createMockServiceContext({
+        getOpenOrders: (params?: GetOrdersParams) =>
+          hyperliquid.getOpenOrders(params),
+      }),
+      withStreamPause: async (operation) => operation(),
+    });
+    expect(result).toMatchObject({
+      success: false,
+      failureCount: 2,
+      error: 'BATCH_INCOMPLETE',
+      discoveryFailures: [
+        {
+          providerId: 'hyperliquid',
+          error: 'HL down',
+          orderIds: ['one', 'two'],
+        },
+      ],
+    });
+  });
+
+  it('does not fabricate a venue from an unknown provider protocol or tracing tags', async () => {
+    const { hyperliquid, infrastructure } = setup();
+    const provider = { ...hyperliquid, protocolId: 'unknown' };
+    const result = await new TradingService(infrastructure).cancelOrders({
+      provider,
+      params: { cancelAll: true },
+      context: createMockServiceContext({
+        getOpenOrders: async () => {
+          throw new Error('transport down');
+        },
+      }),
+      withStreamPause: async (operation) => operation(),
+    });
+    expect(result).toStrictEqual({
+      success: false,
+      successCount: 0,
+      failureCount: 1,
+      error: 'BATCH_INCOMPLETE',
+      results: [],
+    });
   });
 
   it('does not report an unrelated venue failure for a healthy scoped target', async () => {

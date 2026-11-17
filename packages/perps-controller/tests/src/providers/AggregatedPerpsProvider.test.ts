@@ -1489,6 +1489,37 @@ describe('AggregatedPerpsProvider', () => {
       ]);
     });
 
+    it('retains all returned venue batch errors without choosing the first code', async () => {
+      mockHLProvider.cancelOrders.mockResolvedValue({
+        ...cancelResult('hl-1', 'BTC', false),
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      mockLighterProvider.cancelOrders.mockResolvedValue({
+        ...cancelResult('lt-1', 'ETH', false),
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      });
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+      expect(result).toMatchObject({
+        success: false,
+        successCount: 0,
+        failureCount: 2,
+        error: PERPS_ERROR_CODES.BATCH_INCOMPLETE,
+        failures: [
+          {
+            providerId: 'hyperliquid',
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          },
+          {
+            providerId: 'lighter',
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          },
+        ],
+      });
+    });
+
     it('reports a thrown venue batch as explicit per-target failures', async () => {
       mockHLProvider.cancelOrders.mockRejectedValue(
         new Error('batch rejected'),
@@ -1502,6 +1533,10 @@ describe('AggregatedPerpsProvider', () => {
         { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
       ]);
 
+      expect(result.error).toBe(PERPS_ERROR_CODES.BATCH_INCOMPLETE);
+      expect(result).toMatchObject({
+        failures: [{ providerId: 'hyperliquid', error: 'batch rejected' }],
+      });
       expect(result.success).toBe(true);
       expect(result.successCount).toBe(1);
       expect(result.failureCount).toBe(1);

@@ -1,3 +1,4 @@
+import { assertExhaustive } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -14,6 +15,7 @@ import {
   PerpsControllerError,
 } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
@@ -43,6 +45,10 @@ import type {
   PerpsTraceStatus,
 } from '../types/index.js';
 import {
+  getUnroutedCancelOrdersRefusal,
+  resolveCancelSelection,
+} from '../utils/cancelOrders.js';
+import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_OPERATION,
   createPerpsErrorContext,
@@ -54,6 +60,7 @@ import type {
   PerpsLoggerOptions,
 } from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
+import { hasFeeSetter } from '../utils/feeSupport.js';
 import { captureScaleOrderParams } from '../utils/lighterScaleOrders.js';
 import {
   isLimitExecutionOrderType,
@@ -1710,21 +1717,17 @@ export class TradingService {
     const orderExecutionFeeDiscountStartTime = this.#deps.performance.now();
 
     // The notional is what lets the subscription source resolve to a blended
-    // rate. Submitting without it would resolve every bounded allowance as a
-    // full waiver, charging 0 bips on an order the preview quoted a blend for.
+    // rate. Without it a bounded allowance cannot safely cover the batch.
     const scope = {
       providerId:
         provider.getWriteProviderId?.(providerId) ?? provider.protocolId,
       isTestnet: context.tracingContext.isTestnet,
     };
-    const resolution =
-      reservedSubscriptionNotionalUsd > 0
-        ? await rewardsIntegrationService.resolveFee(
-            orderNotionalUsd,
-            scope,
-            reservedSubscriptionNotionalUsd,
-          )
-        : await rewardsIntegrationService.resolveFee(orderNotionalUsd, scope);
+    const resolution = await rewardsIntegrationService.resolveFee(
+      orderNotionalUsd,
+      scope,
+      reservedSubscriptionNotionalUsd,
+    );
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -2097,19 +2100,10 @@ export class TradingService {
     ) => Promise<TResult>;
   }): Promise<CancelOrdersResult> {
     const { provider, params, context, withStreamPause } = options;
-    if (
-      !params.cancelAll &&
-      !params.orders &&
-      ((params.orderIds ?? params.symbols)?.length ?? 0) > 0 &&
-      (provider.getProviderIds?.().length ?? 1) > 1
-    ) {
-      return {
-        success: false,
-        successCount: 0,
-        failureCount: 0,
-        results: [],
-        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
-      };
+    const selection = resolveCancelSelection(params);
+    const refusal = getUnroutedCancelOrdersRefusal(provider, selection);
+    if (refusal) {
+      return refusal;
     }
 
     const traceId = uuidv4();
@@ -2142,8 +2136,7 @@ export class TradingService {
       > = [];
       // Pause orders stream to prevent WebSocket updates during cancellation
       operationResult = await withStreamPause(async () => {
-        const targets = params.orders ?? params.orderIds ?? params.symbols;
-        if (params.cancelAll !== true && targets?.length === 0) {
+        if (selection.kind === 'none') {
           return {
             success: false,
             successCount: 0,
@@ -2159,28 +2152,39 @@ export class TradingService {
         try {
           orders = await context.getOpenOrders({ throwOnUnavailable: true });
         } catch (error) {
-          if (!(error instanceof OrderDiscoveryError)) {
-            // A total discovery failure (e.g. a direct venue read) has no
-            // cancellable orders; report a structured result instead of
-            // throwing so batch callers always receive a CancelOrdersResult.
+          let failures: OrderDiscoveryError['failures'];
+          if (error instanceof OrderDiscoveryError) {
+            orders = error.orders;
+            failures = error.failures;
+          } else if (isPerpsProviderType(provider.protocolId)) {
+            // Total direct-venue failures use the same unresolved-target
+            // accounting as partial discovery, without trusting tracing tags.
+            orders = [];
+            failures = [
+              {
+                providerId: provider.protocolId,
+                error: ensureError(error).message,
+              },
+            ];
+          } else {
+            // An unknown protocol cannot be relabeled as an execution venue.
             return {
               success: false,
               successCount: 0,
               failureCount: 1,
-              error: error instanceof Error ? error.message : String(error),
+              error: PERPS_ERROR_CODES.BATCH_INCOMPLETE,
               results: [],
             };
           }
-          orders = error.orders;
-          for (const failure of error.failures) {
-            const requestedOrderIds =
-              params.cancelAll === true
-                ? undefined
-                : (params.orders
-                    ?.filter(
-                      (target) => target.providerId === failure.providerId,
-                    )
-                    .map((target) => target.orderId) ?? params.orderIds);
+          for (const failure of failures) {
+            let requestedOrderIds: string[] | undefined;
+            if (selection.kind === 'orders') {
+              requestedOrderIds = selection.orders
+                .filter((target) => target.providerId === failure.providerId)
+                .map((target) => target.orderId);
+            } else if (selection.kind === 'orderIds') {
+              requestedOrderIds = selection.orderIds;
+            }
             // Discovery can fail within a venue while still returning the
             // requested order from another DEX on that same venue.
             const orderIds = requestedOrderIds?.filter(
@@ -2205,34 +2209,36 @@ export class TradingService {
           }
         }
 
-        // Filter orders based on params
-        let ordersToCancel = orders;
-        if (
-          params.cancelAll === true ||
-          (!params.symbols && !params.orderIds && !params.orders)
-        ) {
-          // Cancel all orders (excluding TP/SL orders for positions)
-          ordersToCancel = orders.filter(
-            (order) => !isTPSLOrder(order.detailedOrderType),
-          );
-        } else if (params.orders) {
-          ordersToCancel = orders.filter((order) =>
-            params.orders?.some(
-              (target) =>
-                target.orderId === order.orderId &&
-                target.providerId === (order.providerId ?? provider.protocolId),
-            ),
-          );
-        } else if (params.orderIds) {
-          // Bare IDs are supported only when execution has a single venue.
-          ordersToCancel = orders.filter((order) =>
-            params.orderIds?.includes(order.orderId),
-          );
-        } else if (params.symbols) {
-          // Cancel orders for specific symbols
-          ordersToCancel = orders.filter((order) =>
-            params.symbols?.includes(order.symbol),
-          );
+        // Execute the same normalized selector used by both route guards.
+        let ordersToCancel: Order[];
+        switch (selection.kind) {
+          case 'all':
+            ordersToCancel = orders.filter(
+              (order) => !isTPSLOrder(order.detailedOrderType),
+            );
+            break;
+          case 'orders':
+            ordersToCancel = orders.filter((order) =>
+              selection.orders.some(
+                (target) =>
+                  target.orderId === order.orderId &&
+                  target.providerId ===
+                    (order.providerId ?? provider.protocolId),
+              ),
+            );
+            break;
+          case 'orderIds':
+            ordersToCancel = orders.filter((order) =>
+              selection.orderIds.includes(order.orderId),
+            );
+            break;
+          case 'symbols':
+            ordersToCancel = orders.filter((order) =>
+              selection.symbols.includes(order.symbol),
+            );
+            break;
+          default:
+            assertExhaustive(selection);
         }
 
         if (ordersToCancel.length === 0) {
@@ -2673,10 +2679,7 @@ export class TradingService {
             for (const { providerId, notionalUsd } of feeRoutes) {
               const supportsFees =
                 provider.supportsFeeResolution?.(providerId) ??
-                Boolean(
-                  typeof provider.setUserFeeResolution === 'function' ||
-                  typeof provider.setUserFeeDiscount === 'function',
-                );
+                hasFeeSetter(provider);
               if (!supportsFees) {
                 continue;
               }

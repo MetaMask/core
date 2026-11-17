@@ -209,6 +209,10 @@ import {
 } from './utils/advancedOrderLists.js';
 import type { CanceledChaseOrder } from './utils/advancedOrderLists.js';
 import {
+  getUnroutedCancelOrdersRefusal,
+  resolveCancelSelection,
+} from './utils/cancelOrders.js';
+import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
   PERPS_ERROR_OPERATION,
@@ -1529,8 +1533,8 @@ export class PerpsController extends BaseController<
     const forgetRegisteredTradingAddresses = (): void => {
       this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
-      // Balance entries, and the history they carry, belong to the account
-      // that observed them; another account's must not show as this one's.
+      // Balance entries belong to the selected account; another account's
+      // observations must not show as this one's.
       this.update((draft) => {
         draft.perpsBalances = {};
       });
@@ -3680,8 +3684,8 @@ export class PerpsController extends BaseController<
   /**
    * Structured refusal for an aggregated-mode batch write.
    *
-   * Batch cancel and close cannot name a venue, so while multiple venues are
-   * registered they are refused instead of being sent to the default venue.
+   * Legacy symbol-only closes cannot identify a venue, so while multiple
+   * venues are registered they are refused instead of using the default.
    *
    * @param provider - Resolved provider, when initialization has settled.
    * @returns The batch refusal result, or undefined when the batch may proceed.
@@ -4082,15 +4086,12 @@ export class PerpsController extends BaseController<
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
     // All-order batches fan out; filtered batches must identify their venue.
     const provider = await this.#getActiveProviderWhenReady();
-    if (
-      !params.cancelAll &&
-      !params.orders &&
-      ((params.orderIds ?? params.symbols)?.length ?? 0) > 0
-    ) {
-      const refusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-      if (refusal) {
-        return refusal;
-      }
+    const refusal = getUnroutedCancelOrdersRefusal(
+      provider,
+      resolveCancelSelection(params),
+    );
+    if (refusal) {
+      return refusal;
     }
 
     return this.#tradingService.cancelOrders({
@@ -6766,8 +6767,7 @@ export class PerpsController extends BaseController<
       this.update((state) => {
         state.isTestnet = !state.isTestnet;
         state.effectiveProvider = null;
-        // The previous network's balances, and their history, are not
-        // observations of this one.
+        // The previous network's balances are not observations of this one.
         state.perpsBalances = {};
       });
 

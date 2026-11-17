@@ -199,6 +199,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
         { providerId: 'hyperliquid', isTestnet: false },
+        0,
       );
       expect(aggregatedProvider.getWriteProviderId).toHaveBeenCalledWith(
         'hyperliquid',
@@ -270,6 +271,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -295,6 +297,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         900,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -378,6 +381,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -405,6 +409,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -456,6 +461,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -479,6 +485,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2770,6 +2777,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2789,6 +2797,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         5000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2815,6 +2824,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         25000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -2832,6 +2842,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4800,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3235,7 +3246,7 @@ describe('TradingService', () => {
         });
         expect(
           mockRewardsIntegrationService.resolveFee,
-        ).toHaveBeenCalledExactlyOnceWith(28000, hyperliquidMainnetScope);
+        ).toHaveBeenCalledExactlyOnceWith(28000, hyperliquidMainnetScope, 0);
       });
 
       it('reserves subscription allowance before resolving the next venue', async () => {
@@ -3273,10 +3284,12 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           28000,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           99000,
           lighterMainnetScope,
+          0,
         );
       });
 
@@ -3323,10 +3336,12 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           28000,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           99000,
           lighterMainnetScope,
+          0,
         );
       });
 
@@ -3346,10 +3361,12 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           28000,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           99000,
           lighterMainnetScope,
+          0,
         );
       });
 
@@ -3369,6 +3386,7 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           99000,
           lighterMainnetScope,
+          0,
         );
         expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
           lighterResolution,
@@ -3396,10 +3414,12 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           3000,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           99000,
           lighterMainnetScope,
+          0,
         );
       });
 
@@ -3423,6 +3443,7 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           3000,
           hyperliquidMainnetScope,
+          0,
         );
       });
 
@@ -3443,6 +3464,7 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           25000,
           hyperliquidMainnetScope,
+          0,
         );
       });
 
@@ -3480,6 +3502,7 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           3000,
           hyperliquidMainnetScope,
+          0,
         );
         // A direct provider is the only venue, so the resolution is not scoped.
         expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
@@ -3536,7 +3559,11 @@ describe('TradingService', () => {
         expect(result.failureCount).toBe(0);
         expect(
           mockRewardsIntegrationService.resolveFee,
-        ).toHaveBeenCalledExactlyOnceWith(undefined, hyperliquidMainnetScope);
+        ).toHaveBeenCalledExactlyOnceWith(
+          undefined,
+          hyperliquidMainnetScope,
+          0,
+        );
         expect(hyperliquid.closePosition).toHaveBeenCalledExactlyOnceWith({
           symbol: 'BTC',
         });
@@ -3595,7 +3622,11 @@ describe('TradingService', () => {
 
           expect(
             mockRewardsIntegrationService.resolveFee,
-          ).toHaveBeenCalledExactlyOnceWith(undefined, hyperliquidMainnetScope);
+          ).toHaveBeenCalledExactlyOnceWith(
+            undefined,
+            hyperliquidMainnetScope,
+            0,
+          );
           expect(batchProvider.closePositions).toHaveBeenCalledTimes(1);
           expect(batchProvider.setUserFeeResolution).not.toHaveBeenCalledWith(
             lighterResolution,
@@ -3623,10 +3654,12 @@ describe('TradingService', () => {
           expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
             undefined,
             hyperliquidMainnetScope,
+            0,
           );
           expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
             undefined,
             lighterMainnetScope,
+            0,
           );
           expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
             hyperliquidResolution,
@@ -3667,10 +3700,12 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           undefined,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           600,
           lighterMainnetScope,
+          0,
         );
       });
 
@@ -3697,10 +3732,12 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           undefined,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           99000,
           lighterMainnetScope,
+          0,
         );
         expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
           hyperliquidResolution,
@@ -3726,10 +3763,12 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           undefined,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           99000,
           lighterMainnetScope,
+          0,
         );
       });
 
@@ -3742,7 +3781,7 @@ describe('TradingService', () => {
         });
         expect(
           mockRewardsIntegrationService.resolveFee,
-        ).toHaveBeenCalledExactlyOnceWith(undefined, lighterMainnetScope);
+        ).toHaveBeenCalledExactlyOnceWith(undefined, lighterMainnetScope, 0);
         expect(batchProvider.setUserFeeResolution).toHaveBeenCalledWith(
           lighterResolution,
           'lighter',
@@ -3788,6 +3827,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         10000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -3826,6 +3866,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         1000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4355,6 +4396,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         2750,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4381,6 +4423,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         4500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4406,6 +4449,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         22500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4427,6 +4471,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         27500,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4450,6 +4495,7 @@ describe('TradingService', () => {
         expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
           30000,
           hyperliquidMainnetScope,
+          0,
         );
         expect(mockGetPositions).toHaveBeenCalledTimes(1);
       },
@@ -4473,6 +4519,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4852,6 +4899,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         30000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -4877,6 +4925,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         31000,
         hyperliquidMainnetScope,
+        0,
       );
     });
 
@@ -5578,6 +5627,7 @@ describe('TradingService', () => {
       expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         50000,
         { providerId: 'lighter', isTestnet: false },
+        0,
       );
       expect(mockProvider.placeOrder).toHaveBeenCalledWith(
         expect.objectContaining({

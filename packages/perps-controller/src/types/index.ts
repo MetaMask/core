@@ -1611,10 +1611,13 @@ export type CancelOrdersResult = {
   /**
    * Batch-level operation error.
    *
-   * Set when the batch is refused or order discovery is incomplete, even if
-   * other venues cancelled successfully.
+   * Refused batches retain their code; incomplete discovery or merged venue
+   * batch errors use BATCH_INCOMPLETE, even if other venues succeeded.
    */
   error?: string;
+  /** Venue batch errors, matching ClosePositionsResult.failures. Discovery
+   * errors remain separate because their targets have no discovered symbol. */
+  failures?: { providerId: PerpsProviderType; error: string }[];
   /** Unavailable venues and, for scoped requests, their unresolved order IDs.
    * These targets have no discovered symbol and are not included in results. */
   discoveryFailures?: {

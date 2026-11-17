@@ -126,6 +126,7 @@ import {
   getAccountAggregateMetadata,
 } from '../utils/accountAggregation.js';
 import { ensureError } from '../utils/errorUtils.js';
+import { hasFeeSetter } from '../utils/feeSupport.js';
 
 /** Error returned when only some providers suspend their Chase orders. */
 export class ChaseOrderSuspensionError extends Error {
@@ -1253,6 +1254,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       failureCount: 0,
       results: [],
     };
+    const failures: NonNullable<CancelOrdersResult['failures']> = [];
     results.forEach((result, index) => {
       const [providerId, targets] = grouped[index];
       if (result.status === 'fulfilled') {
@@ -1260,12 +1262,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         merged.failureCount += result.value.failureCount;
         merged.results.push(...result.value.results);
         if (result.value.error !== undefined) {
-          merged.error ??= result.value.error;
+          failures.push({ providerId, error: result.value.error });
         }
       } else {
         // The venue's batch threw (or the venue is missing): its targets
         // fail explicitly instead of silently disappearing from the outcome.
         const { message } = ensureError(result.reason);
+        failures.push({ providerId, error: message });
         merged.failureCount += targets.length;
         merged.results.push(
           ...targets.map((target) => ({
@@ -1278,6 +1281,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         );
       }
     });
+    if (failures.length > 0) {
+      merged.error = PERPS_ERROR_CODES.BATCH_INCOMPLETE;
+      merged.failures = failures;
+    }
     merged.success = merged.successCount > 0;
     return merged;
   }
@@ -2278,10 +2285,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   supportsFeeResolution(providerId?: PerpsProviderType): boolean {
     const provider = this.#providers.get(providerId ?? this.#defaultProvider);
-    return Boolean(
-      typeof provider?.setUserFeeResolution === 'function' ||
-      typeof provider?.setUserFeeDiscount === 'function',
-    );
+    return hasFeeSetter(provider);
   }
 
   setUserFeeResolution(
