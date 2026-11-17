@@ -3348,14 +3348,9 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Reselects the provider when the currently selected provider was auto-selected
-   * but has no usable quote in the response. Keeps the selection marked as
-   * auto-selected. Does nothing when the provider was manually selected or when
-   * the selected provider has a valid quote.
-   *
-   * This prevents the UI from showing a disabled Continue button when an
-   * auto-selected provider (e.g., Banxa) times out or returns no quote while
-   * other providers successfully return quotes.
+   * Reselects the provider when the auto-selected provider has no quote in the
+   * response. Does nothing for manual selections or when the selected provider
+   * has a valid quote.
    *
    * @param response - The quotes response to check.
    */
@@ -3398,10 +3393,9 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Picks the best quote for auto-reselection based on sorted order.
-   * Prefers reliability over price, then falls back to the first available quote.
+   * Picks the best quote for reselection (reliability → price → first).
    *
-   * @param response - The quotes response to pick from.
+   * @param response - The quotes response.
    * @returns The selected quote, or `undefined` when none is available.
    */
   #pickBestQuoteForReselection(response: QuotesResponse): Quote | undefined {
