@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.1.0]
 
-### Uncategorized
-
-- Release 1425.0.0 ([#11537](https://github.com/MetaMask/core/pull/11537))
-- Release 1424.0.0 ([#11488](https://github.com/MetaMask/core/pull/11488))
-- Release 1422.0.0 ([#11472](https://github.com/MetaMask/core/pull/11472))
-
 ### Added
 
 - Add `AccountState.spotCollateral`, the spot USDC that counts as cross collateral, so clients can pass it to `calculateAccountSummary` instead of assuming spot collateral is `0` ([#11457](https://github.com/MetaMask/core/pull/11457))
@@ -61,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/subscription-controller` from `^15.2.1` to `^15.2.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 - Lighter releases a stream channel 5 seconds after its last listener leaves: it sends `unsubscribe`, drops the channel from the reconnect set and drops its cached order book, candle series or price snapshot ([#11502](https://github.com/MetaMask/core/pull/11502))
   - Applies to `order_book`, `candle`, `trade` and `market_stats` channels; account channels are released as a group once no account, position, order or fill listener is left
   - A listener that returns within the wait keeps the channel without new frames
