@@ -111,8 +111,8 @@ describe('LineaGasFeeFlow', () => {
 
       expect(priorityFees).toStrictEqual([
         LINEA_RESPONSE_MOCK.priorityFeePerGas,
-        '0x23a3d70a3',
-        '0x25658bf25',
+        '0x23d70a3d6',
+        '0x258bf258b',
       ]);
 
       expect(rpcRequestMock).toHaveBeenCalledTimes(1);
@@ -139,10 +139,48 @@ describe('LineaGasFeeFlow', () => {
 
       expect(maxFees).toStrictEqual([
         '0x333333333',
-        '0x3a7ae1479',
-        '0x42428f5c1',
+        '0x3ae147ae0',
+        '0x428f5c28e',
       ]);
     });
+
+    it.each([
+      [30_000_000_000n, 1_000_000_000n],
+      [3n, 19n],
+      [0n, 0n],
+      [2n ** 26n - 1n, 2n ** 26n - 1n],
+      [2n ** 26n, 2n ** 26n],
+      [2n ** 26n + 1n, 2n ** 26n + 1n],
+      [2n ** 52n + 1n, 2n ** 52n + 1n],
+      [2n ** 53n + 1n, 2n ** 53n + 1n],
+    ])(
+      'applies fractional multipliers to base %s and priority %s',
+      async (base, priority) => {
+        rpcRequestMock.mockResolvedValue({
+          baseFeePerGas: `0x${base.toString(16)}`,
+          priorityFeePerGas: `0x${priority.toString(16)}`,
+        });
+
+        const { estimates } = await new LineaGasFeeFlow().getGasFees(request);
+        const fees = estimates as FeeMarketGasFeeEstimates;
+
+        for (const [level, baseNumerator, priorityNumerator] of [
+          [GasFeeEstimateLevel.Low, 100n, 100n],
+          [GasFeeEstimateLevel.Medium, 135n, 105n],
+          [GasFeeEstimateLevel.High, 170n, 110n],
+        ] as const) {
+          const expectedPriority = (priority * priorityNumerator) / 100n;
+          const expectedBase = (base * baseNumerator) / 100n;
+
+          expect(BigInt(fees[level].maxPriorityFeePerGas)).toBe(
+            expectedPriority,
+          );
+          expect(BigInt(fees[level].maxFeePerGas)).toBe(
+            expectedBase + expectedPriority,
+          );
+        }
+      },
+    );
 
     it('uses default flow if error', async () => {
       vi.spyOn(DefaultGasFeeFlow.prototype, 'getGasFees').mockResolvedValue(
