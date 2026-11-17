@@ -317,6 +317,24 @@ describe('submitServerQuotes', () => {
     expect(getServerStatusMock).toHaveBeenCalledTimes(2);
   });
 
+  it('returns the source hash for a non-EVM target', async () => {
+    request.quotes[0].request.targetChainId =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    request.quotes[0].request.targetTokenAddress =
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
+    getServerStatusMock.mockResolvedValue({
+      sourceHash: SOURCE_HASH_MOCK,
+      status: ServerStatus.Confirmed,
+      targetHash:
+        '5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW',
+    });
+
+    const result = await submitServerQuotes(request);
+
+    expect(result).toStrictEqual({ transactionHash: SOURCE_HASH_MOCK });
+  });
+
   describe('second leg', () => {
     const SECOND_LEG_HASH_MOCK = '0xsecondleg' as Hex;
     const RECIPIENT_MOCK = '0x9999999999999999999999999999999999999999' as Hex;

@@ -1191,6 +1191,7 @@ describe('Relay Submit Utils', () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         request.quotes[0].request.atomic = false;
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
         request.quotes[0].original.details.currencyOut.minimumAmount = '530000';
         submitSecondLegMock.mockResolvedValue({
           transactionHash:

@@ -39,7 +39,7 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipChainId, Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -407,8 +407,8 @@ export type TransactionFiatPayment = {
 
 /** A token required by a transaction. */
 export type TransactionPayRequiredToken = {
-  /** Address of the required token. */
-  address: Hex;
+  /** Address of the required token, or the token mint on non-EVM chains. */
+  address: string;
 
   /** Whether to allow quotes that return less than the minimum amount requested. */
   allowUnderMinimum: boolean;
@@ -437,11 +437,14 @@ export type TransactionPayRequiredToken = {
   /** Balance of the required token in USD. */
   balanceUsd: string;
 
-  /** Chain ID of the required token. */
-  chainId: Hex;
+  /** Chain ID of the required token, as CAIP-2 on non-EVM chains. */
+  chainId: Hex | CaipChainId;
 
   /** Decimals of the required token. */
   decimals: number;
+
+  /** Address to receive the required token, if not the transaction sender. */
+  recipient?: string;
 
   /** Whether to skip transfer of this token if balance is already sufficient. */
   skipIfBalance: boolean;
@@ -468,7 +471,7 @@ export type TransactionPaySourceAmount = {
   sourceTokenAddress?: Hex;
 
   /** Address of the target token. */
-  targetTokenAddress: Hex;
+  targetTokenAddress: string;
 };
 
 /**
@@ -586,7 +589,7 @@ export type QuoteRequest = {
   paymentOverride?: PaymentOverride;
 
   /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
-  recipient?: Hex;
+  recipient?: string;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -613,11 +616,11 @@ export type QuoteRequest = {
   /** Minimum amount required of the target token in atomic format without factoring token decimals. */
   targetAmountMinimum: string;
 
-  /** Chain ID of the target token. */
-  targetChainId: Hex;
+  /** Chain ID of the target token, as CAIP-2 on non-EVM chains. */
+  targetChainId: Hex | CaipChainId;
 
   /** Address of the target token. */
-  targetTokenAddress: Hex;
+  targetTokenAddress: string;
 
   /**
    * One-time HyperLiquid activation fee (USD) reserved from the source amount

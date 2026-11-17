@@ -92,6 +92,24 @@ describe('RelayStrategy', () => {
     expect(strategy.supports(request)).toBe(false);
   });
 
+  it('returns false from supports when any request targets a non-EVM chain', () => {
+    const strategy = new RelayStrategy();
+
+    expect(
+      strategy.supports({
+        ...request,
+        requests: [
+          ...request.requests,
+          {
+            ...request.requests[0],
+            targetChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            targetTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
   it('delegates getQuotes', async () => {
     const quote = {
       request: {

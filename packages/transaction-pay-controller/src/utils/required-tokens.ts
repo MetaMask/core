@@ -1,15 +1,23 @@
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import type {
+  RequiredAsset,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
+import type { CaipChainId, Hex } from '@metamask/utils';
+import {
+  createModuleLogger,
+  KnownCaipNamespace,
+  parseCaipChainId,
+} from '@metamask/utils';
 
 import { projectLogger } from '../logger.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayRequiredToken,
 } from '../types.js';
+import { isEvmChainId } from './chain.js';
 import {
   computeTokenAmounts,
   getTokenBalance,
@@ -39,9 +47,7 @@ export function parseRequiredTokens(
 
   if (requiredAssets?.length) {
     const assetTokens = requiredAssets
-      .map((asset) =>
-        buildRequiredToken(transaction, asset.address, asset.amount, messenger),
-      )
+      .map((asset) => buildRequiredAssetToken(transaction, asset, messenger))
       .filter(Boolean) as TransactionPayRequiredToken[];
 
     return assetTokens;
@@ -94,28 +100,98 @@ function getTokenTransferToken(
 }
 
 /**
+ * Get the full token properties for a required asset.
+ *
+ * Assets on another chain to the transaction, including non-EVM chains, are
+ * delivered to the asset's own recipient.
+ *
+ * @param transaction - Transaction metadata.
+ * @param asset - Required asset.
+ * @param messenger - Controller messenger.
+ * @returns The full token properties or undefined if the token data could not be retrieved.
+ */
+function buildRequiredAssetToken(
+  transaction: TransactionMeta,
+  asset: RequiredAsset,
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayRequiredToken | undefined {
+  const chainId = getRequiredAssetChainId(transaction, asset);
+  const { recipient } = asset;
+
+  // Defaulting to the sender would deliver funds to an EVM address.
+  if (!isEvmChainId(chainId) && !recipient) {
+    log('Missing recipient for non-EVM required asset', {
+      transactionId: transaction.id,
+      chainId,
+    });
+    return undefined;
+  }
+
+  return buildRequiredToken(
+    transaction,
+    asset.address,
+    asset.amount,
+    messenger,
+    { chainId, recipient },
+  );
+}
+
+/**
+ * Get the chain ID of a required asset, normalising EVM chains to hexadecimal.
+ *
+ * @param transaction - Transaction metadata.
+ * @param asset - Required asset.
+ * @returns Hexadecimal chain ID for EVM chains, otherwise the CAIP-2 chain ID.
+ */
+function getRequiredAssetChainId(
+  transaction: TransactionMeta,
+  asset: RequiredAsset,
+): Hex | CaipChainId {
+  if (!asset.chainId) {
+    return transaction.chainId;
+  }
+
+  const { namespace, reference } = parseCaipChainId(asset.chainId);
+
+  return namespace === KnownCaipNamespace.Eip155
+    ? toHex(reference)
+    : asset.chainId;
+}
+
+/**
  * Get the full token properties for a specific token and amount.
  *
  * @param transaction - Transaction metadata.
  * @param tokenAddress - Token address.
  * @param amountRawHex - Raw token amount in hexadecimal format.
  * @param messenger - Controller messenger.
+ * @param destination - Optional destination of the token.
+ * @param destination.chainId - Chain ID of the token, if not the transaction chain.
+ * @param destination.recipient - Address to receive the token, if not the sender.
  * @returns The full token properties or undefined if the token data could not be retrieved.
  */
 function buildRequiredToken(
   transaction: TransactionMeta,
-  tokenAddress: Hex,
+  tokenAddress: string,
   amountRawHex: Hex,
   messenger: TransactionPayControllerMessenger,
+  {
+    chainId = transaction.chainId,
+    recipient,
+  }: { chainId?: Hex | CaipChainId; recipient?: string } = {},
 ): TransactionPayRequiredToken | undefined {
-  const { chainId, txParams } = transaction;
-  const from = txParams.from as Hex;
+  const account = recipient ?? transaction.txParams.from;
 
   const { decimals: tokenDecimals, symbol } =
     getTokenInfo(messenger, tokenAddress, chainId) ?? {};
 
   const fiatRates = getTokenFiatRate(messenger, tokenAddress, chainId);
-  const tokenBalance = getTokenBalance(messenger, from, chainId, tokenAddress);
+  const tokenBalance = getTokenBalance(
+    messenger,
+    account,
+    chainId,
+    tokenAddress,
+  );
 
   if (tokenDecimals === undefined || !symbol || fiatRates === undefined) {
     log('Missing token data', {
@@ -158,6 +234,7 @@ function buildRequiredToken(
     balanceUsd,
     chainId,
     decimals: tokenDecimals,
+    ...(recipient ? { recipient } : {}),
     skipIfBalance: false,
     symbol,
   };

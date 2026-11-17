@@ -13,6 +13,7 @@ import {
   NATIVE_TOKEN_ADDRESS,
   POLYGON_USDCE_ADDRESS,
 } from '../constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
@@ -47,6 +48,9 @@ const SYMBOL_MOCK = 'TEST';
 const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
 const PROVIDER_MOCK = { request: vi.fn() };
+const SOLANA_CHAIN_ID_MOCK = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+const SOLANA_MINT_MOCK = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const SOLANA_USDC_ASSET_ID_MOCK = `${SOLANA_CHAIN_ID_MOCK}/token:${SOLANA_MINT_MOCK}`;
 
 /**
  * Build a CAIP-19 asset ID for fixtures, mirroring how `AssetsController` keys
@@ -115,7 +119,7 @@ describe('Token Utils', () => {
 
       const result = getTokenInfo(
         messenger,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        TOKEN_ADDRESS_MOCK.toLowerCase(),
         CHAIN_ID_MOCK,
       );
 
@@ -191,7 +195,7 @@ describe('Token Utils', () => {
 
       const result = getTokenInfo(
         messenger,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        TOKEN_ADDRESS_MOCK.toLowerCase(),
         CHAIN_ID_MOCK,
       );
 
@@ -220,7 +224,7 @@ describe('Token Utils', () => {
 
       const result = getTokenInfo(
         messenger,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        TOKEN_ADDRESS_MOCK.toLowerCase(),
         CHAIN_ID_MOCK,
       );
 
@@ -252,7 +256,7 @@ describe('Token Utils', () => {
 
       const result = getTokenInfo(
         messenger,
-        DUPLICATE_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        DUPLICATE_TOKEN_ADDRESS_MOCK.toLowerCase(),
         CHAIN_ID_MOCK,
       );
 
@@ -482,6 +486,36 @@ describe('Token Utils', () => {
         getTokenInfo(messenger, NATIVE_TOKEN_ADDRESS, '0x38'),
       ).toBeUndefined();
     });
+
+    describe('with non-EVM asset', () => {
+      const typedMessenger = messenger as TransactionPayControllerMessenger;
+
+      beforeEach(() => {
+        vi.mocked(
+          getAssetsControllerStateMock as () => unknown,
+        ).mockReturnValue({
+          assetsInfo: {
+            [SOLANA_USDC_ASSET_ID_MOCK]: { decimals: 6, symbol: 'USDC' },
+          },
+        });
+      });
+
+      it('resolves asset by its asset reference', () => {
+        expect(
+          getTokenInfo(typedMessenger, SOLANA_MINT_MOCK, SOLANA_CHAIN_ID_MOCK),
+        ).toStrictEqual({ decimals: 6, symbol: 'USDC' });
+      });
+
+      it('does not resolve asset using a different case', () => {
+        expect(
+          getTokenInfo(
+            typedMessenger,
+            SOLANA_MINT_MOCK.toLowerCase(),
+            SOLANA_CHAIN_ID_MOCK,
+          ),
+        ).toBeUndefined();
+      });
+    });
   });
 
   describe('getTokenBalance', () => {
@@ -546,7 +580,7 @@ describe('Token Utils', () => {
         messenger,
         FROM_MOCK,
         CHAIN_ID_MOCK,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        TOKEN_ADDRESS_MOCK.toLowerCase(),
       );
 
       expect(result).toBe('291000000');
@@ -819,7 +853,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        TOKEN_ADDRESS_MOCK.toLowerCase(),
         CHAIN_ID_MOCK,
       );
 
@@ -860,7 +894,7 @@ describe('Token Utils', () => {
 
       const result = getTokenFiatRate(
         messenger,
-        DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK.toLowerCase(),
         CHAIN_ID_MOCK,
       );
 

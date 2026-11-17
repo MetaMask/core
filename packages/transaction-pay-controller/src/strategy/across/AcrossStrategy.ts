@@ -10,6 +10,7 @@ import type {
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types.js';
+import { isEvmQuoteRequest } from '../../utils/chain.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import {
   isPerpsDepositRequest,
@@ -26,7 +27,7 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
     const config = getPayStrategiesConfig(request.messenger);
 
-    if (!config.across.enabled) {
+    if (!config.across.enabled || !request.requests.every(isEvmQuoteRequest)) {
       return false;
     }
 

@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `solanaTest` to `TransactionType`
+- Support required assets on non-EVM chains
+  - Add optional `chainId` and `recipient` to `RequiredAsset`.
+
 ### Changed
+
+- **BREAKING:** Widen `RequiredAsset.address` from `Hex` to `string` to support non-EVM token addresses
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.2.0` ([#11546](https://github.com/MetaMask/core/pull/11546))

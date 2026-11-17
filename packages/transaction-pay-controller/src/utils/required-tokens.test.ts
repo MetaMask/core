@@ -131,6 +131,85 @@ describe('Required Tokens Utils', () => {
         expect(result).toStrictEqual([]);
       });
 
+      it('returns non-EVM token with recipient', () => {
+        const chainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+        const mint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+        const recipient = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+
+        getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
+        getTokenBalanceMock.mockReturnValue('5000000');
+        getTokenFiatRateMock.mockReturnValue({ usdRate: '1', fiatRate: '1' });
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [
+            {
+              address: mint,
+              amount: '0x2DC6C0',
+              chainId,
+              recipient,
+              standard: 'erc20',
+            },
+          ],
+        };
+
+        const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(result).toStrictEqual([
+          expect.objectContaining({ address: mint, chainId, recipient }),
+        ]);
+        expect(getTokenBalanceMock).toHaveBeenCalledWith(
+          MESSENGER_MOCK,
+          recipient,
+          chainId,
+          mint,
+        );
+      });
+
+      it('skips non-EVM asset without recipient', () => {
+        getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
+        getTokenBalanceMock.mockReturnValue('5000000');
+        getTokenFiatRateMock.mockReturnValue({ usdRate: '1', fiatRate: '1' });
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [
+            {
+              address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+              amount: '0x2DC6C0',
+              chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              standard: 'erc20',
+            },
+          ],
+        };
+
+        const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(result).toStrictEqual([]);
+      });
+
+      it('normalises EVM CAIP-2 chain ID to hexadecimal', () => {
+        getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
+        getTokenBalanceMock.mockReturnValue('5000000');
+        getTokenFiatRateMock.mockReturnValue({ usdRate: '1', fiatRate: '1' });
+
+        const transactionMeta: TransactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          requiredAssets: [
+            {
+              address: '0xabc123',
+              amount: '0x2DC6C0',
+              chainId: 'eip155:137',
+              standard: 'erc20',
+            },
+          ],
+        };
+
+        const result = parseRequiredTokens(transactionMeta, MESSENGER_MOCK);
+
+        expect(result[0].chainId).toBe('0x89');
+      });
+
       it('falls back to parsing transaction when requiredAssets is empty', () => {
         getTokenInfoMock.mockReturnValue({ decimals: 3, symbol: 'TST' });
         getTokenBalanceMock.mockReturnValue('789000');

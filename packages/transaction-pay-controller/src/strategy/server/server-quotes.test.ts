@@ -319,6 +319,50 @@ describe('server-quotes', () => {
     );
   });
 
+  describe('Solana target', () => {
+    const SOLANA_MINT_MOCK = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+    const SOLANA_RECIPIENT_MOCK =
+      '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+
+    const SOLANA_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      recipient: SOLANA_RECIPIENT_MOCK,
+      targetChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+      targetTokenAddress: SOLANA_MINT_MOCK,
+    };
+
+    it('maps target to server chain ID without calls', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [SOLANA_REQUEST_MOCK],
+        transaction: COMPLEX_TRANSACTION_META_MOCK,
+      });
+
+      const body = fetchServerQuoteMock.mock.calls[0][1];
+
+      expect(body.target).toStrictEqual({
+        chainId: 792703809,
+        token: SOLANA_MINT_MOCK,
+      });
+      expect(body.calls).toBeUndefined();
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('uses request recipient', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [SOLANA_REQUEST_MOCK],
+        transaction: COMPLEX_TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock.mock.calls[0][1].recipient).toBe(
+        SOLANA_RECIPIENT_MOCK,
+      );
+    });
+  });
+
   it('maps max-amount transactions to input-based EXACT_INPUT quotes', async () => {
     const result = await getServerQuotes({
       accountSupports7702: true,

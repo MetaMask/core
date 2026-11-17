@@ -15,12 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support non-EVM required tokens in `ServerStrategy`, starting with Solana
+  - Read the target chain and recipient from `RequiredAsset.chainId` and `RequiredAsset.recipient`.
+  - Return the source transaction hash for non-EVM targets once the intent completes.
+  - Reject non-EVM targets in `RelayStrategy` and `AcrossStrategy`.
+  - Price `solanaTest` quotes as exact output, so the follow-up purchase receives the exact amount.
+  - Throw in the publish hook if a required token on another chain has no quote.
+
 - Support max-amount quotes in `ServerStrategy`, using the same max flow as `RelayStrategy` ([#11418](https://github.com/MetaMask/core/pull/11418))
   - Re-quote with a reduced source amount so origin gas can be paid from the source token when the user lacks native balance.
   - Quote subsidized routes atomically when `payStrategies.relay.atomicMaxEnabled` is enabled, embedding the transaction's calls re-encoded for the max amount.
 
 ### Changed
 
+- **BREAKING:** Widen `chainId` to `Hex | CaipChainId` and `address` to `string` in `TransactionPayRequiredToken` and `QuoteRequest`, and add optional `recipient`
 - Reserve the HyperLiquid activation fee in `ServerStrategy` for Perps withdrawals from HyperCore accounts that are not yet activated ([#11475](https://github.com/MetaMask/core/pull/11475))
   - Previously the full withdrawable balance was quoted, so HyperLiquid's `sendAsset` failed for insufficient balance.
   - The reserved fee is added to the provider fee, matching `RelayStrategy`.

@@ -48,6 +48,7 @@ describe('trade-type', () => {
     it.each([
       TransactionType.perpsDepositAndOrder,
       TransactionType.predictDepositAndOrder,
+      TransactionType.solanaTest,
     ])('prices %s on the target amount without calls', (type) => {
       expect(
         getPricing({ transaction: { type } as TransactionMeta }),

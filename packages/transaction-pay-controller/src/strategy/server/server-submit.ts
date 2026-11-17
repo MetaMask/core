@@ -18,10 +18,12 @@ import { projectLogger } from '../../logger.js';
 import type {
   GetDelegationTransactionCallback,
   PayStrategyExecuteRequest,
+  QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
 import { accountSupports7702 } from '../../utils/account.js';
+import { assertEvmQuoteRequest, isEvmChainId } from '../../utils/chain.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
@@ -92,8 +94,9 @@ type StepTransaction = {
 
 /** Terminal outcome of a server intent. */
 type ServerCompletion = {
+  sourceHash?: Hex;
   status: ServerStatus.Confirmed | ServerStatus.Failed | ServerStatus.Refunded;
-  targetHash?: Hex;
+  targetHash?: string;
 };
 
 function isSignatureStep(
@@ -295,7 +298,7 @@ async function executeSingleServerQuote(
     throw new Error(`Server intent ${completion.status.toLowerCase()}`);
   }
 
-  const targetHash = completion.targetHash ?? MISSING_TARGET_HASH;
+  const targetHash = getCompletionHash(quote.request, completion);
 
   // Phase 4: submit the calls the quote could not execute itself, now that the
   // funds have settled on the target chain.
@@ -335,6 +338,8 @@ async function submitServerSecondLeg(
   transaction: TransactionMeta,
   targetHash: Hex | undefined,
 ): Promise<Hex | undefined> {
+  assertEvmQuoteRequest(quote.request);
+
   const { from, isPostQuote, recipient, targetChainId, targetTokenAddress } =
     quote.request;
 
@@ -1275,14 +1280,14 @@ async function waitForServerCompletion(
         );
       }
 
-      const { status, targetHash } = statusResponse;
+      const { sourceHash, status, targetHash } = statusResponse;
 
       if (
         status === ServerStatus.Confirmed ||
         status === ServerStatus.Failed ||
         status === ServerStatus.Refunded
       ) {
-        return { status, targetHash };
+        return { sourceHash, status, targetHash };
       }
     }
 
@@ -1293,4 +1298,25 @@ async function waitForServerCompletion(
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
   }
+}
+
+/**
+ * Get the hash to record on the parent transaction once the intent completes.
+ *
+ * The parent transaction is on an EVM chain, so a non-EVM target is recorded
+ * using the hash of the source transaction instead.
+ *
+ * @param request - Quote request.
+ * @param completion - Server completion.
+ * @returns The transaction hash, or a placeholder if not available.
+ */
+function getCompletionHash(
+  request: QuoteRequest,
+  completion: ServerCompletion,
+): Hex {
+  if (!isEvmChainId(request.targetChainId)) {
+    return completion.sourceHash ?? MISSING_TARGET_HASH;
+  }
+
+  return (completion.targetHash as Hex | undefined) ?? MISSING_TARGET_HASH;
 }
