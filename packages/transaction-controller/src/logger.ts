@@ -9,4 +9,6 @@ export const incomingTransactionsLogger = createModuleLogger(
   'incoming-transactions',
 );
 
+export const lifecycleLogger = createModuleLogger(projectLogger, 'lifecycle');
+
 export { createModuleLogger };

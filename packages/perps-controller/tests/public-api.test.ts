@@ -34,6 +34,7 @@ import {
   estimateIsolatedLeverageChange,
   formatRoePercent,
   getCrossCollateral,
+  getCrossMarginSpotCollateral,
   getMaxStopLossPercentage,
   isPositiveTriggerPrice,
   isStopLossSafeFromLiquidation,
@@ -342,6 +343,30 @@ describe('@metamask/perps-controller public API', () => {
       10.4,
     );
     expect(summary.accountLeverage).toBeCloseTo(12.31 / 15.57);
+  });
+
+  it('exports the spot USDC that counts as cross collateral', () => {
+    const spot = {
+      balances: [
+        { coin: 'USDC', token: 0, total: '900', hold: '0', entryNtl: '900' },
+      ],
+    };
+    const spotCollateral = getCrossMarginSpotCollateral(spot, 'unifiedAccount');
+    const summary: PerpsAccountSummary = calculateAccountSummary({
+      totalEquity: '1000',
+      crossMarginSummary: {
+        accountValue: '100',
+        maintenanceMargin: '60',
+        notional: '0',
+        marginUsed: '60',
+      },
+      spotCollateral,
+    });
+
+    expect(spotCollateral).toBe('900');
+    expect(getCrossMarginSpotCollateral(spot, 'disabled')).toBe('0');
+    expect(getCrossMarginSpotCollateral(spot, null)).toBeUndefined();
+    expect(summary.accountRatio).toBeCloseTo(0.06);
   });
 
   it('exports the shared close-receive estimate and net closed PnL', () => {

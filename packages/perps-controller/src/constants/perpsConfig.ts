@@ -386,6 +386,11 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
   // See: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/margin-and-pnl
   MarginRemovalSafetyBuffer: 0.1,
 
+  // Share of notional kept back from a margin removal for the mark price
+  // moving before the venue processes it; the exact boundary is rejected on
+  // any adverse tick
+  MarginRemovalPriceMoveBuffer: 0.01,
+
   // Fallback max leverage when market data is unavailable
   // Conservative value to prevent over-removal of margin
   // Most HyperLiquid assets support at least 50x leverage
@@ -730,14 +735,16 @@ export const FUNDING_RATE_CONFIG = {
 /**
  * Decimal places shown for each displayed perps value, shared by Mobile,
  * Extension and Terminal. Pass one as the `decimals` option of the display
- * formatters (`formatPercentage`, `formatPnl`, `formatPerpsFiat`,
- * `formatFundingRate`, `formatFeeBps`, `formatLiquidationDistance`,
- * `formatPerpsCompact`, `formatPerpsUsdInput`). Prices follow
- * `PRICE_RANGES_UNIVERSAL` instead.
+ * formatters (`formatPercentage`, `formatCrossMarginRatio`, `formatPnl`,
+ * `formatPerpsFiat`, `formatFundingRate`, `formatFeeBps`,
+ * `formatLiquidationDistance`, `formatPerpsCompact`,
+ * `formatPerpsUsdInput`). Prices follow `PRICE_RANGES_UNIVERSAL` instead.
  */
 export const PERPS_DISPLAY_PRECISION = {
   // Generic percentage, such as the 24h change: "+5.25%"
   Percentage: 2,
+  // Cross margin account ratio and usage, from a 0..1 ratio: "17.4%", "63%"
+  CrossMarginRatioPercent: 1,
   // Return on equity: "+10.3%"
   RoePercent: 1,
   // Profit and loss in USD: "+$12.34"
@@ -770,6 +777,13 @@ export const PERPS_DISPLAY_PRECISION = {
   OrderBookCompact: 1,
   // Most decimals of an abbreviated order book price: "$61.47K"
   OrderBookAbbreviatedPriceMax: 3,
+  // Distance of an order book depth level from the mid price as a
+  // percentage: "+0.0125%"
+  OrderBookDepthRangePercent: 4,
+  // Most decimals of the depth chart zoom range as a percentage: "0.00125"
+  OrderBookDepthZoomRangePercentMax: 5,
+  // Most decimals of a TWAP sub-order's base-asset size: "0.00012"
+  TwapSuborderSize: 5,
 } as const;
 
 /**
