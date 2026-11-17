@@ -1,3 +1,4 @@
+import type { AuthenticatedUserStorageServicePutIdentitySharingConsentAction } from '@metamask/authenticated-user-storage';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -5,6 +6,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationControllerGetPartnerIdentityTokenAction } from '@metamask/profile-sync-controller/auth';
 import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
@@ -136,6 +138,8 @@ export type VendorOnboardingControllerActions =
 
 type AllowedActions =
   | KycServiceMethodActions
+  | AuthenticationControllerGetPartnerIdentityTokenAction
+  | AuthenticatedUserStorageServicePutIdentitySharingConsentAction
   | UserStorageControllerPerformGetStorageAction
   | UserStorageControllerPerformSetStorageAction;
 
@@ -355,15 +359,11 @@ export class VendorOnboardingController extends BaseController<
    * @param params.vendor - The vendor.
    * @param params.aal2Token - AAL2 token from MFA. Required only when a new
    * session has to be created. Omit it to pick up an existing session.
-   * @param params.partnerIdentityToken - Partner identity token. kyc-api
-   * verifies it and takes the session's email from its verified claim, so the
-   * user never chooses which address the vendor registers.
    * @returns The step the user is on once the session exists.
    */
   async startSession(params: {
     vendor: OnboardingVendor;
     aal2Token?: string;
-    partnerIdentityToken?: string;
   }): Promise<KycStep> {
     const { vendor } = params;
     const existing = await this.messenger.call(
@@ -395,9 +395,7 @@ export class VendorOnboardingController extends BaseController<
       vendor,
       residenceCountry,
       aal2Token: params.aal2Token,
-      ...(params.partnerIdentityToken
-        ? { partnerIdentityToken: params.partnerIdentityToken }
-        : {}),
+      partnerIdentityToken: await this.#mintPartnerIdentityToken(vendor),
     });
     this.#write(vendor, { sessionId: session.id });
     return this.#readStep(vendor, { join: false });
@@ -726,6 +724,33 @@ export class VendorOnboardingController extends BaseController<
    * @param options.join - Whether to share a read already in flight.
    * @returns The step.
    */
+  /**
+   * Mints the partner identity token kyc-api takes the session's email from.
+   *
+   * The consent has to be recorded first: MetaMask Auth answers
+   * `403 consent_required` for an audience the user has not granted, so the
+   * two calls always go together.
+   *
+   * @param vendor - The vendor the session is for.
+   * @returns The minted token.
+   */
+  async #mintPartnerIdentityToken(vendor: OnboardingVendor): Promise<string> {
+    // TODO: use the vendor's own audience once MetaMask Auth has one for it.
+    // `IdentitySharingAudience` is `'kyc' | 'iron'`, so a Kalshi onboarding
+    // currently records an Iron consent. Tracked with the matching mapping in
+    // kyc-api's `createSession`.
+    const audience = 'iron';
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putIdentitySharingConsent',
+      { audience, granted: true },
+    );
+    return this.messenger.call(
+      'AuthenticationController:getPartnerIdentityToken',
+      ['email'],
+      audience,
+    );
+  }
+
   async #readStep(
     vendor: OnboardingVendor,
     { join }: { join: boolean },

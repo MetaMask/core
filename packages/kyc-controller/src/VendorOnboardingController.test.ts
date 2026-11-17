@@ -640,7 +640,6 @@ describe('VendorOnboardingController', () => {
         const step = await controller.startSession({
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
-          partnerIdentityToken: 'partner-token',
         });
 
         expect(step).toBe('identity_provider');
@@ -699,6 +698,44 @@ describe('VendorOnboardingController', () => {
 
         expect(handlers.performGetStorage).toHaveBeenCalled();
         expect(handlers.performSetStorage).toHaveBeenCalledOnce();
+      });
+    });
+
+    it('records the consent before it mints the identity token', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        // MetaMask Auth answers 403 consent_required for an audience the
+        // user has not granted, so the order is load-bearing.
+        expect(handlers.putIdentitySharingConsent).toHaveBeenCalledWith({
+          audience: 'iron',
+          granted: true,
+        });
+        expect(
+          handlers.putIdentitySharingConsent.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+          handlers.getPartnerIdentityToken.mock.invocationCallOrder[0],
+        );
+      });
+    });
+
+    it('sends the minted token to kyc-api', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.getPartnerIdentityToken).toHaveBeenCalledWith(
+          ['email'],
+          'iron',
+        );
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({ partnerIdentityToken: 'partner-token' }),
+        );
       });
     });
 
@@ -1357,6 +1394,8 @@ type ServiceHandlers = {
   fetchIdosRelayJwks: ReturnType<typeof vi.fn>;
   performGetStorage: ReturnType<typeof vi.fn>;
   performSetStorage: ReturnType<typeof vi.fn>;
+  putIdentitySharingConsent: ReturnType<typeof vi.fn>;
+  getPartnerIdentityToken: ReturnType<typeof vi.fn>;
 };
 
 type WithControllerOptions = {
@@ -1408,6 +1447,8 @@ function withController<ReturnValue>(
       'KycService:fetchIdosRelayJwks',
       'UserStorageController:performGetStorage',
       'UserStorageController:performSetStorage',
+      'AuthenticatedUserStorageService:putIdentitySharingConsent',
+      'AuthenticationController:getPartnerIdentityToken',
     ],
     events: [],
     messenger,
@@ -1440,7 +1481,17 @@ function withController<ReturnValue>(
     fetchIdosRelayJwks: vi.fn().mockResolvedValue({ keys: [] }),
     performGetStorage: vi.fn().mockResolvedValue(null),
     performSetStorage: vi.fn().mockResolvedValue(undefined),
+    putIdentitySharingConsent: vi.fn().mockResolvedValue(undefined),
+    getPartnerIdentityToken: vi.fn().mockResolvedValue('partner-token'),
   };
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:putIdentitySharingConsent',
+    handlers.putIdentitySharingConsent,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getPartnerIdentityToken',
+    handlers.getPartnerIdentityToken,
+  );
   rootMessenger.registerActionHandler('KycService:getStep', handlers.getStep);
   rootMessenger.registerActionHandler(
     'KycService:acceptVendorTerms',
