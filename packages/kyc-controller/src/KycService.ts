@@ -1,7 +1,5 @@
 import { BaseDataService } from '@metamask/base-data-service';
 import type {
-  KycClientContext,
-  KycStepInfo,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
@@ -36,7 +34,8 @@ import type {
   OnboardingVendor,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycStep,
+  KycClientContext,
+  KycStepInfo,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -73,7 +72,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'getDataShares',
   'getStep',
   'acceptVendorTerms',
-  'markProviderSubmitted',
   'postOnboardingStep',
 ] as const;
 
@@ -1133,7 +1131,9 @@ export class KycService extends BaseDataService<
    * about the user, so the answer is the same on every device.
    *
    * @param vendor - The vendor to get the step for.
-   * @returns The step.
+   * @param client - What only this device knows, sent so kyc-api can use it
+   * for this answer. kyc-api stores none of it.
+   * @returns The step, and how verification is going.
    */
   async getStep(
     vendor: OnboardingVendor,
@@ -1184,22 +1184,6 @@ export class KycService extends BaseDataService<
         ...(params.country ? { country: params.country } : {}),
       }),
     });
-  }
-
-  /**
-   * Tells kyc-api the identity provider flow was submitted for a session
-   * (`POST /sessions/{sessionId}/provider-submitted`), so the step survives a
-   * reinstall.
-   *
-   * @param params - The parameters.
-   * @param params.sessionId - The UKYC session id.
-   */
-  async markProviderSubmitted(params: { sessionId: string }): Promise<void> {
-    const url = new URL(
-      `/sessions/${encodeURIComponent(params.sessionId)}/provider-submitted`,
-      this.#baseUrl,
-    );
-    await this.#requestJson(url, { method: 'POST' });
   }
 
   /**

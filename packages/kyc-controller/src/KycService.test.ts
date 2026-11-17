@@ -1113,19 +1113,6 @@ describe('KycService', () => {
     });
   });
 
-  describe('markProviderSubmitted', () => {
-    it('posts to the session', async () => {
-      const scope = nock(MOCK_API_URL)
-        .post('/sessions/sid-1/provider-submitted')
-        .reply(204);
-      const { service } = getService();
-
-      await service.markProviderSubmitted({ sessionId: 'sid-1' });
-
-      expect(scope.isDone()).toBe(true);
-    });
-  });
-
   describe('postOnboardingStep', () => {
     const status = {
       id: 'sid-1',

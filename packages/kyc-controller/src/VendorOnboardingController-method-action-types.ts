@@ -29,7 +29,7 @@ export type VendorOnboardingControllerRefreshStepAction = {
  * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
  * @param params.country - ISO 3166-1 alpha-3 country the terms were
  * fetched for.
- * @returns The next step.
+ * @returns The step the user is on once the terms are recorded.
  */
 export type VendorOnboardingControllerAcceptTermsAction = {
   type: `VendorOnboardingController:acceptTerms`;
@@ -84,9 +84,7 @@ export type VendorOnboardingControllerVerifyAccountLinkAction = {
  * @param params.vendor - The vendor.
  * @param params.aal2Token - AAL2 token from MFA. Required only when a new
  * session has to be created. Omit it to pick up an existing session.
- * @param params.email - Email the vendor registers the user with, for
- * vendors whose session kyc-api opens through the relay (Kalshi).
- * @returns The next step.
+ * @returns The step the user is on once the session exists.
  */
 export type VendorOnboardingControllerStartSessionAction = {
   type: `VendorOnboardingController:startSession`;
@@ -128,8 +126,9 @@ export type VendorOnboardingControllerAcceptSessionDisclaimersAction = {
 
 /**
  * Presents the identity provider flow (SumSub) for the vendor's session.
- * When the user finishes it, kyc-api is told, so the step survives a
- * reinstall, and the next step is read. Nothing about the flow is kept on
+ * When the user finishes it, the next step is read: kyc-api works out from
+ * the relay whether idOS still needs anything. Nothing about the flow is
+ * kept on
  * the phone.
  *
  * The session must already have its authorizations (see
@@ -199,19 +198,6 @@ export type VendorOnboardingControllerResendEmailCodeAction = {
 };
 
 /**
- * Tells kyc-api the user finished the identity provider flow (SumSub), so
- * the step survives a reinstall.
- *
- * @param params - The parameters.
- * @param params.vendor - The vendor.
- * @returns The next step.
- */
-export type VendorOnboardingControllerMarkProviderSubmittedAction = {
-  type: `VendorOnboardingController:markProviderSubmitted`;
-  handler: VendorOnboardingController['markProviderSubmitted'];
-};
-
-/**
  * Forgets what the phone saved, for one vendor or all of them. kyc-api
  * keeps its own record, so the next refresh brings the step back.
  *
@@ -239,5 +225,4 @@ export type VendorOnboardingControllerMethodActions =
   | VendorOnboardingControllerSubmitPhoneCodeAction
   | VendorOnboardingControllerSubmitEmailCodeAction
   | VendorOnboardingControllerResendEmailCodeAction
-  | VendorOnboardingControllerMarkProviderSubmittedAction
   | VendorOnboardingControllerResetAction;

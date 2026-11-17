@@ -21,10 +21,12 @@ import {
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { needsCapabilityAuthorizationRefresh } from './types.js';
 import type {
+  KycClientContext,
   KycConsentRecord,
   OnboardingVendor,
   KycSessionDisclaimers,
   KycStep,
+  KycStepStatus,
 } from './types.js';
 import {
   createAuthorizedSession,
@@ -130,7 +132,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'submitPhoneCode',
   'submitEmailCode',
   'resendEmailCode',
-  'markProviderSubmitted',
   'reset',
 ] as const;
 
@@ -402,7 +403,7 @@ export class VendorOnboardingController extends BaseController<
       vendor,
       residenceCountry,
       aal2Token: params.aal2Token,
-      partnerIdentityToken: await this.#mintPartnerIdentityToken(vendor),
+      partnerIdentityToken: await this.#mintPartnerIdentityToken(),
     });
     this.#write(vendor, { sessionId: session.id });
     return this.#readStep(vendor, { join: false });
@@ -464,8 +465,9 @@ export class VendorOnboardingController extends BaseController<
 
   /**
    * Presents the identity provider flow (SumSub) for the vendor's session.
-   * When the user finishes it, kyc-api is told, so the step survives a
-   * reinstall, and the next step is read. Nothing about the flow is kept on
+   * When the user finishes it, the next step is read: kyc-api works out from
+   * the relay whether idOS still needs anything. Nothing about the flow is
+   * kept on
    * the phone.
    *
    * The session must already have its authorizations (see
@@ -525,8 +527,9 @@ export class VendorOnboardingController extends BaseController<
       if (!reachedCompletion) {
         return 'abandoned';
       }
-      // The SDK result is not the decision. kyc-api and the relay decide.
-      await this.markProviderSubmitted({ vendor: params.vendor });
+      // The SDK result is not the decision. kyc-api and the relay decide, so
+      // ask where the user is now rather than assuming.
+      await this.#readStep(params.vendor, { join: false });
       return 'submitted';
     } catch {
       return 'failed';
@@ -595,26 +598,6 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
   }): Promise<KycStep> {
     return this.#runOnboardingStep(params.vendor, 'email/resend-otp');
-  }
-
-  /**
-   * Tells kyc-api the user finished the identity provider flow (SumSub), so
-   * the step survives a reinstall.
-   *
-   * @param params - The parameters.
-   * @param params.vendor - The vendor.
-   * @returns The step the user is on once the submission is recorded.
-   */
-  async markProviderSubmitted({
-    vendor,
-  }: {
-    vendor: OnboardingVendor;
-  }): Promise<KycStep> {
-    const sessionId = await this.#getSessionId(vendor);
-    await this.messenger.call('KycService:markProviderSubmitted', {
-      sessionId,
-    });
-    return this.#readStep(vendor, { join: false });
   }
 
   /**
@@ -738,10 +721,9 @@ export class VendorOnboardingController extends BaseController<
    * `403 consent_required` for an audience the user has not granted, so the
    * two calls always go together.
    *
-   * @param vendor - The vendor the session is for.
    * @returns The minted token.
    */
-  async #mintPartnerIdentityToken(vendor: OnboardingVendor): Promise<string> {
+  async #mintPartnerIdentityToken(): Promise<string> {
     // TODO: use the vendor's own audience once MetaMask Auth has one for it.
     // `IdentitySharingAudience` is `'kyc' | 'iron'`, so a Kalshi onboarding
     // currently records an Iron consent. Tracked with the matching mapping in
@@ -812,6 +794,7 @@ export class VendorOnboardingController extends BaseController<
     this.update((state) => {
       const entry = state.vendors[vendor] ?? {
         step: 'vendor_terms' as KycStep,
+        status: 'none' as KycStepStatus,
         sessionId: null,
       };
       state.vendors[vendor] = { ...entry, ...patch };

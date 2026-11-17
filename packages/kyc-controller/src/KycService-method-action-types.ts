@@ -317,25 +317,10 @@ export type KycServiceGetStepAction = {
  * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
  * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
  * for.
- * @returns The next step.
  */
 export type KycServiceAcceptVendorTermsAction = {
   type: `KycService:acceptVendorTerms`;
   handler: KycService['acceptVendorTerms'];
-};
-
-/**
- * Tells kyc-api the identity provider flow was submitted for a session
- * (`POST /sessions/{sessionId}/provider-submitted`), so the step survives a
- * reinstall.
- *
- * @param params - The parameters.
- * @param params.sessionId - The UKYC session id.
- * @returns The next step.
- */
-export type KycServiceMarkProviderSubmittedAction = {
-  type: `KycService:markProviderSubmitted`;
-  handler: KycService['markProviderSubmitted'];
 };
 
 /**
@@ -347,8 +332,7 @@ export type KycServiceMarkProviderSubmittedAction = {
  * @param params.sessionId - UKYC session id.
  * @param params.step - The onboarding step.
  * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
- * @returns The session status after the step, and the step kyc-api decided
- * with it. The step is missing when kyc-api does not send one.
+ * @returns The session status after the step.
  */
 export type KycServicePostOnboardingStepAction = {
   type: `KycService:postOnboardingStep`;
@@ -396,6 +380,5 @@ export type KycServiceMethodActions =
   | KycServiceGetSessionStatusForVendorAction
   | KycServiceGetStepAction
   | KycServiceAcceptVendorTermsAction
-  | KycServiceMarkProviderSubmittedAction
   | KycServicePostOnboardingStepAction
   | KycServiceGetDataSharesAction;

@@ -9,7 +9,7 @@ import type { MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
-import type { KycSessionStatus, KycStep, KycStepInfo } from './types.js';
+import type { KycSessionStatus, KycStepInfo } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 import {
@@ -1053,9 +1053,9 @@ describe('VendorOnboardingController', () => {
               debug: false,
             }),
           );
-          expect(handlers.markProviderSubmitted).toHaveBeenCalledWith({
-            sessionId: 'sid-1',
-          });
+          // Nothing records a submission: kyc-api reads where the user is
+          // from the relay, so the phone only asks.
+          expect(handlers.getStep).toHaveBeenCalledTimes(1);
           expect(controller.state.vendors.kalshi?.step).toBe('done');
         },
       );
@@ -1117,7 +1117,7 @@ describe('VendorOnboardingController', () => {
             expect(
               await controller.launchProviderFlow({ vendor: 'kalshi' }),
             ).toBe('abandoned');
-            expect(handlers.markProviderSubmitted).not.toHaveBeenCalled();
+            expect(handlers.getStep).not.toHaveBeenCalled();
           },
         );
       },
@@ -1133,7 +1133,7 @@ describe('VendorOnboardingController', () => {
           expect(
             await controller.launchProviderFlow({ vendor: 'kalshi' }),
           ).toBe('failed');
-          expect(handlers.markProviderSubmitted).not.toHaveBeenCalled();
+          expect(handlers.getStep).not.toHaveBeenCalled();
         },
       );
     });
@@ -1192,49 +1192,16 @@ describe('VendorOnboardingController', () => {
       );
     });
 
-    it('reports failed when kyc-api cannot be told', async () => {
+    it('reports failed when kyc-api cannot be asked where the user is', async () => {
       const launcher = getLauncher();
       await withController(
         { options: { ...saved, sumsubLauncher: launcher } },
         async ({ controller, handlers }) => {
-          handlers.markProviderSubmitted.mockRejectedValue(new Error('down'));
+          handlers.getStep.mockRejectedValue(new Error('down'));
 
           expect(
             await controller.launchProviderFlow({ vendor: 'kalshi' }),
           ).toBe('failed');
-        },
-      );
-    });
-  });
-
-  describe('markProviderSubmitted', () => {
-    it('tells kyc-api, then saves the step it reads', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              vendors: {
-                kalshi: {
-                  step: 'identity_provider',
-                  status: 'none',
-                  sessionId: 'sid-1',
-                },
-              },
-            },
-          },
-        },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({ step: 'done', status: 'none' });
-
-          const step = await controller.markProviderSubmitted({
-            vendor: 'kalshi',
-          });
-
-          expect(handlers.markProviderSubmitted).toHaveBeenCalledWith({
-            sessionId: 'sid-1',
-          });
-          expect(step).toBe('done');
-          expect(controller.state.vendors.kalshi?.step).toBe('done');
         },
       );
     });
@@ -1273,24 +1240,6 @@ describe('VendorOnboardingController', () => {
         expect(step).toBe('account_link');
         expect(controller.state.vendors.kalshi?.step).toBe('account_link');
       });
-    });
-
-    it('reads and saves the step after a finished SumSub flow', async () => {
-      await withController(
-        { options: saved },
-        async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({ step: 'done', status: 'none' });
-
-          await controller.markProviderSubmitted({ vendor: 'kalshi' });
-
-          expect(handlers.markProviderSubmitted).toHaveBeenCalledTimes(1);
-          expect(controller.state.vendors.kalshi).toStrictEqual({
-            step: 'done',
-            status: 'none',
-            sessionId: 'sid-1',
-          });
-        },
-      );
     });
 
     it.each([
@@ -1440,7 +1389,6 @@ describe('VendorOnboardingController', () => {
 type ServiceHandlers = {
   getStep: ReturnType<typeof vi.fn>;
   acceptVendorTerms: ReturnType<typeof vi.fn>;
-  markProviderSubmitted: ReturnType<typeof vi.fn>;
   postOnboardingStep: ReturnType<typeof vi.fn>;
   getSessionStatusForVendor: ReturnType<typeof vi.fn>;
   createJourney: ReturnType<typeof vi.fn>;
@@ -1493,7 +1441,6 @@ function withController<ReturnValue>(
     actions: [
       'KycService:getStep',
       'KycService:acceptVendorTerms',
-      'KycService:markProviderSubmitted',
       'KycService:postOnboardingStep',
       'KycService:getSessionStatusForVendor',
       'KycService:createJourney',
@@ -1519,7 +1466,6 @@ function withController<ReturnValue>(
       .fn()
       .mockResolvedValue({ step: 'vendor_terms', status: 'none' }),
     acceptVendorTerms: vi.fn().mockResolvedValue(undefined),
-    markProviderSubmitted: vi.fn().mockResolvedValue(undefined),
     postOnboardingStep: vi.fn().mockResolvedValue(SESSION_STATUS),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
     createJourney: vi
@@ -1558,10 +1504,6 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:acceptVendorTerms',
     handlers.acceptVendorTerms,
-  );
-  rootMessenger.registerActionHandler(
-    'KycService:markProviderSubmitted',
-    handlers.markProviderSubmitted,
   );
   rootMessenger.registerActionHandler(
     'KycService:postOnboardingStep',
