@@ -93,7 +93,7 @@
     "@metamask/auto-changelog": "^7.1.0",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/keyring-api": "^24.3.0",
-    "@metamask/keyring-controller": "^28.2.1",
+    "@metamask/keyring-controller": "^28.2.2",
     "@metamask/keyring-internal-api": "^12.1.2",
     "@metamask/network-controller": "^38.0.1",
     "@metamask/profile-sync-controller": "^36.1.2",

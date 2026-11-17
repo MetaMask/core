@@ -35,6 +35,44 @@ export enum WebSocketConnectionState {
   Disconnecting = 'disconnecting',
 }
 
+/**
+ * Why a provider reports degraded health.
+ *
+ * - `socket_down`: the venue socket is down or reconnecting while streams need it.
+ * - `server_errors`: repeated 5xx responses from the venue's REST API.
+ * - `rate_limited`: the venue answered 429/405; reads are held until `cooldownUntil`.
+ */
+export type PerpsProviderHealthReason =
+  | 'socket_down'
+  | 'server_errors'
+  | 'rate_limited';
+
+/**
+ * One provider's health. `unavailable` means the provider is not registered,
+ * or is disconnected with no reconnect pending (not started or disconnected).
+ * It describes the provider, not its socket: Lighter closes its socket when
+ * nothing listens and still reports `healthy`.
+ */
+export type PerpsProviderHealth = {
+  providerId: PerpsProviderType;
+  status: 'healthy' | 'degraded' | 'unavailable';
+  /** Empty unless `status` is `degraded`. */
+  reasons: PerpsProviderHealthReason[];
+  connectionState: WebSocketConnectionState;
+  /** Reconnect attempts since the last successful open (0 when connected or idle). */
+  reconnectionAttempt: number;
+  /** Epoch ms when a rate-limit cooldown ends, set only while `rate_limited`. */
+  cooldownUntil?: number;
+  /** Epoch ms when this snapshot was taken. */
+  updatedAt: number;
+};
+
+/** Parameters for `PerpsController.subscribeToProviderHealth`. */
+export type SubscribeProviderHealthParams = {
+  providerId: PerpsProviderType;
+  callback: (health: PerpsProviderHealth) => void;
+};
+
 /** Provider-agnostic raw ledger update. Fields match the common shape across providers. */
 export type RawLedgerUpdate = {
   hash: string;
@@ -1572,6 +1610,11 @@ export type HyperLiquidCredentials = {
 export type LighterCredentials = {
   /** Explicit bounded Chase probe on the actual testnet provider; ignored on mainnet. */
   chaseTestnetProbe?: boolean;
+  /**
+   * How long the Lighter socket stays open after its last listener leaves,
+   * in milliseconds (defaults to `LIGHTER_SOCKET_IDLE_CLOSE_MS`, 30 s).
+   */
+  socketIdleCloseMs?: number;
   /** Whether Lighter provider is enabled via local env var. */
   enabled?: boolean;
   /** Lighter account index override (testnet tooling). */
@@ -3053,6 +3096,12 @@ export type PerpsProvider = {
     ) => void,
   ): () => void; // Optional: subscribe to WebSocket connection state changes
   reconnect?(): Promise<void>; // Optional: manually trigger WebSocket reconnection
+  /** Optional: this provider's own health. Others derive it from connection state. */
+  getProviderHealth?(): PerpsProviderHealth;
+  /** Optional: current health immediately, then every change. */
+  subscribeToProviderHealth?(
+    listener: (health: PerpsProviderHealth) => void,
+  ): () => void;
 
   // Block explorer
   getBlockExplorerUrl(address?: string): string;

@@ -7,9 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PerpsController.getProviderHealth(providerId)` and `PerpsController.subscribeToProviderHealth({ providerId, callback })` (messenger actions `PerpsController:getProviderHealth` and `PerpsController:subscribeToProviderHealth`) to report each provider's health separately, including in aggregated mode ([#11502](https://github.com/MetaMask/core/pull/11502))
+  - New types `PerpsProviderHealth`, `PerpsProviderHealthReason` and `SubscribeProviderHealthParams`, and messenger action types `PerpsControllerGetProviderHealthAction` and `PerpsControllerSubscribeToProviderHealthAction`
+  - Status is `healthy`, `degraded` (with `reasons`: `socket_down`, `server_errors`, `rate_limited`) or `unavailable` when the provider is not registered, or is disconnected with no reconnect pending. It describes the provider, not its socket: Lighter still reports `healthy` after closing its socket because nothing listens
+  - Lighter reports `degraded` while its socket stays down for more than 10 seconds with live streams, after 3 consecutive 5xx responses, or during a 429/405 cooldown, and returns to `healthy` when the socket reopens, a response other than 5xx, 429 or 405 arrives, or the cooldown ends
+  - HyperLiquid's health is derived from its connection state and reconnect attempt: `degraded` while it reconnects after a drop or stays disconnected after reconnect attempts, and `unavailable` while it is disconnected with no reconnect attempt (not started, disconnected on purpose, or after a failed first connect)
+  - `PerpsProvider` has optional `getProviderHealth` and `subscribeToProviderHealth` methods
+- Add `providerCredentials.lighter.socketIdleCloseMs` to set how long the Lighter socket stays open after its last listener leaves (default 30 seconds) ([#11502](https://github.com/MetaMask/core/pull/11502))
+- Expose the new Lighter limits and the provider health helpers through subpath exports ([#11502](https://github.com/MetaMask/core/pull/11502))
+  - `@metamask/perps-controller/constants` and `@metamask/perps-controller/constants/lighterConfig`: `LIGHTER_REST_REQUESTS_PER_MINUTE`, `LIGHTER_REST_BUDGET_WINDOW_MS`, `LIGHTER_RATE_LIMIT_BASE_COOLDOWN_MS`, `LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS`, `LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD`, `LIGHTER_CHANNEL_RELEASE_DELAY_MS`, `LIGHTER_SOCKET_IDLE_CLOSE_MS`, `LIGHTER_RECONNECT_BASE_DELAY_MS`, `LIGHTER_RECONNECT_MAX_DELAY_MS` and `LIGHTER_SOCKET_DOWN_GRACE_MS`
+  - `@metamask/perps-controller/utils/providerHealth`: `getHealthFromConnectionState`, `getProviderHealthOf`, `subscribeToProviderHealthOf` and the `ProviderHealthSource` type
+  - `@metamask/perps-controller/providers/lighter`: `getLighterReconnectDelayMs`
+- Add funding display formatters, so Mobile, Extension and Terminal stop formatting funding locally. Each formatter takes the same `formatters` and `sign` (default `exceptZero`) options as the other display formatters and renders `$---` for a missing value ([#11529](https://github.com/MetaMask/core/pull/11529))
+  - `formatPositionFunding(sinceOpen, options)` formats funding since a position opened, with the venue's sign (positive = paid), as Mobile and Extension show it: `formatPositionFunding('1.2345')` returns `-$1.23`, `formatPositionFunding(-1234.5)` returns `+$1,234.50`, and under half a cent `formatPositionFunding(0.0049)` returns `$0.00`
+  - `getPositionFundingDirection(sinceOpen)` returns `cost`, `payment` or `none` with the same half-cent threshold, for colouring: `getPositionFundingDirection(0.005)` returns `cost`
+  - `formatFundingPayment(amount, options)` formats one funding payment with the trader's sign (positive = received). From a cent up it matches Mobile: `formatFundingPayment(-12.5)` returns `-$12.50`. Below a cent it keeps up to 6 fraction digits, never in exponent notation: `formatFundingPayment(0.003421)` returns `+$0.003421`, and `formatFundingPayment(0.0000004)` returns `$0.00`
+  - Type `PerpsFundingDirection`
+- Add `PERPS_DISPLAY_PRECISION` values for Terminal's depth chart and TWAP summary: `OrderBookDepthRangePercent` 4, `OrderBookDepthZoomRangePercentMax` 5 and `TwapSuborderSize` 5 ([#11529](https://github.com/MetaMask/core/pull/11529))
+- Add `source: 'pasted'` to `formatPerpsUsdInput` for clipboard text, whose decimal point may be `.` in any locale: `formatPerpsUsdInput('1234.56', { formatters: createFormatters({ locale: 'es' }), source: 'pasted' })` returns `{ value: '1234.56', display: '1234,56' }`, where typed text reads `123456` ([#11529](https://github.com/MetaMask/core/pull/11529))
+  - Separators still group thousands when 1-3 digits are followed by groups of exactly 3: `1.234.567` and `12.345` stay 1234567 and 12345. Uneven groups keep the last separator as the decimal point: `1.234.5` reads 1234.5
+  - Where the locale's decimal is `.`, pasted text reads as typed
+- Add margin adjustment calculations for an isolated position, following Mobile's margin utilities, so Mobile and Terminal stop keeping their own copies ([#11529](https://github.com/MetaMask/core/pull/11529))
+  - `calculateMaxRemovableMargin(params)` returns the margin that can be removed: the margin above `max(notional / positionLeverage, notional × MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer)`, less a price-move headroom (`priceMoveBufferRatio`). `calculateMaxRemovableMargin({ currentMargin: 3000, positionLeverage: 50, positionSize: 10, currentPrice: 2000 })` returns `800`
+  - `estimateLiquidationPriceAfterMarginChange(params)` estimates the liquidation price after adding or removing margin, anchored on the venue's current one. Adding $1,000 to a 0.5 BTC long liquidating at 80,000 with max leverage 20 returns about `77948.72`
+  - `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalPriceMoveBuffer` (0.01), the default headroom
+  - Types `MaxRemovableMarginParams` and `LiquidationPriceAfterMarginChangeParams`
+- Add `calculateExpectedTriggerPnl({ triggerPrice, entryPrice, size, closingFee })`, the expected PnL when a take profit or stop loss closes a position, net of the closing fee, as Mobile's TP/SL form shows it: `calculateExpectedTriggerPnl({ triggerPrice: 110, entryPrice: 100, size: 2, closingFee: 0.1 })` returns `19.9`. Type `ExpectedTriggerPnlParams` ([#11529](https://github.com/MetaMask/core/pull/11529))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Lighter releases a stream channel 5 seconds after its last listener leaves: it sends `unsubscribe`, drops the channel from the reconnect set and drops its cached order book, candle series or price snapshot ([#11502](https://github.com/MetaMask/core/pull/11502))
+  - Applies to `order_book`, `candle`, `trade` and `market_stats` channels; account channels are released as a group once no account, position, order or fill listener is left
+  - A listener that returns within the wait keeps the channel without new frames
+  - Frames that arrive after a release are ignored, so they no longer refill cached prices, positions or orders, or trigger an order-book resync
+- Lighter keeps its socket open for an idle period after the last listener leaves instead of closing it at once, so moving between screens does not reconnect, re-authenticate or re-request account channels ([#11502](https://github.com/MetaMask/core/pull/11502))
+- Lighter reconnects with exponential backoff and jitter (1 second doubling to 30 seconds) instead of every 5 seconds, and resets the delay after a successful open ([#11502](https://github.com/MetaMask/core/pull/11502))
+  - Connection-state listeners receive the pending attempt number with `disconnected`, and attempt 0 when the socket closed because nothing listens
+  - A reconnect subscribes only channels that still have listeners
+  - A new subscription made while a reconnect is pending waits for it instead of connecting at once
+  - The debug logger records the subscribed-channel count and each reconnect attempt and delay
+- Lighter holds its REST reads back during a 429/405 cooldown (Retry-After, else 1 second doubling, capped at 60 seconds) and within a 60-requests-per-minute budget ([#11502](https://github.com/MetaMask/core/pull/11502))
+  - Never held back: order submission, nonce and transaction lookups, the order-book and exact-order reads that chase flows check for freshness, and every request made during an order, close, edit, cancel, TP/SL, recovery-protection, margin or withdrawal call, including its fresh-price, market, account and signer reads
+  - A read still held when the provider disconnects is cancelled without being sent
+  - A non-2xx Lighter response with a non-JSON body (such as a rate-limit page) now fails with the HTTP status as its error code instead of a JSON parse error
 
 ## [24.0.0]
 
