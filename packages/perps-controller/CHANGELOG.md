@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `AccountState.spotCollateral`, the spot USDC that counts as cross collateral, so clients can pass it to `calculateAccountSummary` instead of assuming spot collateral is `0` ([#11457](https://github.com/MetaMask/core/pull/11457))
+  - The value is a canonical USDC decimal string. It is absent while the spot state or the Hyperliquid abstraction mode is still unknown, and `calculateAccountSummary` then leaves `accountRatio` and `crossMarginUsage` undefined
+  - Hyperliquid Standard (`disabled` and `default`) reports `'0'`: spot is a separate ledger and is not collateral
+  - Hyperliquid Unified and portfolio margin report free spot USDC, `max(0, spot.total - spot.hold)`, counting USDC only. A USDC balance with a missing or non-finite `total` or `hold`, or a response whose `balances` is not a list, leaves the field absent instead of counting the bad amount as `0`. A response that lists no USDC balance is a genuine `'0'`
+  - The live account stream republishes when a previously unknown abstraction mode resolves to Standard (`disabled` or `default`). Unknown and Standard both keep spot out of spendable balance, so the stream compares the published `spotCollateral` and pushes `'0'` without waiting for the next balance tick
+  - A known Lighter account reports `'0'`. That venue has no separate spot ledger; its collateral is already in the account value. A failed Lighter read still omits the field
+- Add `getCrossMarginSpotCollateral(spotState, abstractionMode)`, the same free-spot USDC calculation published as `AccountState.spotCollateral` ([#11457](https://github.com/MetaMask/core/pull/11457))
+  - Returns `undefined` while the spot state or the abstraction mode is unknown, `'0'` for Standard (`disabled` and `default`), and free spot USDC for Unified and portfolio margin
+- Export the `HyperLiquidAbstractionMode` type (`unifiedAccount`, `portfolioMargin`, `disabled`, `default`), the mode argument of `getCrossMarginSpotCollateral` ([#11457](https://github.com/MetaMask/core/pull/11457))
 - Add `PerpsController.getProviderHealth(providerId)` and `PerpsController.subscribeToProviderHealth({ providerId, callback })` (messenger actions `PerpsController:getProviderHealth` and `PerpsController:subscribeToProviderHealth`) to report each provider's health separately, including in aggregated mode ([#11502](https://github.com/MetaMask/core/pull/11502))
   - New types `PerpsProviderHealth`, `PerpsProviderHealthReason` and `SubscribeProviderHealthParams`, and messenger action types `PerpsControllerGetProviderHealthAction` and `PerpsControllerSubscribeToProviderHealthAction`
   - Status is `healthy`, `degraded` (with `reasons`: `socket_down`, `server_errors`, `rate_limited`) or `unavailable` when the provider is not registered, or is disconnected with no reconnect pending. It describes the provider, not its socket: Lighter still reports `healthy` after closing its socket because nothing listens
