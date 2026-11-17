@@ -23,4 +23,3 @@ jobs:
           BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           gh api --method DELETE "repos/${REPOSITORY}/git/refs/heads/${BRANCH}"
-
