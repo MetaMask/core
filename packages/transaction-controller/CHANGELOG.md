@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `accountOverride` property to `MetamaskPayMetadata` to persist the override address (output recipient when `isPostQuote` is true, funding payer when false) ([#11588](https://github.com/MetaMask/core/pull/11588))
+
 ### Changed
 
 - Refactor transaction creation into explicit lifecycle stages with shared state helpers ([#10255](https://github.com/MetaMask/core/pull/10255))
