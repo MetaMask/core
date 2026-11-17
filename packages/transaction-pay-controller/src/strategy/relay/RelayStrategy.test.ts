@@ -6,6 +6,7 @@ import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
+  QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
@@ -31,14 +32,26 @@ describe('RelayStrategy', () => {
 
   const messenger = {} as never;
 
+  const nonEvmQuoteRequest = {
+    from: '0xabc' as Hex,
+    sourceAccountId:
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+    sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    sourceBalanceRaw: '100',
+    sourceTokenAmount: '100',
+    targetAmountMinimum: '100',
+    targetChainId: '0x2' as Hex,
+    targetTokenAddress: '0xdef' as Hex,
+  } satisfies QuoteRequest;
+
   const request = {
     messenger,
     requests: [
       {
         from: '0xabc' as Hex,
+        sourceAccountId: 'eip155:1:0xabc',
+        sourceAssetId: 'eip155:1/erc20:0xabc',
         sourceBalanceRaw: '100',
-        sourceChainId: '0x1' as Hex,
-        sourceTokenAddress: '0xabc' as Hex,
         sourceTokenAmount: '100',
         targetAmountMinimum: '100',
         targetChainId: '0x2' as Hex,
@@ -95,8 +108,7 @@ describe('RelayStrategy', () => {
   it('delegates getQuotes', async () => {
     const quote = {
       request: {
-        sourceChainId: '0x1',
-        sourceTokenAddress: '0xabc',
+        sourceAssetId: 'eip155:1/erc20:0xabc',
       },
       strategy: TransactionPayStrategy.Relay,
     } as TransactionPayQuote<RelayQuote>;
@@ -105,6 +117,14 @@ describe('RelayStrategy', () => {
     const strategy = new RelayStrategy();
     expect(await strategy.getQuotes(request)).toStrictEqual([quote]);
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
+  });
+
+  it('returns false when a request has a non-EVM source asset', () => {
+    const strategy = new RelayStrategy();
+
+    expect(
+      strategy.supports({ ...request, requests: [nonEvmQuoteRequest] }),
+    ).toBe(false);
   });
 
   describe('getRefreshInterval', () => {
@@ -118,7 +138,7 @@ describe('RelayStrategy', () => {
       call: getStateMock,
     } as unknown as TransactionPayControllerMessenger;
     const refreshRequest = {
-      chainId: '0x1' as Hex,
+      chainId: 'eip155:1' as const,
       messenger: refreshMessenger,
       transactionId: 'tx-1',
     };

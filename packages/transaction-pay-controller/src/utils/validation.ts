@@ -16,6 +16,7 @@ import {
 } from './simulation.js';
 import type { QuoteSimulation } from './simulation.js';
 import {
+  getEvmQuoteSource,
   getLiveTokenBalanceOrUndefined,
   getNativeToken,
   getTokenInfo,
@@ -112,13 +113,16 @@ export async function validateQuoteExecution({
 }: QuoteExecutionRequest): Promise<void> {
   throwIfAborted(signal);
 
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
+
   const liveBalance = await getLiveSourceBalance(quote, messenger);
 
   log('Live source balance', {
     from: quote.request.from,
     liveBalance,
-    sourceChainId: quote.request.sourceChainId,
-    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sourceChainId,
+    sourceTokenAddress,
   });
 
   throwIfAborted(signal);
@@ -133,8 +137,8 @@ export async function validateQuoteExecution({
   validateRequiredSourceAmount(messenger, quote, liveBalance);
 
   log('Checking decoded source transfers', {
-    sourceChainId: quote.request.sourceChainId,
-    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sourceChainId,
+    sourceTokenAddress,
     transactions: simulation.transactions,
   });
 
@@ -156,14 +160,16 @@ async function validateSimulation(
   simulation: QuoteSimulation,
   signal?: AbortSignal,
 ): Promise<void> {
+  const { chainId } = getEvmQuoteSource(quote.request);
+
   log('Starting simulation', {
-    chainId: quote.request.sourceChainId,
+    chainId,
     transactions: simulation.transactions,
   });
 
   try {
     await simulateQuoteTransactions({
-      chainId: quote.request.sourceChainId,
+      chainId,
       messenger,
       transactions: simulation.transactions,
     });
@@ -207,8 +213,8 @@ function formatBalanceShortfall(
   required: string,
   balance: string,
 ): string[] {
-  const { sourceChainId, sourceTokenAddress } = quote.request;
-  const tokenInfo = getTokenInfo(messenger, sourceTokenAddress, sourceChainId);
+  const { chainId, tokenAddress } = getEvmQuoteSource(quote.request);
+  const tokenInfo = getTokenInfo(messenger, tokenAddress, chainId);
 
   const requiredBn = new BigNumber(required);
   const balanceBn = new BigNumber(balance);
@@ -256,7 +262,9 @@ async function getLiveSourceBalance(
   quote: TransactionPayQuote<unknown>,
   messenger: TransactionPayControllerMessenger,
 ): Promise<string | undefined> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
     sourceChainId,
@@ -371,7 +379,8 @@ function isSourceTokenTransfer(
     return false;
   }
 
-  const { sourceChainId, sourceTokenAddress } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const isNativeSource =
     sourceTokenAddress.toLowerCase() ===

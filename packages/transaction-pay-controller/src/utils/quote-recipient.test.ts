@@ -16,9 +16,9 @@ const TRANSACTION_MOCK = {
 } as TransactionMeta;
 const REQUEST_MOCK: QuoteRequest = {
   from: PAYER_MOCK,
+  sourceAccountId: `eip155:1:${PAYER_MOCK}`,
+  sourceAssetId: 'eip155:1/erc20:0x5555555555555555555555555555555555555555',
   sourceBalanceRaw: '2000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0x5555555555555555555555555555555555555555',
   sourceTokenAmount: '1500000',
   targetAmountMinimum: '1500000',
   targetChainId: '0xa',
