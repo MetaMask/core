@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `currencyDisplay` option to `createFormatters`, which is passed to the `Intl.NumberFormat` used by the currency helpers (`formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`)
+- Add optional `currencyDisplay` option to `createFormatters`, which is passed to the `Intl.NumberFormat` used by the currency helpers (`formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`) ([#11565](https://github.com/MetaMask/core/pull/11565))
   - Per-call `options.currencyDisplay` passed to `formatCurrency` still takes precedence
 
 ### Changed
