@@ -23,8 +23,9 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 const QUOTE_MOCK = {
+  request: { sourceAssetId: 'eip155:1/slip44:60' },
   strategy: TransactionPayStrategy.Across,
-} as TransactionPayQuote<unknown>;
+} as unknown as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = vi.fn();
