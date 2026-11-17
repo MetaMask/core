@@ -92,10 +92,10 @@ describe('formatCurrency', () => {
     }
   });
 
-  it('uses narrow currency symbols when narrowSymbol is true', () => {
+  it('uses narrow currency symbols when currencyDisplay is narrowSymbol', () => {
     const { formatCurrency: formatNarrow } = createFormatters({
       locale: 'en-GB',
-      narrowSymbol: true,
+      currencyDisplay: 'narrowSymbol',
     });
     const expected = new Intl.NumberFormat('en-GB', {
       style: 'currency',
@@ -105,26 +105,21 @@ describe('formatCurrency', () => {
     expect(formatNarrow(1234.56, 'USD')).toBe(expected);
   });
 
-  it('keeps the default currency display when narrowSymbol is omitted or false', () => {
+  it('keeps the default currency display when currencyDisplay is omitted', () => {
     const { formatCurrency: formatDefault } = createFormatters({
       locale: 'en-GB',
-    });
-    const { formatCurrency: formatFalse } = createFormatters({
-      locale: 'en-GB',
-      narrowSymbol: false,
     });
     const expected = new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'USD',
     }).format(1234.56);
     expect(formatDefault(1234.56, 'USD')).toBe(expected);
-    expect(formatFalse(1234.56, 'USD')).toBe(expected);
   });
 
-  it('allows per-call currencyDisplay options to override narrowSymbol', () => {
+  it('allows per-call currencyDisplay options to override the default', () => {
     const { formatCurrency: formatNarrow } = createFormatters({
       locale: 'en-GB',
-      narrowSymbol: true,
+      currencyDisplay: 'narrowSymbol',
     });
     const expected = new Intl.NumberFormat('en-GB', {
       style: 'currency',
@@ -135,12 +130,12 @@ describe('formatCurrency', () => {
   });
 });
 
-describe('narrowSymbol shared config', () => {
-  it('applies narrowSymbol to formatCurrencyCompact and formatCurrencyWithMinThreshold', () => {
+describe('currencyDisplay shared config', () => {
+  it('applies currencyDisplay to formatCurrencyCompact and formatCurrencyWithMinThreshold', () => {
     const { formatCurrencyCompact, formatCurrencyWithMinThreshold } =
       createFormatters({
         locale: 'en-GB',
-        narrowSymbol: true,
+        currencyDisplay: 'narrowSymbol',
       });
 
     const expectedCompact = new Intl.NumberFormat('en-GB', {

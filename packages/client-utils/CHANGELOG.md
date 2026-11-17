@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `narrowSymbol` option to `createFormatters` so currency helpers can use Intl `currencyDisplay: 'narrowSymbol'` when enabled
+- Add optional `currencyDisplay` option to `createFormatters`, which is passed to the `Intl.NumberFormat` used by the currency helpers (`formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`)
+  - Per-call `options.currencyDisplay` passed to `formatCurrency` still takes precedence
 
 ### Changed
 

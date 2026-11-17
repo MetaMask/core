@@ -22,7 +22,7 @@ type Value = number | bigint | `${number}`;
 
 type FormattersConfig = {
   locale: string;
-  narrowSymbol?: boolean;
+  currencyDisplay?: Intl.NumberFormatOptions['currencyDisplay'];
 };
 
 function getCachedNumberFormat(
@@ -90,7 +90,9 @@ function formatCurrency(
   const numberFormat = getCachedNumberFormat(config.locale, {
     style: 'currency',
     currency,
-    ...(config.narrowSymbol ? { currencyDisplay: 'narrowSymbol' } : {}),
+    ...(config.currencyDisplay
+      ? { currencyDisplay: config.currencyDisplay }
+      : {}),
     ...options,
   });
 
@@ -363,12 +365,12 @@ export type Formatters = {
 
 export function createFormatters({
   locale = FALLBACK_LOCALE,
-  narrowSymbol = false,
+  currencyDisplay,
 }: {
   locale?: string;
-  narrowSymbol?: boolean;
+  currencyDisplay?: Intl.NumberFormatOptions['currencyDisplay'];
 }): Formatters {
-  const config = { locale, narrowSymbol };
+  const config = { locale, currencyDisplay };
   return {
     formatNumber: formatNumber.bind(null, config),
     formatCurrency: formatCurrency.bind(null, config),
