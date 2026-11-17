@@ -245,6 +245,38 @@ describe('validateRelayQuotes', () => {
     expect(validateQuoteExecutionMock).toHaveBeenCalledTimes(1);
   });
 
+  it('skips validation when a Money Account payment is signed by an MPC keyring on refundTo', async () => {
+    keyringStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+        {
+          type: 'MPC Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+        },
+      ],
+    });
+
+    const quote = buildQuote({
+      paymentOverride: PaymentOverride.MoneyAccount,
+      refundTo: REFUND_TO_MOCK,
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
   it('skips validation for Hyperliquid source quotes', async () => {
     const quote = buildQuote({ isHyperliquidSource: true });
 

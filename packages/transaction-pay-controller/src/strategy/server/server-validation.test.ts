@@ -66,6 +66,7 @@ vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
 }));
 
 const FROM_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
+const REFUND_TO_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const DELEGATOR_MOCK = '0x63c0c19a282a1b52b07dd5a65b58948a07dae32b' as Hex;
 const DEPOSIT_DATA_MOCK =
@@ -483,6 +484,40 @@ describe('validateServerQuotes', () => {
 
     expect(getServerSubmitParamsMock).toHaveBeenCalledTimes(1);
     expect(validateQuoteExecutionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips validation when a Money Account payment is signed by an MPC keyring on refundTo', async () => {
+    keyringStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+        {
+          type: 'MPC Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+        },
+      ],
+    });
+
+    await validateServerQuotes({
+      messenger,
+      quotes: [
+        buildQuote({
+          request: {
+            paymentOverride: PaymentOverride.MoneyAccount,
+            refundTo: REFUND_TO_MOCK,
+          },
+        }),
+      ],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getServerSubmitParamsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
   });
 
   it.each([

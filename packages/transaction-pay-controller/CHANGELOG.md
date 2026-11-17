@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Always request non-atomic quotes for an MFA signing keyring, for every quote request ([#11476](https://github.com/MetaMask/core/pull/11476))
+  - Cleared once when quotes are dispatched, so Relay, Server, Across, and Fiat all receive non-atomic requests.
+  - Relay applies the same rule to requests built later, such as fiat estimation.
+  - The signing account is `transaction.txParams.from`, the account that signs the embedded delegation.
+- Skip Relay and Server quote simulation for a Money Account payment when the signing account is an MFA keyring ([#11476](https://github.com/MetaMask/core/pull/11476))
+  - Checks both `transaction.txParams.from` and `request.refundTo`. For Perps and Predict deposits, the Money Account is on `refundTo` and signs the delegation inside the payment-override callback.
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
 - Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.2.0` ([#11546](https://github.com/MetaMask/core/pull/11546))
 
@@ -25,12 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reserve the HyperLiquid activation fee in `ServerStrategy` for Perps withdrawals from HyperCore accounts that are not yet activated ([#11475](https://github.com/MetaMask/core/pull/11475))
   - Previously the full withdrawable balance was quoted, so HyperLiquid's `sendAsset` failed for insufficient balance.
   - The reserved fee is added to the provider fee, matching `RelayStrategy`.
-- Always request non-atomic quotes for an MFA signing keyring, for every quote request ([#11476](https://github.com/MetaMask/core/pull/11476))
-  - Cleared once when quotes are dispatched, so Relay, Server, Across, and Fiat all receive non-atomic requests.
-  - Relay applies the same rule to requests built later, such as fiat estimation.
-  - The signing account is `transaction.txParams.from`, the account that signs the embedded delegation.
-- Skip Relay and Server quote simulation for a Money Account payment when `transaction.txParams.from` is an MFA keyring ([#11476](https://github.com/MetaMask/core/pull/11476))
-  - `paymentOverride` of `moneyAccount` is enough to identify the payment. `refundTo` is not required.
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/ramps-controller` from `^29.0.0` to `^30.0.0` ([#11543](https://github.com/MetaMask/core/pull/11543))
