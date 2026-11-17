@@ -588,6 +588,119 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(sendAsset).toHaveBeenCalledTimes(3);
     });
 
+    it('keeps a gone child of unknown ending unresolved until a read finds it', async () => {
+      const balances = new Map<string | undefined, string>([
+        [undefined, '1000'],
+        ['', '1000'],
+        ['xyz', '0'],
+      ]);
+      const clearinghouseState = vi
+        .fn()
+        .mockImplementation(({ dex }: { dex?: string }) =>
+          Promise.resolve(
+            createClearinghouseBalance(balances.get(dex) as string),
+          ),
+        );
+      const sendAsset = vi
+        .fn()
+        .mockResolvedValueOnce({ status: 'ok' })
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValue({ status: 'ok' });
+      const { infoClient } = useStrategyClients({
+        exchange: {
+          order: vi.fn().mockImplementation(async () => {
+            balances.set('xyz', '20');
+            return chaseRested;
+          }),
+          cancel: vi.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  {
+                    error:
+                      'Order was never placed, already canceled, or filled.',
+                  },
+                ],
+              },
+            },
+          }),
+          sendAsset,
+        },
+        info: {
+          clearinghouseState,
+          orderStatus: vi.fn().mockRejectedValue(new Error('network blip')),
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            collateralToken: 0,
+          }),
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+      const { orderId: handle = '' } = await provider.placeOrder({
+        ...baseOrder,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      } satisfies OrderParams);
+
+      const result = await provider.cancelOrder({
+        orderId: handle,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      });
+      // Collateral cleanup fails again, so the session stays.
+      const whileUnknown = await provider.getChaseOrders();
+      infoClient.orderStatus.mockResolvedValue({
+        status: 'order',
+        order: {
+          status: 'filled',
+          order: {
+            coin: 'xyz:TSLA',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '0',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+      const onceKnown = await provider.getChaseOrders();
+
+      expect(handle).not.toBe('');
+      expect(result).toStrictEqual({ success: true, orderId: handle });
+      expect(whileUnknown).toStrictEqual([
+        expect.objectContaining({
+          handle,
+          status: CHASE_ORDER_STATUS.TerminationPending,
+        }),
+      ]);
+      expect(onceKnown).toStrictEqual([
+        expect.objectContaining({
+          handle,
+          remainingSize: '0',
+          restingOrderId: null,
+          status: CHASE_ORDER_STATUS.Filled,
+        }),
+      ]);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
     it('reports a backgrounded child that later fills as filled', async () => {
       vi.useFakeTimers();
       const { infoClient } = useStrategyClients({

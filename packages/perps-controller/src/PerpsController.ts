@@ -3814,6 +3814,8 @@ export class PerpsController extends BaseController<
    * @returns The cancellation result with status.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // Live lists only take an ending in the context the cancel started in.
+    const contextKey = this.#getOrderListContextKey();
     const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
       params.providerId,
     );
@@ -3839,7 +3841,12 @@ export class PerpsController extends BaseController<
       context: this.#createServiceContext('cancelOrder'),
     });
     const { chaseOrder } = result;
-    if (result.success && params.orderType === 'chase' && chaseOrder) {
+    if (
+      result.success &&
+      params.orderType === 'chase' &&
+      chaseOrder &&
+      this.#getOrderListContextKey() === contextKey
+    ) {
       const providerId = params.providerId ?? result.providerId;
       for (const listener of [...this.#chaseCancellationListeners]) {
         listener({ handle: params.orderId, providerId, chaseOrder });

@@ -33,6 +33,7 @@ import * as featureFlagConfigurationServiceModule from '../../src/services/Featu
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import type {
+  CancelOrderResult,
   ChaseOrder,
   PerpsProvider,
   PerpsPlatformDependencies,
@@ -348,6 +349,7 @@ describe('PerpsController', () => {
   let mockProvider: Mocked<HyperLiquidProvider>;
   let mockInfrastructure: Mocked<PerpsPlatformDependencies>;
   let mockMessenger: ReturnType<typeof createMockMessenger>;
+  let selectedAddress: string;
 
   // Helper to mark controller as initialized for tests
   const markControllerAsInitialized = () => {
@@ -356,6 +358,7 @@ describe('PerpsController', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    selectedAddress = '0x1234567890123456789012345678901234567890';
 
     (
       (eligibilityServiceModule as unknown as Record<string, Mock>)
@@ -531,7 +534,7 @@ describe('PerpsController', () => {
       ) {
         return [
           {
-            address: '0x1234567890123456789012345678901234567890',
+            address: selectedAddress,
             type: 'eip155:eoa',
             id: 'account-1',
             options: {},
@@ -985,6 +988,104 @@ describe('PerpsController', () => {
         vi.useRealTimers();
       }
     });
+
+    it.each([
+      [
+        'account',
+        (): void => {
+          selectedAddress = '0x2222222222222222222222222222222222222222';
+        },
+      ],
+      [
+        'provider',
+        (): void =>
+          controller.testUpdate((state) => {
+            state.activeProvider = 'lighter';
+          }),
+      ],
+      [
+        'network',
+        (): void =>
+          controller.testUpdate((state) => {
+            state.isTestnet = true;
+          }),
+      ],
+    ])(
+      'keeps a Chase ending out of the lists after a %s switch mid-cancel',
+      async (_switch, switchContext) => {
+        vi.useFakeTimers();
+        try {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+          mockProvider.getChaseOrders.mockResolvedValue([]);
+          const canceled: CancelOrderResult = {
+            success: true,
+            orderId: chaseOrder.handle,
+            chaseOrder: {
+              ...chaseOrder,
+              status: 'canceled' as const,
+              restingOrderId: null,
+            },
+          };
+          let finishCancel: ((result: CancelOrderResult) => void) | undefined;
+          vi.spyOn(
+            mockTradingServiceInstance,
+            'cancelOrder',
+          ).mockImplementation(
+            async () =>
+              new Promise<CancelOrderResult>((resolve) => {
+                finishCancel = resolve;
+              }),
+          );
+          const before = vi.fn();
+          const after = vi.fn();
+
+          const stopBefore = controller.subscribeToChaseOrderLists({
+            callback: before,
+          });
+          await vi.advanceTimersByTimeAsync(0);
+          const cancel = controller.cancelOrder({
+            orderId: chaseOrder.handle,
+            symbol: chaseOrder.symbol,
+            orderType: 'chase',
+          });
+          await vi.advanceTimersByTimeAsync(0);
+          switchContext();
+          mockMessenger.subscribe.mock.calls
+            .filter(([event]) =>
+              [
+                'PerpsController:stateChanged',
+                'AccountsController:selectedAccountChange',
+                'AccountTreeController:selectedAccountGroupChange',
+              ].includes(event),
+            )
+            .forEach(([, handler]) => (handler as () => void)());
+          const stopAfter = controller.subscribeToChaseOrderLists({
+            callback: after,
+          });
+          await vi.advanceTimersByTimeAsync(0);
+          finishCancel?.(canceled);
+          const result = await cancel;
+          await vi.advanceTimersByTimeAsync(
+            CHASE_ORDER_CONFIG.RefreshIntervalMs * 2,
+          );
+          stopBefore();
+          stopAfter();
+
+          // The caller still learns the cancel succeeded.
+          expect(result).toStrictEqual(canceled);
+          expect([
+            ...before.mock.calls,
+            ...after.mock.calls,
+          ]).not.toContainEqual([
+            expect.objectContaining({ history: [canceled.chaseOrder] }),
+          ]);
+          expect(after).toHaveBeenCalledWith({ running: [], history: [] });
+        } finally {
+          vi.useRealTimers();
+        }
+      },
+    );
 
     it('clears the Chase lists at once when the network changes during a read', async () => {
       vi.useFakeTimers();

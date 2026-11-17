@@ -11,7 +11,7 @@ import type {
 } from '../types/index.js';
 import {
   chaseOrderKey,
-  isChaseOrderRunning,
+  isChaseOrderCancelable,
   isTwapOrderActive,
   mergeChaseOrderHistory,
   mergeTwapOrders,
@@ -371,11 +371,12 @@ export function createLiveChaseOrderList(params: {
   const endingOf = (order: ChaseOrder): ChaseOrder | undefined =>
     endings.find((ending) => isSameChase(ending, order));
 
-  // A read that still lists a chase as running after its cancel reported an
-  // ending is stale; the ending replaces it. An ending the read reports wins.
+  // A read that still offers a cancel (running, or stopped with a child
+  // resting) after the cancel reported an ending is stale; the ending replaces
+  // it. An ending the read reports wins.
   const settle = (order: ChaseOrder): ChaseOrder => {
     const ending = endingOf(order);
-    return ending && isChaseOrderRunning(order)
+    return ending && isChaseOrderCancelable(order)
       ? withProvider(ending, order.providerId)
       : order;
   };

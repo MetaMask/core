@@ -1251,6 +1251,11 @@ type ChaseSession = {
   hip3RebalancePromise?: Promise<boolean>;
   /** Remove a canceled session once deferred collateral cleanup succeeds. */
   removeAfterRebalance?: boolean;
+  /**
+   * Child the venue reported gone on cancel whose ending could not be read.
+   * A later read asks the venue again; until then the status stays unchanged.
+   */
+  unresolvedOrderId?: string;
   /** Absolute deadline, as a `Date.now()` stamp. */
   deadline: number;
   maxRepricings: number;
@@ -9713,6 +9718,18 @@ export class HyperLiquidProvider implements PerpsProvider {
           }
         }
 
+        if (session.unresolvedOrderId !== undefined) {
+          const remainder = await this.#readOrderRemainder(
+            session.unresolvedOrderId,
+          ).catch(() => undefined);
+          if (remainder?.terminalStatus) {
+            session.status = remainder.terminalStatus;
+            session.size = remainder.remainingSize ?? '0';
+            snapshotRemainingSize = session.size;
+            delete session.unresolvedOrderId;
+          }
+        }
+
         if (!session.active && session.hip3Transfer) {
           const rebalanced = await this.#rebalanceChaseSession(session);
           if (rebalanced && session.removeAfterRebalance) {
@@ -10173,20 +10190,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     const remainder = await this.#readOrderRemainder(session.orderId).catch(
       () => undefined,
     );
+    const childOrderId = session.orderId;
     session.orderId = null;
     if (remainder?.terminalStatus) {
       session.status = remainder.terminalStatus;
       session.size = remainder.remainingSize ?? '0';
-    } else {
+    } else if (cancelOutcome === CancelChildOutcome.Cancelled) {
       session.status = CHASE_ORDER_STATUS.Canceled;
+    } else {
+      // Without the child's status, a gone child's ending is unknown.
+      session.unresolvedOrderId = childOrderId;
     }
-    // Without the child's status, a gone child's ending is unknown.
-    const endingKnown =
-      Boolean(remainder?.terminalStatus) ||
-      cancelOutcome === CancelChildOutcome.Cancelled;
-    const chaseOrder = endingKnown
-      ? this.#chaseSnapshot(params.orderId, session)
-      : undefined;
+    const chaseOrder =
+      session.unresolvedOrderId === undefined
+        ? this.#chaseSnapshot(params.orderId, session)
+        : undefined;
     session.removeAfterRebalance = true;
     if (await this.#rebalanceChaseSession(session)) {
       this.#chaseSessions.delete(params.orderId);

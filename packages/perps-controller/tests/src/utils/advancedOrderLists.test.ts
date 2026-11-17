@@ -922,6 +922,35 @@ describe('createLiveChaseOrderList', () => {
       });
     });
 
+    it('keeps the cancelled child gone when an older stopped read arrives late', async () => {
+      const stopped = chase('h1', 'max_distance_reached');
+      let release: ((orders: ChaseOrder[]) => void) | undefined;
+      const getChaseOrders = vi
+        .fn()
+        .mockResolvedValueOnce([stopped])
+        .mockImplementationOnce(
+          async () =>
+            new Promise<ChaseOrder[]>((resolve) => {
+              release = resolve;
+            }),
+        )
+        .mockResolvedValue([]);
+      const { callback, cancel } = startList(getChaseOrders);
+      await vi.advanceTimersByTimeAsync(0);
+      // The second read is held with the child still resting.
+      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.RefreshIntervalMs);
+      cancel(ended(stopped, 'max_distance_reached'));
+      callback.mockClear();
+      release?.([stopped]);
+      await vi.advanceTimersByTimeAsync(
+        CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
+      );
+
+      expect(getChaseOrders.mock.calls.length).toBeGreaterThan(2);
+      // The late snapshot and the omissions after it change nothing visible.
+      expect(callback).not.toHaveBeenCalled();
+    });
+
     it("leaves another provider's chase with the same handle running", async () => {
       const lighterChase = {
         ...chase('h1', 'active'),
