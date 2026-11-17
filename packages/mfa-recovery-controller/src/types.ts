@@ -117,8 +117,8 @@ export type KeyBoundIdentifierTokenRequest = {
   requestHash: string;
   /**
    * Unix seconds to copy into the token. The provider assertion must sign
-   * `hash([proofPublicKey, requestHash, notAfter])` as its passkey challenge
-   * or OIDC / SIWE nonce.
+   * `hash([proofPublicKey, requestHash, notAfter])` as its OIDC / SIWE nonce,
+   * or `getEscrowPasskeyChallenge(request)` as its passkey challenge.
    */
   notAfter: number;
 };
