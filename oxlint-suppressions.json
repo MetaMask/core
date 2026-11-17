@@ -4963,6 +4963,9 @@
     "typescript/explicit-function-return-type": {
       "count": 8
     },
+    "typescript/no-explicit-any": {
+      "count": 1
+    },
     "typescript/no-floating-promises": {
       "count": 4
     },
@@ -5004,7 +5007,7 @@
       "count": 8
     },
     "typescript/no-explicit-any": {
-      "count": 1
+      "count": 4
     },
     "typescript/no-unsafe-argument": {
       "count": 3
