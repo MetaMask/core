@@ -22,7 +22,7 @@ import {
   getUnpricedResponseAssetIds,
   isPriceableAsset,
 } from '../utils/getAssetIdsForPriceFetch.js';
-import { fetchWithTimeout } from '../utils/index.js';
+import { fetchWithTimeout, safeNormalizeAssetId } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -126,6 +126,12 @@ type SpotPriceMarketData = Omit<
   'lastUpdated' | 'assetPriceType'
 >;
 
+/** A currency snapshot and its independently owned in-flight requests. */
+type PriceRequestContext = {
+  readonly currency: SupportedCurrency;
+  readonly deduper: DedupingBatchFetcher<Caip19AssetId, FungibleAssetPrice>;
+};
+
 /**
  * Type guard to check if market data has a valid price
  *
@@ -171,12 +177,13 @@ export class PriceDataSource {
   readonly #fetchTimeoutMs: number;
 
   /**
-   * Deduplicates price fetches by asset ID: skips assets fetched within the
-   * freshness TTL and joins concurrent in-flight fetches for the same asset so
-   * overlapping triggers (middleware + subscription poll) don't issue duplicate
-   * API requests.
+   * Owns freshness and in-flight deduplication for one currency snapshot.
+   * Currency changes and full invalidation retire this context so its pending
+   * requests cannot join or update the next context.
    */
-  readonly #deduper: DedupingBatchFetcher<Caip19AssetId, FungibleAssetPrice>;
+  #requestContext: PriceRequestContext | undefined;
+
+  #freshnessTtlMs: number;
 
   readonly #getAssetsState: () => AssetsControllerState;
 
@@ -196,13 +203,7 @@ export class PriceDataSource {
     this.#apiClient = options.queryApiClient;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#getAssetsState = options.getAssetsState;
-    this.#deduper = new DedupingBatchFetcher({
-      fetchBatch: (
-        assetIds,
-      ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> =>
-        this.#executeBatchFetch(assetIds),
-      freshnessTtlMs: options.priceFreshnessTtlMs ?? this.#pollInterval,
-    });
+    this.#freshnessTtlMs = options.priceFreshnessTtlMs ?? this.#pollInterval;
   }
 
   // ============================================================================
@@ -225,22 +226,27 @@ export class PriceDataSource {
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
+      const context = this.#getRequestContext();
       const { response, request } = ctx;
       const unpricedAssetIds = await getUnpricedResponseAssetIds({
         state: this.#getAssetsState(),
         response,
         getSupportedNetworks: () => this.#getSupportedNetworks(),
       });
-      if (unpricedAssetIds.length === 0) {
+      if (unpricedAssetIds.length === 0 || !this.#isCurrentContext(context)) {
         return next(ctx);
       }
 
+      const assetIds = [...new Set(unpricedAssetIds.map(safeNormalizeAssetId))];
       if (request.forceUpdate) {
-        this.#deduper.invalidateKeys(unpricedAssetIds);
+        context.deduper.invalidateKeys(assetIds);
       }
 
       try {
-        const spotPrices = await this.#fetchSpotPrices(unpricedAssetIds);
+        const spotPrices = await this.#fetchSpotPrices(assetIds, context);
+        if (!this.#isCurrentContext(context)) {
+          return next(ctx);
+        }
         response.assetsPrice = {
           ...(response.assetsPrice ?? {}),
           ...spotPrices,
@@ -263,14 +269,16 @@ export class PriceDataSource {
   async fetchAssetPrices(
     assetIds: Caip19AssetId[],
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
+    const context = this.#getRequestContext();
     const supportedAssetIds =
       await this.#filterToSupportedPriceableAssets(assetIds);
-    if (supportedAssetIds.length === 0) {
+    if (supportedAssetIds.length === 0 || !this.#isCurrentContext(context)) {
       return {};
     }
 
-    this.#deduper.invalidateKeys(supportedAssetIds);
-    return this.#fetchSpotPrices(supportedAssetIds);
+    context.deduper.invalidateKeys(supportedAssetIds);
+    const prices = await this.#fetchSpotPrices(supportedAssetIds, context);
+    return this.#isCurrentContext(context) ? prices : {};
   }
 
   // ============================================================================
@@ -332,13 +340,13 @@ export class PriceDataSource {
    * {@link DedupingBatchFetcher}.
    *
    * @param assetIds - Asset IDs to fetch (already filtered/deduplicated).
+   * @param selectedCurrency - Currency captured when this context was created.
    * @returns Parsed prices keyed by CAIP-19 asset ID.
    */
   async #executeBatchFetch(
     assetIds: Caip19AssetId[],
+    selectedCurrency: SupportedCurrency,
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
-    const selectedCurrency = this.#getSelectedCurrency();
-
     type BatchResult = {
       selectedCurrencyPrices: V3SpotPricesResponse;
       usdPrices: V3SpotPricesResponse;
@@ -357,23 +365,32 @@ export class PriceDataSource {
       initialResult: [],
     });
 
+    const requestedIds = new Set(assetIds);
     const fetchedAt = Date.now();
     const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
 
     for (const { selectedCurrencyPrices, usdPrices } of batchResults) {
+      const normalizedUsdPrices = new Map(
+        Object.entries(usdPrices).map(([id, data]) => [
+          safeNormalizeAssetId(id as Caip19AssetId),
+          data,
+        ]),
+      );
       for (const [assetId, marketData] of Object.entries(
         selectedCurrencyPrices,
       )) {
-        const usdMarketData = usdPrices[assetId];
+        const normalizedId = safeNormalizeAssetId(assetId as Caip19AssetId);
+        const usdMarketData = normalizedUsdPrices.get(normalizedId);
 
         if (
+          !requestedIds.has(normalizedId) ||
           !isValidMarketData(marketData) ||
           !isValidMarketData(usdMarketData)
         ) {
           continue;
         }
 
-        prices[assetId as Caip19AssetId] = {
+        prices[normalizedId] = {
           ...marketData,
           assetPriceType: 'fungible',
           usdPrice: usdMarketData.price,
@@ -390,13 +407,51 @@ export class PriceDataSource {
    * deduper (freshness TTL + per-asset inflight coalescing).
    *
    * @param assetIds - Array of CAIP-19 asset IDs.
+   * @param context - Currency and in-flight request owner captured before preflight.
    * @returns Spot prices response (only contains entries for assets that were
    * actually fetched or joined from inflight).
    */
   async #fetchSpotPrices(
     assetIds: Caip19AssetId[],
+    context: PriceRequestContext,
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
-    return this.#deduper.fetch(assetIds);
+    const prices = await context.deduper.fetch(assetIds);
+    return this.#isCurrentContext(context) ? prices : {};
+  }
+
+  /**
+   * Get the owner for the currently selected currency.
+   *
+   * @returns The active request context.
+   */
+  #getRequestContext(): PriceRequestContext {
+    const currency = this.#getSelectedCurrency();
+    if (!this.#requestContext || this.#requestContext.currency !== currency) {
+      this.#requestContext = {
+        currency,
+        deduper: new DedupingBatchFetcher({
+          freshnessTtlMs: this.#freshnessTtlMs,
+          fetchBatch: (
+            assetIds,
+          ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> =>
+            this.#executeBatchFetch(assetIds, currency),
+        }),
+      };
+    }
+    return this.#requestContext;
+  }
+
+  /**
+   * Check whether an operation still belongs to the active currency context.
+   *
+   * @param context - The operation's captured context.
+   * @returns Whether its results may leave this data source.
+   */
+  #isCurrentContext(context: PriceRequestContext): boolean {
+    return (
+      this.#requestContext === context &&
+      this.#getSelectedCurrency() === context.currency
+    );
   }
 
   /**
@@ -430,7 +485,9 @@ export class PriceDataSource {
   async #filterToSupportedPriceableAssets(
     assetIds: Caip19AssetId[],
   ): Promise<Caip19AssetId[]> {
-    const priceableAssetIds = assetIds.filter(isPriceableAsset);
+    const priceableAssetIds = [
+      ...new Set(assetIds.filter(isPriceableAsset).map(safeNormalizeAssetId)),
+    ];
     if (priceableAssetIds.length === 0) {
       return [];
     }
@@ -488,17 +545,21 @@ export class PriceDataSource {
    * @returns DataResponse containing asset prices.
    */
   async fetch(request: DataRequest): Promise<DataResponse> {
+    const context = this.#getRequestContext();
     const response: DataResponse = {};
 
     const assetIds = await this.#filterToSupportedPriceableAssets(
       this.#getAssetIdsFromBalanceState(request),
     );
-    if (assetIds.length === 0) {
+    if (assetIds.length === 0 || !this.#isCurrentContext(context)) {
       return response;
     }
 
     try {
-      const spotPrices = await this.#fetchSpotPrices(assetIds);
+      const spotPrices = await this.#fetchSpotPrices(assetIds, context);
+      if (!this.#isCurrentContext(context)) {
+        return response;
+      }
 
       response.assetsPrice = {
         ...(response.assetsPrice ?? {}),
@@ -534,8 +595,10 @@ export class PriceDataSource {
         existing.onAssetsUpdate = subscriptionRequest.onAssetsUpdate;
 
         try {
+          const context = this.#getRequestContext();
           const fetchResponse = await this.fetch(request);
           if (
+            this.#isCurrentContext(context) &&
             fetchResponse.assetsPrice &&
             Object.keys(fetchResponse.assetsPrice).length > 0
           ) {
@@ -561,10 +624,11 @@ export class PriceDataSource {
     // that triggered it), so a TTL equal to the poll interval would leave the
     // asset still "fresh" at the next tick, making the subscription re-fetch
     // only every other poll. The margin also absorbs network latency / jitter.
-    this.#deduper.freshnessTtlMs = Math.min(
-      this.#deduper.freshnessTtlMs,
+    this.#freshnessTtlMs = Math.min(
+      this.#freshnessTtlMs,
       Math.floor(pollInterval * FRESHNESS_TTL_POLL_RATIO),
     );
+    this.#getRequestContext().deduper.freshnessTtlMs = this.#freshnessTtlMs;
 
     // Create poll function - fetches prices using constructor getAssetsState.
     // The freshness TTL naturally gates re-fetches: assets fetched less than
@@ -579,10 +643,12 @@ export class PriceDataSource {
           return;
         }
 
+        const context = this.#getRequestContext();
         const fetchResponse = await this.fetch(subscription.request);
 
         // Only report if we got prices
         if (
+          this.#isCurrentContext(context) &&
           fetchResponse.assetsPrice &&
           Object.keys(fetchResponse.assetsPrice).length > 0
         ) {
@@ -632,10 +698,11 @@ export class PriceDataSource {
   /**
    * Invalidate the price freshness cache, forcing the next fetch to call the
    * API regardless of TTL. Use when external state changes (e.g. selected
-   * currency) require a full refresh.
+   * currency) require a full refresh. Pending requests from the previous
+   * context return no prices, even when the selected currency is unchanged.
    */
   invalidatePriceCache(): void {
-    this.#deduper.invalidate();
+    this.#requestContext = undefined;
   }
 
   /**
@@ -646,6 +713,7 @@ export class PriceDataSource {
       subscription.cleanup();
     }
     this.#activeSubscriptions.clear();
-    this.#deduper.destroy();
+    this.#requestContext?.deduper.destroy();
+    this.#requestContext = undefined;
   }
 }
