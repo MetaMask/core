@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the Multicall3 address map and `SPOT_PRICES_SUPPORT_INFO`, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
+
 ## [113.3.2]
 
 ### Changed
@@ -23,10 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-enablement-controller` from `^7.1.1` to `^7.1.3` ([#11447](https://github.com/MetaMask/core/pull/11447), [#11472](https://github.com/MetaMask/core/pull/11472))
 - Bump `@metamask/phishing-controller` from `^18.3.0` to `^18.3.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
 - Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
-
-### Removed
-
-- Remove Blast Mainnet (`0x13e31`) from the Multicall3 address map and `SPOT_PRICES_SUPPORT_INFO`, as the network is being terminated ([#11445](https://github.com/MetaMask/core/pull/11445))
 
 ### Fixed
 
