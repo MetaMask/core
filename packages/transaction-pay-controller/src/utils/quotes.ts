@@ -345,6 +345,7 @@ function syncTransaction({
       }
 
       tx.metamaskPay = {
+        ...tx.metamaskPay,
         accountOverride,
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken?.chainId,

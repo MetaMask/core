@@ -363,12 +363,12 @@ function onTransactionFinalized(
 ): void {
   log('Transaction finalized', { transaction });
 
-  const accountOverride = messenger.call('TransactionPayController:getState')
-    ?.transactionData[transaction.id]?.accountOverride;
+  const transactionData = messenger.call('TransactionPayController:getState')
+    ?.transactionData[transaction.id];
 
-  if (accountOverride) {
+  if (transactionData) {
     persistPayAccountOverride({
-      accountOverride,
+      accountOverride: transactionData.accountOverride,
       messenger,
       transactionId: transaction.id,
     });

@@ -459,6 +459,51 @@ describe('Transaction Utils', () => {
 
         expect(mocks.updateTransactionMock).not.toHaveBeenCalled();
       });
+
+      it('clears stale metamaskPay.accountOverride on finalization when transactionData.accountOverride is undefined', () => {
+        const finalizedTx = {
+          ...TRANSACTION_META_MOCK,
+          metamaskPay: { accountOverride, isPostQuote: true },
+          status: TransactionStatus.confirmed,
+        } as TransactionMeta;
+
+        mocks.getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              accountOverride: undefined,
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        });
+        mocks.getTransactionControllerStateMock.mockReturnValue({
+          transactions: [finalizedTx],
+        });
+
+        subscribeTransactionChanges(mocks.messenger, noop, vi.fn());
+
+        mocks.publish(
+          'TransactionController:stateChange',
+          { transactions: [TRANSACTION_META_MOCK] },
+          [],
+        );
+        mocks.publish(
+          'TransactionController:stateChange',
+          { transactions: [finalizedTx] },
+          [],
+        );
+
+        expect(mocks.updateTransactionMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: TRANSACTION_ID_MOCK,
+            metamaskPay: {
+              accountOverride: undefined,
+              isPostQuote: true,
+            },
+          }),
+          'Persist pay account override',
+        );
+      });
     });
   });
 

@@ -1179,6 +1179,20 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('preserves existing metamaskPay properties such as sourceHash during sync', async () => {
+      const sourceHash =
+        '0x2222222222222222222222222222222222222222222222222222222222222222' as Hex;
+
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { sourceHash },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.sourceHash).toBe(sourceHash);
+    });
+
     it('does not persist strategy in metadata when there are no executable quotes', async () => {
       getQuotesMock.mockResolvedValue([
         { ...QUOTE_MOCK, strategy: TransactionPayStrategy.None },
