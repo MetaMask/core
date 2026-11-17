@@ -254,6 +254,28 @@ describe('src/utils.js', () => {
     });
   });
 
+  describe('mapKeysToCamel', () => {
+    it('returns keys and nested keys in camelCase', () => {
+      const errResponse = {
+        error_props: {
+          balance_needed_wei: 235105211121513150,
+          current_balance_wei: 230652394534126820,
+        },
+        error: 'not_enough_funds',
+        error_details:
+          'Not enough funds. Balance is only 230652394534126801 wei and we need 235105211121513136 wei at the very least.',
+      };
+      expect(utils.mapKeysToCamel(errResponse)).toStrictEqual({
+        errorProps: {
+          balanceNeededWei: errResponse.error_props.balance_needed_wei,
+          currentBalanceWei: errResponse.error_props.current_balance_wei,
+        },
+        error: errResponse.error,
+        errorDetails: errResponse.error_details,
+      });
+    });
+  });
+
   describe('getTxHash', () => {
     it('returns a transaction hash from a signed transaction', () => {
       const expectedTxHash =

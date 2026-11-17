@@ -72,6 +72,7 @@ import type {
 import { SmartTransactionStatuses } from './types.js';
 import {
   calculateStatus,
+  mapKeysToCamel,
   incrementNonceInHex,
   isSmartTransactionCancellable,
   isSmartTransactionPending,
@@ -796,12 +797,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
         uuids,
       });
     } catch (error) {
-      if (error instanceof HttpError) {
-        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
-          data: 'data' in error ? error.data : undefined,
-        });
-      }
-      throw error;
+      throw this.#toFetchError(error);
     }
 
     // Process each returned status
@@ -900,12 +896,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
           }),
       );
     } catch (error) {
-      if (error instanceof HttpError) {
-        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
-          data: 'data' in error ? error.data : undefined,
-        });
-      }
-      throw error;
+      throw this.#toFetchError(error);
     }
     let approvalTxFees: IndividualTxFees | null;
     let tradeTxFees: IndividualTxFees | null;
@@ -967,18 +958,23 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     const ethQuery = this.#getEthQuery({
       networkClientId: selectedNetworkClientId,
     });
-    const data = await this.#trace(
-      { name: SmartTransactionsTraceName.SubmitTransactions },
-      async (): Promise<SentinelSubmitTransactionsResponse> =>
-        await this.messenger.call('SentinelApiService:submitTransactions', {
-          chainId,
-          rawTxs: signedTransactions,
-          rawCancelTxs: signedCanceledTransactions,
-          ...(signedTransactionsWithMetadata === undefined
-            ? {}
-            : { rawTxsWithMetadata: signedTransactionsWithMetadata }),
-        }),
-    );
+    let data: SentinelSubmitTransactionsResponse;
+    try {
+      data = await this.#trace(
+        { name: SmartTransactionsTraceName.SubmitTransactions },
+        async (): Promise<SentinelSubmitTransactionsResponse> =>
+          await this.messenger.call('SentinelApiService:submitTransactions', {
+            chainId,
+            rawTxs: signedTransactions,
+            rawCancelTxs: signedCanceledTransactions,
+            ...(signedTransactionsWithMetadata === undefined
+              ? {}
+              : { rawTxsWithMetadata: signedTransactionsWithMetadata }),
+          }),
+      );
+    } catch (error) {
+      throw this.#toFetchError(error);
+    }
     const time = Date.now();
     let preTxBalance;
     try {
@@ -1050,6 +1046,23 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     }
 
     return submitTransactionResponse;
+  }
+
+  /**
+   * Maps a Sentinel `HttpError` to the legacy `Fetch error: <status>` shape
+   * (with the response body on `data`) that callers depend on. Other errors
+   * are returned unchanged.
+   *
+   * @param error - The error thrown by the Sentinel API call.
+   * @returns The error to throw in its place.
+   */
+  #toFetchError(error: unknown): unknown {
+    if (error instanceof HttpError) {
+      return Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
+        data: 'data' in error ? mapKeysToCamel(error.data) : undefined,
+      });
+    }
+    return error;
   }
 
   #getChainId({
@@ -1126,12 +1139,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
           }),
       );
     } catch (error) {
-      if (error instanceof HttpError) {
-        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
-          data: 'data' in error ? error.data : undefined,
-        });
-      }
-      throw error;
+      throw this.#toFetchError(error);
     }
   }
 

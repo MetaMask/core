@@ -1541,6 +1541,36 @@ describe('SmartTransactionsController', () => {
         );
       });
     });
+
+    it('rethrows submitTransactions error message when fetch fails', async () => {
+      const httpError = new HttpError(
+        400,
+        "Sentinel API: submitTransactions request failed with status '400'",
+      );
+      Object.assign(httpError, { data: { error: 'invalid raw tx' } });
+
+      await withController(
+        {
+          submitTransactions: vi
+            .fn<SentinelApiServiceSubmitTransactionsAction['handler']>()
+            .mockRejectedValue(httpError),
+        },
+        async ({ controller }) => {
+          const signedTransaction = createSignedTransaction();
+
+          await expect(
+            controller.submitSignedTransactions({
+              signedTransactions: [signedTransaction],
+            }),
+          ).rejects.toMatchObject({
+            message: 'Fetch error: 400',
+            data: {
+              error: 'invalid raw tx',
+            },
+          });
+        },
+      );
+    });
   });
 
   describe('fetchSmartTransactionsStatus', () => {
