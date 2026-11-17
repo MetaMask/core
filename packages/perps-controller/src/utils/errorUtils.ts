@@ -13,8 +13,7 @@ const HYPERLIQUID_ERROR_MAPPINGS: readonly {
   pattern: RegExp;
   code: HyperLiquidErrorDetails['code'];
 }[] = [
-  // Post-only rejections come first: the would-cross message embeds raw bbo
-  // prices that the generic patterns below (e.g. status 503) could match.
+  // Keep specific post-only rejections ahead of generic failure patterns.
   {
     pattern: /post only order would have immediately matched/iu,
     code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
@@ -42,8 +41,7 @@ const HYPERLIQUID_ERROR_MAPPINGS: readonly {
     code: PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
   },
   {
-    pattern:
-      /order(?: \d+)?: order must have minimum value|order must have minimum value/iu,
+    pattern: /order must have minimum value/iu,
     code: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
   },
   {

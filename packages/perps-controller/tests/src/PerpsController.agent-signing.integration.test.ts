@@ -542,6 +542,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(result).toStrictEqual({
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(mockVenue.networks).toStrictEqual([]);
     expect(mockVenue.writes).toStrictEqual([]);
@@ -815,6 +820,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     expect(result).toStrictEqual({
       ready: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(mockVenue.networks).toStrictEqual([]);
     expect(mockVenue.writes).toStrictEqual([]);

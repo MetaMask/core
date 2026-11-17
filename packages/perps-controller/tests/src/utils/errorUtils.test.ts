@@ -195,6 +195,10 @@ describe('errorUtils', () => {
         PERPS_ERROR_CODES.ORDER_SIZE_MIN,
       ],
       [
+        'Order 12: Order must have minimum value of $10',
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+      ],
+      [
         'User or API Wallet 0xabc does not exist.',
         PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       ],

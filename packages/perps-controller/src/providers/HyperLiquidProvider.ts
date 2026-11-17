@@ -16376,20 +16376,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         response: result,
         params,
       });
-      const mappedError = await this.#reportWriteError(
-        rejection,
-        'withdraw',
-        {
-          assetId: params.assetId,
-          amount: params.amount,
-          destination: params.destination,
-        },
-        {
-          operation: PERPS_ERROR_OPERATION.FinancialOperations,
-          action: PERPS_ERROR_ACTION.FinancialWithdrawal,
-        },
-      );
-      return createErrorResult(mappedError, { success: false });
+      // A venue status rejection is an expected result, not an exception to
+      // report. Preserve the diagnostic for debugging and normalize for clients.
+      return createErrorResult(rejection, { success: false });
     } catch (error) {
       if (accountContext) {
         this.#recordUnsupportedAccountFromError(error, accountContext);
@@ -17002,9 +16991,20 @@ export class HyperLiquidProvider implements PerpsProvider {
    * `PerpsController.prepareTradingWallet`.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
+    const createNotReadyResult = (error: unknown): ReadyToTradeResult => {
+      const normalizedError = normalizeHyperLiquidError(error);
+      return {
+        ready: false,
+        error: normalizedError.message,
+        errorCode: normalizedError.errorCode,
+        ...(normalizedError.errorDetails === undefined
+          ? {}
+          : { errorDetails: normalizedError.errorDetails }),
+      };
+    };
     // Nothing can be signed, so run no setup (and log nothing) until it can.
     if (!this.#walletService.isMainAccountSignerReady()) {
-      return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+      return createNotReadyResult(PERPS_ERROR_CODES.KEYRING_LOCKED);
     }
     try {
       const lifecycleGeneration = this.#lifecycleGeneration;
@@ -17043,12 +17043,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The venue rejects every write from a wallet with no HyperLiquid account
       // yet, so it is not asked to sign a builder fee approval either.
       if (!isRegistered) {
-        return {
-          ready: false,
-          error: this.#walletService.isMainAccountSignerReady()
+        return createNotReadyResult(
+          this.#walletService.isMainAccountSignerReady()
             ? PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND
             : PERPS_ERROR_CODES.KEYRING_LOCKED,
-        };
+        );
       }
       await this.#ensureBuilderFeeSetup(
         undefined,
@@ -17061,7 +17060,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The builder fee setup ends quietly when the provider disconnects.
       await assertPreparationCurrent();
       if (!this.#walletService.isMainAccountSignerReady()) {
-        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+        return createNotReadyResult(PERPS_ERROR_CODES.KEYRING_LOCKED);
       }
       const ready =
         this.#tradingSetupComplete &&
@@ -17075,7 +17074,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         isKeyringLockedError(error) ||
         !this.#walletService.isMainAccountSignerReady()
       ) {
-        return { ready: false, error: PERPS_ERROR_CODES.KEYRING_LOCKED };
+        return createNotReadyResult(PERPS_ERROR_CODES.KEYRING_LOCKED);
       }
       const caughtError = ensureError(
         error,
@@ -17104,14 +17103,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           this.#getErrorContext('prepareTradingWallet'),
         );
       }
-      return {
-        ready: false,
-        error: normalizedError.message,
-        errorCode: normalizedError.errorCode,
-        ...(normalizedError.errorDetails === undefined
-          ? {}
-          : { errorDetails: normalizedError.errorDetails }),
-      };
+      return createNotReadyResult(normalizedError);
     }
   }
 

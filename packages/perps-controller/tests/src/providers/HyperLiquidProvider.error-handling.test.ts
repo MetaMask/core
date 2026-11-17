@@ -25,7 +25,10 @@ import type {
   LiveDataConfig,
   OrderParams,
 } from '../../../src/types/index.js';
-import { wasProviderErrorReported } from '../../../src/utils/errorContext.js';
+import {
+  getProviderErrorCause,
+  wasProviderErrorReported,
+} from '../../../src/utils/errorContext.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
@@ -2131,43 +2134,61 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('handles withdrawal API error', async () => {
-        mockClientService.getExchangeClient = vi.fn().mockReturnValue({
-          withdraw3: vi.fn().mockResolvedValue({
-            status: 'insufficient_funds',
-            message: 'Not enough balance',
-          }),
-        });
+      it.each([
+        ['Not enough balance', PERPS_ERROR_CODES.INSUFFICIENT_BALANCE],
+        [
+          'Must deposit before performing actions',
+          PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        ],
+        ['Unclassified venue rejection', PERPS_ERROR_CODES.UNKNOWN_ERROR],
+      ])(
+        'keeps withdrawal status rejection "%s" debug-only',
+        async (message, code) => {
+          const response = { status: 'err', message };
+          mockClientService.getExchangeClient = vi.fn().mockReturnValue({
+            withdraw3: vi.fn().mockResolvedValue(response),
+          });
 
-        // Mock account state for balance validation
-        Object.defineProperty(provider, 'getAccountState', {
-          value: vi.fn().mockResolvedValue({
-            spendableBalance: '5000',
-            withdrawableBalance: '5000',
-          }),
-          writable: true,
-        });
+          // Mock account state for balance validation
+          Object.defineProperty(provider, 'getAccountState', {
+            value: vi.fn().mockResolvedValue({
+              spendableBalance: '5000',
+              withdrawableBalance: '5000',
+            }),
+            writable: true,
+          });
 
-        const withdrawParams = {
-          amount: '1000',
-          destination: '0x1234567890123456789012345678901234567890' as Hex,
-          assetId:
-            'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831/default' as CaipAssetId,
-        };
+          const withdrawParams = {
+            amount: '1000',
+            destination: '0x1234567890123456789012345678901234567890' as Hex,
+            assetId:
+              'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831/default' as CaipAssetId,
+          };
 
-        const result = await provider.withdraw(withdrawParams);
+          const result = await provider.withdraw(withdrawParams);
 
-        expect(result).toMatchObject({
-          success: false,
-          error: PERPS_ERROR_CODES.INSUFFICIENT_BALANCE,
-          errorCode: PERPS_ERROR_CODES.INSUFFICIENT_BALANCE,
-          errorDetails: {
-            code: PERPS_ERROR_CODES.INSUFFICIENT_BALANCE,
-            provider: 'hyperliquid',
-          },
-        });
-        expect(result.error).not.toContain('insufficient_funds');
-      });
+          expect(result).toStrictEqual({
+            success: false,
+            error: code,
+            errorCode: code,
+            errorDetails: { code, provider: 'hyperliquid' },
+          });
+          const rejectionMessage = `Withdrawal failed: ${JSON.stringify(response)}`;
+          expect(getProviderErrorCause(result)?.cause).toEqual(
+            new Error(rejectionMessage),
+          );
+          expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
+            'HyperLiquidProvider: WITHDRAWAL FAILED',
+            {
+              error: rejectionMessage,
+              status: response.status,
+              response,
+              params: withdrawParams,
+            },
+          );
+          expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        },
+      );
     });
 
     describe('liquidation price edge cases', () => {
