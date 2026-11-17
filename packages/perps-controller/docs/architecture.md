@@ -213,7 +213,7 @@ Code: `src/PerpsController.ts` `init`, `#performInitialization`, `#beginReinitia
 
 ## What a client must do
 
-Proposed, to agree with every client team ([TAT-4656](https://consensyssoftware.atlassian.net/browse/TAT-4656)). Each line becomes a perps review rule. Bracketed values are the current constants.
+Agreed for every client ([TAT-4656](https://consensyssoftware.atlassian.net/browse/TAT-4656)). Perps review checks each line on Mobile, Extension and Terminal. Bracketed values are the current constants.
 
 - One owner per client decides when to call `init` and `disconnect`. Other components read state; they don't connect.
 - Use the `PERPS_CONSTANTS` timings (`ConnectionGracePeriodMs` 20 s, `ConnectionAttemptTimeoutMs` 30 s, `ConnectRetryDelayMs` 200 ms) instead of local values.

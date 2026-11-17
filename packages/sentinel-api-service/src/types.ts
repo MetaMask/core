@@ -3,7 +3,11 @@ import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
-import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
@@ -70,6 +74,55 @@ export type SentinelApiServiceMessenger = Messenger<
 >;
 
 /**
+ * Names of operations {@link SentinelApiService} can trace.
+ */
+export const TRACES = {
+  SIMULATE_TRANSACTIONS: 'Sentinel Simulate Transactions',
+} as const;
+
+/**
+ * Name of an operation {@link SentinelApiService} can trace.
+ */
+export type SentinelApiServiceTraceName = (typeof TRACES)[keyof typeof TRACES];
+
+/**
+ * Request passed to {@link SentinelApiServiceTraceCallback}.
+ */
+export type SentinelApiServiceTraceRequest = Omit<TraceRequest, 'name'> & {
+  /** Name of the operation. */
+  name: SentinelApiServiceTraceName;
+
+  /**
+   * Override the start time of the trace, in milliseconds.
+   * Set by the service so a span recorded after the request can be backdated.
+   */
+  startTime?: number;
+};
+
+/**
+ * Options accepted by traced {@link SentinelApiService} methods.
+ */
+export type SentinelApiServiceTraceOptions = {
+  /**
+   * Trace context to nest the operation's trace under. Without it, clients
+   * that do not infer a parent from the active span record the trace as a
+   * root span.
+   */
+  traceContext?: TraceContext;
+};
+
+/**
+ * Callback that traces the performance of a Sentinel API operation.
+ *
+ * The service records the trace on a best-effort basis and does not fail the
+ * request if tracing throws or rejects.
+ */
+export type SentinelApiServiceTraceCallback = <ReturnType>(
+  request: SentinelApiServiceTraceRequest,
+  fn?: (context?: TraceContext) => ReturnType,
+) => Promise<ReturnType>;
+
+/**
  * Constructor options for {@link SentinelApiService}.
  */
 export type SentinelApiServiceOptions = {
@@ -108,6 +161,12 @@ export type SentinelApiServiceOptions = {
    * this service replaces; pass `maxRetries` here to opt in.
    */
   policyOptions?: CreateServicePolicyOptions;
+
+  /**
+   * Optional callback to trace network requests. Tracing is best-effort and
+   * does not affect the request result if it fails.
+   */
+  trace?: SentinelApiServiceTraceCallback;
 };
 
 /**
