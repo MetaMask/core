@@ -1,0 +1,26 @@
+name: Delete unmerged branch
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions: {}
+
+jobs:
+  delete-branch:
+    name: Delete branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.merged == false }}
+    steps:
+      - name: Delete branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          gh api --method DELETE "repos/${REPOSITORY}/git/refs/heads/${BRANCH}"
+
