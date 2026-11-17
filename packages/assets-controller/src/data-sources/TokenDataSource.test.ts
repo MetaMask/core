@@ -1228,6 +1228,49 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('occurrence filtering exempts BNB mUSD but not an address suffix', async () => {
+    const musd =
+      'eip155:56/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA' as Caip19AssetId;
+    const suffix = `${musd}00` as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:56'],
+      assetsResponse: [createMockAssetResponse(suffix, { occurrences: 1 })],
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsBalance: {},
+        assetsInfo: {},
+      }),
+    });
+    const next = vi.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({
+        dataTypes: ['balance'],
+        chainIds: ['eip155:56'],
+      }),
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [musd]: { amount: '1' },
+            [suffix]: { amount: '1' },
+          },
+        },
+      },
+    });
+
+    await controller.occurrenceFilterMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([suffix], {
+      includeOccurrences: true,
+    });
+    expect(
+      context.response.assetsBalance?.['mock-account-id']?.[musd],
+    ).toStrictEqual({ amount: '1' });
+    expect(
+      context.response.assetsBalance?.['mock-account-id']?.[suffix],
+    ).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
   it('occurrenceFilterMiddleware keeps new low-occurrence launchpad tokens', async () => {
     const launchpadAsset =
       'eip155:1/erc20:0x4444444444444444444444444444444444444444' as Caip19AssetId;
@@ -1579,39 +1622,47 @@ describe('TokenDataSource', () => {
   });
 
   it.each([
-    { occurrences: 1, label: 'low occurrences' },
-    { occurrences: undefined, label: 'no occurrences' },
-  ])('middleware keeps MUSD token despite $label', async ({ occurrences }) => {
-    const musdAsset =
-      'eip155:1/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da' as Caip19AssetId;
+    { occurrences: 1, chain: '1', label: 'mainnet low occurrences' },
+    { occurrences: undefined, chain: '1', label: 'mainnet no occurrences' },
+    { occurrences: 1, chain: '56', label: 'BNB low occurrences' },
+    { occurrences: undefined, chain: '56', label: 'BNB no occurrences' },
+  ])(
+    'middleware keeps MUSD token despite $label',
+    async ({ occurrences, chain }) => {
+      const musdAsset =
+        `eip155:${chain}/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da` as Caip19AssetId;
 
-    const { controller } = setupController({
-      messenger: createTestMessenger(),
-      supportedNetworks: ['eip155:1'],
-      assetsResponse: [
-        createMockAssetResponse(musdAsset, {
-          name: 'mUSD',
-          symbol: 'MUSD',
-          occurrences,
+      const { controller } = setupController({
+        messenger: createTestMessenger(),
+        supportedNetworks: [`eip155:${chain}`],
+        assetsResponse: [
+          createMockAssetResponse(musdAsset, {
+            name: 'mUSD',
+            symbol: 'MUSD',
+            occurrences,
+          }),
+        ],
+      });
+
+      const next = vi.fn().mockResolvedValue(undefined);
+      const context = createMiddlewareContext({
+        request: createDataRequest({
+          chainIds: [`eip155:${chain}` as ChainId],
         }),
-      ],
-    });
-
-    const next = vi.fn().mockResolvedValue(undefined);
-    const context = createMiddlewareContext({
-      response: {
-        assetsBalance: {
-          'mock-account-id': {
-            [musdAsset]: { amount: '1' },
+        response: {
+          assetsBalance: {
+            'mock-account-id': {
+              [musdAsset]: { amount: '1' },
+            },
           },
         },
-      },
-    });
+      });
 
-    await controller.assetsMiddleware(context, next);
+      await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsInfo?.[musdAsset]).toBeDefined();
-  });
+      expect(context.response.assetsInfo?.[musdAsset]).toBeDefined();
+    },
+  );
 
   it('middleware filters out erc20 assets with missing occurrences', async () => {
     const noOccurrenceAsset =

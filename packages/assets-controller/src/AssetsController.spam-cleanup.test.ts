@@ -157,6 +157,51 @@ describe('AssetsController spam cleanup', () => {
     });
   });
 
+  it('keeps mUSD and omitted holdings when unlock cleanup removes reported spam', async () => {
+    const musd = 'eip155:56/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
+    const state = buildSpamWalletState();
+    state.assetsInfo[musd] = {
+      type: 'erc20',
+      name: 'MetaMask USD',
+      symbol: 'mUSD',
+      decimals: 6,
+    };
+    state.assetsBalance[ACCOUNT_ONE_ID][musd] = { amount: '1000000' };
+    state.assetsPrice[musd] = {
+      price: 1,
+      usdPrice: 1,
+      assetPriceType: 'fungible',
+      lastUpdated: 0,
+    };
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets({ omit: [MAINNET_USDT] });
+
+    await withController({ state }, async ({ controller, messenger }) => {
+      messenger.publish('KeyringController:unlock');
+      await waitForTokenApiRequests();
+
+      await waitFor(() => {
+        expect(controller.state.assetsInfo[MAINNET_SPAM]).toBeUndefined();
+        expect(
+          controller.state.assetsBalance[ACCOUNT_ONE_ID]?.[MAINNET_SPAM],
+        ).toBeUndefined();
+        expect(controller.state.assetsPrice[MAINNET_SPAM]).toBeUndefined();
+        for (const assetId of [musd, ...SURVIVING_ASSET_IDS]) {
+          expect(controller.state.assetsInfo[assetId]).toStrictEqual(
+            state.assetsInfo[assetId],
+          );
+          expect(
+            controller.state.assetsBalance[ACCOUNT_ONE_ID]?.[assetId],
+          ).toStrictEqual(state.assetsBalance[ACCOUNT_ONE_ID]?.[assetId]);
+          expect(controller.state.assetsPrice[assetId]).toStrictEqual(
+            state.assetsPrice[assetId],
+          );
+        }
+        expect(requestedBatches.flat()).not.toContain(musd);
+      });
+    });
+  });
+
   it('never asks the Token API about assets it is not allowed to sweep', async () => {
     mockSuggestedOccurrenceFloors();
     const { requestedBatches } = mockV3Assets();

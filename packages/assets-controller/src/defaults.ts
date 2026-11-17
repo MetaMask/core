@@ -19,6 +19,22 @@ import type {
  */
 const MUSD_ADDRESS = '0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
 
+const MUSD_ASSET_ID_PATTERN = new RegExp(
+  `^eip155:\\d+/erc20:${MUSD_ADDRESS.toLowerCase()}$`,
+  'u',
+);
+
+/**
+ * Whether an EVM ERC-20 ID identifies the mUSD address exempt from spam filtering.
+ * This address-based policy is independent of the default seeding registry.
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @returns Whether the complete ERC-20 reference matches mUSD.
+ */
+export function isMusdAssetId(assetId: string): boolean {
+  return MUSD_ASSET_ID_PATTERN.test(assetId.toLowerCase());
+}
+
 /**
  * Hardcoded metadata for MetaMask USD. Pre-seeding this in default
  * state makes the token immediately renderable in the UI before any

@@ -11,7 +11,7 @@ import {
 import { cloneDeep } from 'lodash-es';
 
 import { divideIntoBatches } from '../data-sources/evm-rpc-services/utils/batch.js';
-import { DEFAULT_TRACKED_ASSETS_BY_CHAIN } from '../defaults.js';
+import { DEFAULT_TRACKED_ASSETS_BY_CHAIN, isMusdAssetId } from '../defaults.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   AccountId,
@@ -743,7 +743,8 @@ function collectSpamCleanupCandidates({
     const [chainId, asset] = lowerId.split('/');
 
     const isERC20 = Boolean(asset?.startsWith('erc20:'));
-    const isNotExcluded = !excludedAssets.includes(lowerId);
+    const isNotExcluded =
+      !excludedAssets.includes(lowerId) && !isMusdAssetId(assetId);
     const isNotCustomAsset = !customAssetIds.has(lowerId);
     const isOnAccountAPICoveredChain =
       ACCOUNT_API_SUPPORTED_CHAIN_IDS.has(chainId);
@@ -784,7 +785,10 @@ async function findBelowFloorAssetIds(
     );
 
     return (await findLowOccurrenceSpamAssetIds({
-      assetIds,
+      // An absent row is unknown, while a present row without a count is still judged.
+      assetIds: assetIds.filter((assetId) =>
+        occurrencesByLowerId.has(assetId.toLowerCase()),
+      ),
       getOccurrences: (assetId) =>
         occurrencesByLowerId.get(assetId.toLowerCase()),
       getOccurrenceFloor: (assetId) => {
