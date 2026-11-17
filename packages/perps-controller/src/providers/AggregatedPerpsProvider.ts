@@ -1347,6 +1347,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // that only reads `symbols` and `closeAll` would treat a missing symbol
     // list as close-every-position.
     const selection = resolveCloseSelection(params);
+    // An explicit empty target list closes nothing; it never falls through
+    // to the close-all fan-out below.
+    if (selection.kind === 'none') {
+      return { success: false, successCount: 0, failureCount: 0, results: [] };
+    }
     if (this.#providers.size <= 1) {
       if (selection.kind === 'targets') {
         const active = this.#getActiveProviders();
@@ -2061,10 +2066,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     }
     // A null before the first snapshot leaves the venue pending. After a
     // snapshot (even an invalid one), a null means it became unavailable.
+    // Like the strict REST read, each venue must report its whole account or
+    // null: a partial venue snapshot would otherwise count as complete.
     const lastReport = new Set<PerpsProviderType>();
     const unavailable = new Set<PerpsProviderType>();
     return this.#subscriptionMux.subscribeToAccount({
       ...(params.accountId !== undefined && { accountId: params.accountId }),
+      requireCompleteAccount: true,
       providers: this.#getActiveProviders(),
       onError: (_error, providerId) => {
         unavailable.add(providerId);
@@ -2214,9 +2222,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     const onError = 'onError' in params ? params.onError : undefined;
     const provider = this.#providers.get(providerId);
     if (!provider) {
-      const error = new Error(
-        `${PERPS_ERROR_CODES.PROVIDER_NOT_FOUND}: '${providerId}'`,
-      );
+      // A bare code, like every other refusal here, so clients can map it.
+      const error = new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
       if (onError) {
         onError(error);
         return undefined;

@@ -11,17 +11,15 @@ describe('resolveCloseSelection', () => {
     [{ closeAll: true }, { kind: 'all' }],
     [{ closeAll: false }, { kind: 'all' }],
     [{ symbols: [] }, { kind: 'all' }],
-    [{ targets: [] }, { kind: 'all' }],
+    [{ targets: [] }, { kind: 'none' }],
+    [{ targets: [], closeAll: true }, { kind: 'none' }],
     [{ closeAll: true, symbols: ['BTC'] }, { kind: 'all' }],
     [{ symbols: ['BTC'] }, { kind: 'symbols', symbols: ['BTC'] }],
     [
       { closeAll: false, symbols: ['BTC'] },
       { kind: 'symbols', symbols: ['BTC'] },
     ],
-    [
-      { targets: [], symbols: ['ETH'] },
-      { kind: 'symbols', symbols: ['ETH'] },
-    ],
+    [{ targets: [], symbols: ['ETH'] }, { kind: 'none' }],
     [
       { targets, closeAll: true, symbols: ['ETH'] },
       { kind: 'targets', targets },

@@ -100,6 +100,8 @@ export type MultiplexedAccountParams = {
   onError?: (error: Error, providerId: PerpsProviderType) => void;
   /** Optional account identity forwarded to every provider. */
   accountId?: SubscribeAccountParams['accountId'];
+  /** Ask every provider for a complete account or `null`, never a partial one. */
+  requireCompleteAccount?: boolean;
   /** Provider instances to subscribe through */
   providers: [PerpsProviderType, PerpsProvider][];
   /** Callback to receive account updates (one entry per provider with data) */
@@ -444,6 +446,9 @@ export class SubscriptionMultiplexer {
         const subscribeParams: SubscribeAccountParams = {
           ...(params.accountId !== undefined && {
             accountId: params.accountId,
+          }),
+          ...(params.requireCompleteAccount === true && {
+            requireCompleteAccount: true,
           }),
           callback: (account) => {
             if (account === null) {

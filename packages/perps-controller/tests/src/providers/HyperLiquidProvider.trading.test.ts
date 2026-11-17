@@ -3490,6 +3490,25 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('does not submit a close for an empty target list', async () => {
+      primeFrozenAggregate(null, [createCachedPosition({ size: '0.1' })]);
+
+      const result = await provider.closePositions({
+        targets: [],
+        closeAll: true,
+      });
+
+      expect(result).toEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+      });
+      expect(
+        mockClientService.getExchangeClient().order as Mock,
+      ).not.toHaveBeenCalled();
+    });
+
     it('closes the live per-DEX size, not the frozen aggregate size', async () => {
       // Aggregate still says 0.1 BTC; the fresh slice says a TP/SL fill left
       // 0.03. Submitting 0.1 reduce-only is rejected as increasing the position.

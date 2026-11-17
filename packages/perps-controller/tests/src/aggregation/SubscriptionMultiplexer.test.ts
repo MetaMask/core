@@ -476,6 +476,23 @@ describe('SubscriptionMultiplexer', () => {
         returnOnEquity: '0',
       }) as AccountState;
 
+    it('forwards requireCompleteAccount to every provider', () => {
+      mux.subscribeToAccount({
+        providers: [
+          ['hyperliquid', mockHLProvider as unknown as PerpsProvider],
+          ['lighter', mockLighterProvider as unknown as PerpsProvider],
+        ],
+        requireCompleteAccount: true,
+        callback: vi.fn(),
+      });
+
+      for (const provider of [mockHLProvider, mockLighterProvider]) {
+        expect(provider.subscribeToAccount).toHaveBeenCalledWith(
+          expect.objectContaining({ requireCompleteAccount: true }),
+        );
+      }
+    });
+
     it('injects providerId into account updates', () => {
       const callback = vi.fn();
 

@@ -84,8 +84,9 @@ so a colliding ID on another venue is not cancelled. Non-empty legacy `orderIds`
 or `symbols` filters without scoped `orders` return `PROVIDER_ROUTE_REQUIRED`
 when multiple venues are registered; use `orders` to identify the intended venue. Cancel-all batches reach every venue holding an order. An empty
 `orders`, `orderIds` or `symbols` filter selects no orders. `closePositions` takes either `closeAll` (fans out to every enabled
-venue) or explicit `targets` of `{ symbol, providerId }`; a legacy
-symbols-only close without venue identity still returns
+venue) or explicit `targets` of `{ symbol, providerId }`. A supplied
+`targets` list wins over `closeAll` and `symbols`, so an empty one closes
+nothing. A legacy symbols-only close without venue identity still returns
 `PROVIDER_ROUTE_REQUIRED` while multiple venues are registered, because closing
 a symbol that exists on both venues is ambiguous. Results carry a `providerId`
 per item, so identical symbols or order ids on different venues are never
@@ -147,7 +148,10 @@ level — cross-venue collateral is not mutually usable), or
 or whose snapshot has a missing or non-finite additive field. Aggregated
 account reads request that failure strictly: a HyperLiquid DEX clearinghouse
 read or spot clearinghouse read that fails rejects the venue, so the combined
-total is `partial` instead of a complete portfolio value. A stream venue
+total is `partial` instead of a complete portfolio value. Aggregated account
+streams ask each venue for `requireCompleteAccount`: HyperLiquid emits `null`
+until every configured DEX has published and its spot balance has loaded, so a
+failed DEX subscription keeps the total `partial` too. A stream venue
 is `{ status: 'pending', providerId }` until its first snapshot, even if it
 emits `null`. A rejected subscription setup is immediately `unavailable` instead
 of pending. Lighter can only serve the selected wallet: requesting another
@@ -171,7 +175,9 @@ data becomes unavailable has its entry removed rather than left looking live.
 A pending venue keeps its stored entry until it reports a snapshot, including
 when the first stream update is `null`. A `null` total clears `accountState`
 and removes only explicitly unavailable venues' entries. Every balance entry
-is cleared when the selected account changes or the network is toggled.
+is cleared when the selected account changes or the network is toggled, and a
+stream for an explicit `accountId` other than the selected account neither
+writes nor removes entries.
 Combined `spendableBalance` and `withdrawableBalance` span venues: neither is
 a limit any single venue will enforce on a new order or a withdrawal.
 

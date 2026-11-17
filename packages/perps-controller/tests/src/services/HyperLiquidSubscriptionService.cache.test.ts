@@ -10,10 +10,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
+  PerpsProvider,
+  PerpsProviderType,
+  SubscribeAccountParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
@@ -587,6 +591,212 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(service.getCachedPositionsForDex('xyz')).toBeNull();
 
       unsubscribe();
+    });
+
+    describe('requireCompleteAccount', () => {
+      const publishAccount = (
+        callbacks: Map<string, (payload: unknown) => void>,
+        dex: string,
+        accountValue: string,
+      ): void => {
+        callbacks.get(dex)?.({
+          dex,
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue, totalMarginUsed: '0' },
+            withdrawable: accountValue,
+          },
+        });
+      };
+
+      const createHip3Service = async (
+        failingDex?: string,
+      ): Promise<{
+        hip3Service: HyperLiquidSubscriptionService;
+        callbacks: Map<string, (payload: unknown) => void>;
+      }> => {
+        const callbacks = new Map<string, (payload: unknown) => void>();
+        mockSubscriptionClient.clearinghouseState.mockImplementation(
+          (params: any, callback: (payload: unknown) => void) => {
+            const dex = params.dex || '';
+            if (dex === failingDex) {
+              return Promise.reject(new Error(`${dex} unavailable`));
+            }
+            callbacks.set(dex, callback);
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const hip3Service = new HyperLiquidSubscriptionService(
+          mockClientService,
+          mockWalletService,
+          mockDeps,
+          true,
+        );
+        await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+        return { hip3Service, callbacks };
+      };
+
+      it('emits null while a configured DEX account subscription has failed', async () => {
+        const { hip3Service, callbacks } = await createHip3Service('xyz');
+        const strict = vi.fn();
+        const lenient = vi.fn();
+        const unsubscribeStrict = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        const unsubscribeLenient = hip3Service.subscribeToAccount({
+          callback: lenient,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        await vi.runAllTimersAsync();
+
+        // A lenient caller keeps the reachable DEX total; a strict caller
+        // never sees it as the venue's balance.
+        expect(
+          Object.keys(lenient.mock.lastCall?.[0].subAccountBreakdown),
+        ).toStrictEqual(['main']);
+        expect(strict).toHaveBeenCalled();
+        expect(strict.mock.calls.every(([account]) => account === null)).toBe(
+          true,
+        );
+
+        unsubscribeStrict();
+        unsubscribeLenient();
+      });
+
+      it('keeps an aggregate incomplete while one HyperLiquid DEX subscription has failed', async () => {
+        const { hip3Service, callbacks } = await createHip3Service('xyz');
+        const lighterAccount = {
+          totalBalance: '250',
+          spendableBalance: '250',
+          withdrawableBalance: '250',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+        };
+        const aggregatedProvider = new AggregatedPerpsProvider({
+          providers: new Map<PerpsProviderType, PerpsProvider>([
+            [
+              'hyperliquid',
+              {
+                protocolId: 'hyperliquid',
+                subscribeToAccount: (params: SubscribeAccountParams) =>
+                  hip3Service.subscribeToAccount(params),
+              } as unknown as PerpsProvider,
+            ],
+            [
+              'lighter',
+              {
+                protocolId: 'lighter',
+                subscribeToAccount: ({ callback }: SubscribeAccountParams) => {
+                  callback(lighterAccount);
+                  return () => undefined;
+                },
+              } as unknown as PerpsProvider,
+            ],
+          ]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: createMockInfrastructure(),
+        });
+        const callback = vi.fn();
+        const unsubscribe = aggregatedProvider.subscribeToAccount({
+          callback,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        await vi.runAllTimersAsync();
+
+        // The main DEX alone is not HyperLiquid's balance, so the total is
+        // Lighter's and the aggregate says it is not the whole portfolio.
+        const [account, aggregate] = callback.mock.lastCall ?? [];
+        expect(aggregate).toMatchObject({
+          status: 'partial',
+          availableProviders: ['lighter'],
+        });
+        expect(account?.providerStates?.hyperliquid?.status).not.toBe(
+          'available',
+        );
+        expect(account?.totalBalance).toBe('250');
+
+        unsubscribe();
+      });
+
+      it('emits the account once every configured DEX and the spot balance have loaded', async () => {
+        const { hip3Service, callbacks } = await createHip3Service();
+        const strict = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        publishAccount(callbacks, 'xyz', '500');
+        await vi.runAllTimersAsync();
+
+        expect(strict).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            subAccountBreakdown: expect.objectContaining({
+              main: expect.anything(),
+              xyz: expect.anything(),
+            }),
+          }),
+        );
+
+        // A late subscriber replays the cached complete account.
+        const late = vi.fn();
+        const unsubscribeLate = hip3Service.subscribeToAccount({
+          callback: late,
+          requireCompleteAccount: true,
+        });
+        expect(late).toHaveBeenCalledWith(strict.mock.lastCall?.[0]);
+
+        unsubscribe();
+        unsubscribeLate();
+      });
+
+      it('emits null until the spot balance loads, then the account', async () => {
+        mockSpotClearinghouseState.mockRejectedValue(new Error('spot down'));
+        const { hip3Service, callbacks } = await createHip3Service();
+        const strict = vi.fn();
+        const lenient = vi.fn();
+        const unsubscribeStrict = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        const unsubscribeLenient = hip3Service.subscribeToAccount({
+          callback: lenient,
+        });
+        await vi.runAllTimersAsync();
+
+        publishAccount(callbacks, '', '10000');
+        publishAccount(callbacks, 'xyz', '500');
+        await vi.runAllTimersAsync();
+
+        expect(lenient).toHaveBeenLastCalledWith(expect.any(Object));
+        expect(strict).toHaveBeenLastCalledWith(null);
+
+        const spotListener = mockSubscriptionClient.spotState.mock.calls[0][1];
+        spotListener({
+          user: '0x123',
+          spotState: { balances: [] },
+        });
+        await vi.runAllTimersAsync();
+
+        // An empty spot balance changes no total, but the account is now
+        // complete, so the strict subscriber still receives it.
+        expect(strict).toHaveBeenLastCalledWith(
+          expect.objectContaining({ withdrawableBalance: expect.any(String) }),
+        );
+
+        unsubscribeStrict();
+        unsubscribeLenient();
+      });
     });
 
     it('requires every configured position DEX even when an order subscription fails', async () => {

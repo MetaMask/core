@@ -3772,6 +3772,31 @@ describe('TradingService', () => {
         );
       });
 
+      it.each([{ targets: [] }, { targets: [], closeAll: true }])(
+        'closes nothing and resolves no fee for an empty target list %j',
+        async (params) => {
+          const batchProvider = createAggregatedBatchProvider();
+
+          const result = await tradingService.closePositions({
+            provider: batchProvider,
+            params,
+            context: mockContext,
+          });
+
+          expect(result).toEqual({
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          });
+          expect(batchProvider.closePositions).not.toHaveBeenCalled();
+          expect(batchProvider.getPositions).not.toHaveBeenCalled();
+          expect(
+            mockRewardsIntegrationService.resolveFee,
+          ).not.toHaveBeenCalled();
+        },
+      );
+
       it('retains the requested venue when nothing matches', async () => {
         const batchProvider = createAggregatedBatchProvider();
         await tradingService.closePositions({
@@ -4029,6 +4054,26 @@ describe('TradingService', () => {
       );
       expect(result.successCount).toBe(1);
       expect(result.failureCount).toBe(0);
+    });
+
+    it('closes nothing in the per-position fallback for an empty target list', async () => {
+      mockGetPositions.mockResolvedValue(mockPositions);
+      delete mockProvider.closePositions;
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: { targets: [], closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockGetPositions).not.toHaveBeenCalled();
+      expect(mockProvider.closePosition).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+      });
     });
 
     it('does not close unlabeled positions for a different venue target', async () => {

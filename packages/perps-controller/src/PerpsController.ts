@@ -7719,17 +7719,30 @@ export class PerpsController extends BaseController<
     }
     try {
       const originalCallback = params.callback;
+      // perpsBalances belong to the selected account. A stream for another
+      // wallet must neither write nor drop those entries.
+      const streamAddress = params.accountId?.split(':').at(-1)?.toLowerCase();
+      const isSelectedAccountStream = (): boolean =>
+        streamAddress === undefined ||
+        streamAddress ===
+          getSelectedEvmAccountFromMessenger(
+            this.messenger,
+          )?.address.toLowerCase();
       return this.#trackProviderSubscription(
         provider,
         (nextProvider) =>
           nextProvider.subscribeToAccount({
             ...params,
             callback: (account, aggregate) => {
+              const ownsBalances = isSelectedAccountStream();
               if (account) {
                 this.update((state) => {
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
                   state.lastError = null;
+                  if (!ownsBalances) {
+                    return;
+                  }
 
                   // One balance entry per venue with data, keyed by the venue
                   // that actually served it. Aggregated updates carry explicit
@@ -7792,6 +7805,10 @@ export class PerpsController extends BaseController<
               } else {
                 this.update((state) => {
                   state.accountState = null;
+                  state.lastUpdateTimestamp = Date.now();
+                  if (!ownsBalances) {
+                    return;
+                  }
                   if (aggregate) {
                     // A null total may still contain pending venues. Only
                     // explicit unavailability invalidates their balances.
@@ -7801,7 +7818,6 @@ export class PerpsController extends BaseController<
                   } else {
                     state.perpsBalances = {};
                   }
-                  state.lastUpdateTimestamp = Date.now();
                 });
               }
               if (aggregate) {

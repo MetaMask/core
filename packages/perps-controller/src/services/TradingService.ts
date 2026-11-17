@@ -49,6 +49,7 @@ import {
   resolveCancelSelection,
 } from '../utils/cancelOrders.js';
 import { resolveCloseSelection } from '../utils/closePositions.js';
+import type { CloseSelection } from '../utils/closePositions.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_OPERATION,
@@ -93,6 +94,9 @@ type AttributionTrackingData = Pick<
   | 'hlFeeRate'
   | 'environmentType'
 >;
+
+/** A close selection that reaches at least one venue or position. */
+type NonEmptyCloseSelection = Exclude<CloseSelection, { kind: 'none' }>;
 
 /**
  * Whether a write failed because the signer could not sign it (a locked
@@ -1390,7 +1394,7 @@ export class TradingService {
    *
    * A venue takes one builder context for its whole batch, so its fee is
    * resolved once against everything it closes rather than per position. The
-   * selection mirrors execution: non-empty `targets` win and name exact
+   * selection mirrors execution: `targets` win and name exact
    * `(symbol, venue)` positions; otherwise `closeAll` or an empty request fans
    * out to every venue; a legacy `symbols` list is a single write through the
    * default route. Each venue is priced against only its own positions, since
@@ -1401,19 +1405,18 @@ export class TradingService {
    * reads as "no notional to blend against", never another venue's fee scope.
    *
    * @param options - The configuration options.
-   * @param options.params - Which positions the batch will close.
+   * @param options.selection - Which positions the batch will close.
    * @param options.provider - The provider that will submit the batch.
    * @returns One entry per venue the batch reaches. `providerId` is omitted
    * only when the provider is not an aggregator.
    */
   async #resolveBatchCloseFeeRoutes(options: {
-    params: ClosePositionsParams;
+    selection: NonEmptyCloseSelection;
     provider: PerpsProvider;
   }): Promise<
     { providerId?: PerpsProviderType; notionalUsd: number | undefined }[]
   > {
-    const { params, provider } = options;
-    const selection = resolveCloseSelection(params);
+    const { selection, provider } = options;
     const writeRoute = provider.getWriteProviderId?.();
     let venues: (PerpsProviderType | undefined)[];
     if (writeRoute === undefined) {
@@ -2667,13 +2670,25 @@ export class TradingService {
         ),
       });
 
+      // An explicit empty target list closes nothing, on every path.
+      const selection = resolveCloseSelection(params);
+      if (selection.kind === 'none') {
+        operationResult = {
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+        };
+        return operationResult;
+      }
+
       // Use batch close if provider supports it (provider handles filtering)
       if (provider.closePositions) {
         // Each venue submits its batch under one builder context, so its fee
         // is priced against the sum of the positions it will close — and only
         // those: a fan-out reaches several venues, each with its own fee.
         const feeRoutes = await this.#resolveBatchCloseFeeRoutes({
-          params,
+          selection,
           provider,
         });
 
@@ -2724,7 +2739,6 @@ export class TradingService {
         // batch method must not treat a target list as close-all just because
         // `symbols` was omitted.
         let positionsToClose: typeof positions;
-        const selection = resolveCloseSelection(params);
         switch (selection.kind) {
           case 'targets':
             positionsToClose = positions.filter((position) =>

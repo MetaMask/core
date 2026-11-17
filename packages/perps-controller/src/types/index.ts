@@ -2244,6 +2244,14 @@ export type SubscribeAccountParams = {
     aggregate?: AccountAggregateMetadata,
   ) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
+  /**
+   * Optional: emit `null` instead of a snapshot that is missing part of the
+   * venue's account, such as a HyperLiquid DEX or the spot balance that has
+   * not loaded. Aggregated account streams set it so an incomplete venue is
+   * pending or unavailable rather than a complete balance. Callers that omit
+   * it keep each venue's lenient default.
+   */
+  requireCompleteAccount?: boolean;
 };
 
 export type SubscribeOICapsParams = {

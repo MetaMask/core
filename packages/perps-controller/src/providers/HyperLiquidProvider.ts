@@ -11499,12 +11499,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       // abort a BTC close in the same symbols list.
       //
       // Tagged targets name exactly the positions to close and win over both
-      // `symbols` and `closeAll`. An empty match (every target names another
-      // venue) closes nothing: a missing symbol list is close-all, and a
-      // target list must not be read that way.
+      // `symbols` and `closeAll`. An empty list, or an empty match (every
+      // target names another venue), closes nothing: a missing symbol list is
+      // close-all, and a target list must not be read that way.
       const selection = resolveCloseSelection(params);
       let requestedSymbols: string[] | undefined;
-      if (selection.kind === 'targets') {
+      if (selection.kind === 'none') {
+        requestedSymbols = [];
+      } else if (selection.kind === 'targets') {
         requestedSymbols = selection.targets
           .filter(
             (target) =>

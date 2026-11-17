@@ -727,6 +727,82 @@ describe('PerpsController', () => {
       expect(controller.state.perpsBalances).toStrictEqual({});
     });
 
+    describe('a stream for an explicit account', () => {
+      const otherAccountId =
+        'eip155:1:0x00000000000000000000000000000000000000ff' as const;
+      const persistSelectedBalances = (): void => {
+        controller.testUpdate((state) => {
+          state.perpsBalances.hyperliquid = {
+            totalBalance: '90',
+            unrealizedPnl: '0',
+            lastUpdated: 1,
+          };
+          state.perpsBalances.lighter = {
+            totalBalance: '200',
+            unrealizedPnl: '2',
+            lastUpdated: 1,
+          };
+        });
+      };
+
+      it('leaves the selected account balances alone on an aggregated stream for another account', () => {
+        setupAggregatedMode();
+        persistSelectedBalances();
+        const persisted = controller.state.perpsBalances;
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          accountId: otherAccountId,
+        });
+        const hlCallback =
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+        const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+          .calls[0][0].callback;
+
+        // Lighter reports, then becomes unavailable; HyperLiquid reports the
+        // other wallet's balance. None of it belongs in perpsBalances.
+        lighterCallback(accountState('5'));
+        lighterCallback(null);
+        hlCallback(accountState('250'));
+
+        expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      });
+
+      it('leaves the selected account balances alone on a direct stream for another account', () => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        persistSelectedBalances();
+        const persisted = controller.state.perpsBalances;
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          accountId: otherAccountId,
+        });
+        const hlCallback =
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+
+        hlCallback(accountState('250'));
+        hlCallback(null);
+
+        expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      });
+
+      it('writes balances when the explicit account is the selected one', () => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          accountId: `eip155:1:${selectedEvmAddress}`,
+        });
+
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+          accountState('100'),
+        );
+
+        expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+          totalBalance: '100',
+        });
+      });
+    });
+
     it('drops foreign venue balances on a direct-provider stream write', () => {
       // Direct mode (default): hyperliquid is the only live venue.
       markControllerAsInitialized();

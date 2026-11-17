@@ -6,7 +6,10 @@ import {
   PERPS_CONSTANTS,
   PROVIDER_CONFIG,
 } from '../../../src/constants/perpsConfig.js';
-import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import {
+  PERPS_ERROR_CODES,
+  isPerpsErrorCode,
+} from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
   PerpsProvider,
@@ -1871,6 +1874,29 @@ describe('AggregatedPerpsProvider', () => {
       ]);
     });
 
+    it.each([
+      { targets: [] },
+      { targets: [], closeAll: true },
+      { targets: [], symbols: ['BTC'] },
+    ])(
+      'closes nothing on any venue for an empty target list %j',
+      async (params) => {
+        const result = await aggregatedProvider.closePositions(params);
+
+        for (const venue of [mockHLProvider, mockLighterProvider]) {
+          expect(venue.closePositions).not.toHaveBeenCalled();
+          expect(venue.closePosition).not.toHaveBeenCalled();
+          expect(venue.getPositions).not.toHaveBeenCalled();
+        }
+        expect(result).toEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+        });
+      },
+    );
+
     it('fans closeAll out to every enabled venue', async () => {
       mockHLProvider.closePositions.mockResolvedValue({
         success: true,
@@ -2064,6 +2090,24 @@ describe('AggregatedPerpsProvider', () => {
         ],
       });
     });
+
+    it.each([{ targets: [] }, { targets: [], closeAll: true }])(
+      'closes nothing on the only venue for an empty target list %j',
+      async (params) => {
+        aggregatedProvider.removeProvider('lighter');
+
+        const result = await aggregatedProvider.closePositions(params);
+
+        expect(mockHLProvider.closePositions).not.toHaveBeenCalled();
+        expect(mockHLProvider.closePosition).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+        });
+      },
+    );
 
     it('closes tagged symbols one by one when the only venue has no batch close', async () => {
       aggregatedProvider.removeProvider('lighter');
@@ -3542,6 +3586,26 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
     });
 
+    it('asks every venue for a complete account, never a partial one', () => {
+      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+
+      for (const venue of [mockHLProvider, mockLighterProvider]) {
+        expect(venue.subscribeToAccount).toHaveBeenCalledWith(
+          expect.objectContaining({ requireCompleteAccount: true }),
+        );
+      }
+    });
+
+    it('keeps the lenient direct stream when one venue is registered', () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+
+      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledWith(
+        expect.not.objectContaining({ requireCompleteAccount: true }),
+      );
+    });
+
     it('forwards account identity through the multiplexer', () => {
       const callback = vi.fn();
       aggregatedProvider.subscribeToAccount({
@@ -3956,9 +4020,26 @@ describe('AggregatedPerpsProvider', () => {
       });
 
       // Each invalid route reports once: no silent fallback to another venue.
+      // The message is a bare code, so clients can map it to their own copy.
       expect(onError).toHaveBeenCalledTimes(2);
+      for (const [error] of onError.mock.calls) {
+        expect(error.message).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        expect(isPerpsErrorCode(error.message)).toBe(true);
+      }
       expect(mockLighterProvider.subscribeToCandles).not.toHaveBeenCalled();
       expect(mockLighterProvider.subscribeToOrderBook).not.toHaveBeenCalled();
+    });
+
+    it('throws a bare code for an unregistered explicit route without onError', () => {
+      aggregatedProvider.removeProvider('hyperliquid');
+
+      expect(() =>
+        aggregatedProvider.subscribeToOICaps({
+          callback: vi.fn(),
+          providerId: 'hyperliquid',
+        }),
+      ).toThrow(new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND));
+      expect(mockLighterProvider.subscribeToOICaps).not.toHaveBeenCalled();
     });
 
     it('delegates subscribeToCandles to default provider', () => {
