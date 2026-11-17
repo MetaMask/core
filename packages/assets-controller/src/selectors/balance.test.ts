@@ -220,6 +220,39 @@ describe('balance selectors', () => {
   });
 
   describe('getAggregatedBalanceForAccount', () => {
+    it.each([
+      { staleVault: false, liquidAmount: '0', expectedTotal: 1200 },
+      { staleVault: false, liquidAmount: '1', expectedTotal: 3200 },
+      { staleVault: true, liquidAmount: '1', expectedTotal: 3200 },
+    ])(
+      'values converted mainnet staking with $liquidAmount liquid ETH (stale vault: $staleVault)',
+      ({ staleVault, liquidAmount, expectedTotal }) => {
+        const vault: Caip19AssetId =
+          'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+        const state = arrangeAssetsControllerState({
+          assetsBalance: {
+            [accountId1]: {
+              [assetEth]: { amount: liquidAmount },
+              [vault]: { amount: '0.6' },
+            },
+          },
+          assetsInfo: {
+            [assetEth]: assetInfoEth,
+            [vault]: { ...assetInfoEth, type: 'erc20' },
+          },
+          assetsPrice: {
+            [assetEth]: testFungibleAssetPrice(2000, 2),
+            ...(staleVault ? { [vault]: testFungibleAssetPrice(9, 99) } : {}),
+          },
+        });
+        // The staking source has already converted 0.5 shares to 0.6 ETH.
+        const result = getAggregatedBalanceForAccount(state, selectedAccount);
+        expect(result.totalBalanceInFiat).toBe(expectedTotal);
+        expect(result.pricePercentChange1d).toBeCloseTo(2);
+        expect(result.entries.map(({ assetId }) => assetId)).toContain(vault);
+      },
+    );
+
     it('returns entries only when no assetsPrice', () => {
       const state = arrangeAssetsControllerState({
         assetsBalance: {

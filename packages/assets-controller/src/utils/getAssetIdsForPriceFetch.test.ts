@@ -98,6 +98,67 @@ function sortedIds(ids: Set<Caip19AssetId>): Caip19AssetId[] {
 }
 
 describe('getAssetIdsForPriceFetch', () => {
+  it.each([false, true])(
+    'requests native for visible staking despite stale vault price (native hidden: %s)',
+    async (nativeHidden) => {
+      const vault: Caip19AssetId =
+        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+      const result = await getUnpricedResponseAssetIds({
+        state: {
+          assetPreferences: { [NATIVE_MAINNET]: { hidden: nativeHidden } },
+          assetsPrice: {
+            [vault]: {
+              assetPriceType: 'fungible',
+              price: 9,
+              usdPrice: 9,
+              lastUpdated: 1,
+            },
+          },
+        },
+        response: {
+          assetsBalance: {
+            [ACCOUNT_A]: {
+              [vault]: { amount: '0.6' },
+              [NATIVE_MAINNET]: ZERO_BALANCE,
+            },
+          },
+        },
+        getSupportedNetworks: async () => new Set([CHAIN_MAINNET]),
+      });
+      expect(result).toStrictEqual([NATIVE_MAINNET]);
+    },
+  );
+
+  it('does not price a hidden staking position', async () => {
+    const vault: Caip19AssetId =
+      'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+    const result = await getUnpricedResponseAssetIds({
+      state: {
+        assetPreferences: { [vault]: { hidden: true } },
+        assetsPrice: {},
+      },
+      response: {
+        assetsBalance: { [ACCOUNT_A]: { [vault]: { amount: '0.6' } } },
+      },
+      getSupportedNetworks: async () => new Set([CHAIN_MAINNET]),
+    });
+    expect(result).toStrictEqual([]);
+  });
+
+  it('leaves Hoodi price dependency unchanged', async () => {
+    const vault = normalizeAssetId(
+      'eip155:560048/erc20:0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
+    );
+    const result = await getUnpricedResponseAssetIds({
+      state: { assetPreferences: {}, assetsPrice: {} },
+      response: {
+        assetsBalance: { [ACCOUNT_A]: { [vault]: { amount: '0.35' } } },
+      },
+      getSupportedNetworks: async () => new Set(['eip155:560048']),
+    });
+    expect(result).toStrictEqual([vault]);
+  });
+
   it.each([
     {
       name: 'state balances in account/chain scope',

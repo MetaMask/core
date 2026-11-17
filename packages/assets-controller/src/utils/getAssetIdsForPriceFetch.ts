@@ -8,6 +8,7 @@ import type {
   DataResponse,
 } from '../types.js';
 import { normalizeAssetId } from './normalizeAssetId.js';
+import { resolvePriceLookupAssetId } from './resolvePriceLookupAssetId.js';
 
 const log = createModuleLogger(projectLogger, 'getAssetIdsForPriceFetch');
 
@@ -119,8 +120,8 @@ export type GetUnpricedResponseAssetIdsParams =
 /**
  * Response balances the balance-refresh middleware should price.
  *
- * Hidden assets are excluded, then non-priceable assets, assets on chains the
- * price API does not support, and assets that already have a stored price.
+ * Hidden positions are excluded before resolving their price dependencies.
+ * Non-priceable assets, unsupported chains and existing prices are then excluded.
  *
  * @param params - State, response balances, and network lookup.
  * @param params.state - Hidden preferences and stored prices.
@@ -134,11 +135,12 @@ export async function getUnpricedResponseAssetIds({
   getSupportedNetworks,
 }: GetUnpricedResponseAssetIdsParams): Promise<Caip19AssetId[]> {
   const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
-  const priceableAssetIds = [
+  const visibleAssetIds = [
     ...getResponseAssetIdsForPriceFetch({ response }),
-  ].filter(
-    (assetId) => !hiddenAssetIds.has(assetId) && isPriceableAsset(assetId),
-  );
+  ].filter((assetId) => !hiddenAssetIds.has(assetId));
+  const priceableAssetIds = [
+    ...new Set(visibleAssetIds.map(resolvePriceLookupAssetId)),
+  ].filter(isPriceableAsset);
   if (priceableAssetIds.length === 0) {
     return [];
   }

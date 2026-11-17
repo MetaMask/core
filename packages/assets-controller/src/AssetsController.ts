@@ -182,6 +182,7 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils/index.js';
+import { resolvePriceLookupAssetId } from './utils/resolvePriceLookupAssetId.js';
 import { emitTrace, withTrace } from './utils/trace.js';
 import type { TraceSpanData } from './utils/trace.js';
 
@@ -3428,7 +3429,7 @@ export class AssetsController extends BaseController<
       }
     }
 
-    const priceRaw = this.state.assetsPrice[assetId];
+    const priceRaw = this.state.assetsPrice[resolvePriceLookupAssetId(assetId)];
     const price: AssetPrice = priceRaw ?? {
       price: 0,
       lastUpdated: 0,

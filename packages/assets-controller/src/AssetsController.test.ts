@@ -1336,6 +1336,64 @@ describe('AssetsController', () => {
   });
 
   describe('getAccountAssetByID', () => {
+    it('uses the whole native price across converted staking getters', async () => {
+      const vault = 'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df';
+      const native = 'eip155:1/slip44:60';
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [vault]: {
+            type: 'erc20',
+            symbol: 'ETH',
+            name: 'staked ethereum',
+            decimals: 18,
+          },
+        },
+        assetsBalance: { [MOCK_ACCOUNT_ID]: { [vault]: { amount: '0.6' } } },
+        assetsPrice: {
+          [native]: {
+            assetPriceType: 'fungible',
+            price: 2000,
+            usdPrice: 2000,
+            lastUpdated: 123,
+            marketCap: 12345,
+            pricePercentChange1d: 2,
+          },
+          [vault]: {
+            assetPriceType: 'fungible',
+            price: 9,
+            usdPrice: 9,
+            lastUpdated: 123,
+          },
+        },
+      };
+      await withController({ state: initialState }, async ({ controller }) => {
+        const assets = await controller.getAssets(
+          [createMockInternalAccount()],
+          { chainIds: ['eip155:1'] },
+        );
+        for (const asset of [
+          controller.getAccountAssetByID(MOCK_ACCOUNT_ID, vault),
+          controller.getAccountAssetsByIDs(MOCK_ACCOUNT_ID, [vault])[vault],
+          controller.getAccountAssetsByScope(MOCK_ACCOUNT_ID, 'eip155:1')[
+            vault
+          ],
+          assets[MOCK_ACCOUNT_ID][vault],
+        ]) {
+          expect(asset).toMatchObject({
+            id: vault,
+            balance: { amount: '0.6' },
+            fiatValue: 1200,
+          });
+          expect(asset?.price).toBe(controller.state.assetsPrice[native]);
+        }
+        const prices = await controller.getAssetsPrice(
+          [createMockInternalAccount()],
+          { chainIds: ['eip155:1'] },
+        );
+        expect(prices[vault]).toBe(controller.state.assetsPrice[native]);
+      });
+    });
+
     const metadata = {
       type: 'erc20' as const,
       symbol: 'USDC',

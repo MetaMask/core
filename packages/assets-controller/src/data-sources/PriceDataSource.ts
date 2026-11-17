@@ -23,6 +23,7 @@ import {
   isPriceableAsset,
 } from '../utils/getAssetIdsForPriceFetch.js';
 import { fetchWithTimeout } from '../utils/index.js';
+import { resolvePriceLookupAssetId } from '../utils/resolvePriceLookupAssetId.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -421,8 +422,8 @@ export class PriceDataSource {
   }
 
   /**
-   * Drop non-priceable assets, then assets on chains the price API does not
-   * support. An empty supported-network set keeps every priceable asset.
+   * Resolve and deduplicate price dependencies, then drop non-priceable assets
+   * and unsupported chains. An empty supported-network set keeps every priceable asset.
    *
    * @param assetIds - Candidate CAIP-19 asset IDs.
    * @returns Priceable IDs on a supported chain.
@@ -430,7 +431,9 @@ export class PriceDataSource {
   async #filterToSupportedPriceableAssets(
     assetIds: Caip19AssetId[],
   ): Promise<Caip19AssetId[]> {
-    const priceableAssetIds = assetIds.filter(isPriceableAsset);
+    const priceableAssetIds = [
+      ...new Set(assetIds.map(resolvePriceLookupAssetId)),
+    ].filter(isPriceableAsset);
     if (priceableAssetIds.length === 0) {
       return [];
     }
