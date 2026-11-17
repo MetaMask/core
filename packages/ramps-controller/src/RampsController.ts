@@ -3142,6 +3142,7 @@ export class RampsController extends BaseController<
     );
 
     if (!widenToAllProviders) {
+      this.#reselectProviderIfAutoSelectedHasNoQuote(response);
       return response;
     }
 
@@ -3167,13 +3168,16 @@ export class RampsController extends BaseController<
       };
     }
 
-    return {
+    const widenedResponse = {
       ...response,
       success: [
         selectedQuote,
         ...response.success.filter((quote) => quote !== selectedQuote),
       ],
     };
+
+    this.#reselectProviderIfAutoSelectedHasNoQuote(widenedResponse);
+    return widenedResponse;
   }
 
   /**
@@ -3341,6 +3345,95 @@ export class RampsController extends BaseController<
     } catch {
       return quote;
     }
+  }
+
+  /**
+   * Reselects the provider when the currently selected provider was auto-selected
+   * but has no usable quote in the response. Keeps the selection marked as
+   * auto-selected. Does nothing when the provider was manually selected or when
+   * the selected provider has a valid quote.
+   *
+   * This prevents the UI from showing a disabled Continue button when an
+   * auto-selected provider (e.g., Banxa) times out or returns no quote while
+   * other providers successfully return quotes.
+   *
+   * @param response - The quotes response to check.
+   */
+  #reselectProviderIfAutoSelectedHasNoQuote(response: QuotesResponse): void {
+    if (!this.state.providerAutoSelected) {
+      return;
+    }
+
+    const selectedProvider = this.state.providers.selected;
+    if (!selectedProvider) {
+      return;
+    }
+
+    const selectedProviderId = selectedProvider.id;
+    const hasValidQuote = response.success.some(
+      (quote) => quote.provider === selectedProviderId,
+    );
+
+    if (hasValidQuote) {
+      return;
+    }
+
+    if (response.success.length === 0) {
+      return;
+    }
+
+    const bestQuote = this.#pickBestQuoteForReselection(response);
+    if (!bestQuote) {
+      return;
+    }
+
+    const providers = this.state.providers.data;
+    const newProvider = providers.find(
+      (provider) => provider.id === bestQuote.provider,
+    );
+
+    if (newProvider) {
+      this.setSelectedProvider(newProvider, { autoSelected: true });
+    }
+  }
+
+  /**
+   * Picks the best quote for auto-reselection based on sorted order.
+   * Prefers reliability over price, then falls back to the first available quote.
+   *
+   * @param response - The quotes response to pick from.
+   * @returns The selected quote, or `undefined` when none is available.
+   */
+  #pickBestQuoteForReselection(response: QuotesResponse): Quote | undefined {
+    if (response.success.length === 0) {
+      return undefined;
+    }
+
+    const candidateByProvider = new Map(
+      response.success.map((quote) => [quote.provider, quote]),
+    );
+
+    const pickBySortOrder = (sortBy: QuoteSortBy): Quote | undefined => {
+      const order = response.sorted.find(
+        (entry) => entry.sortBy === sortBy,
+      )?.ids;
+      if (!order) {
+        return undefined;
+      }
+      for (const providerId of order) {
+        const match = candidateByProvider.get(providerId);
+        if (match) {
+          return match;
+        }
+      }
+      return undefined;
+    };
+
+    return (
+      pickBySortOrder('reliability') ??
+      pickBySortOrder('price') ??
+      response.success[0]
+    );
   }
 
   /**

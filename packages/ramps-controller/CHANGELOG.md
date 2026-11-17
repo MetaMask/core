@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix provider auto-selection when initial provider has no quote ([TRAM-4119](https://consensys.atlassian.net/browse/TRAM-4119))
+  - When an auto-selected provider (e.g., Banxa) times out or returns no quote, the controller now automatically switches to the best available quote's provider while keeping the selection marked as auto-selected
+  - Manual provider selections are never overridden to preserve user intent
+
 ## [30.0.0]
 
 ### Added

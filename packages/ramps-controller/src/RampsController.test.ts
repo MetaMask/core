@@ -9736,6 +9736,571 @@ describe('RampsController', () => {
         );
       });
     });
+
+    describe('auto-reselection when auto-selected provider has no quote', () => {
+      const mockProviders = [
+        createMockProvider({
+          id: '/providers/banxa',
+          name: 'Banxa',
+          type: 'aggregator',
+          supportedCryptoCurrencies: { 'eip155:1/slip44:60': true },
+        }),
+        createMockProvider({
+          id: '/providers/moonpay',
+          name: 'MoonPay',
+          type: 'aggregator',
+          supportedCryptoCurrencies: { 'eip155:1/slip44:60': true },
+        }),
+        createMockProvider({
+          id: '/providers/coinbase',
+          name: 'Coinbase',
+          type: 'aggregator',
+          supportedCryptoCurrencies: { 'eip155:1/slip44:60': true },
+        }),
+      ];
+
+      it('reselects provider when auto-selected provider has no quote due to error', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(mockProviders, mockProviders[0]),
+                providerAutoSelected: true,
+                paymentMethods: createResourceState(
+                  [
+                    {
+                      id: '/payments/debit-credit-card',
+                      paymentType: 'debit-credit-card',
+                      name: 'Debit or Credit',
+                      score: 90,
+                      icon: 'card',
+                    },
+                  ],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const quotesResponseWithError: QuotesResponse = {
+              success: [
+                {
+                  provider: '/providers/moonpay',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.05',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 98,
+                  },
+                  metadata: {
+                    reliability: 95,
+                    tags: {
+                      isBestRate: true,
+                      isMostReliable: false,
+                    },
+                  },
+                },
+                {
+                  provider: '/providers/coinbase',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.049',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 97,
+                  },
+                  metadata: {
+                    reliability: 90,
+                    tags: {
+                      isBestRate: false,
+                      isMostReliable: false,
+                    },
+                  },
+                },
+              ],
+              sorted: [
+                {
+                  sortBy: 'reliability',
+                  ids: ['/providers/moonpay', '/providers/coinbase'],
+                },
+              ],
+              error: [
+                {
+                  provider: '/providers/banxa',
+                  error: 'timeout',
+                },
+              ],
+              customActions: [],
+            };
+
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => quotesResponseWithError,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            });
+
+            expect(controller.state.providers.selected?.id).toBe(
+              '/providers/moonpay',
+            );
+            expect(controller.state.providerAutoSelected).toBe(true);
+          },
+        );
+      });
+
+      it('reselects provider when auto-selected provider has no quote (empty success)', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(mockProviders, mockProviders[0]),
+                providerAutoSelected: true,
+                paymentMethods: createResourceState(
+                  [
+                    {
+                      id: '/payments/debit-credit-card',
+                      paymentType: 'debit-credit-card',
+                      name: 'Debit or Credit',
+                      score: 90,
+                      icon: 'card',
+                    },
+                  ],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const quotesResponseNoSuccess: QuotesResponse = {
+              success: [
+                {
+                  provider: '/providers/coinbase',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.049',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 97,
+                  },
+                  metadata: {
+                    reliability: 90,
+                    tags: {
+                      isBestRate: false,
+                      isMostReliable: false,
+                    },
+                  },
+                },
+              ],
+              sorted: [
+                {
+                  sortBy: 'reliability',
+                  ids: ['/providers/coinbase'],
+                },
+              ],
+              error: [],
+              customActions: [],
+            };
+
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => quotesResponseNoSuccess,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            });
+
+            expect(controller.state.providers.selected?.id).toBe(
+              '/providers/coinbase',
+            );
+            expect(controller.state.providerAutoSelected).toBe(true);
+          },
+        );
+      });
+
+      it('does not reselect when provider was manually selected', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(mockProviders, mockProviders[0]),
+                providerAutoSelected: false,
+                paymentMethods: createResourceState(
+                  [
+                    {
+                      id: '/payments/debit-credit-card',
+                      paymentType: 'debit-credit-card',
+                      name: 'Debit or Credit',
+                      score: 90,
+                      icon: 'card',
+                    },
+                  ],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const quotesResponseManualSelection: QuotesResponse = {
+              success: [
+                {
+                  provider: '/providers/moonpay',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.05',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 98,
+                  },
+                  metadata: {
+                    reliability: 95,
+                    tags: {
+                      isBestRate: true,
+                      isMostReliable: false,
+                    },
+                  },
+                },
+              ],
+              sorted: [
+                {
+                  sortBy: 'reliability',
+                  ids: ['/providers/moonpay'],
+                },
+              ],
+              error: [
+                {
+                  provider: '/providers/banxa',
+                  error: 'timeout',
+                },
+              ],
+              customActions: [],
+            };
+
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => quotesResponseManualSelection,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            });
+
+            expect(controller.state.providers.selected?.id).toBe(
+              '/providers/banxa',
+            );
+            expect(controller.state.providerAutoSelected).toBe(false);
+          },
+        );
+      });
+
+      it('does not reselect when auto-selected provider has a valid quote', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(mockProviders, mockProviders[0]),
+                providerAutoSelected: true,
+                paymentMethods: createResourceState(
+                  [
+                    {
+                      id: '/payments/debit-credit-card',
+                      paymentType: 'debit-credit-card',
+                      name: 'Debit or Credit',
+                      score: 90,
+                      icon: 'card',
+                    },
+                  ],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const quotesResponseWithValidQuote: QuotesResponse = {
+              success: [
+                {
+                  provider: '/providers/banxa',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.048',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 96,
+                  },
+                  metadata: {
+                    reliability: 85,
+                    tags: {
+                      isBestRate: false,
+                      isMostReliable: false,
+                    },
+                  },
+                },
+                {
+                  provider: '/providers/moonpay',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.05',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 98,
+                  },
+                  metadata: {
+                    reliability: 95,
+                    tags: {
+                      isBestRate: true,
+                      isMostReliable: false,
+                    },
+                  },
+                },
+              ],
+              sorted: [
+                {
+                  sortBy: 'reliability',
+                  ids: ['/providers/moonpay', '/providers/banxa'],
+                },
+              ],
+              error: [],
+              customActions: [],
+            };
+
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => quotesResponseWithValidQuote,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            });
+
+            expect(controller.state.providers.selected?.id).toBe(
+              '/providers/banxa',
+            );
+            expect(controller.state.providerAutoSelected).toBe(true);
+          },
+        );
+      });
+
+      it('does not reselect when there are no successful quotes', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(mockProviders, mockProviders[0]),
+                providerAutoSelected: true,
+                paymentMethods: createResourceState(
+                  [
+                    {
+                      id: '/payments/debit-credit-card',
+                      paymentType: 'debit-credit-card',
+                      name: 'Debit or Credit',
+                      score: 90,
+                      icon: 'card',
+                    },
+                  ],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const quotesResponseAllErrors: QuotesResponse = {
+              success: [],
+              sorted: [],
+              error: [
+                {
+                  provider: '/providers/banxa',
+                  error: 'timeout',
+                },
+                {
+                  provider: '/providers/moonpay',
+                  error: 'unavailable',
+                },
+              ],
+              customActions: [],
+            };
+
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => quotesResponseAllErrors,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            });
+
+            expect(controller.state.providers.selected?.id).toBe(
+              '/providers/banxa',
+            );
+            expect(controller.state.providerAutoSelected).toBe(true);
+          },
+        );
+      });
+
+      it('selects based on price when reliability order is not available', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(mockProviders, mockProviders[0]),
+                providerAutoSelected: true,
+                paymentMethods: createResourceState(
+                  [
+                    {
+                      id: '/payments/debit-credit-card',
+                      paymentType: 'debit-credit-card',
+                      name: 'Debit or Credit',
+                      score: 90,
+                      icon: 'card',
+                    },
+                  ],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const quotesResponsePriceOrder: QuotesResponse = {
+              success: [
+                {
+                  provider: '/providers/moonpay',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.048',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 96,
+                  },
+                },
+                {
+                  provider: '/providers/coinbase',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.05',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 98,
+                  },
+                },
+              ],
+              sorted: [
+                {
+                  sortBy: 'price',
+                  ids: ['/providers/coinbase', '/providers/moonpay'],
+                },
+              ],
+              error: [
+                {
+                  provider: '/providers/banxa',
+                  error: 'timeout',
+                },
+              ],
+              customActions: [],
+            };
+
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => quotesResponsePriceOrder,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            });
+
+            expect(controller.state.providers.selected?.id).toBe(
+              '/providers/coinbase',
+            );
+            expect(controller.state.providerAutoSelected).toBe(true);
+          },
+        );
+      });
+
+      it('falls back to first quote when no sort order is available', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(mockProviders, mockProviders[0]),
+                providerAutoSelected: true,
+                paymentMethods: createResourceState(
+                  [
+                    {
+                      id: '/payments/debit-credit-card',
+                      paymentType: 'debit-credit-card',
+                      name: 'Debit or Credit',
+                      score: 90,
+                      icon: 'card',
+                    },
+                  ],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            const quotesResponseNoSortOrder: QuotesResponse = {
+              success: [
+                {
+                  provider: '/providers/moonpay',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.05',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 98,
+                  },
+                },
+                {
+                  provider: '/providers/coinbase',
+                  quote: {
+                    amountIn: 100,
+                    amountOut: '0.049',
+                    paymentMethod: '/payments/debit-credit-card',
+                    amountOutInFiat: 97,
+                  },
+                },
+              ],
+              sorted: [],
+              error: [
+                {
+                  provider: '/providers/banxa',
+                  error: 'timeout',
+                },
+              ],
+              customActions: [],
+            };
+
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => quotesResponseNoSortOrder,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: 'eip155:1/slip44:60',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            });
+
+            expect(controller.state.providers.selected?.id).toBe(
+              '/providers/moonpay',
+            );
+            expect(controller.state.providerAutoSelected).toBe(true);
+          },
+        );
+      });
+    });
   });
 
   describe('getBuyWidgetData', () => {
