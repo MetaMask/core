@@ -8,18 +8,16 @@ import {
 } from '../../utils/perps.js';
 
 /**
- * Shared 20-byte sentinel address emitted by the server strategy to flag a
- * Hyperliquid perps deposit. Backend providers translate this to their own
- * on-chain destination (e.g. Relay's 16-byte HyperCore USDC sentinel, Across's
- * native USDC-PERPS token at the same address).
+ * Placeholder token address for the Hyperliquid perps margin account on
+ * HyperCore. Only used within the quote request, as the server strategy sends
+ * any HyperCore asset as `SERVER_HYPERLIQUID_PERPS_USDC_ASSET`.
  */
 export const SERVER_HYPERCORE_USDC_PERPS_ADDRESS =
   '0x2100000000000000000000000000000000000000' as Hex;
 
 /**
  * Translate a Hyperliquid perps deposit or withdraw quote request into the
- * HyperCore shape with a provider-agnostic sentinel address. Backend providers
- * detect the sentinel and rewrite it to their respective on-chain addresses.
+ * HyperCore shape, so it is sent as the Hyperliquid perps asset.
  *
  * @param request - Quote request from the transaction-pay controller.
  * @param transaction - Parent transaction whose calls are inspected.
