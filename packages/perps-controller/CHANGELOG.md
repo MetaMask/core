@@ -143,6 +143,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A read still held when the provider disconnects is cancelled without being sent
   - A non-2xx Lighter response with a non-JSON body (such as a rate-limit page) now fails with the HTTP status as its error code instead of a JSON parse error
 
+### Fixed
+
+- Keep main-DEX open orders usable when a HyperLiquid HIP-3 DEX is down: strict open-order discovery now throws `OrderDiscoveryError` carrying the orders fetched from reachable DEXs instead of discarding them, so batch cancels on the main DEX proceed while an unrelated builder DEX is unavailable ([#11461](https://github.com/MetaMask/core/pull/11461))
+  - Aggregated strict open-order reads merge a venue's own partial orders into the reported `OrderDiscoveryError`
+- Return a structured failed `CancelOrdersResult` instead of throwing when open-order discovery for a batch cancel fails outside `OrderDiscoveryError` (e.g. a direct venue read), so callers always receive the batch result ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Drop `perpsBalances` entries for venues the active stream no longer serves: a direct or single-venue account stream now removes entries persisted for other venues, and changing the provider selection or migrating out of aggregated mode clears them instead of leaving stale totals looking live ([#11461](https://github.com/MetaMask/core/pull/11461))
+
 ## [24.0.0]
 
 ### Added
@@ -221,11 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Report a failed Lighter position lookup during aggregated `closePositions({ closeAll: true })` as a venue-attributed batch error instead of treating that venue as empty; successful closes on other venues are preserved ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Preserve unavailable venues and unresolved order IDs in `CancelOrdersResult.discoveryFailures` when batch-cancel discovery fails, including cancel-all; successful cancellations on other venues remain in the result ([#11421](https://github.com/MetaMask/core/pull/11421))
   - `failureCount` includes unresolved requested IDs, or one failure per unavailable venue when its order count is unknown; `error` describes the failed venues
-  - `GetPositionsParams` and `GetOrdersParams` accept optional `throwOnUnavailable` for strict position and open-order discovery; strict open-order reads throw the exported `OrderDiscoveryError` with successful venue orders and per-venue failures
-- Keep main-DEX open orders usable when a HyperLiquid HIP-3 DEX is down: strict open-order discovery now throws `OrderDiscoveryError` carrying the orders fetched from reachable DEXs instead of discarding them, so batch cancels on the main DEX proceed while an unrelated builder DEX is unavailable ([#11461](https://github.com/MetaMask/core/pull/11461))
-  - Aggregated strict open-order reads merge a venue's own partial orders into the reported `OrderDiscoveryError`
-- Return a structured failed `CancelOrdersResult` instead of throwing when open-order discovery for a batch cancel fails outside `OrderDiscoveryError` (e.g. a direct venue read), so callers always receive the batch result ([#11461](https://github.com/MetaMask/core/pull/11461))
-- Drop `perpsBalances` entries for venues the active stream no longer serves: a direct or single-venue account stream now removes entries persisted for other venues, and changing the provider selection or migrating out of aggregated mode clears them instead of leaving stale totals looking live ([#11461](https://github.com/MetaMask/core/pull/11461))
+  - `GetPositionsParams` and `GetOrdersParams` accept optional `throwOnUnavailable` for strict position and open-order discovery; strict aggregated open-order reads throw the exported `OrderDiscoveryError` with successful venue orders and per-venue failures
 - Keep batch-close fee resolutions scoped to their execution venues when position pricing fails or returns no matching positions; the optional `PerpsProvider.getProviderIds` method exposes registered venues independently of position availability ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Fall back to individual order cancellations for venues without `cancelOrders`, including Lighter, preserving each order's venue and success or failure in mixed-venue batches ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Preserve exact decimal `marginUsed` and `unrealizedPnl` totals and the margin-weighted `returnOnEquity` in `aggregateAccountStates` by sharing the account-total calculation with cross-venue aggregation instead of using binary floating-point arithmetic ([#11552](https://github.com/MetaMask/core/pull/11552))
