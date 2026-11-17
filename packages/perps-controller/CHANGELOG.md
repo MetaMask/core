@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `chaseOrder` to `CancelOrderResult`: the chase's final snapshot when a chase cancel succeeds and the provider knows how it ended. HyperLiquid sets it, and leaves it out when the venue reports the child gone and its status cannot be read ([#11592](https://github.com/MetaMask/core/pull/11592))
 - Add types `TwapSlicePreview`, `ChaseOrderLists`, `ChasePlacementCheck`, `ScaleLadderSizing`, `ScalePriceWarning`, `SubscribeLiveTwapOrdersParams`, `SubscribeChaseOrderListsParams`, `AdvancedOrderValidationResult`, `LiveTwapOrderSource`, `LiveChaseOrderSource` and `CanceledChaseOrder` ([#11592](https://github.com/MetaMask/core/pull/11592))
 
+- Add `PERPS_ERROR_CODES.BATCH_INCOMPLETE` and `ClosePositionsResult.failures` (`{ providerId, error }[]`) so merged batch errors remain translatable codes while preserving venue-specific details ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Add optional `PerpsProvider.supportsFeeResolution(providerId)` to identify venues that consume fee resolutions, and an optional third `RewardsIntegrationService.resolveFee` argument for subscription notional already reserved by earlier venues in a batch ([#11461](https://github.com/MetaMask/core/pull/11461))
+
 ### Changed
 
 - **BREAKING:** Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values on every provider result boundary, including order placement and cancellation, edits, closes, TP/SL updates, margin changes, withdrawals, transfers, and readiness failures. ([#11206](https://github.com/MetaMask/core/pull/11206))
@@ -74,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HIP-3 markets with `marginMode` `noCross` or `strictIsolated`, or `onlyIsolated`, still report `['isolated']` and refuse Cross with `ORDER_MARGIN_MODE_UNSUPPORTED`
   - With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position now transfers the new order's margin instead of the whole position's, plus the margin the existing position needs when the order lowers its leverage ([#11623](https://github.com/MetaMask/core/pull/11623))
   - `adaptMarketFromSDK` and `getMarkets` no longer return `marginMode: 'normal'`, a value outside `MarketInfo.marginMode`; a market without a restriction now has no `marginMode`, and the Terminal global snapshot no longer fails schema validation when a market sends `normal`
+
 
 ## [24.1.0]
 
@@ -122,6 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove the unused `perpsBalances[*].accountAddress` and `isTestnet` provenance fields. Live updates replace balance entries without carrying historical values forward; account selection and network changes clear all per-venue balances ([#11461](https://github.com/MetaMask/core/pull/11461))
+
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
@@ -144,6 +150,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A non-2xx Lighter response with a non-JSON body (such as a rate-limit page) now fails with the HTTP status as its error code instead of a JSON parse error
 
 ### Fixed
+
+- Do not count already-discovered scoped cancel targets as failures when another DEX on their venue is unavailable; merged discovery errors use `BATCH_INCOMPLETE` and retain structured venue details without repeating venue prefixes ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Refuse non-empty legacy `cancelOrders` filters (`symbols` or bare `orderIds`) with `PROVIDER_ROUTE_REQUIRED` when multiple venues are registered. Scoped `orders`, cancel-all and single-venue requests remain supported ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Skip batch-close fee lookups for venues without fee setters and allocate a bounded subscription allowance sequentially across fee-capable venues instead of granting each the same remaining allowance ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Withhold bounded batch-close fee waivers when any selected position has a non-finite value instead of pricing the venue from an understated subtotal ([#11461](https://github.com/MetaMask/core/pull/11461))
+- Attribute withdrawal records using the execution provider identity rather than tracing metadata ([#11461](https://github.com/MetaMask/core/pull/11461))
 
 - Keep main-DEX open orders usable when a HyperLiquid HIP-3 DEX is down: strict open-order discovery now throws `OrderDiscoveryError` carrying the orders fetched from reachable DEXs instead of discarding them, so batch cancels on the main DEX proceed while an unrelated builder DEX is unavailable ([#11461](https://github.com/MetaMask/core/pull/11461))
   - Aggregated strict open-order reads merge a venue's own partial orders into the reported `OrderDiscoveryError`
@@ -189,16 +201,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Hyperliquid and Lighter implement both on testnet and mainnet with the same `PublicTrade` shape: `{ id, symbol, price, size, side, timestamp, txHash?, providerId }`, where `side` is the aggressor's (`buy` or `sell`). `AggregatedPerpsProvider` routes to `providerId`, else the default provider. Like `subscribeToCandles`, an unrouted stream moves to the new default when `setDefaultProvider` changes it, and an unrouted read resolves to `[]` if the default changes before the venue answers
   - New optional `PerpsProvider.getPublicTrades` and `PerpsProvider.subscribeToPublicTrades` members, and types `PublicTrade`, `GetPublicTradesParams`, `SubscribePublicTradesParams`, `PerpsControllerGetPublicTradesAction` and `PerpsControllerSubscribeToPublicTradesAction`
   - Subpath exports `@metamask/perps-controller/constants/lighterConfig` and `@metamask/perps-controller/utils/*` also expose `LIGHTER_RECENT_TRADES_MAX_LIMIT`, `buildPublicTrade`, `sortPublicTradesNewestFirst`, `PublicTradeFields`, `adaptPublicTradesFromHyperLiquid` and `adaptPublicTradesFromLighter`
-- Add `CancelOrdersParams.orders` with `{ orderId, providerId }` targets, matched on both fields so an ID collision never selects another venue's order. Legacy `orderIds` intentionally matches every venue; use `orders` for a venue-specific cancel ([#11552](https://github.com/MetaMask/core/pull/11552))
+- Add `CancelOrdersParams.orders` with `{ orderId, providerId }` targets, matched on both fields so an ID collision never selects another venue's order. Legacy `orderIds` is supported only with one registered venue; use `orders` for a venue-specific cancel ([#11552](https://github.com/MetaMask/core/pull/11552))
 - Add venue routing to market streams: `subscribeToCandles`, `subscribeToOICaps` and `subscribeToOrderBook` take an optional `providerId` ([#11461](https://github.com/MetaMask/core/pull/11461))
   - An explicit route reaches that venue even when both venues list the same symbol (a Lighter chart shows Lighter prices), and stays pinned when the routing default changes
   - Omitting `providerId` keeps the previous default-routed behavior, including rebinding when the default changes
   - A route that is not registered is reported through the params' `onError` (or thrown when there is no `onError`); the stream never silently subscribes to a different venue
-- Add venue enumeration to money-movement routes: `getDepositRoutes` and `getWithdrawalRoutes` return routes from every active provider, each tagged with a `providerId`. Identical asset/chain routes belonging to different venues are distinct entries and are never collapsed ([#11461](https://github.com/MetaMask/core/pull/11461))
-  - `depositWithConfirmation` selects the explicit `providerId`, otherwise the routing default, and fails closed when that venue has no route instead of funding another exchange
+- Expose `buildAggregatedAccountState`, `getAccountAggregateMetadata`, `aggregateAccountTotals` and the `AggregatedAccountTotals` type through `@metamask/perps-controller/utils/accountAggregation` ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Add venue attribution to money-movement records: deposit and withdrawal request records in controller state take an optional `providerId`, captured from the chosen route (or the active direct provider) before any asynchronous work and never relabeled by later default changes. Records persisted before this change omit the field and keep their original shape ([#11461](https://github.com/MetaMask/core/pull/11461))
 
 ### Changed
+
+- **BREAKING:** `getDepositRoutes` and `getWithdrawalRoutes` return routes from every active venue rather than only the default. Filter by `route.providerId` for venue-local money movement; identical asset/chain routes on different venues remain distinct ([#11461](https://github.com/MetaMask/core/pull/11461))
+  - `depositWithConfirmation` selects the explicit `providerId`, otherwise the routing default, and fails closed when that venue has no route instead of funding another exchange
 
 - **BREAKING:** Aggregated `getAccountState` and `subscribeToAccount` now expose per-venue snapshots and combined totals instead of the routing default's account. Consumers must use `providerStates[providerId]` for venue-local balances and margin detail ([#11461](https://github.com/MetaMask/core/pull/11461), [#11552](https://github.com/MetaMask/core/pull/11552))
   - `AggregatedPerpsProvider.getAccountState` fans out to every registered venue and returns top-level `totalBalance`, `spendableBalance`, `withdrawableBalance`, `marginUsed` and `unrealizedPnl` as decimal-safe combined totals over the venues that reported data, plus `returnOnEquity` as a margin-weighted combined rate (`100 × Σ unrealizedPnl ÷ Σ marginUsed`, `0` when no margin is used)
@@ -206,9 +220,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New optional `AccountState.aggregate` metadata (`{ status, availableProviders, unavailableProviders, pendingProviders? }`) says whether the totals cover every enabled venue. A `partial` total is a subtotal: consumers must not present it as the complete portfolio value. A failed venue read or a snapshot with a missing or non-finite additive field is an explicit `unavailable` entry — never a zero balance; a confirmed zero or missing venue account is an `available` entry with zero balances
   - When no venue has usable data, the read throws (REST) or emits `null` (stream) instead of manufacturing an all-zero total
   - The aggregated result carries no venue `providerId`; per-venue attribution lives in `providerStates`. Aggregated wrappers with a single registered venue keep passing the direct result through unchanged
-  - `AggregatedPerpsProvider.subscribeToAccount` subscribes to every enabled venue through the multiplexer and emits the same combined contract on each update. The stream is venue fan-out, not default-routed: changing the routing default neither drops a venue's subscription nor erases a still-valid all-venue total. Before a venue's first snapshot it is `pending`, including on `null`; its persisted balance and history are retained. After a snapshot, `null` makes it `unavailable` and removes its balance entry. The callback's optional second argument carries `AccountAggregateMetadata` even when the combined state is `null`, so consumers can distinguish pending from unavailable venues
+  - `AggregatedPerpsProvider.subscribeToAccount` subscribes to every enabled venue through the multiplexer and emits the same combined contract on each update. The stream is venue fan-out, not default-routed: changing the routing default neither drops a venue's subscription nor erases a still-valid all-venue total. Before a venue's first snapshot it is `pending`, including on `null`; its persisted balance is retained until the venue reports or the account/network context changes. After a snapshot, `null` makes it `unavailable` and removes its balance entry. The callback's optional second argument carries `AccountAggregateMetadata` even when the combined state is `null`, so consumers can distinguish pending from unavailable venues
   - Each simultaneous account subscription owns its venue cache, so one subscription's cleanup never erases another subscription's venue data
-  - `PerpsController` now writes `perpsBalances[providerId]` from live account updates: one entry per available venue with `totalBalance`, `unrealizedPnl` and `lastUpdated`. Each entry records the `accountAddress` and `isTestnet` it was observed for, and a previous entry's value carries forward only when both match the current account and network; entries for another account or network are dropped when the selected account changes or the network is toggled. A venue whose data becomes unavailable has its entry removed rather than left looking live, and a `null` aggregate clears `accountState` but removes only explicitly unavailable venues' balance entries
+  - `PerpsController` now writes `perpsBalances[providerId]` from live account updates: one entry per available venue with `totalBalance`, `unrealizedPnl` and `lastUpdated`. Live updates do not carry historical values forward; all entries are cleared when the selected account changes or the network is toggled. A venue whose data becomes unavailable has its entry removed rather than left looking live, and a `null` aggregate clears `accountState` but removes only explicitly unavailable venues' balance entries
   - User-data preload assigns each aggregated venue's account state to its own provider cache bucket; the combined total is never stored in a venue's bucket
   - New exported types `PerpsProviderAccountStateEntry` and `AccountAggregateMetadata`
   - A combined snapshot is not replaced by a one-venue fallback while multiple venues remain registered, including when the fallback names the routing default
@@ -227,7 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exclude Lighter from aggregated account totals when `getAccountState` or `subscribeToAccount` requests an account other than the selected wallet; unsupported scopes reject instead of returning or streaming the selected wallet's balance, and an aggregate keeps healthy venues live while marking Lighter unavailable ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Report a failed Lighter position lookup during aggregated `closePositions({ closeAll: true })` as a venue-attributed batch error instead of treating that venue as empty; successful closes on other venues are preserved ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Preserve unavailable venues and unresolved order IDs in `CancelOrdersResult.discoveryFailures` when batch-cancel discovery fails, including cancel-all; successful cancellations on other venues remain in the result ([#11421](https://github.com/MetaMask/core/pull/11421))
-  - `failureCount` includes unresolved requested IDs, or one failure per unavailable venue when its order count is unknown; `error` describes the failed venues
+  - `failureCount` includes unresolved requested IDs, or one failure per unavailable venue when its order count is unknown; `error` is `BATCH_INCOMPLETE` and structured fields describe the failed venues
   - `GetPositionsParams` and `GetOrdersParams` accept optional `throwOnUnavailable` for strict position and open-order discovery; strict aggregated open-order reads throw the exported `OrderDiscoveryError` with successful venue orders and per-venue failures
 - Keep batch-close fee resolutions scoped to their execution venues when position pricing fails or returns no matching positions; the optional `PerpsProvider.getProviderIds` method exposes registered venues independently of position availability ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Fall back to individual order cancellations for venues without `cancelOrders`, including Lighter, preserving each order's venue and success or failure in mixed-venue batches ([#11421](https://github.com/MetaMask/core/pull/11421))

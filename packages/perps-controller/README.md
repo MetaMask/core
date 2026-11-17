@@ -80,9 +80,9 @@ only one destination.
 
 `cancelOrders` and `closePositions` are venue-attributed rather than refused.
 `cancelOrders({ orders: [{ orderId, providerId }] })` matches both fields,
-so a colliding ID on another venue is not cancelled. Legacy `orderIds` filters
-intentionally match that ID at every venue; use `orders` for a venue-specific
-cancel. Cancel-all batches reach every venue holding an order. An empty
+so a colliding ID on another venue is not cancelled. Non-empty legacy `orderIds`
+or `symbols` filters without scoped `orders` return `PROVIDER_ROUTE_REQUIRED`
+when multiple venues are registered; use `orders` to identify the intended venue. Cancel-all batches reach every venue holding an order. An empty
 `orders`, `orderIds` or `symbols` filter selects no orders. `closePositions` takes either `closeAll` (fans out to every enabled
 venue) or explicit `targets` of `{ symbol, providerId }`; a legacy
 symbols-only close without venue identity still returns
@@ -97,10 +97,20 @@ venue. `CancelOrdersResult.discoveryFailures` names each failed venue and, for
 ID-filtered requests, its unresolved `orderIds`. These targets have no discovered
 symbol, so they are separate from `results`. `failureCount` includes unresolved
 IDs, or one failure per unavailable venue when the order count is unknown;
-`error` describes those venues even when `success` is true. Clients should check
-both `error` and `discoveryFailures` before presenting a batch as complete.
-Close-all similarly retains successful closes and reports unavailable position
-discovery in its batch-level `error` (the number of unclosed positions is unknown).
+`error` is the stable `BATCH_INCOMPLETE` code even when `success` is true.
+Already discovered scoped targets are not counted as discovery failures, even
+when another DEX on the same venue is unavailable. Clients should check both
+`error` and `discoveryFailures` before presenting a batch as complete.
+Close-all similarly retains successful closes and returns `BATCH_INCOMPLETE`
+with venue details in `ClosePositionsResult.failures` (`{ providerId, error }[]`).
+A venue whose position discovery throws contributes one failure when the number
+of unclosed positions is unknown. Direct single-venue batch errors are preserved.
+
+Batch closes resolve fees only for venues that consume fee resolutions or
+discounts, exposed by `PerpsProvider.supportsFeeResolution(providerId)`.
+Resolutions are computed sequentially: subscription notional allocated to an
+earlier venue is subtracted from the allowance available to later venues.
+Unused allowance is not persisted locally; the backend remains its source of truth.
 
 Existing lenient reads remain unchanged. `getPositions` and
 `getOpenOrders` (both venues, including standalone reads) accept `{ throwOnUnavailable: true }` for callers

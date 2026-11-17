@@ -274,6 +274,29 @@ describe('AccountService', () => {
       expect(mockState.withdrawalRequests[0].providerId).toBe('lighter');
     });
 
+    it.each(['hyperliquid', 'unknown'])(
+      'uses the direct provider identity, never tracing metadata (%s)',
+      async (protocolId) => {
+        const provider = { ...mockProvider, protocolId };
+        mockContext.tracingContext.provider = 'lighter';
+        await accountService.withdraw({
+          provider,
+          params: mockWithdrawParams,
+          context: mockContext,
+          refreshAccountState: mockRefreshAccountState,
+        });
+        const updateCall = (mockContext.stateManager?.update as Mock).mock
+          .calls[0][0];
+        const state = {
+          withdrawalRequests: [],
+        } as unknown as PerpsControllerState;
+        updateCall(state);
+        expect(state.withdrawalRequests[0].providerId).toBe(
+          protocolId === 'hyperliquid' ? 'hyperliquid' : undefined,
+        );
+      },
+    );
+
     it('keeps an explicitly named withdrawal venue on the record', async () => {
       mockProvider.withdraw.mockResolvedValue({
         success: true,

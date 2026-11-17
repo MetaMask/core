@@ -12,8 +12,8 @@ import {
 import type { StateChangeListener } from '@metamask/base-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { hasProperty, parseCaipAccountId } from '@metamask/utils';
-import type { CaipAccountId, Json } from '@metamask/utils';
+import { hasProperty } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -471,23 +471,8 @@ export type PerpsControllerState = {
     [provider: string]: {
       totalBalance: string; // Current total account value (cash + positions) in USD
       unrealizedPnl: string; // Current P&L from open positions in USD
-      /**
-       * Account value 24h ago for daily change calculation in USD.
-       * Optional: `AccountState` carries no historical observation, so a
-       * first live write before any prior entry has no 1d-ago value to
-       * preserve. Carried forward from the previous entry when one exists;
-       * never fabricated from the current balance.
-       */
+      /** Legacy historical observation, absent from live account updates. */
       accountValue1dAgo?: string;
-      /**
-       * Lowercased address of the account this entry was observed for.
-       * Absent on entries persisted before provenance was recorded, or when
-       * no account could be resolved; such an entry's `accountValue1dAgo` is
-       * never carried forward.
-       */
-      accountAddress?: string;
-      /** Network this entry was observed on. */
-      isTestnet?: boolean;
       lastUpdated: number; // Timestamp of last update
     };
   };
@@ -747,31 +732,6 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
 /**
  * State metadata for the PerpsController
  */
-/**
- * Whether a persisted balance entry was observed in the given account and
- * network context. An entry without recorded provenance, or a context whose
- * account cannot be resolved, never matches: history must not be read across
- * accounts or networks on a guess.
- *
- * @param entry - The persisted balance entry.
- * @param entry.accountAddress - Lowercased account the entry was observed for.
- * @param entry.isTestnet - Network the entry was observed on.
- * @param context - The current context.
- * @param context.accountAddress - Lowercased current account, when known.
- * @param context.isTestnet - The current network.
- * @returns True when the entry belongs to the context.
- */
-function isSameBalanceContext(
-  entry: { accountAddress?: string; isTestnet?: boolean },
-  context: { accountAddress: string | undefined; isTestnet: boolean },
-): boolean {
-  return (
-    entry.accountAddress !== undefined &&
-    entry.accountAddress === context.accountAddress &&
-    entry.isTestnet === context.isTestnet
-  );
-}
-
 const metadata: StateMetadata<PerpsControllerState> = {
   accountState: {
     includeInStateLogs: true,
@@ -1572,7 +1532,7 @@ export class PerpsController extends BaseController<
       // Balance entries, and the history they carry, belong to the account
       // that observed them; another account's must not show as this one's.
       this.update((draft) => {
-        this.#dropForeignPerpsBalances(draft);
+        draft.perpsBalances = {};
       });
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
@@ -4120,11 +4080,18 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
-    // Batch cancel resolves each target's venue from the order record that
-    // names it: open orders carry the venue that holds them, so a filtered or
-    // all-order batch is venue-attributed and never guesses a default. Only
-    // an unrouted single-venue write (direct mode) reaches one venue.
+    // All-order batches fan out; filtered batches must identify their venue.
     const provider = await this.#getActiveProviderWhenReady();
+    if (
+      !params.cancelAll &&
+      !params.orders &&
+      ((params.orderIds ?? params.symbols)?.length ?? 0) > 0
+    ) {
+      const refusal = this.#getUnroutedAggregatedBatchRefusal(provider);
+      if (refusal) {
+        return refusal;
+      }
+    }
 
     return this.#tradingService.cancelOrders({
       provider,
@@ -6801,7 +6768,7 @@ export class PerpsController extends BaseController<
         state.effectiveProvider = null;
         // The previous network's balances, and their history, are not
         // observations of this one.
-        this.#dropForeignPerpsBalances(state);
+        state.perpsBalances = {};
       });
 
       const newNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
@@ -7746,47 +7713,6 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Resolve the account a balance observation belongs to.
-   *
-   * @param accountId - The account a stream was opened for, when explicit.
-   * @returns The lowercased address, or undefined when none can be resolved.
-   */
-  #resolveBalanceAccountAddress(
-    accountId: CaipAccountId | undefined,
-  ): string | undefined {
-    if (!accountId) {
-      return getSelectedEvmAccountFromMessenger(
-        this.messenger,
-      )?.address.toLowerCase();
-    }
-    try {
-      return parseCaipAccountId(accountId).address.toLowerCase();
-    } catch {
-      // A malformed id names no account, so its history cannot be matched.
-      return undefined;
-    }
-  }
-
-  /**
-   * Remove balance entries observed for another account or network.
-   *
-   * @param state - The draft state being updated.
-   */
-  #dropForeignPerpsBalances(
-    state: Pick<PerpsControllerState, 'perpsBalances' | 'isTestnet'>,
-  ): void {
-    const context = {
-      accountAddress: this.#resolveBalanceAccountAddress(undefined),
-      isTestnet: state.isTestnet,
-    };
-    for (const [venueId, entry] of Object.entries(state.perpsBalances)) {
-      if (!isSameBalanceContext(entry, context)) {
-        delete state.perpsBalances[venueId];
-      }
-    }
-  }
-
-  /**
    * Subscribe to live account updates.
    * Updates controller state (Redux) when new account data arrives so consumers
    * like usePerpsBalanceTokenFilter (PayWithModal) see the latest balance.
@@ -7821,16 +7747,6 @@ export class PerpsController extends BaseController<
                   // to their own venue id, or the active direct provider when
                   // the venue does not stamp one.
                   const timestamp = Date.now();
-                  // Every entry records the account and network it was
-                  // observed for, and history only carries forward within
-                  // that same context: after an account or network switch the
-                  // previous entry's 1d-ago value belongs to someone else.
-                  const context = {
-                    accountAddress: this.#resolveBalanceAccountAddress(
-                      params.accountId,
-                    ),
-                    isTestnet: state.isTestnet,
-                  };
                   const writeBalance = (
                     venueId: string,
                     balance: Pick<
@@ -7838,20 +7754,9 @@ export class PerpsController extends BaseController<
                       'totalBalance' | 'unrealizedPnl'
                     >,
                   ): void => {
-                    const previous = state.perpsBalances[venueId];
                     state.perpsBalances[venueId] = {
                       totalBalance: balance.totalBalance,
                       unrealizedPnl: balance.unrealizedPnl,
-                      // Historical observation carried forward, never
-                      // fabricated from the current balance.
-                      ...(previous?.accountValue1dAgo !== undefined &&
-                        isSameBalanceContext(previous, context) && {
-                          accountValue1dAgo: previous.accountValue1dAgo,
-                        }),
-                      ...(context.accountAddress !== undefined && {
-                        accountAddress: context.accountAddress,
-                      }),
-                      isTestnet: context.isTestnet,
                       lastUpdated: timestamp,
                     };
                   };
@@ -7871,7 +7776,7 @@ export class PerpsController extends BaseController<
                       }
                       // A `pending` venue has not reported on this stream
                       // yet: no verdict about its balances, so its persisted
-                      // entry (with the 1d-ago history it carries) stays
+                      // entry stays
                       // until the venue reports a snapshot.
                     }
                   } else {

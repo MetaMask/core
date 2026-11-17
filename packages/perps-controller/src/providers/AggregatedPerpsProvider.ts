@@ -728,10 +728,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         failures.push({ providerId, reason: result.reason });
         entries.push({
           status: 'unavailable',
-          error:
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason),
+          error: ensureError(result.reason).message,
           providerId,
         });
       }
@@ -867,17 +864,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
               providerId: providers[index][0],
             })),
           );
-          failures.push({
-            providerId: providers[index][0],
-            error: result.reason.message,
-          });
+          failures.push(...result.reason.failures);
         } else {
           failures.push({
             providerId: providers[index][0],
-            error:
-              result.reason instanceof Error
-                ? result.reason.message
-                : String(result.reason),
+            error: ensureError(result.reason).message,
           });
         }
       });
@@ -1222,14 +1213,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // Venue identity is execution identity: a target without one is ambiguous
     // the moment two venues are registered, and is refused rather than
     // resolved against the default provider.
-    if (params.some((param) => !param.providerId)) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
-    }
-
     // Group targets by venue and use its batch or individual cancel API.
     const byProvider = new Map<PerpsProviderType, BatchCancelOrdersParams>();
     for (const param of params) {
-      const venue = param.providerId as PerpsProviderType;
+      const venue = param.providerId;
+      if (venue === undefined) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
+      }
       const group = byProvider.get(venue);
       if (group) {
         group.push(param);
@@ -1275,10 +1265,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       } else {
         // The venue's batch threw (or the venue is missing): its targets
         // fail explicitly instead of silently disappearing from the outcome.
-        const message =
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason);
+        const { message } = ensureError(result.reason);
         merged.failureCount += targets.length;
         merged.results.push(
           ...targets.map((target) => ({
@@ -1323,10 +1310,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       return {
         ...targets[index],
         success: false,
-        error:
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason),
+        error: ensureError(result.reason).message,
       };
     });
     const successCount = results.filter((result) => result.success).length;
@@ -1551,10 +1535,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       let error: string | undefined;
       if (failed) {
         success = false;
-        error =
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason);
+        error = ensureError(result.reason).message;
       } else {
         success = result.value.success === true;
         error = result.value.error;
@@ -1598,25 +1579,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       failureCount: 0,
       results: [],
     };
-    const batchErrors: string[] = [];
+    const failures: NonNullable<ClosePositionsResult['failures']> = [];
     results.forEach((result, index) => {
       const batch = batches[index];
-      const providerId = batch?.providerId;
+      const { providerId } = batch;
       if (result.status === 'fulfilled') {
         merged.successCount += result.value.successCount;
         merged.failureCount += result.value.failureCount;
         merged.results.push(...result.value.results);
         if (result.value.error !== undefined) {
-          batchErrors.push(`${providerId}: ${result.value.error}`);
+          failures.push({ providerId, error: result.value.error });
         }
       } else {
-        const message =
-          result.reason instanceof Error
-            ? result.reason.message
-            : String(result.reason);
-        batchErrors.push(`${providerId}: ${message}`);
-        const symbols = batch?.symbols ?? [];
-        if (symbols.length > 0 && providerId !== undefined) {
+        const { message } = ensureError(result.reason);
+        failures.push({ providerId, error: message });
+        const symbols = batch.symbols ?? [];
+        if (symbols.length > 0) {
           merged.failureCount += symbols.length;
           merged.results.push(
             ...symbols.map((symbol) => ({
@@ -1626,11 +1604,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
               providerId,
             })),
           );
+        } else {
+          merged.failureCount += 1;
         }
       }
     });
-    if (batchErrors.length > 0) {
-      merged.error = batchErrors.join('; ');
+    if (failures.length > 0) {
+      merged.error = PERPS_ERROR_CODES.BATCH_INCOMPLETE;
+      merged.failures = failures;
     }
     merged.success = merged.successCount > 0;
     return merged;
@@ -2071,7 +2052,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     }
     // A null before the first snapshot leaves the venue pending. After a
     // snapshot (even an invalid one), a null means it became unavailable.
-    const lastReport = new Map<PerpsProviderType, 'available'>();
+    const lastReport = new Set<PerpsProviderType>();
     const unavailable = new Set<PerpsProviderType>();
     return this.#subscriptionMux.subscribeToAccount({
       ...(params.accountId !== undefined && { accountId: params.accountId }),
@@ -2086,7 +2067,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
               (account) => account.providerId === providerId,
             );
             if (state) {
-              lastReport.set(providerId, 'available');
+              lastReport.add(providerId);
               return { status: 'available', state, providerId };
             }
             // Reported before and its latest update was null: no current
@@ -2293,6 +2274,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         provider.setUserFeeDiscount(discountBips);
       }
     });
+  }
+
+  supportsFeeResolution(providerId?: PerpsProviderType): boolean {
+    const provider = this.#providers.get(providerId ?? this.#defaultProvider);
+    return Boolean(
+      typeof provider?.setUserFeeResolution === 'function' ||
+      typeof provider?.setUserFeeDiscount === 'function',
+    );
   }
 
   setUserFeeResolution(

@@ -1461,15 +1461,11 @@ export class TradingService {
             ? undefined
             : (position.providerId ?? writeRoute);
         const value = Math.abs(Number.parseFloat(position.positionValue));
-        notionalByVenue.set(
-          venue,
-          (notionalByVenue.get(venue) ?? 0) +
-            (Number.isFinite(value) ? value : 0),
-        );
+        notionalByVenue.set(venue, (notionalByVenue.get(venue) ?? 0) + value);
       }
     } catch (error) {
       // Pricing the batch must never fail the close. Without a notional the
-      // resolver quotes the full waiver, which is what it did before.
+      // resolver withholds bounded waivers rather than spending an unknown amount.
       this.#deps.debugLogger.log(
         'TradingService: Could not price batch close for the fee resolver',
         {
@@ -1480,7 +1476,7 @@ export class TradingService {
     }
     return Array.from(notionalByVenue, ([providerId, total]) => ({
       ...(providerId === undefined ? {} : { providerId }),
-      notionalUsd: total > 0 ? total : undefined,
+      notionalUsd: Number.isFinite(total) && total > 0 ? total : undefined,
     }));
   }
 
@@ -1690,6 +1686,7 @@ export class TradingService {
    * @param provider - The actual provider receiving this submission.
    * @param context - The submission context, including its network.
    * @param providerId - Explicit route, when the caller supplied one.
+   * @param reservedSubscriptionNotionalUsd - Allowance already allocated to earlier venues in this batch.
    * @returns The resolved fee, or undefined when controller dependencies are
    * unavailable.
    */
@@ -1698,6 +1695,7 @@ export class TradingService {
     provider: PerpsProvider,
     context: ServiceContext,
     providerId?: PerpsProviderType,
+    reservedSubscriptionNotionalUsd = 0,
   ): Promise<PerpsFeeResolution | undefined> {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
@@ -1714,14 +1712,19 @@ export class TradingService {
     // The notional is what lets the subscription source resolve to a blended
     // rate. Submitting without it would resolve every bounded allowance as a
     // full waiver, charging 0 bips on an order the preview quoted a blend for.
-    const resolution = await rewardsIntegrationService.resolveFee(
-      orderNotionalUsd,
-      {
-        providerId:
-          provider.getWriteProviderId?.(providerId) ?? provider.protocolId,
-        isTestnet: context.tracingContext.isTestnet,
-      },
-    );
+    const scope = {
+      providerId:
+        provider.getWriteProviderId?.(providerId) ?? provider.protocolId,
+      isTestnet: context.tracingContext.isTestnet,
+    };
+    const resolution =
+      reservedSubscriptionNotionalUsd > 0
+        ? await rewardsIntegrationService.resolveFee(
+            orderNotionalUsd,
+            scope,
+            reservedSubscriptionNotionalUsd,
+          )
+        : await rewardsIntegrationService.resolveFee(orderNotionalUsd, scope);
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -2094,6 +2097,21 @@ export class TradingService {
     ) => Promise<TResult>;
   }): Promise<CancelOrdersResult> {
     const { provider, params, context, withStreamPause } = options;
+    if (
+      !params.cancelAll &&
+      !params.orders &&
+      ((params.orderIds ?? params.symbols)?.length ?? 0) > 0 &&
+      (provider.getProviderIds?.().length ?? 1) > 1
+    ) {
+      return {
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      };
+    }
+
     const traceId = uuidv4();
     // Correlation id linking every per-item event to the batch summary
     const bulkActionId = uuidv4();
@@ -2155,7 +2173,7 @@ export class TradingService {
           }
           orders = error.orders;
           for (const failure of error.failures) {
-            const orderIds =
+            const requestedOrderIds =
               params.cancelAll === true
                 ? undefined
                 : (params.orders
@@ -2163,6 +2181,17 @@ export class TradingService {
                       (target) => target.providerId === failure.providerId,
                     )
                     .map((target) => target.orderId) ?? params.orderIds);
+            // Discovery can fail within a venue while still returning the
+            // requested order from another DEX on that same venue.
+            const orderIds = requestedOrderIds?.filter(
+              (orderId) =>
+                !orders.some(
+                  (order) =>
+                    order.orderId === orderId &&
+                    (order.providerId ?? provider.protocolId) ===
+                      failure.providerId,
+                ),
+            );
             // A scoped request on another venue is unaffected by this failure.
             if (orderIds?.length === 0) {
               continue;
@@ -2195,8 +2224,7 @@ export class TradingService {
             ),
           );
         } else if (params.orderIds) {
-          // Legacy IDs intentionally match every venue; scoped targets above
-          // are required to distinguish a colliding order ID.
+          // Bare IDs are supported only when execution has a single venue.
           ordersToCancel = orders.filter((order) =>
             params.orderIds?.includes(order.orderId),
           );
@@ -2296,14 +2324,7 @@ export class TradingService {
               0,
             ),
           discoveryFailures,
-          error: [
-            operationResult.error,
-            ...discoveryFailures.map(
-              ({ providerId, error }) => `${providerId}: ${error}`,
-            ),
-          ]
-            .filter(Boolean)
-            .join('; '),
+          error: PERPS_ERROR_CODES.BATCH_INCOMPLETE,
         };
       }
 
@@ -2643,18 +2664,36 @@ export class TradingService {
 
         operationResult = await this.#withFeeResolutions({
           provider,
-          resolveFees: () =>
-            Promise.all(
-              feeRoutes.map(async ({ providerId, notionalUsd }) => ({
-                providerId,
-                resolution: await this.#calculateFeeDiscountWithMeasurement(
+          resolveFees: async () => {
+            const resolutions: {
+              providerId?: PerpsProviderType;
+              resolution: PerpsFeeResolution | undefined;
+            }[] = [];
+            let reservedSubscriptionNotionalUsd = 0;
+            for (const { providerId, notionalUsd } of feeRoutes) {
+              const supportsFees =
+                provider.supportsFeeResolution?.(providerId) ??
+                Boolean(
+                  typeof provider.setUserFeeResolution === 'function' ||
+                  typeof provider.setUserFeeDiscount === 'function',
+                );
+              if (!supportsFees) {
+                continue;
+              }
+              const resolution =
+                await this.#calculateFeeDiscountWithMeasurement(
                   notionalUsd,
                   provider,
                   context,
                   providerId,
-                ),
-              })),
-            ),
+                  reservedSubscriptionNotionalUsd,
+                );
+              reservedSubscriptionNotionalUsd +=
+                resolution?.subscriptionCoveredNotionalUsd ?? 0;
+              resolutions.push({ providerId, resolution });
+            }
+            return resolutions;
+          },
           operation: async () => {
             if (!provider.closePositions) {
               throw new Error('closePositions method not available');

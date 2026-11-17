@@ -1917,6 +1917,34 @@ describe('AggregatedPerpsProvider', () => {
       expect(result.successCount).toBe(2);
     });
 
+    it('keeps fulfilled venue batch error codes in structured failures', async () => {
+      mockHLProvider.closePositions.mockResolvedValue({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [],
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      mockLighterProvider.closePositions.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ symbol: 'ETH', success: true }],
+      });
+      const result = await aggregatedProvider.closePositions({
+        closeAll: true,
+      });
+      expect(result).toMatchObject({
+        error: 'BATCH_INCOMPLETE',
+        failures: [
+          {
+            providerId: 'hyperliquid',
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          },
+        ],
+      });
+    });
+
     it('records a per-symbol failure when a tagged venue close throws', async () => {
       mockHLProvider.closePositions.mockRejectedValue(
         new Error('batch rejected'),
@@ -1940,7 +1968,10 @@ describe('AggregatedPerpsProvider', () => {
       expect(result.success).toBe(true);
       expect(result.successCount).toBe(1);
       expect(result.failureCount).toBe(1);
-      expect(result.error).toBe('hyperliquid: batch rejected');
+      expect(result.error).toBe('BATCH_INCOMPLETE');
+      expect(result).toMatchObject({
+        failures: [{ providerId: 'hyperliquid', error: 'batch rejected' }],
+      });
       expect(result.results).toEqual([
         {
           symbol: 'BTC',
@@ -2579,6 +2610,23 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.setLiveDataConfig).toHaveBeenCalledWith({
         priceThrottleMs: 1000,
       });
+    });
+
+    it('reports fee support for the actual route rather than the wrapper setters', () => {
+      mockLighterProvider.setUserFeeResolution = undefined;
+      mockLighterProvider.setUserFeeDiscount = undefined;
+      expect(aggregatedProvider.supportsFeeResolution('hyperliquid')).toBe(
+        true,
+      );
+      expect(aggregatedProvider.supportsFeeResolution('lighter')).toBe(false);
+      expect(aggregatedProvider.supportsFeeResolution('missing' as never)).toBe(
+        false,
+      );
+      expect(aggregatedProvider.supportsFeeResolution()).toBe(true);
+      aggregatedProvider.setDefaultProvider('lighter');
+      expect(aggregatedProvider.supportsFeeResolution()).toBe(false);
+      mockLighterProvider.setUserFeeDiscount = vi.fn();
+      expect(aggregatedProvider.supportsFeeResolution('lighter')).toBe(true);
     });
 
     it('applies setUserFeeDiscount to all providers', () => {

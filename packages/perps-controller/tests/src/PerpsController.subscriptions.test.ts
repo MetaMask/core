@@ -692,240 +692,39 @@ describe('PerpsController', () => {
       expect(controller.state.accountState?.totalBalance).toBe('1250.3');
     });
 
-    it('preserves a previous accountValue1dAgo and never fabricates one', () => {
+    it('writes live balances without carrying stale history or adding provenance', () => {
       setupAggregatedMode();
-      controller.subscribeToAccount({ callback: vi.fn() });
-      const hlCallback =
-        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-
-      // First live write: no historical observation exists, so none is made up.
-      hlCallback({ ...accountState('100'), unrealizedPnl: '0' });
-      expect(
-        controller.state.perpsBalances.hyperliquid.accountValue1dAgo,
-      ).toBeUndefined();
-
-      // A previous entry's historical value carries forward.
       controller.testUpdate((state) => {
         state.perpsBalances.hyperliquid = {
-          ...controller.state.perpsBalances.hyperliquid,
-          accountValue1dAgo: '90',
+          totalBalance: '90',
+          unrealizedPnl: '0',
+          accountValue1dAgo: '80',
+          lastUpdated: 1,
         };
       });
-      hlCallback({ ...accountState('110'), unrealizedPnl: '5' });
-      expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
-        totalBalance: '110',
-        unrealizedPnl: '5',
-        accountValue1dAgo: '90',
+      controller.subscribeToAccount({ callback: vi.fn() });
+      mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+        accountState('100'),
+      );
+      expect(controller.state.perpsBalances.hyperliquid).toStrictEqual({
+        totalBalance: '100',
+        unrealizedPnl: '0',
+        lastUpdated: expect.any(Number),
       });
     });
 
-    describe('balance history provenance', () => {
-      const firstAddress = '0x1234567890123456789012345678901234567890';
-      const secondAddress = '0xABCDEF0123456789ABCDEF0123456789ABCDEF01';
-
-      const seedHistory = (accountValue1dAgo: string) => {
-        controller.testUpdate((state) => {
-          state.perpsBalances.hyperliquid = {
-            ...state.perpsBalances.hyperliquid,
-            accountValue1dAgo,
-          };
-        });
-      };
-
-      const triggerSelectedAccountChange = () => {
-        (mockMessenger.subscribe as Mock).mock.calls
-          .filter(
-            ([event]) => event === 'AccountsController:selectedAccountChange',
-          )
-          .forEach(([, handler]) => (handler as () => void)());
-      };
-
-      it('records the observing account and network on each balance entry', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-
-        hlCallback(accountState('100'));
-
-        expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
-          accountAddress: firstAddress.toLowerCase(),
-          isTestnet: false,
-        });
-      });
-
-      it('does not carry history to a different account, even if the switch event was missed', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-        hlCallback(accountState('100'));
-        seedHistory('90');
-
-        selectedEvmAddress = secondAddress;
-        hlCallback(accountState('5'));
-
-        expect(controller.state.perpsBalances.hyperliquid).toStrictEqual({
-          totalBalance: '5',
-          unrealizedPnl: '0',
-          accountAddress: secondAddress.toLowerCase(),
-          isTestnet: false,
-          lastUpdated: expect.any(Number),
-        });
-      });
-
-      it('does not carry history to a different network', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-        hlCallback(accountState('100'));
-        seedHistory('90');
-
-        controller.testUpdate((state) => {
-          state.isTestnet = true;
-        });
-        hlCallback(accountState('7'));
-
-        expect(
-          controller.state.perpsBalances.hyperliquid.accountValue1dAgo,
-        ).toBeUndefined();
-        expect(controller.state.perpsBalances.hyperliquid.isTestnet).toBe(true);
-      });
-
-      it('does not carry history from an entry with no recorded provenance', () => {
-        setupAggregatedMode();
-        // Persisted by an older version, before provenance was recorded.
-        controller.testUpdate((state) => {
-          state.perpsBalances.hyperliquid = {
-            totalBalance: '100',
-            unrealizedPnl: '0',
-            accountValue1dAgo: '90',
-            lastUpdated: 1,
-          };
-        });
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-
-        hlCallback(accountState('110'));
-
-        expect(
-          controller.state.perpsBalances.hyperliquid.accountValue1dAgo,
-        ).toBeUndefined();
-      });
-
-      it('still carries history forward within the same account and network', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-        hlCallback(accountState('100'));
-        seedHistory('90');
-
-        // Address casing differences are the same account.
-        selectedEvmAddress = firstAddress.toUpperCase().replace('0X', '0x');
-        hlCallback(accountState('110'));
-
-        expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
-          totalBalance: '110',
-          accountValue1dAgo: '90',
-        });
-      });
-
-      it('attributes a stream for an explicit account to that account', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({
-          callback: vi.fn(),
-          accountId: `eip155:42161:${secondAddress}`,
-        });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-
-        hlCallback(accountState('100'));
-
-        expect(controller.state.perpsBalances.hyperliquid.accountAddress).toBe(
-          secondAddress.toLowerCase(),
-        );
-      });
-
-      it('records no account, and carries no history, for a malformed account id', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({
-          callback: vi.fn(),
-          accountId: 'not-a-caip-id' as `${string}:${string}:${string}`,
-        });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-        hlCallback(accountState('100'));
-        seedHistory('90');
-
-        hlCallback(accountState('110'));
-
-        expect(controller.state.perpsBalances.hyperliquid).toStrictEqual({
-          totalBalance: '110',
-          unrealizedPnl: '0',
-          isTestnet: false,
-          lastUpdated: expect.any(Number),
-        });
-      });
-
-      it('does not carry history to a different account on the direct path', () => {
-        markControllerAsInitialized();
-        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-        controller.testUpdate((state) => {
-          state.activeProvider = 'hyperliquid';
-        });
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-        hlCallback(accountState('100'));
-        seedHistory('90');
-
-        hlCallback(accountState('110'));
-        expect(
-          controller.state.perpsBalances.hyperliquid.accountValue1dAgo,
-        ).toBe('90');
-
-        selectedEvmAddress = secondAddress;
-        hlCallback(accountState('5'));
-        expect(
-          controller.state.perpsBalances.hyperliquid.accountValue1dAgo,
-        ).toBeUndefined();
-        expect(controller.state.perpsBalances.hyperliquid.accountAddress).toBe(
-          secondAddress.toLowerCase(),
-        );
-      });
-
-      it('drops the previous account balances when the selected account changes', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-        hlCallback(accountState('100'));
-        seedHistory('90');
-
-        selectedEvmAddress = secondAddress;
-        triggerSelectedAccountChange();
-
-        expect(controller.state.perpsBalances).toStrictEqual({});
-      });
-
-      it('keeps balances when the selection event does not change the account', () => {
-        setupAggregatedMode();
-        controller.subscribeToAccount({ callback: vi.fn() });
-        const hlCallback =
-          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
-        hlCallback(accountState('100'));
-        seedHistory('90');
-
-        triggerSelectedAccountChange();
-
-        expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
-          totalBalance: '100',
-          accountValue1dAgo: '90',
-        });
-      });
+    it('clears balances on selected account notifications', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+        accountState('100'),
+      );
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .forEach(([, handler]) => handler());
+      expect(controller.state.perpsBalances).toStrictEqual({});
     });
 
     it('drops foreign venue balances on a direct-provider stream write', () => {
@@ -998,8 +797,6 @@ describe('PerpsController', () => {
           totalBalance: '200',
           unrealizedPnl: '2',
           accountValue1dAgo: '190',
-          accountAddress: '0x1234567890123456789012345678901234567890',
-          isTestnet: false,
           lastUpdated: Date.now(),
         };
       });
@@ -1012,11 +809,10 @@ describe('PerpsController', () => {
         accountValue1dAgo: '190',
       });
 
-      // Lighter then reports: the history carries forward.
+      // Lighter then reports: replace the entry with only live observations.
       lighterCallback({ ...accountState('250'), unrealizedPnl: '5' });
       expect(controller.state.perpsBalances.lighter).toMatchObject({
         totalBalance: '250',
-        accountValue1dAgo: '190',
       });
 
       // An explicit null is a real unavailability: the entry goes away.

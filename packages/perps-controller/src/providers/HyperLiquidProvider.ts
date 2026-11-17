@@ -14490,7 +14490,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             orders: partialOrders,
             failures: [
               {
-                providerId: 'hyperliquid',
+                providerId: this.protocolId,
                 error: failedDexs
                   .map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`)
                   .join('; '),

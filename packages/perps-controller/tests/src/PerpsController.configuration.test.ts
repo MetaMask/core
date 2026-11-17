@@ -642,8 +642,6 @@ describe('PerpsController', () => {
             totalBalance: '100',
             unrealizedPnl: '0',
             accountValue1dAgo: '90',
-            accountAddress: '0x1234567890123456789012345678901234567890',
-            isTestnet: false,
             lastUpdated: 1,
           },
         };

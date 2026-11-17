@@ -1210,16 +1210,19 @@ export type ClosePositionsTarget = {
 export type ClosePositionsResult = {
   success: boolean; // Overall success (true if at least one position closed)
   successCount: number; // Number of positions closed successfully
-  failureCount: number; // Number of positions that failed to close
+  /** Failed positions, or one per failed venue when its positions are unknown. */
+  failureCount: number;
   /**
    * Batch-level operation error.
    *
-   * Set when the close fails as a whole: snapshot/preparation errors with no
-   * per-position outcomes, or a thrown batch submission that also fills
-   * `results` with per-position failures. Venue text is replaced with a stable
-   * code.
+   * Merged multi-venue failures use BATCH_INCOMPLETE, including when another
+   * venue succeeded; venue details live in `failures`. Direct-provider batches
+   * preserve their snapshot/preparation or submission error. Venue text is
+   * replaced with a stable code.
    */
   error?: string;
+  /** Venue-level errors; `error` remains BATCH_INCOMPLETE on a merged batch. */
+  failures?: { providerId: PerpsProviderType; error: string }[];
   /** Stable classification for the batch-level error. */
   errorCode?: PerpsErrorCode;
   /** Provider-tagged details for the batch-level error. Raw venue text is excluded. */
@@ -1590,8 +1593,8 @@ export type BatchCancelOrdersParams = {
 
 export type CancelOrdersParams = {
   symbols?: string[]; // Optional: specific symbols (omit to cancel all orders)
-  /** Legacy cross-venue filter: cancels every matching ID at every venue.
-   * Use `orders` to select a single venue when IDs collide. */
+  /** Legacy single-venue filter. Refused when multiple venues are registered;
+   * use `orders` to identify the venue for each ID. */
   orderIds?: string[];
   /** Venue-scoped targets, matched on both fields. Takes precedence over
    * legacy filters unless `cancelAll` is true. An empty list cancels nothing. */
@@ -3437,6 +3440,15 @@ export type PerpsProvider = {
    * @returns Every venue a close-all operation will reach.
    */
   getProviderIds?(): PerpsProviderType[];
+
+  /**
+   * Whether the execution venue consumes fee resolutions or discounts.
+   * Direct providers may omit this; the presence of a fee setter is sufficient.
+   *
+   * @param providerId - Venue to check, or the default route when omitted.
+   * @returns Whether resolving a fee for this venue has an effect.
+   */
+  supportsFeeResolution?(providerId?: PerpsProviderType): boolean;
 
   setUserFeeDiscount?(discountBips: number | undefined): void;
   /**

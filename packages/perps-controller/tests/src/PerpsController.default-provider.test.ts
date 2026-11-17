@@ -1274,6 +1274,27 @@ describe('PerpsController default provider', () => {
       expect(params.providerId).toBe('lighter');
     });
 
+    it.each([{ symbols: ['BTC'] }, { orderIds: ['colliding-id'] }])(
+      'refuses ambiguous multi-venue cancel filters %j',
+      async (params) => {
+        await expect(controller.cancelOrders(params)).resolves.toStrictEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+          error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+        });
+        expect(mockTradingServiceInstance.cancelOrders).not.toHaveBeenCalled();
+        aggregatedProvider.removeProvider('lighter');
+        mockTradingServiceInstance.cancelOrders.mockResolvedValue({
+          success: true,
+        });
+        await expect(controller.cancelOrders(params)).resolves.toEqual({
+          success: true,
+        });
+      },
+    );
+
     it('sends a mixed-venue cancel batch to each venue that holds its orders', async () => {
       // Real aggregation and real trading service; venue boundaries are fakes.
       const { TradingService: RealTradingService } = await vi.importActual<

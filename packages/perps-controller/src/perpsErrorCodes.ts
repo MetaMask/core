@@ -15,6 +15,8 @@ export const PERPS_ERROR_CODES = {
   // With multiple registered venues a write must name the venue it is for
   PROVIDER_ROUTE_REQUIRED: 'PROVIDER_ROUTE_REQUIRED',
   PROVIDER_LIFECYCLE_STALE: 'PROVIDER_LIFECYCLE_STALE',
+  // Some venues or discovery targets could not complete a batch.
+  BATCH_INCOMPLETE: 'BATCH_INCOMPLETE',
   TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
   BRIDGE_CONTRACT_NOT_FOUND: 'BRIDGE_CONTRACT_NOT_FOUND',
   WITHDRAW_FAILED: 'WITHDRAW_FAILED',

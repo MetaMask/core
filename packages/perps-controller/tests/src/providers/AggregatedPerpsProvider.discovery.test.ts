@@ -218,7 +218,10 @@ describe('aggregated account and destructive-operation discovery', () => {
 
     expect(hyperliquid.closePositions).toHaveBeenCalledWith({ closeAll: true });
     expect(result).toMatchObject({ success: true, successCount: 1 });
-    expect(result.error).toContain('lighter: account transport down');
+    expect(result.error).toBe('BATCH_INCOMPLETE');
+    expect(result).toMatchObject({
+      failures: [{ providerId: 'lighter', error: 'account transport down' }],
+    });
     expect(close).not.toHaveBeenCalled();
   });
 
@@ -230,7 +233,12 @@ describe('aggregated account and destructive-operation discovery', () => {
       accounts: [],
     });
     const result = await aggregate.closePositions({ closeAll: true });
-    expect(result.error).toContain('lighter: Lighter account 28 not returned');
+    expect(result.error).toBe('BATCH_INCOMPLETE');
+    expect(result).toMatchObject({
+      failures: [
+        { providerId: 'lighter', error: 'Lighter account 28 not returned' },
+      ],
+    });
     expect(result.successCount).toBe(1);
   });
 
@@ -280,11 +288,6 @@ describe('aggregated account and destructive-operation discovery', () => {
       },
     },
     { kind: 'all', params: { cancelAll: true }, unresolvedOrderIds: undefined },
-    {
-      kind: 'legacy IDs',
-      params: { orderIds: ['hl-order', 'lighter-order'] },
-      unresolvedOrderIds: ['hl-order', 'lighter-order'],
-    },
   ] satisfies {
     kind: string;
     params: CancelOrdersParams;
@@ -305,7 +308,7 @@ describe('aggregated account and destructive-operation discovery', () => {
       ]);
       expect(result).toMatchObject({ success: true, successCount: 1 });
       expect(result.failureCount).toBeGreaterThan(0);
-      expect(result.error).toContain('lighter');
+      expect(result.error).toBe('BATCH_INCOMPLETE');
       expect(result).toMatchObject({
         discoveryFailures: [
           expect.objectContaining({
@@ -352,9 +355,95 @@ describe('aggregated account and destructive-operation discovery', () => {
     await expect(read).rejects.toMatchObject({
       orders: [{ ...hyperliquidOrder, providerId: 'hyperliquid' }],
       failures: [
-        { providerId: 'hyperliquid', error: 'hyperliquid: xyz: dex down' },
+        { providerId: 'hyperliquid', error: 'xyz: dex down' },
         { providerId: 'lighter', error: 'orders down' },
       ],
+    });
+  });
+
+  it.each(['hyperliquid', 'aggregate'] as const)(
+    'does not count discovered scoped targets as failures during a partial venue outage (%s)',
+    async (providerKey) => {
+      const { aggregate, hyperliquid, infrastructure } = setup();
+      hyperliquid.getOpenOrders.mockRejectedValue(
+        new OrderDiscoveryError({
+          orders: [hyperliquidOrder],
+          failures: [{ providerId: 'hyperliquid', error: 'xyz: dex down' }],
+        }),
+      );
+      const provider = { hyperliquid, aggregate }[providerKey];
+      const result = await new TradingService(infrastructure).cancelOrders({
+        provider,
+        params: {
+          orders: [{ orderId: 'hl-order', providerId: 'hyperliquid' }],
+        },
+        context: createMockServiceContext({
+          getOpenOrders: (params?: GetOrdersParams) =>
+            provider.getOpenOrders(params),
+        }),
+        withStreamPause: async (operation) => operation(),
+      });
+      expect(result).toMatchObject({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.discoveryFailures).toBeUndefined();
+    },
+  );
+
+  it('keeps only missing scoped IDs in a partially discovered venue failure', async () => {
+    const { aggregate, hyperliquid, infrastructure } = setup();
+    hyperliquid.getOpenOrders.mockRejectedValue(
+      new OrderDiscoveryError({
+        orders: [hyperliquidOrder],
+        failures: [{ providerId: 'hyperliquid', error: 'xyz down' }],
+      }),
+    );
+    const result = await new TradingService(infrastructure).cancelOrders({
+      provider: aggregate,
+      params: {
+        orders: [
+          { orderId: 'hl-order', providerId: 'hyperliquid' },
+          { orderId: 'missing', providerId: 'hyperliquid' },
+        ],
+      },
+      context: createMockServiceContext({
+        getOpenOrders: (params?: GetOrdersParams) =>
+          aggregate.getOpenOrders(params),
+      }),
+      withStreamPause: async (operation) => operation(),
+    });
+    expect(result).toMatchObject({
+      successCount: 1,
+      failureCount: 1,
+      error: 'BATCH_INCOMPLETE',
+      discoveryFailures: [{ providerId: 'hyperliquid', orderIds: ['missing'] }],
+    });
+  });
+
+  it('does not resolve an unavailable venue target with the same ID from another venue', async () => {
+    const { aggregate, clientInstance, infrastructure } = setup();
+    clientInstance.getActiveOrders.mockRejectedValue(new Error('orders down'));
+    const result = await new TradingService(infrastructure).cancelOrders({
+      provider: aggregate,
+      params: {
+        orders: [
+          { orderId: 'hl-order', providerId: 'hyperliquid' },
+          { orderId: 'hl-order', providerId: 'lighter' },
+        ],
+      },
+      context: createMockServiceContext({
+        getOpenOrders: (params?: GetOrdersParams) =>
+          aggregate.getOpenOrders(params),
+      }),
+      withStreamPause: async (operation) => operation(),
+    });
+    expect(result).toMatchObject({
+      successCount: 1,
+      failureCount: 1,
+      discoveryFailures: [{ providerId: 'lighter', orderIds: ['hl-order'] }],
     });
   });
 
@@ -444,7 +533,7 @@ describe('aggregated account and destructive-operation discovery', () => {
       successCount: 0,
       failureCount: 1,
       results: [],
-      error: 'lighter: orders down',
+      error: 'BATCH_INCOMPLETE',
       discoveryFailures: [
         {
           providerId: 'lighter',
@@ -476,6 +565,10 @@ describe('aggregated account and destructive-operation discovery', () => {
 
     expect(result.successCount).toBeGreaterThan(0);
     expect(result.failureCount).toBeGreaterThan(0);
-    expect(result.error).toContain('hyperliquid: HL down');
+    expect(result.error).toBe('BATCH_INCOMPLETE');
+    expect(result.discoveryFailures).toContainEqual({
+      providerId: 'hyperliquid',
+      error: 'HL down',
+    });
   });
 });
