@@ -137,7 +137,7 @@ export type AnalyticsControllerState = {
    *
    * Set by {@link AnalyticsController.optInToMarketing} and
    * {@link AnalyticsController.optOutOfMarketing}, cleared by
-   * {@link AnalyticsController.clearPendingMarketingConsent} and
+   * {@link AnalyticsController.clearMarketingConsentSyncPending} and
    * {@link AnalyticsController.resetMarketingConsentDecision}. A value applied
    * from the profile with
    * {@link AnalyticsController.applyRemoteMarketingConsent} never sets it.
@@ -396,7 +396,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'optOutOfMarketing',
   'resetMarketingConsentDecision',
   'applyRemoteMarketingConsent',
-  'clearPendingMarketingConsent',
+  'clearMarketingConsentSyncPending',
   'setMarketingCampaignCookieId',
   'createEventFragment',
   'upsertEventFragment',
@@ -2506,11 +2506,14 @@ export class AnalyticsController extends BaseController<
    * @returns A promise that resolves once opt-in processing has completed.
    */
   async applyRemoteMarketingConsent(optedIn: boolean): Promise<void> {
-    if (
-      this.state.marketingConsentSyncPending === true ||
-      (this.state.marketingConsentDecisionMade === true &&
-        (this.state.optedInToMarketing === true) === optedIn)
-    ) {
+    if (this.state.marketingConsentSyncPending === true) {
+      return;
+    }
+
+    const sameDecisionMade =
+      this.state.marketingConsentDecisionMade === true &&
+      (this.state.optedInToMarketing === true) === optedIn;
+    if (sameDecisionMade) {
       return;
     }
 
@@ -2531,11 +2534,14 @@ export class AnalyticsController extends BaseController<
    *
    * @param optedIn - The consent value that was saved or dropped.
    */
-  clearPendingMarketingConsent(optedIn: boolean): void {
-    if (
-      this.state.marketingConsentSyncPending !== true ||
-      (this.state.optedInToMarketing === true) !== optedIn
-    ) {
+  clearMarketingConsentSyncPending(optedIn: boolean): void {
+    if (this.state.marketingConsentSyncPending !== true) {
+      return;
+    }
+
+    const consentChangedSince =
+      (this.state.optedInToMarketing === true) !== optedIn;
+    if (consentChangedSince) {
       return;
     }
 

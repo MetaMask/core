@@ -19,6 +19,7 @@ import type {
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  SepaDepositInstructions,
   UsBankDepositInstructions,
   UsBankDepositRail,
 } from './autoramp-types.js';
@@ -159,6 +160,19 @@ export type NeoBankAutorampResponse = {
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   deposit_rails?: unknown[];
+  /**
+   * Reference senders must include on transfers when the autoramp uses
+   * pay-by-reference. Absent or null otherwise.
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  inbound_payment_reference?: string | null;
+  /**
+   * Whether the autoramp accepts third-party payments. MoonPay derives it
+   * from the create and can auto-enable it for some currencies depending on
+   * the eligible rail, so the response is authoritative.
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  is_third_party?: boolean;
 };
 
 /**
@@ -507,6 +521,16 @@ const DEPOSIT_RAIL_CURRENCIES: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Reads a non-empty string.
+ *
+ * @param value - Candidate value.
+ * @returns The value, or undefined when missing, not a string, or empty.
+ */
+function readNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
  * Reads a non-empty string field from a deposit rail.
  *
  * @param record - Deposit rail object.
@@ -517,8 +541,7 @@ function readRailString(
   record: Record<string, unknown>,
   key: string,
 ): string | undefined {
-  const value = record[key];
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  return readNonEmptyString(record[key]);
 }
 
 /**
@@ -552,10 +575,10 @@ function readDepositRailCurrency(depositRails: unknown): string | undefined {
   if (extractUsBankDepositInstructions(depositRails)) {
     return DEPOSIT_RAIL_CURRENCIES.ACH;
   }
-  const sepa = readDepositRails(depositRails).find(
-    (rail) => rail.type === 'SEPA' && readRailString(rail, 'iban'),
-  );
-  return sepa ? DEPOSIT_RAIL_CURRENCIES.SEPA : undefined;
+  if (extractSepaDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.SEPA;
+  }
+  return undefined;
 }
 
 /**
@@ -598,6 +621,45 @@ export function extractUsBankDepositInstructions(
       }
       return instructions;
     }
+  }
+  return null;
+}
+
+/**
+ * Pulls SEPA transfer details out of an autoramp `deposit_rails` array.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns SEPA details, or null when no usable SEPA rail is present.
+ */
+export function extractSepaDepositInstructions(
+  depositRails: unknown,
+): SepaDepositInstructions | null {
+  for (const record of readDepositRails(depositRails)) {
+    if (record.type !== 'SEPA') {
+      continue;
+    }
+    const iban = readRailString(record, 'iban')?.replace(/\s+/gu, '');
+    if (!iban) {
+      continue;
+    }
+    const instructions: SepaDepositInstructions = { iban };
+    const bic = readRailString(record, 'bic');
+    if (bic) {
+      instructions.bic = bic;
+    }
+    const accountHolder = readRailString(record, 'beneficiary_name');
+    if (accountHolder) {
+      instructions.accountHolder = accountHolder;
+    }
+    const bankName = readRailString(record, 'name');
+    if (bankName) {
+      instructions.bankName = bankName;
+    }
+    const bankAddress = readRailString(record, 'address');
+    if (bankAddress) {
+      instructions.bankAddress = bankAddress;
+    }
+    return instructions;
   }
   return null;
 }
@@ -913,9 +975,13 @@ export class NeoBankService extends BaseDataService<
    * Loads deposit details for an autoramp, whichever rail it has.
    *
    * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
-   * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`). Returns null until MoonPay
-   * has attached a supported rail. MoonPay only verifies the rail at
-   * `Approved`, so callers should not show these details before then.
+   * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`), or else the SEPA rail.
+   * SEPA details also carry the autoramp's `inbound_payment_reference` as
+   * `paymentReference` when MoonPay uses pay-by-reference, and `is_third_party`
+   * as `isThirdParty` when the response has one.
+   * Returns null until MoonPay has attached a supported rail. MoonPay only
+   * verifies the rail at `Approved`, so callers should not show these details
+   * before then.
    *
    * @param autorampId - MoonPay autoramp id.
    * @returns Deposit details discriminated by `type`, or null.
@@ -933,16 +999,33 @@ export class NeoBankService extends BaseDataService<
           `autoramps/${encodeURIComponent(autorampId)}`,
         ),
     });
-    const { deposit_rails: depositRails } = response as Pick<
+    const {
+      deposit_rails: depositRails,
+      inbound_payment_reference: inboundPaymentReference,
+      is_third_party: isThirdParty,
+    } = response as Pick<
       NeoBankAutorampResponse,
-      'deposit_rails'
+      'deposit_rails' | 'inbound_payment_reference' | 'is_third_party'
     >;
     const pix = extractPixDepositInstructions(depositRails);
     if (pix) {
       return { type: 'Pix', ...pix };
     }
     const usBank = extractUsBankDepositInstructions(depositRails);
-    return usBank ? { type: 'UsBank', ...usBank } : null;
+    if (usBank) {
+      return { type: 'UsBank', ...usBank };
+    }
+    const sepa = extractSepaDepositInstructions(depositRails);
+    if (!sepa) {
+      return null;
+    }
+    const paymentReference = readNonEmptyString(inboundPaymentReference);
+    return {
+      type: 'Sepa',
+      ...sepa,
+      ...(paymentReference ? { paymentReference } : {}),
+      ...(typeof isThirdParty === 'boolean' ? { isThirdParty } : {}),
+    };
   }
 
   /**

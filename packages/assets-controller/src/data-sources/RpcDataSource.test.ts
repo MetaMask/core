@@ -16,6 +16,7 @@ import {
   registerRpcDataSourceActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
+import { waitFor } from '../__fixtures__/test-utils.js';
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type {
   AssetsControllerMessenger,
@@ -450,14 +451,13 @@ describe('RpcDataSource', () => {
             },
           },
         },
-        async ({ controller, rootMessenger }) => {
+        ({ controller, rootMessenger }) => {
           source = controller;
           rootMessenger.publish(
             'NetworkController:stateChange',
             createMockNetworkState(NetworkStatus.Available),
             [],
           );
-          await new Promise(process.nextTick);
           expect(callbackResult).not.toBeNull();
           expect(callbackResult?.syncChains).toStrictEqual(
             callbackResult?.newChains,
@@ -3165,13 +3165,14 @@ describe('RpcDataSource', () => {
             chainId: MOCK_CHAIN_ID_HEX,
             txParams: { from: MOCK_ADDRESS },
           } as unknown as TransactionMeta);
-          await new Promise(process.nextTick);
 
-          expect(fetchSpy).toHaveBeenCalled();
-          expect(onAssetsUpdate).toHaveBeenCalledWith(
-            expect.objectContaining({ updateMode: 'merge' }),
-            expect.objectContaining({ dataTypes: ['balance'] }),
-          );
+          await waitFor(() => {
+            expect(fetchSpy).toHaveBeenCalled();
+            expect(onAssetsUpdate).toHaveBeenCalledWith(
+              expect.objectContaining({ updateMode: 'merge' }),
+              expect.objectContaining({ dataTypes: ['balance'] }),
+            );
+          });
         });
       } finally {
         fetchSpy.mockRestore();
@@ -3209,12 +3210,13 @@ describe('RpcDataSource', () => {
                 txParams: { from: MOCK_ADDRESS },
               } as unknown as TransactionMeta,
             );
-            await new Promise(process.nextTick);
 
-            expect(onAssetsUpdate).toHaveBeenCalledWith(
-              expect.objectContaining({ updateMode: 'full' }),
-              expect.objectContaining({ dataTypes: ['balance'] }),
-            );
+            await waitFor(() => {
+              expect(onAssetsUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({ updateMode: 'full' }),
+                expect.objectContaining({ dataTypes: ['balance'] }),
+              );
+            });
           },
         );
       } finally {
@@ -3223,12 +3225,11 @@ describe('RpcDataSource', () => {
     });
 
     it('does not refresh when transaction confirmed has no chainId', async () => {
-      await withController(async ({ rootMessenger }) => {
+      await withController(({ rootMessenger }) => {
         rootMessenger.publish(
           'TransactionController:transactionConfirmed',
           {} as unknown as TransactionMeta,
         );
-        await new Promise(process.nextTick);
         expect(true).toBe(true);
       });
     });
@@ -3260,7 +3261,6 @@ describe('RpcDataSource', () => {
         };
 
         rootMessenger.publish('NetworkController:stateChange', newState, []);
-        await new Promise(process.nextTick);
         const chains = await controller.getActiveChains();
         expect(chains).toContain('eip155:137');
       });

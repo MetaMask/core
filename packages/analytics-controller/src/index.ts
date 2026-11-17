@@ -82,7 +82,7 @@ export type {
   AnalyticsControllerOptOutOfMarketingAction,
   AnalyticsControllerResetMarketingConsentDecisionAction,
   AnalyticsControllerApplyRemoteMarketingConsentAction,
-  AnalyticsControllerClearPendingMarketingConsentAction,
+  AnalyticsControllerClearMarketingConsentSyncPendingAction,
   AnalyticsControllerSetMarketingCampaignCookieIdAction,
   AnalyticsControllerCreateEventFragmentAction,
   AnalyticsControllerUpsertEventFragmentAction,
