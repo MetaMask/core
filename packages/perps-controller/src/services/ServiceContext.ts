@@ -1,6 +1,7 @@
 import type { PerpsControllerState } from '../PerpsController.js';
 import type {
   AccountState,
+  GetOrdersParams,
   Order,
   PerpsFeeResolution,
   PerpsGlobalSnapshotRequest,
@@ -65,7 +66,7 @@ export type ServiceContext = {
    * Query functions for dependent data
    * Required by: Operations that need to fetch related data
    */
-  getOpenOrders?: () => Promise<Order[]>;
+  getOpenOrders?: (params?: GetOrdersParams) => Promise<Order[]>;
   getPositions?: () => Promise<Position[]>;
 
   /**

@@ -1338,6 +1338,42 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it.each(['getPositions', 'getOpenOrders'] as const)(
+      'preserves a confirmed empty standalone %s under strict discovery',
+      async (method) => {
+        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
+          assetPositions: [],
+        });
+        mockStandaloneInfoClient.frontendOpenOrders.mockResolvedValue([]);
+        expect(
+          await provider[method]({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).toStrictEqual([]);
+      },
+    );
+
+    it.each(['getPositions', 'getOpenOrders'] as const)(
+      'preserves strict failure semantics for standalone %s',
+      async (method) => {
+        mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(
+          new Error('standalone down'),
+        );
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
+          new Error('standalone down'),
+        );
+        await expect(
+          provider[method]({
+            standalone: true,
+            userAddress: mockUserAddress,
+            throwOnUnavailable: true,
+          }),
+        ).rejects.toThrow('standalone down');
+      },
+    );
+
     describe('getOpenOrders with standalone mode', () => {
       it('returns orders via standalone client when standalone mode enabled', async () => {
         // Arrange - mock with all required FrontendOrder fields for adaptOrderFromSDK

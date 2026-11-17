@@ -96,6 +96,8 @@ export type MultiplexedOrdersParams = {
  * Parameters for multiplexed account subscriptions
  */
 export type MultiplexedAccountParams = {
+  /** Keep healthy venue streams when setup fails; the next emission excludes the failed venue. */
+  onError?: (error: Error, providerId: PerpsProviderType) => void;
   /** Optional account identity forwarded to every provider. */
   accountId?: SubscribeAccountParams['accountId'];
   /** Provider instances to subscribe through */
@@ -481,6 +483,15 @@ export class SubscriptionMultiplexer {
             },
           },
         );
+        if (params.onError) {
+          accountCache.delete(providerId);
+          params.onError(
+            ensureError(error, 'SubscriptionMultiplexer.subscribeToAccount'),
+            providerId,
+          );
+          callback(Array.from(accountCache.values()));
+          continue;
+        }
         unsubscribers.forEach((unsub) => unsub());
         throw error;
       }

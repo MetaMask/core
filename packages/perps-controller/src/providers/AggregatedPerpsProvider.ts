@@ -18,7 +18,10 @@ import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import { createTpslLegReplaceUnsupportedError } from '../errors.js';
+import {
+  createTpslLegReplaceUnsupportedError,
+  OrderDiscoveryError,
+} from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { isProviderOnTestnet } from '../services/providerNetwork.js';
@@ -668,12 +671,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   // ============================================================================
 
   async getPositions(params?: GetPositionsParams): Promise<Position[]> {
-    const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
-        const positions = await provider.getPositions(params);
-        return positions.map((pos) => ({ ...pos, providerId: id }));
-      }),
-    );
+    const requests = this.#getActiveProviders().map(async ([id, provider]) => {
+      const positions = await provider.getPositions(params);
+      return positions.map((pos) => ({ ...pos, providerId: id }));
+    });
+    if (params?.throwOnUnavailable) {
+      return (await Promise.all(requests)).flat();
+    }
+    const results = await Promise.allSettled(requests);
 
     return this.#extractSuccessfulResults(results, 'getPositions').flat();
   }
@@ -840,12 +845,34 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
+    const providers = this.#getActiveProviders();
     const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
+      providers.map(async ([id, provider]) => {
         const orders = await provider.getOpenOrders(params);
         return orders.map((order) => ({ ...order, providerId: id }));
       }),
     );
+    if (params?.throwOnUnavailable) {
+      const orders: Order[] = [];
+      const failures: OrderDiscoveryError['failures'] = [];
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          orders.push(...result.value);
+        } else {
+          failures.push({
+            providerId: providers[index][0],
+            error:
+              result.reason instanceof Error
+                ? result.reason.message
+                : String(result.reason),
+          });
+        }
+      });
+      if (failures.length > 0) {
+        throw new OrderDiscoveryError({ orders, failures });
+      }
+      return orders;
+    }
 
     return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
   }
@@ -1495,7 +1522,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     }
     const symbols =
       params.closeAll === true
-        ? (await provider.getPositions()).map((position) => position.symbol)
+        ? (await provider.getPositions({ throwOnUnavailable: true })).map(
+            (position) => position.symbol,
+          )
         : (params.symbols ?? []);
     if (symbols.length === 0) {
       return { success: false, successCount: 0, failureCount: 0, results: [] };
@@ -2030,9 +2059,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // A null before the first snapshot leaves the venue pending. After a
     // snapshot (even an invalid one), a null means it became unavailable.
     const lastReport = new Map<PerpsProviderType, 'available'>();
+    const unavailable = new Set<PerpsProviderType>();
     return this.#subscriptionMux.subscribeToAccount({
       ...(params.accountId !== undefined && { accountId: params.accountId }),
       providers: this.#getActiveProviders(),
+      onError: (_error, providerId) => {
+        unavailable.add(providerId);
+      },
       callback: (accounts) => {
         const entries: PerpsProviderAccountStateEntry[] =
           this.#getActiveProviders().map(([providerId]) => {
@@ -2046,7 +2079,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
             // Reported before and its latest update was null: no current
             // balance is known for this venue. Never seen: it simply has
             // not reported yet.
-            return lastReport.has(providerId)
+            return unavailable.has(providerId) || lastReport.has(providerId)
               ? { status: 'unavailable', providerId }
               : { status: 'pending', providerId };
           });

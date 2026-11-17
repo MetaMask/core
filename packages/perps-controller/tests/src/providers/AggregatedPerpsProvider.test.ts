@@ -3698,16 +3698,24 @@ describe('AggregatedPerpsProvider', () => {
       expect(lighterCleanup).toHaveBeenCalledTimes(1);
     });
 
-    it('cleans up every venue subscription when setup fails partway', () => {
+    it('keeps healthy account streams when another venue cannot subscribe', () => {
       const hlCleanup = vi.fn();
       mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
       mockLighterProvider.subscribeToAccount.mockImplementation(() => {
         throw new Error('CLIENT_NOT_INITIALIZED');
       });
+      const callback = vi.fn();
 
-      expect(() =>
-        aggregatedProvider.subscribeToAccount({ callback: vi.fn() }),
-      ).toThrow('CLIENT_NOT_INITIALIZED');
+      const unsubscribe = aggregatedProvider.subscribeToAccount({ callback });
+
+      expect(hlCleanup).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenLastCalledWith(null, {
+        status: 'partial',
+        availableProviders: [],
+        unavailableProviders: ['lighter'],
+        pendingProviders: ['hyperliquid'],
+      });
+      unsubscribe();
       expect(hlCleanup).toHaveBeenCalledTimes(1);
     });
 

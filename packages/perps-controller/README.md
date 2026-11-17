@@ -92,6 +92,24 @@ per item, so identical symbols or order ids on different venues are never
 conflated: each venue's successes and failures are reported
 separately and one venue's failure never hides another venue's success.
 
+Batch cancellation uses strict discovery: an unavailable venue is not an empty
+venue. `CancelOrdersResult.discoveryFailures` names each failed venue and, for
+ID-filtered requests, its unresolved `orderIds`. These targets have no discovered
+symbol, so they are separate from `results`. `failureCount` includes unresolved
+IDs, or one failure per unavailable venue when the order count is unknown;
+`error` describes those venues even when `success` is true. Clients should check
+both `error` and `discoveryFailures` before presenting a batch as complete.
+Close-all similarly retains successful closes and reports unavailable position
+discovery in its batch-level `error` (the number of unclosed positions is unknown).
+
+Existing lenient reads remain unchanged. `getPositions` and
+`getOpenOrders` (both venues, including standalone reads) accept `{ throwOnUnavailable: true }` for callers
+that must distinguish failed discovery from an empty venue. Strict aggregated
+open-order reads throw the exported `OrderDiscoveryError`, whose `orders` retain
+successful reads and whose `failures` identify unavailable venues. These are
+additive contracts: no state migration or existing call-site changes are needed,
+but consumers of batch results should handle partial discovery before rollout.
+
 ## Per-exchange account data
 
 In aggregated mode, `getAccountState` and `subscribeToAccount` query every
@@ -108,7 +126,11 @@ level — cross-venue collateral is not mutually usable), or
 `{ status: 'unavailable', error?, providerId }` for a venue whose read failed
 or whose snapshot has a missing or non-finite additive field. A stream venue
 is `{ status: 'pending', providerId }` until its first snapshot, even if it
-emits `null`. After a snapshot, `null` makes it unavailable. `aggregate`
+emits `null`. A rejected subscription setup is immediately `unavailable` instead
+of pending. Lighter can only serve the selected wallet: requesting another
+`accountId` excludes Lighter rather than mixing wallets, and a scoped stream
+never starts emitting another wallet's balances after selection changes.
+After a snapshot, `null` makes it unavailable. `aggregate`
 metadata (`{ status: 'complete' | 'partial', availableProviders,
 unavailableProviders, pendingProviders? }`) says whether the totals cover
 every enabled venue. A `partial` total is a

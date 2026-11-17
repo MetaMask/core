@@ -10,6 +10,7 @@ import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import {
   createTpslLegReplaceUnsupportedError,
+  OrderDiscoveryError,
   PerpsControllerError,
 } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
@@ -19,6 +20,7 @@ import {
   PerpsTraceOperations,
 } from '../types/index.js';
 import type {
+  Order,
   PerpsProvider,
   PerpsProviderType,
   OrderParams,
@@ -2117,13 +2119,53 @@ export class TradingService {
         },
       });
 
+      const discoveryFailures: NonNullable<
+        CancelOrdersResult['discoveryFailures']
+      > = [];
       // Pause orders stream to prevent WebSocket updates during cancellation
       operationResult = await withStreamPause(async () => {
+        const targets = params.orders ?? params.orderIds ?? params.symbols;
+        if (params.cancelAll !== true && targets?.length === 0) {
+          return {
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          };
+        }
         // Get all open orders
         if (!context.getOpenOrders) {
           throw new Error('getOpenOrders callback not provided in context');
         }
-        const orders = await context.getOpenOrders();
+        let orders: Order[];
+        try {
+          orders = await context.getOpenOrders({ throwOnUnavailable: true });
+        } catch (error) {
+          if (!(error instanceof OrderDiscoveryError)) {
+            throw error;
+          }
+          orders = error.orders;
+          for (const failure of error.failures) {
+            const orderIds =
+              params.cancelAll === true
+                ? undefined
+                : (params.orders
+                    ?.filter(
+                      (target) => target.providerId === failure.providerId,
+                    )
+                    .map((target) => target.orderId) ?? params.orderIds);
+            // A scoped request on another venue is unaffected by this failure.
+            if (orderIds?.length === 0) {
+              continue;
+            }
+            discoveryFailures.push({
+              ...failure,
+              ...(orderIds !== undefined && {
+                orderIds: [...new Set(orderIds)],
+              }),
+            });
+          }
+        }
 
         // Filter orders based on params
         let ordersToCancel = orders;
@@ -2234,6 +2276,27 @@ export class TradingService {
           }),
         };
       }, ['orders']); // Disconnect orders stream during operation
+
+      if (discoveryFailures.length > 0) {
+        operationResult = {
+          ...operationResult,
+          failureCount:
+            operationResult.failureCount +
+            discoveryFailures.reduce(
+              (count, failure) => count + (failure.orderIds?.length ?? 1),
+              0,
+            ),
+          discoveryFailures,
+          error: [
+            operationResult.error,
+            ...discoveryFailures.map(
+              ({ providerId, error }) => `${providerId}: ${error}`,
+            ),
+          ]
+            .filter(Boolean)
+            .join('; '),
+        };
+      }
 
       // Signer failures are retryable, so only the other failures are reported.
       const reportedFailures = operationResult.results.filter(

@@ -1582,6 +1582,68 @@ describe('HyperLiquidProvider', () => {
   });
 
   describe('getOpenOrders additional coverage', () => {
+    it('rejects strict position discovery instead of hiding failed account state reads', async () => {
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        clearinghouseState: vi
+          .fn()
+          .mockRejectedValue(new Error('state transport down')),
+        frontendOpenOrders: vi.fn().mockResolvedValue([]),
+        meta: vi.fn().mockResolvedValue({ universe: [] }),
+        perpDexs: vi.fn().mockResolvedValue([null]),
+      });
+      await expect(
+        provider.getPositions({ skipCache: true, throwOnUnavailable: true }),
+      ).rejects.toThrow('main: state transport down');
+    });
+
+    it('rejects strict discovery when the transport fails instead of reporting an empty venue', async () => {
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        frontendOpenOrders: vi.fn().mockRejectedValue(new Error('API Error')),
+        meta: vi.fn().mockResolvedValue({
+          universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+        }),
+        perpDexs: vi.fn().mockResolvedValue([null]),
+      });
+
+      await expect(
+        provider.getOpenOrders({
+          skipCache: true,
+          throwOnUnavailable: true,
+        }),
+      ).rejects.toThrow('main: API Error');
+    });
+
+    it('rejects strict discovery when only one HyperLiquid DEX is unavailable', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 1],
+        ],
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        frontendOpenOrders: vi
+          .fn()
+          .mockImplementation(({ dex }) =>
+            dex === 'xyz'
+              ? Promise.reject(new Error('xyz down'))
+              : Promise.resolve([]),
+          ),
+        meta: vi.fn().mockResolvedValue({
+          universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+        }),
+        perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+      });
+
+      await expect(
+        hip3Provider.getOpenOrders({
+          skipCache: true,
+          throwOnUnavailable: true,
+        }),
+      ).rejects.toThrow('xyz: xyz down');
+    });
+
     it('returns empty array when frontendOpenOrders throws error', async () => {
       // Arrange
       mockClientService.getInfoClient = vi.fn().mockReturnValue({

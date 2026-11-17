@@ -10171,18 +10171,20 @@ export class LighterProvider implements PerpsProvider {
   // Account Operations
   // ============================================================================
 
-  async getPositions(_params?: GetPositionsParams): Promise<Position[]> {
-    return this.#getPositions(false);
+  async getPositions(params?: GetPositionsParams): Promise<Position[]> {
+    return this.#getPositions(false, params?.throwOnUnavailable);
   }
 
   /**
    * Keep raw signed decimals only for exact partial protection intent.
    *
    * @param preserveRawSize - Preserve venue size before adapter number conversion.
+   * @param throwOnUnavailable - Reject failed discovery before destructive operations.
    * @returns Validated positions.
    */
   readonly #getPositions = async (
     preserveRawSize: boolean,
+    throwOnUnavailable = false,
   ): Promise<Position[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
@@ -10196,6 +10198,9 @@ export class LighterProvider implements PerpsProvider {
         await this.#clientService.getAccountByIndex(accountIndex);
       this.#assertSession(generation);
       const account = response.accounts[0];
+      if (!account && throwOnUnavailable) {
+        throw new Error(`Lighter account ${accountIndex} not returned`);
+      }
       if (!account?.positions) {
         return [];
       }
@@ -10218,6 +10223,8 @@ export class LighterProvider implements PerpsProvider {
         .filter((position) => parseFloat(position.size) !== 0);
     } catch (caughtError) {
       if (
+        (throwOnUnavailable &&
+          !(caughtError instanceof LighterAccountNotFoundError)) ||
         this.#isUnsupportedCapabilityError(caughtError) ||
         this.#isDataIntegrityError(caughtError)
       ) {
@@ -10282,7 +10289,12 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
-  async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
+  /**
+   * Reject wallet scopes that the selected Lighter session cannot serve.
+   *
+   * @param params - Requested wallet scope.
+   */
+  #assertAccountScope(params?: GetAccountStateParams): void {
     // This adapter reads through the selected wallet's session. A different
     // scope must be unavailable, not a successful balance for that wallet.
     // Keep this outside the lenient read fallback so it cannot become zeros.
@@ -10305,6 +10317,10 @@ export class LighterProvider implements PerpsProvider {
         );
       }
     }
+  }
+
+  async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
+    this.#assertAccountScope(params);
     const throwOnUnavailable = params?.throwOnUnavailable === true;
     try {
       this.#ensureSessionBinding();
@@ -10478,13 +10494,15 @@ export class LighterProvider implements PerpsProvider {
     return this.#adaptScaleOrders(response.orders, accountIndex, generation);
   };
 
-  async getOpenOrders(_params?: GetOrdersParams): Promise<Order[]> {
+  async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
     // Public reads re-kick pending journal recovery (deduped, detached).
     this.#kickTpslRecovery();
     try {
       return await this.#readOpenOrdersStrict();
     } catch (caughtError) {
       if (
+        (params?.throwOnUnavailable === true &&
+          !(caughtError instanceof LighterAccountNotFoundError)) ||
         this.#isUnsupportedCapabilityError(caughtError) ||
         this.#isDataIntegrityError(caughtError)
       ) {
@@ -18289,10 +18307,24 @@ export class LighterProvider implements PerpsProvider {
     if (this.#isDisconnected) {
       return NOOP_UNSUBSCRIBE;
     }
-    this.#accountSubscribers.add(params);
+    this.#assertAccountScope(params);
+    const scopedParams: SubscribeAccountParams = {
+      ...params,
+      callback: (account) => {
+        try {
+          this.#assertAccountScope(params);
+        } catch {
+          // A surviving subscription must not publish a newly selected wallet.
+          params.callback(null);
+          return;
+        }
+        params.callback(account);
+      },
+    };
+    this.#accountSubscribers.add(scopedParams);
     this.#ensureAccountChannels();
     return () => {
-      this.#accountSubscribers.delete(params);
+      this.#accountSubscribers.delete(scopedParams);
       this.#onListenerRemoved(LIGHTER_ACCOUNT_CHANNELS_KEY);
     };
   }

@@ -1602,14 +1602,23 @@ export type CancelOrdersParams = {
 export type CancelOrdersResult = {
   success: boolean; // Overall success (true if at least one order cancelled)
   successCount: number; // Number of orders cancelled successfully
-  failureCount: number; // Number of orders that failed to cancel
+  /** Failed cancellations plus unresolved discovery targets. For an unscoped
+   * discovery failure, counts one failure per unavailable venue (not its unknown order count). */
+  failureCount: number;
   /**
    * Batch-level operation error.
    *
-   * Set when the cancel is refused as a whole before any order is submitted,
-   * such as `PROVIDER_ROUTE_REQUIRED`.
+   * Set when the batch is refused or order discovery is incomplete, even if
+   * other venues cancelled successfully.
    */
   error?: string;
+  /** Unavailable venues and, for scoped requests, their unresolved order IDs.
+   * These targets have no discovered symbol and are not included in results. */
+  discoveryFailures?: {
+    providerId: PerpsProviderType;
+    error: string;
+    orderIds?: string[];
+  }[];
   results: {
     orderId: string;
     symbol: string;
@@ -1950,6 +1959,8 @@ export type CheckEligibilityParams = {
 };
 
 export type GetPositionsParams = {
+  /** Reject unavailable discovery instead of returning an empty position list. */
+  throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   includeHistory?: boolean; // Optional: include historical positions
   skipCache?: boolean; // Optional: bypass WebSocket cache and force API call (default: false)
@@ -2016,6 +2027,9 @@ export type GetOrFetchFillsParams = {
 };
 
 export type GetOrdersParams = {
+  /** Reject unavailable open-order discovery instead of returning an empty list.
+   * Aggregated reads throw OrderDiscoveryError with successful venue orders. */
+  throwOnUnavailable?: boolean;
   accountId?: CaipAccountId; // Optional: defaults to selected account
   startTime?: number; // Optional: start timestamp (Unix milliseconds)
   endTime?: number; // Optional: end timestamp (Unix milliseconds)

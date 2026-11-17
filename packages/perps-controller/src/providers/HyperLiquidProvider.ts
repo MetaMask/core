@@ -13889,6 +13889,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           standaloneInfoClient,
           userAddress,
           dexs,
+          params.throwOnUnavailable,
         );
 
         // Combine and filter positions from all DEXs
@@ -13949,6 +13950,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       const { results: orderResults, failedDexs: failedOrderDexs } =
         orderResponse;
 
+      if (params?.throwOnUnavailable && failedStateDexs.length > 0) {
+        throw new Error(
+          `Position discovery failed: ${failedStateDexs.map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`).join('; ')}`,
+        );
+      }
       if (failedStateDexs.length > 0 || failedOrderDexs.length > 0) {
         this.#deps.debugLogger.log(
           'Partial multi-DEX position fetch completed with failures',
@@ -14130,6 +14136,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return allPositions;
     } catch (error) {
+      if (params?.throwOnUnavailable) {
+        throw error;
+      }
       this.#deps.debugLogger.log('Error getting positions:', error);
       return [];
     }
@@ -14413,6 +14422,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           standaloneInfoClient,
           userAddress,
           dexs,
+          params.throwOnUnavailable,
         );
 
         // Combine all orders from all DEXs and adapt (without position context in standalone mode)
@@ -14468,6 +14478,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
 
       if (failedDexs.length > 0) {
+        if (params?.throwOnUnavailable) {
+          throw new Error(
+            `Open order discovery failed: ${failedDexs.map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`).join('; ')}`,
+          );
+        }
         this.#deps.debugLogger.log(
           'Partial multi-DEX open order fetch completed with failures',
           {
@@ -14498,6 +14513,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#restoreScaleOrderGroups(orders);
       return orders;
     } catch (error) {
+      if (params?.throwOnUnavailable) {
+        throw error;
+      }
       this.#deps.debugLogger.log('Error getting currently open orders:', error);
       return [];
     }

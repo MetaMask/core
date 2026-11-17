@@ -4127,7 +4127,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('cancelOrders', {
-        getOpenOrders: () => this.getOpenOrders(),
+        getOpenOrders: (readParams) => this.getOpenOrders(readParams),
       }),
       withStreamPause: <TResult>(
         operation: () => Promise<TResult>,
