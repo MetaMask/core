@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalPriceMoveBuffer` (0.01), the default headroom
   - Types `MaxRemovableMarginParams` and `LiquidationPriceAfterMarginChangeParams`
 - Add `calculateExpectedTriggerPnl({ triggerPrice, entryPrice, size, closingFee })`, the expected PnL when a take profit or stop loss closes a position, net of the closing fee, as Mobile's TP/SL form shows it: `calculateExpectedTriggerPnl({ triggerPrice: 110, entryPrice: 100, size: 2, closingFee: 0.1 })` returns `19.9`. Type `ExpectedTriggerPnlParams` ([#11529](https://github.com/MetaMask/core/pull/11529))
+- Add `formatCrossMarginRatio` so Mobile and Extension can render a 0..1 cross margin ratio as an unsigned percentage with at most one decimal ([#11456](https://github.com/MetaMask/core/pull/11456))
+  - `formatCrossMarginRatio(0.174)` returns `17.4%`, `formatCrossMarginRatio(0.63)` returns `63%` and `formatCrossMarginRatio(0)` returns `0%`. A negative ratio keeps its minus: `formatCrossMarginRatio(-0.174)` returns `-17.4%`. A missing ratio returns `--%`
+  - Pass `createFormatters({ locale })` as `formatters` and the locale's percent style renders the value, so separators, rounding and the `%` placement follow the locale: `formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) })` returns `17,4 %` (no-break space) and Turkish returns `%17,4`. The ratio is passed to the formatter as is, so decimal ties round as `Intl` percent formatting does (`0.0255` returns `2.6%`, `-0.0255` returns `-2.6%`). A ratio that rounds to zero is `0%`, never `-0%`. The minus sign is the shared `-`, the same prefix as the other display formatters
+  - This is the percent-style formatter. `formatPercentage`, `formatFundingRate` and `formatLiquidationDistance` still append a bare `%` after a fixed-decimal number, so in `de` this returns `17,4 %` while `formatPercentage(17.4, { decimals: 1, sign: 'never' })` returns `17,4%`. A follow-up should move those three onto the same percent style
+  - `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent` is 1, the most decimals shown
 
 ### Changed
 

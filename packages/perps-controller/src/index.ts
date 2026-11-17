@@ -820,6 +820,7 @@ export {
   formatPositionSize,
   formatPnl,
   formatPercentage,
+  formatCrossMarginRatio,
   formatFundingRate,
   formatPositionFunding,
   getPositionFundingDirection,
