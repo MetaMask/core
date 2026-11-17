@@ -25,8 +25,6 @@ const OTHER_ASSET_ID =
   'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 const MALFORMED_ASSET_ID = 'not-a-caip19-asset-id' as Caip19AssetId;
 
-const IMPORT_TOKENS = 'AuthenticatedUserStorageService:importTokens';
-
 type RecordedCall = Mock<
   (action: string, ...params: unknown[]) => Promise<unknown>
 >;
@@ -648,6 +646,19 @@ describe('syncAusUserAssets', () => {
   });
 
   describe('local failures', () => {
+    /**
+     * Returns the AUS handlers registered on the fixture.
+     *
+     * @param fixture - The fixture whose handlers to read.
+     * @returns The four recorded AUS handlers.
+     */
+    function registeredHandlers(fixture: AusSyncFixture): AusActionHandlers {
+      if (fixture.ausHandlers === undefined) {
+        throw new Error('AUS handlers were not registered');
+      }
+      return fixture.ausHandlers;
+    }
+
     it.each([
       [
         'hideAsset',
@@ -672,13 +683,24 @@ describe('syncAusUserAssets', () => {
       ],
     ])(
       'never writes to AUS when %s fails validation',
-      (methodName, assertThrows) => {
+      async (methodName, assertThrows) => {
         const fixture = new AusSyncFixture();
         registerAusHandlers(fixture);
+        const { getUserAssets, setUserAssets, importTokens, hideTokens } =
+          registeredHandlers(fixture);
 
         assertThrows(fixture);
+        await waitUntilStable(() => [
+          getUserAssets.mock.calls.length,
+          setUserAssets.mock.calls.length,
+          importTokens.mock.calls.length,
+          hideTokens.mock.calls.length,
+        ]);
 
-        expect(fixture.messenger.call).not.toHaveBeenCalled();
+        expect(getUserAssets).not.toHaveBeenCalled();
+        expect(setUserAssets).not.toHaveBeenCalled();
+        expect(importTokens).not.toHaveBeenCalled();
+        expect(hideTokens).not.toHaveBeenCalled();
         expect(fixture.localCalls).not.toContain(methodName);
       },
     );
@@ -686,20 +708,32 @@ describe('syncAusUserAssets', () => {
     it('never writes to AUS when an async method fails validation', async () => {
       const fixture = new AusSyncFixture();
       registerAusHandlers(fixture);
+      const { getUserAssets, setUserAssets, importTokens, hideTokens } =
+        registeredHandlers(fixture);
 
       await expect(
         fixture.addCustomAsset(MOCK_ACCOUNT_ID, MALFORMED_ASSET_ID),
       ).rejects.toThrow('Invalid CAIP asset type.');
 
-      await waitUntilStable(() => [fixture.messenger.call.mock.calls.length]);
+      await waitUntilStable(() => [
+        getUserAssets.mock.calls.length,
+        setUserAssets.mock.calls.length,
+        importTokens.mock.calls.length,
+        hideTokens.mock.calls.length,
+      ]);
 
-      expect(fixture.messenger.call).not.toHaveBeenCalled();
+      expect(getUserAssets).not.toHaveBeenCalled();
+      expect(setUserAssets).not.toHaveBeenCalled();
+      expect(importTokens).not.toHaveBeenCalled();
+      expect(hideTokens).not.toHaveBeenCalled();
       expect(fixture.localCalls).not.toContain('addCustomAsset');
     });
 
     it('still mirrors an async method whose post-mutation work later rejects', async () => {
       const fixture = new AusSyncFixture();
       registerAusHandlers(fixture);
+      const { getUserAssets, setUserAssets, importTokens, hideTokens } =
+        registeredHandlers(fixture);
       fixture.pending = Promise.reject(new Error('post-mutation fetch failed'));
 
       await expect(
@@ -709,20 +743,41 @@ describe('syncAusUserAssets', () => {
       // The local mutation was applied before the failure, so the mirror
       // still fires — local state and AUS stay in sync.
       expect(fixture.localCalls).toContain('addCustomAsset');
-      await waitUntilStable(() => [fixture.messenger.call.mock.calls.length]);
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
-      expect(fixture.messenger.call).toHaveBeenCalledWith(IMPORT_TOKENS, [
-        MOCK_ASSET_ID,
+      await waitUntilStable(() => [
+        getUserAssets.mock.calls.length,
+        setUserAssets.mock.calls.length,
+        importTokens.mock.calls.length,
+        hideTokens.mock.calls.length,
       ]);
+      expect(importTokens).toHaveBeenCalledTimes(1);
+      expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+      expect(getUserAssets).not.toHaveBeenCalled();
+      expect(setUserAssets).not.toHaveBeenCalled();
+      expect(hideTokens).not.toHaveBeenCalled();
     });
   });
 
   describe('AUS failures', () => {
+    /**
+     * Returns the AUS handlers registered on the fixture.
+     *
+     * @param fixture - The fixture whose handlers to read.
+     * @returns The four recorded AUS handlers.
+     */
+    function registeredHandlers(fixture: AusSyncFixture): AusActionHandlers {
+      if (fixture.ausHandlers === undefined) {
+        throw new Error('AUS handlers were not registered');
+      }
+      return fixture.ausHandlers;
+    }
+
     it('swallows an AUS rejection without affecting the method result', async () => {
       const fixture = new AusSyncFixture();
       registerAusHandlers(fixture, {
         rejectWith: new Error('AUS unavailable'),
       });
+      const { getUserAssets, setUserAssets, importTokens, hideTokens } =
+        registeredHandlers(fixture);
       const unhandledRejections: unknown[] = [];
       const recordUnhandledRejection = (reason: unknown): void => {
         unhandledRejections.push(reason);
@@ -734,7 +789,10 @@ describe('syncAusUserAssets', () => {
           await fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
         ).toBeUndefined();
         await waitUntilStable(() => [
-          fixture.messenger.call.mock.calls.length,
+          getUserAssets.mock.calls.length,
+          setUserAssets.mock.calls.length,
+          importTokens.mock.calls.length,
+          hideTokens.mock.calls.length,
           fixture.messenger.captureException.mock.calls.length,
           unhandledRejections.length,
         ]);
@@ -745,7 +803,11 @@ describe('syncAusUserAssets', () => {
       // The local method ran and its result was unaffected; the AUS failure
       // was swallowed (no unhandled rejection) and reported.
       expect(fixture.localCalls).toContain('addCustomAsset');
-      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
+      expect(importTokens).toHaveBeenCalledTimes(1);
+      expect(importTokens).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+      expect(getUserAssets).not.toHaveBeenCalled();
+      expect(setUserAssets).not.toHaveBeenCalled();
+      expect(hideTokens).not.toHaveBeenCalled();
       expect(unhandledRejections).toStrictEqual([]);
       expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
       expect(fixture.messenger.captureException).toHaveBeenCalledWith(

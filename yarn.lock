@@ -6298,7 +6298,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/eth-block-tracker": "npm:^16.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
-    "@metamask/eth-sig-util": "npm:^10.0.0"
+    "@metamask/eth-sig-util": "npm:^10.0.1"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/message-manager": "npm:^15.0.1"
     "@metamask/rpc-errors": "npm:^7.0.3"
@@ -6397,7 +6397,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-sig-util@npm:^10.0.0, @metamask/eth-sig-util@workspace:packages/eth-sig-util":
+"@metamask/eth-sig-util@npm:^10.0.0, @metamask/eth-sig-util@npm:^10.0.1, @metamask/eth-sig-util@workspace:packages/eth-sig-util":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-sig-util@workspace:packages/eth-sig-util"
   dependencies:
@@ -6809,7 +6809,7 @@ __metadata:
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/eth-hd-keyring": "npm:^16.0.0"
-    "@metamask/eth-sig-util": "npm:^10.0.0"
+    "@metamask/eth-sig-util": "npm:^10.0.1"
     "@metamask/eth-simple-keyring": "npm:^13.0.3"
     "@metamask/keyring-api": "npm:^24.3.0"
     "@metamask/keyring-internal-api": "npm:^12.1.2"
@@ -7012,7 +7012,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/eth-sig-util": "npm:^10.0.0"
+    "@metamask/eth-sig-util": "npm:^10.0.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -7858,7 +7858,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/perps-controller@npm:^24.0.0, @metamask/perps-controller@workspace:packages/perps-controller":
+"@metamask/perps-controller@npm:^24.1.0, @metamask/perps-controller@workspace:packages/perps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
@@ -7903,7 +7903,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/eth-sig-util": "npm:^10.0.0"
+    "@metamask/eth-sig-util": "npm:^10.0.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/transaction-controller": "npm:^74.0.0"
     "@noble/hashes": "npm:^1.8.0"
@@ -8115,7 +8115,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ramps-controller@npm:^29.0.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
+"@metamask/ramps-controller@npm:^30.0.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
@@ -8316,7 +8316,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/sentinel-api-service@npm:^2.1.0, @metamask/sentinel-api-service@workspace:packages/sentinel-api-service":
+"@metamask/sentinel-api-service@npm:^2.2.0, @metamask/sentinel-api-service@workspace:packages/sentinel-api-service":
   version: 0.0.0-use.local
   resolution: "@metamask/sentinel-api-service@workspace:packages/sentinel-api-service"
   dependencies:
@@ -8375,7 +8375,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/eth-sig-util": "npm:^10.0.0"
+    "@metamask/eth-sig-util": "npm:^10.0.1"
     "@metamask/gator-permissions-controller": "npm:^6.1.2"
     "@metamask/keyring-controller": "npm:^28.2.2"
     "@metamask/logging-controller": "npm:^10.0.0"
@@ -8775,7 +8775,7 @@ __metadata:
     "@metamask/nonce-tracker": "npm:^6.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
-    "@metamask/sentinel-api-service": "npm:^2.1.0"
+    "@metamask/sentinel-api-service": "npm:^2.2.0"
     "@metamask/utils": "npm:^12.0.2"
     "@types/bn.js": "npm:^5.2.0"
     "@types/node": "npm:^22.13.14"
@@ -8819,9 +8819,9 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/ramps-controller": "npm:^29.0.0"
+    "@metamask/ramps-controller": "npm:^30.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/sentinel-api-service": "npm:^2.1.0"
+    "@metamask/sentinel-api-service": "npm:^2.2.0"
     "@metamask/transaction-controller": "npm:^74.0.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -8847,7 +8847,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^38.0.1"
-    "@metamask/perps-controller": "npm:^24.0.0"
+    "@metamask/perps-controller": "npm:^24.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/superstruct": "npm:^3.4.1"

@@ -7,7 +7,11 @@ import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import type { SpotClearinghouseStateResponse } from '../types/hyperliquid-types.js';
+import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
+import type {
+  HyperLiquidAbstractionMode,
+  SpotClearinghouseStateResponse,
+} from '../types/hyperliquid-types.js';
 import type {
   AccountState,
   CrossMarginSummary,
@@ -159,21 +163,99 @@ export function calculateWeightedReturnOnEquity(
 // not inflate the balances shown or validated by withdraw/payment flows.
 const SPOT_COLLATERAL_COINS = new Set<string>(['USDC']);
 
+/**
+ * Sums one field of the USDC spot balances.
+ *
+ * The default fails soft: a missing response or a non-finite amount counts as
+ * zero so displayed balances still render. `{ strict: true }` returns
+ * `undefined` instead. Collateral is the denominator of the account ratio, so
+ * a guess would show a ratio the venue never reported. A response that lists
+ * no USDC balance is a genuine `0` in both modes.
+ *
+ * @param spotState - Spot clearinghouse state.
+ * @param field - The USDC amount to sum.
+ * @param options.strict - Fail the sum when `balances` is not a list or a
+ * USDC amount is missing or not finite.
+ * @returns The USDC sum, or `undefined` in strict mode when the response
+ * cannot be trusted.
+ */
 function getSpotCollateralAmount(
   spotState: SpotClearinghouseStateResponse | null | undefined,
   field: 'hold' | 'total',
-): BigNumber {
+  options: { strict: true },
+): BigNumber | undefined;
+function getSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  field: 'hold' | 'total',
+  options?: { strict?: false },
+): BigNumber;
+function getSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  field: 'hold' | 'total',
+  options?: { strict?: boolean },
+): BigNumber | undefined {
+  const strict = options?.strict === true;
   if (!spotState?.balances || !Array.isArray(spotState.balances)) {
-    return new BigNumber(0);
+    return strict ? undefined : new BigNumber(0);
   }
 
-  return spotState.balances.reduce((sum, balance) => {
-    if (!balance.coin || !SPOT_COLLATERAL_COINS.has(balance.coin)) {
-      return sum;
+  let sum = new BigNumber(0);
+  for (const balance of spotState.balances) {
+    if (!balance?.coin || !SPOT_COLLATERAL_COINS.has(balance.coin)) {
+      continue;
     }
-    const value = new BigNumber(balance[field] ?? '0');
-    return value.isFinite() ? sum.plus(value) : sum;
-  }, new BigNumber(0));
+    const raw: unknown = balance[field];
+    if (strict) {
+      if (raw === undefined || raw === null || raw === '') {
+        return undefined;
+      }
+      const value = new BigNumber(raw as BigNumber.Value);
+      if (!value.isFinite()) {
+        return undefined;
+      }
+      sum = sum.plus(value);
+      continue;
+    }
+    const value = new BigNumber((raw ?? '0') as BigNumber.Value);
+    if (value.isFinite()) {
+      sum = sum.plus(value);
+    }
+  }
+  return sum;
+}
+
+/**
+ * Free spot USDC, `max(0, total − hold)`, counting USDC only.
+ *
+ * @param spotState - Spot clearinghouse state.
+ * @param options.strict - See {@link getSpotCollateralAmount}.
+ * @returns Free spot USDC, or `undefined` in strict mode when either amount
+ * cannot be trusted.
+ */
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options: { strict: true },
+): BigNumber | undefined;
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options?: { strict?: false },
+): BigNumber;
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options?: { strict?: boolean },
+): BigNumber | undefined {
+  const total =
+    options?.strict === true
+      ? getSpotCollateralAmount(spotState, 'total', { strict: true })
+      : getSpotCollateralAmount(spotState, 'total');
+  const hold =
+    options?.strict === true
+      ? getSpotCollateralAmount(spotState, 'hold', { strict: true })
+      : getSpotCollateralAmount(spotState, 'hold');
+  if (total === undefined || hold === undefined) {
+    return undefined;
+  }
+  return BigNumber.max(0, total.minus(hold));
 }
 
 export function getSpotBalance(
@@ -186,6 +268,48 @@ export function getSpotHold(
   spotState?: SpotClearinghouseStateResponse | null,
 ): number {
   return getSpotCollateralAmount(spotState, 'hold').toNumber();
+}
+
+/**
+ * Spot USDC the venue counts as cross collateral.
+ *
+ * Unknown spot state or an unresolved abstraction mode stays `undefined`,
+ * not `0`. A ratio computed from `0` treats a Unified account as Standard
+ * and overstates how close it is to liquidation. This is deliberately
+ * different from {@link hyperLiquidModeFoldsSpot}, which fail-closes an
+ * unknown mode to "do not fold" so withdrawable funds are not over-reported.
+ *
+ * @param spotState - Spot clearinghouse state. `null` or omitted means it
+ * has not been read yet.
+ * @param abstractionMode - Resolved abstraction mode. `null` or omitted
+ * means it has not been read yet.
+ * @returns Canonical USDC decimal string: `'0'` when spot is not collateral
+ * (Standard / `default`), or free spot USDC (`max(0, total − hold)`, USDC
+ * only) for Unified and portfolio margin. `undefined` until both inputs
+ * are known, and for Unified or portfolio margin when a USDC `total` or
+ * `hold` is missing or not a finite number. A response that lists no USDC
+ * balance is a genuine `'0'`.
+ */
+export function getCrossMarginSpotCollateral(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  abstractionMode: HyperLiquidAbstractionMode | null | undefined,
+): string | undefined {
+  if (
+    spotState === null ||
+    spotState === undefined ||
+    abstractionMode === null ||
+    abstractionMode === undefined
+  ) {
+    return undefined;
+  }
+  if (!hyperLiquidModeFoldsSpot(abstractionMode)) {
+    return '0';
+  }
+  const freeSpot = getFreeSpotUsdc(spotState, { strict: true });
+  if (freeSpot === undefined) {
+    return undefined;
+  }
+  return canonicalizeUsdc(freeSpot);
 }
 
 /**
@@ -206,10 +330,20 @@ export type AddSpotBalanceOptions = {
    * Standard mode). The caller is responsible for translating
    * provider-specific state into this flag.
    *
-   * Defaults to `true` for backward compatibility with call sites that
-   * haven't yet been wired with provider-specific context.
+   * Defaults to `false`. Omitting the flag does not mean the mode is
+   * Standard: pass `abstractionMode` to publish `spotCollateral`.
    */
   foldIntoCollateral?: boolean;
+  /**
+   * Resolved abstraction mode used to publish `AccountState.spotCollateral`.
+   * Pass `null` while the mode is unknown. Omit the property to leave any
+   * existing `spotCollateral` untouched.
+   *
+   * Derive `foldIntoCollateral` from the same mode via
+   * `hyperLiquidModeFoldsSpot`. The two answers differ when the mode is
+   * unknown: folding stays off, and `spotCollateral` stays unset.
+   */
+  abstractionMode?: HyperLiquidAbstractionMode | null;
 };
 
 /**
@@ -218,9 +352,9 @@ export type AddSpotBalanceOptions = {
  * — the util stays provider-agnostic.
  *
  * @param accountState - Base AccountState produced by a provider adapter.
- * @param spotState - Raw spot clearinghouse response (HL-shaped); null or missing means no spot balance and the state is returned unchanged.
+ * @param spotState - Raw spot clearinghouse response (HL-shaped); null or missing means no spot balance and the balances are returned unchanged.
  * @param options - See {@link AddSpotBalanceOptions}.
- * @returns AccountState with spot folded into `totalBalance` always, and into spendable/withdrawable when `foldIntoCollateral` is true.
+ * @returns AccountState with spot folded into `totalBalance` always, and into spendable/withdrawable when `foldIntoCollateral` is true. When `abstractionMode` is passed, `spotCollateral` is the spot USDC that counts as cross collateral.
  */
 export function addSpotBalanceToAccountState(
   accountState: AccountState,
@@ -231,10 +365,29 @@ export function addSpotBalanceToAccountState(
   // A caller that omits `options` should NOT silently fold spot — that would
   // over-report withdrawable funds for Standard / default users.
   const foldIntoCollateral = options?.foldIntoCollateral ?? false;
+  const publishesSpotCollateral =
+    options !== undefined &&
+    Object.prototype.hasOwnProperty.call(options, 'abstractionMode');
+  const spotCollateral = publishesSpotCollateral
+    ? getCrossMarginSpotCollateral(spotState, options?.abstractionMode)
+    : undefined;
+  const withSpotCollateral = (state: AccountState): AccountState => {
+    if (!publishesSpotCollateral) {
+      return state;
+    }
+    if (state.spotCollateral === spotCollateral) {
+      return state;
+    }
+    if (spotCollateral === undefined) {
+      const { spotCollateral: _removed, ...rest } = state;
+      return rest;
+    }
+    return { ...state, spotCollateral };
+  };
 
   const spotBalance = getSpotCollateralAmount(spotState, 'total');
   const spotHold = getSpotCollateralAmount(spotState, 'hold');
-  const freeSpot = BigNumber.max(0, spotBalance.minus(spotHold));
+  const freeSpot = getFreeSpotUsdc(spotState);
 
   const currentTotal = new BigNumber(accountState.totalBalance);
   const currentSpendable = new BigNumber(accountState.spendableBalance);
@@ -243,7 +396,7 @@ export function addSpotBalanceToAccountState(
   // Preserve sentinel totals (e.g. PERPS_CONSTANTS.FallbackDataDisplay '--')
   // rather than coercing them to NaN.
   if (!currentTotal.isFinite()) {
-    return accountState;
+    return withSpotCollateral(accountState);
   }
 
   // Folding is gated strictly on the resolved abstraction mode (see callers'
@@ -279,15 +432,15 @@ export function addSpotBalanceToAccountState(
     nextSpendable === accountState.spendableBalance &&
     nextWithdrawable === accountState.withdrawableBalance
   ) {
-    return accountState;
+    return withSpotCollateral(accountState);
   }
 
-  return {
+  return withSpotCollateral({
     ...accountState,
     totalBalance: nextTotal,
     spendableBalance: nextSpendable,
     withdrawableBalance: nextWithdrawable,
-  };
+  });
 }
 
 function resolveFoldedBalance(

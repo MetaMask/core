@@ -1,1 +1,1 @@
-declare module '@metamask/eth-json-rpc-filters/subscriptionManager';
+declare module '@metamask/eth-json-rpc-filters/subscriptionManager.js';

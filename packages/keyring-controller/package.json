@@ -57,7 +57,7 @@
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-hd-keyring": "^16.0.0",
-    "@metamask/eth-sig-util": "^10.0.0",
+    "@metamask/eth-sig-util": "^10.0.1",
     "@metamask/eth-simple-keyring": "^13.0.3",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/keyring-internal-api": "^12.1.2",
