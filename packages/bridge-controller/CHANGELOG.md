@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `getShouldYieldAfterFirstQuote` constructor option to `BridgeController` ([#11465](https://github.com/MetaMask/core/pull/11465))
   - When it returns `true`, the quote stream yields one macrotask after the first quote is written to state, so clients can render it before the rest of the burst is processed
+- Add optional `getShouldFetchFirstQuoteImmediately` constructor option to `BridgeController` to start the first quote fetch without waiting for the first poll ([#11541](https://github.com/MetaMask/core/pull/11541))
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 

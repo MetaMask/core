@@ -2025,6 +2025,64 @@ describe('BridgeController SSE', function () {
   });
 
   it.each([
+    { getShouldFetchFirstQuoteImmediately: undefined, fetchesBeforePoll: 0 },
+    {
+      getShouldFetchFirstQuoteImmediately: (): boolean => true,
+      fetchesBeforePoll: 1,
+    },
+  ])(
+    'fetches the first quote before the first poll only when getShouldFetchFirstQuoteImmediately returns true',
+    async ({ getShouldFetchFirstQuoteImmediately, fetchesBeforePoll }) => {
+      await withController(
+        { options: { getShouldFetchFirstQuoteImmediately } },
+        async ({ controller, fetchBridgeQuotesSpy }) => {
+          mockFetchFn.mockImplementation(async () =>
+            mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+          );
+          await controller.updateBridgeQuoteRequestParams(
+            quoteRequest,
+            metricsContext,
+          );
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(fetchesBeforePoll);
+
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    },
+  );
+
+  it('does not reuse a pending first fetch after resetState', async function () {
+    const getShouldFetchFirstQuoteImmediately = vi
+      .fn()
+      .mockReturnValueOnce(true)
+      .mockReturnValue(false);
+    await withController(
+      { options: { getShouldFetchFirstQuoteImmediately } },
+      async ({ controller, fetchBridgeQuotesSpy }) => {
+        mockFetchFn.mockImplementation(async () =>
+          mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+        );
+        await controller.updateBridgeQuoteRequestParams(
+          quoteRequest,
+          metricsContext,
+        );
+        controller.resetState();
+        await controller.updateBridgeQuoteRequestParams(
+          quoteRequest,
+          metricsContext,
+        );
+        vi.advanceTimersByTime(0);
+        await flushPromises();
+
+        expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
+      },
+    );
+  });
+
+  it.each([
     { getShouldYieldAfterFirstQuote: undefined, quotesBeforeTick: 2 },
     { getShouldYieldAfterFirstQuote: (): boolean => true, quotesBeforeTick: 1 },
   ])(
