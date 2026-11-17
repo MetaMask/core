@@ -30,6 +30,8 @@ export type {
   V5TransactionFee,
   V5TransactionLog,
   V5TransactionRecord,
+  V5TransactionByIdResponse,
+  V5TransactionByIdQueryOptions,
   V5MultiAccountTransactionsResponse,
   V5MultiAccountTransactionsQueryOptions,
   ValueTransfer,

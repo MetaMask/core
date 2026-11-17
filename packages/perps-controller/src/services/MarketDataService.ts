@@ -592,13 +592,20 @@ export class MarketDataService {
         throw error;
       }
 
-      // Update state on success (if stateManager is provided)
+      // Update state on success (if stateManager is provided). A response that
+      // no longer belongs to the current account-data context (for example the
+      // default venue changed while the request was in flight) is returned to
+      // the caller but must not overwrite the current venue's snapshot.
       if (context.stateManager) {
-        context.stateManager.update((state) => {
-          state.accountState = accountState;
-          state.lastUpdateTimestamp = Date.now();
-          state.lastError = null;
-        });
+        const isCurrent =
+          context.accountDataContext?.isCurrent(accountState) ?? true;
+        if (isCurrent) {
+          context.stateManager.update((state) => {
+            state.accountState = accountState;
+            state.lastUpdateTimestamp = Date.now();
+            state.lastError = null;
+          });
+        }
       }
 
       traceData = { success: true };

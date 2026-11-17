@@ -262,11 +262,15 @@ const config = {
       teams: ['@MetaMask/core-platform'],
     },
     'network-controller': {
-      teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
+      teams: [
+        '@MetaMask/core-platform',
+        '@MetaMask/metamask-assets',
+        '@MetaMask/networks',
+      ],
       initializationPath: 'network-controller',
     },
     'network-enablement-controller': {
-      teams: ['@MetaMask/metamask-assets'],
+      teams: ['@MetaMask/metamask-assets', '@MetaMask/networks'],
       initializationPath: 'network-enablement-controller',
     },
     'node-utils': {
@@ -423,14 +427,14 @@ const config = {
     },
   },
   overrides: [
-    { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
+    { pattern: '/.github/', primaryOwners: ['@MetaMask/core-platform'] },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/methods',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
     {
       pattern: '/packages/eth-json-rpc-middleware/src/wallet.*',
-      owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+      primaryOwners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
     },
   ],
 } satisfies CodeownersConfig;

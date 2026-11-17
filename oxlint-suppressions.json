@@ -483,9 +483,6 @@
     }
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
-    "id-length": {
-      "count": 15
-    },
     "no-useless-return": {
       "count": 3
     },
@@ -536,9 +533,6 @@
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.test.ts": {
-    "id-length": {
-      "count": 2
-    },
     "typescript/no-unsafe-argument": {
       "count": 2
     },
@@ -5542,17 +5536,6 @@
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/relay/relay-max.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 31
-    },
-    "typescript/no-unsafe-call": {
-      "count": 21
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 21
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {

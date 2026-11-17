@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [4.3.1]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
 ## [4.3.0]
 
 ### Added
@@ -149,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.1...HEAD
+[4.3.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.3.0...@metamask/analytics-controller@4.3.1
 [4.3.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.2.0...@metamask/analytics-controller@4.3.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.1.0...@metamask/analytics-controller@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@4.0.0...@metamask/analytics-controller@4.1.0
