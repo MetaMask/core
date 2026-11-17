@@ -7,7 +7,10 @@ import {
   PaymentOverride,
 } from '../constants.js';
 import { TransactionPayStrategy } from '../index.js';
-import type { TransactionPaymentToken } from '../index.js';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPaymentToken,
+} from '../index.js';
 import type { TransactionData, TransactionPayRequiredToken } from '../types.js';
 import { updateSourceAmounts } from './source-amounts.js';
 import { getAssetFiatRate } from './token.js';
@@ -69,7 +72,8 @@ const PERPS_DEPOSIT_DATA_MOCK =
 describe('Source Amounts Utils', () => {
   const getAssetFiatRateMock = vi.mocked(getAssetFiatRate);
   const getTransactionMock = vi.mocked(getTransaction);
-  const { messenger, getStrategyMock } = getMessengerMock();
+  const { messenger: untypedMessenger, getStrategyMock } = getMessengerMock();
+  const messenger = untypedMessenger as TransactionPayControllerMessenger;
 
   beforeEach(() => {
     vi.resetAllMocks();

@@ -5753,9 +5753,6 @@
     }
   },
   "packages/transaction-pay-controller/src/utils/source-amounts.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 40
-    },
     "typescript/no-unsafe-call": {
       "count": 4
     },
