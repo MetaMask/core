@@ -212,6 +212,7 @@ import {
   getUnroutedCancelOrdersRefusal,
   resolveCancelSelection,
 } from './utils/cancelOrders.js';
+import { resolveCloseSelection } from './utils/closePositions.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -4160,12 +4161,7 @@ export class PerpsController extends BaseController<
     // their own venue. A legacy symbols-only close stays ambiguous in
     // multi-venue aggregated mode and is refused below rather than guessed.
     const provider = await this.#getActiveProviderWhenReady();
-    if (
-      !params.closeAll &&
-      !(params.targets && params.targets.length > 0) &&
-      params.symbols &&
-      params.symbols.length > 0
-    ) {
+    if (resolveCloseSelection(params).kind === 'symbols') {
       const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
       if (unroutedRefusal) {
         return unroutedRefusal;

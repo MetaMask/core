@@ -197,6 +197,7 @@ import {
   supersedesTwapOrder,
 } from '../utils/advancedOrders.js';
 import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
+import { resolveCloseSelection } from '../utils/closePositions.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -11501,25 +11502,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       // `symbols` and `closeAll`. An empty match (every target names another
       // venue) closes nothing: a missing symbol list is close-all, and a
       // target list must not be read that way.
-      const taggedTargets =
-        params.targets && params.targets.length > 0
-          ? params.targets
-          : undefined;
+      const selection = resolveCloseSelection(params);
       let requestedSymbols: string[] | undefined;
-      if (taggedTargets) {
-        requestedSymbols = taggedTargets
+      if (selection.kind === 'targets') {
+        requestedSymbols = selection.targets
           .filter(
             (target) =>
               target.providerId === undefined ||
               target.providerId === this.protocolId,
           )
           .map((target) => target.symbol);
-      } else if (
-        params.closeAll !== true &&
-        params.symbols !== undefined &&
-        params.symbols.length > 0
-      ) {
-        requestedSymbols = params.symbols;
+      } else if (selection.kind === 'symbols') {
+        requestedSymbols = selection.symbols;
       }
       let positions: Position[];
       if (requestedSymbols === undefined) {

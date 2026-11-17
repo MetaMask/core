@@ -48,6 +48,7 @@ import {
   getUnroutedCancelOrdersRefusal,
   resolveCancelSelection,
 } from '../utils/cancelOrders.js';
+import { resolveCloseSelection } from '../utils/closePositions.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_OPERATION,
@@ -1412,20 +1413,25 @@ export class TradingService {
     { providerId?: PerpsProviderType; notionalUsd: number | undefined }[]
   > {
     const { params, provider } = options;
+    const selection = resolveCloseSelection(params);
     const writeRoute = provider.getWriteProviderId?.();
     let venues: (PerpsProviderType | undefined)[];
     if (writeRoute === undefined) {
       venues = [undefined];
-    } else if (params.targets && params.targets.length > 0) {
-      venues = params.targets.map((target) => target.providerId);
-    } else if (
-      params.closeAll === true ||
-      !params.symbols ||
-      params.symbols.length === 0
-    ) {
-      venues = provider.getProviderIds?.() ?? [writeRoute];
     } else {
-      venues = [writeRoute];
+      switch (selection.kind) {
+        case 'targets':
+          venues = selection.targets.map((target) => target.providerId);
+          break;
+        case 'all':
+          venues = provider.getProviderIds?.() ?? [writeRoute];
+          break;
+        case 'symbols':
+          venues = [writeRoute];
+          break;
+        default:
+          assertExhaustive(selection);
+      }
     }
     const notionalByVenue = new Map<PerpsProviderType | undefined, number>(
       venues.map((venue) => [venue, 0]),
@@ -1439,26 +1445,29 @@ export class TradingService {
         position.providerId ?? writeRoute ?? provider.protocolId;
 
       let selected: Position[];
-      if (params.targets && params.targets.length > 0) {
-        selected = positions.filter((position) =>
-          params.targets?.some(
-            (target) =>
-              target.symbol === position.symbol &&
-              target.providerId === venueOf(position),
-          ),
-        );
-      } else if (
-        params.closeAll === true ||
-        !params.symbols ||
-        params.symbols.length === 0
-      ) {
-        selected = positions;
-      } else {
-        // A symbol list names no venue, so it is one write through the default
-        // route: another venue's same-symbol position is not part of it.
-        selected = this.#positionsForWriteRoute({ positions, provider }).filter(
-          (position) => params.symbols?.includes(position.symbol),
-        );
+      switch (selection.kind) {
+        case 'targets':
+          selected = positions.filter((position) =>
+            selection.targets.some(
+              (target) =>
+                target.symbol === position.symbol &&
+                target.providerId === venueOf(position),
+            ),
+          );
+          break;
+        case 'all':
+          selected = positions;
+          break;
+        case 'symbols':
+          // A symbol list names no venue, so it is one write through the
+          // default route: another venue's same-symbol position is not part of it.
+          selected = this.#positionsForWriteRoute({
+            positions,
+            provider,
+          }).filter((position) => selection.symbols.includes(position.symbol));
+          break;
+        default:
+          assertExhaustive(selection);
       }
 
       for (const position of selected) {
@@ -2715,30 +2724,33 @@ export class TradingService {
         // batch method must not treat a target list as close-all just because
         // `symbols` was omitted.
         let positionsToClose: typeof positions;
-        if (params.targets && params.targets.length > 0) {
-          positionsToClose = positions.filter((position) =>
-            params.targets?.some((target) => {
-              if (target.symbol !== position.symbol) {
-                return false;
-              }
-              if (position.providerId !== undefined) {
-                return target.providerId === position.providerId;
-              }
-              // Direct-provider positions are unlabeled. They belong to this
-              // provider, so a target for a different venue does not match.
-              return target.providerId === provider.protocolId;
-            }),
-          );
-        } else if (
-          params.closeAll === true ||
-          !params.symbols ||
-          params.symbols.length === 0
-        ) {
-          positionsToClose = positions;
-        } else {
-          positionsToClose = positions.filter((pos) =>
-            params.symbols?.includes(pos.symbol),
-          );
+        const selection = resolveCloseSelection(params);
+        switch (selection.kind) {
+          case 'targets':
+            positionsToClose = positions.filter((position) =>
+              selection.targets.some((target) => {
+                if (target.symbol !== position.symbol) {
+                  return false;
+                }
+                if (position.providerId !== undefined) {
+                  return target.providerId === position.providerId;
+                }
+                // Direct-provider positions are unlabeled. They belong to this
+                // provider, so a target for a different venue does not match.
+                return target.providerId === provider.protocolId;
+              }),
+            );
+            break;
+          case 'all':
+            positionsToClose = positions;
+            break;
+          case 'symbols':
+            positionsToClose = positions.filter((pos) =>
+              selection.symbols.includes(pos.symbol),
+            );
+            break;
+          default:
+            assertExhaustive(selection);
         }
 
         if (positionsToClose.length === 0) {

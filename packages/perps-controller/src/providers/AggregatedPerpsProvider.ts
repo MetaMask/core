@@ -125,6 +125,7 @@ import {
   buildAggregatedAccountState,
   getAccountAggregateMetadata,
 } from '../utils/accountAggregation.js';
+import { resolveCloseSelection } from '../utils/closePositions.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { hasFeeSetter } from '../utils/feeSupport.js';
 
@@ -1345,17 +1346,18 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // resolve. Tagged targets are not part of that legacy contract — a venue
     // that only reads `symbols` and `closeAll` would treat a missing symbol
     // list as close-every-position.
+    const selection = resolveCloseSelection(params);
     if (this.#providers.size <= 1) {
-      if (params.targets && params.targets.length > 0) {
+      if (selection.kind === 'targets') {
         const active = this.#getActiveProviders();
         const only = active[0];
         if (!only) {
           return {
             success: false,
             successCount: 0,
-            failureCount: params.targets.length,
+            failureCount: selection.targets.length,
             error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
-            results: params.targets.map((target) => ({
+            results: selection.targets.map((target) => ({
               symbol: target.symbol,
               success: false,
               error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
@@ -1363,7 +1365,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
             })),
           };
         }
-        return this.#closeSingleVenueTargets(only[0], only[1], params.targets);
+        return this.#closeSingleVenueTargets(
+          only[0],
+          only[1],
+          selection.targets,
+        );
       }
       const [, provider] = this.#getProviderOrDefault();
       if (!provider.closePositions) {
@@ -1379,9 +1385,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
     // Group explicit targets by venue. Identical symbols on different venues
     // are independent closes; each result keeps its venue identity.
-    if (params.targets && params.targets.length > 0) {
+    if (selection.kind === 'targets') {
       const byProvider = new Map<PerpsProviderType, string[]>();
-      for (const target of params.targets) {
+      for (const target of selection.targets) {
         const group = byProvider.get(target.providerId);
         if (group) {
           group.push(target.symbol);
@@ -1420,11 +1426,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // ['BTC'] }` closes every position on every venue. Only a symbols-only
     // request (no `closeAll`) is ambiguous once two venues are registered,
     // and is refused rather than resolved against the default.
-    if (
-      params.closeAll !== true &&
-      params.symbols &&
-      params.symbols.length > 0
-    ) {
+    if (selection.kind === 'symbols') {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED);
     }
 
