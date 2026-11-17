@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `perpsLighterDeposit`, `perpsLighterWithdraw`, and `perpsLighterDepositAndOrder` to `TransactionType`
+- Add `perpsLighterDeposit`, `perpsLighterWithdraw`, and `perpsLighterDepositAndOrder` to `TransactionType` ([#11574](https://github.com/MetaMask/core/pull/11574))
   - These identify a Perps deposit, withdraw, or deposit-and-order that targets Lighter, so clients can tell it apart from the existing Hyperliquid Perps types in metrics and confirmations.
 
 ### Changed
