@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
 - Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.3.0` ([#11546](https://github.com/MetaMask/core/pull/11546), [#11590](https://github.com/MetaMask/core/pull/11590))
 
+### Fixed
+
+- Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds
+  - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
+
 ## [31.3.0]
 
 ### Added
@@ -62,11 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/ramps-controller` from `^29.0.0` to `^30.0.0` ([#11543](https://github.com/MetaMask/core/pull/11543))
-
-### Fixed
-
-- Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds
-  - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
 
 ## [31.2.1]
 

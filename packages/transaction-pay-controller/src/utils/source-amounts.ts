@@ -139,9 +139,7 @@ function calculatePostQuoteSourceAmounts(
   // post-quote transfer is funded by the prepended call, which cannot pay a
   // Relay deposit while its amount is still 0.
   const isFundedByPrependedTransfer =
-    !isHyperliquidSource &&
-    !isPolymarketDepositWallet &&
-    !hasPaymentOverride;
+    !isHyperliquidSource && !isPolymarketDepositWallet && !hasPaymentOverride;
 
   return tokens
     .filter((token) => {
