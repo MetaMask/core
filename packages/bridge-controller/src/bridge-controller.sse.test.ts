@@ -2081,4 +2081,67 @@ describe('BridgeController SSE', function () {
       },
     );
   });
+
+  it.each([
+    { getShouldYieldAfterFirstQuote: undefined, quotesBeforeTick: 2 },
+    { getShouldYieldAfterFirstQuote: (): boolean => true, quotesBeforeTick: 1 },
+  ])(
+    'should yield one macrotask after the first quote only when getShouldYieldAfterFirstQuote returns true',
+    async ({ getShouldYieldAfterFirstQuote, quotesBeforeTick }) => {
+      await withController(
+        { options: { getShouldYieldAfterFirstQuote } },
+        async ({ controller: bridgeController }) => {
+          mockFetchFn.mockImplementationOnce(async () =>
+            mockSseEventSource(mockBridgeQuotesNativeErc20V1),
+          );
+          await bridgeController.updateBridgeQuoteRequestParams(
+            quoteRequest,
+            metricsContext,
+          );
+          vi.advanceTimersByTime(1000);
+          await advanceToNthTimerThenFlush();
+          vi.advanceTimersByTime(3000);
+          await flushPromises();
+
+          expect(bridgeController.state.quotes).toHaveLength(quotesBeforeTick);
+
+          vi.advanceTimersByTime(0);
+          await flushPromises();
+
+          expect(bridgeController.state.quotes).toHaveLength(2);
+        },
+      );
+    },
+  );
+
+  it('should not update state after the stream is aborted during the yield', async () => {
+    await withController(
+      { options: { getShouldYieldAfterFirstQuote: (): boolean => true } },
+      async ({ controller: bridgeController }) => {
+        mockFetchFn.mockImplementationOnce(async () =>
+          mockSseEventSourceWithComplete(mockBridgeQuotesNativeErc20V1, [], {
+            quoteCount: 2,
+            hasQuotes: true,
+          }),
+        );
+        await bridgeController.updateBridgeQuoteRequestParams(
+          quoteRequest,
+          metricsContext,
+        );
+        vi.advanceTimersByTime(1000);
+        await advanceToNthTimerThenFlush();
+        vi.advanceTimersByTime(3000);
+        await flushPromises();
+        bridgeController.stopPollingForQuotes();
+        vi.advanceTimersByTime(0);
+        await flushPromises();
+
+        expect(bridgeController.state.quotes).toHaveLength(1);
+        expect(bridgeController.state.quoteStreamComplete).toBeNull();
+        expect(bridgeController.state.quotesLoadingStatus).toBe(
+          RequestStatus.LOADING,
+        );
+      },
+    );
+  });
 });

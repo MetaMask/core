@@ -295,6 +295,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   readonly #getUseAssetsControllerForRates: () => boolean;
 
+  readonly #getShouldYieldAfterFirstQuote?: () => boolean;
   readonly #getShouldFetchFirstQuoteImmediately?: () => boolean;
 
   #initialFetch?: Promise<void>;
@@ -310,6 +311,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     trackMetaMetricsFn,
     traceFn,
     getUseAssetsControllerForRates,
+    getShouldYieldAfterFirstQuote,
     getShouldFetchFirstQuoteImmediately,
   }: {
     messenger: BridgeControllerMessenger;
@@ -332,6 +334,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
      * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
      */
     getUseAssetsControllerForRates?: () => boolean;
+    /**
+     * When it returns true, the quote stream yields one macrotask after the first quote is written to state.
+     */
+    getShouldYieldAfterFirstQuote?: () => boolean;
     /** When it returns true, the first quote fetch starts without waiting for the first poll. */
     getShouldFetchFirstQuoteImmediately?: () => boolean;
   }) {
@@ -357,6 +363,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trace = traceFn;
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
+    this.#getShouldYieldAfterFirstQuote = getShouldYieldAfterFirstQuote;
     this.#getShouldFetchFirstQuoteImmediately =
       getShouldFetchFirstQuoteImmediately;
 
@@ -1121,6 +1128,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               }
               state.quotes = [...state.quotes, ...quotesWithFees];
             });
+            if (
+              validQuotesCounter === 1 &&
+              quotesWithFees.length > 0 &&
+              this.#getShouldYieldAfterFirstQuote?.()
+            ) {
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
           })();
           pendingFeeAppendPromises.add(feeAppendPromise);
           feeAppendPromise
