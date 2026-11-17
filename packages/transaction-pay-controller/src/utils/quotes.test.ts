@@ -1157,6 +1157,26 @@ describe('Quotes Utils', () => {
           totalFiat: TOTALS_MOCK.total.usd,
         },
       });
+      expect(transactionMetaMock.metamaskPay?.accountOverride).toBeUndefined();
+    });
+
+    it('persists accountOverride in metadata when set', async () => {
+      const accountOverride =
+        '0x1111111111111111111111111111111111111112' as Hex;
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          accountOverride,
+        },
+      });
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay).toMatchObject({
+        accountOverride,
+      });
     });
 
     it('does not persist strategy in metadata when there are no executable quotes', async () => {

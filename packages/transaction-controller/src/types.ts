@@ -2203,6 +2203,12 @@ export type AssetsFiatValues = {
 
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
+  /**
+   * Address overriding the default account for the transaction.
+   * Output recipient when `isPostQuote` is true, funding payer when false.
+   */
+  accountOverride?: Hex;
+
   /** Total fee from any bridge transactions, in fiat currency. */
   bridgeFeeFiat?: string;
 

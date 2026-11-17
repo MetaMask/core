@@ -28,6 +28,7 @@ import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   getTransaction,
+  persistPayAccountOverride,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction.js';
@@ -58,6 +59,7 @@ describe('TransactionPayController', () => {
     deriveFiatAssetForFiatPayment,
   );
   const getTransactionMock = vi.mocked(getTransaction);
+  const persistPayAccountOverrideMock = vi.mocked(persistPayAccountOverride);
   const updateSourceAmountsMock = vi.mocked(updateSourceAmounts);
   const updateQuotesMock = vi.mocked(updateQuotes);
   const subscribeTransactionChangesMock = vi.mocked(
@@ -483,6 +485,58 @@ describe('TransactionPayController', () => {
       expect(transactionData.isMaxAmount).toBe(true);
       expect(transactionData.isPostQuote).toBe(true);
       expect(transactionData.refundTo).toBe(refundTo);
+    });
+
+    it('persists accountOverride when accountOverride changes', () => {
+      const controller = createController();
+      const accountOverride =
+        '0x1111111111111111111111111111111111111112' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+        config.isPostQuote = true;
+      });
+
+      expect(persistPayAccountOverrideMock).toHaveBeenCalledTimes(1);
+      expect(persistPayAccountOverrideMock).toHaveBeenCalledWith({
+        accountOverride,
+        messenger,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+    });
+
+    it('clears persisted accountOverride when reset to undefined', () => {
+      const controller = createController();
+      const accountOverride =
+        '0x1111111111111111111111111111111111111112' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+        config.isPostQuote = true;
+      });
+
+      persistPayAccountOverrideMock.mockClear();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = undefined;
+      });
+
+      expect(persistPayAccountOverrideMock).toHaveBeenCalledTimes(1);
+      expect(persistPayAccountOverrideMock).toHaveBeenCalledWith({
+        accountOverride: undefined,
+        messenger,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+    });
+
+    it('does not persist accountOverride when accountOverride is unchanged', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isPostQuote = true;
+      });
+
+      expect(persistPayAccountOverrideMock).not.toHaveBeenCalled();
     });
   });
 

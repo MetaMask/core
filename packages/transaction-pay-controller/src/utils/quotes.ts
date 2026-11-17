@@ -190,6 +190,7 @@ export async function updateQuotes(
     log('Calculated totals', { transactionId, totals });
 
     syncTransaction({
+      accountOverride,
       batchTransactions,
       selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
       hasQuotes: executableQuotes.length > 0,
@@ -280,6 +281,7 @@ function resolveAtomic(
  * Sync batch transactions to the transaction meta.
  *
  * @param request - Request object.
+ * @param request.accountOverride - Optional address overriding the default account.
  * @param request.batchTransactions - Batch transactions to sync.
  * @param request.hasQuotes - Whether MM Pay produced any quotes for this transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
@@ -291,6 +293,7 @@ function resolveAtomic(
  * @param request.transactionId - ID of the transaction to sync.
  */
 function syncTransaction({
+  accountOverride,
   batchTransactions,
   hasQuotes,
   isPostQuote,
@@ -301,6 +304,7 @@ function syncTransaction({
   totals,
   transactionId,
 }: {
+  accountOverride?: Hex;
   batchTransactions: BatchTransaction[];
   selectedFiatPayment?: string;
   hasQuotes: boolean;
@@ -341,6 +345,7 @@ function syncTransaction({
       }
 
       tx.metamaskPay = {
+        accountOverride,
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken?.chainId,
         isPostQuote,

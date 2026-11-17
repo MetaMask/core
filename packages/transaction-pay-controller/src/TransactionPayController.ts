@@ -33,6 +33,7 @@ import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
+  persistPayAccountOverride,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction.js';
@@ -179,11 +180,16 @@ export class TransactionPayController extends BaseController<
 
       Object.assign(transactionData, config);
 
-      if (
-        !config.isPostQuote &&
-        config.accountOverride !== previousAccountOverride
-      ) {
-        transactionData.paymentToken = undefined;
+      if (config.accountOverride !== previousAccountOverride) {
+        if (!config.isPostQuote) {
+          transactionData.paymentToken = undefined;
+        }
+
+        persistPayAccountOverride({
+          accountOverride: config.accountOverride,
+          messenger: this.messenger,
+          transactionId,
+        });
       }
     });
   }
