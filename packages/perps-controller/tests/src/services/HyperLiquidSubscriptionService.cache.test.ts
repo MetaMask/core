@@ -834,6 +834,42 @@ describe('HyperLiquidSubscriptionService', () => {
       cleanupSurvivor();
     });
 
+    it('tears down the stream if cached replay removes its last other listener and throws', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      const unsubscribeStream = vi.fn().mockResolvedValue(undefined);
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({ unsubscribe: unsubscribeStream });
+        },
+      );
+      const callback = vi.fn();
+      const unsubscribe = service.subscribeToPositions({ callback });
+      const onAccount = await accountFrames.promise;
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      await vi.runAllTimersAsync();
+
+      const replayError = new Error('cached positions callback failed');
+      callback.mockImplementationOnce(() => {
+        unsubscribe();
+        throw replayError;
+      });
+      expect(() => service.subscribeToPositions({ callback })).toThrow(
+        replayError,
+      );
+      expect(unsubscribeStream).toHaveBeenCalledOnce();
+      expect(service.getCachedPositions()).toBeNull();
+    });
+
     it('does not initialize the order stream from a malformed clearinghouse frame', async () => {
       const frames = createDeferred<(payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(

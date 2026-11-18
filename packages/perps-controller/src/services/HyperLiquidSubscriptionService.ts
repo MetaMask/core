@@ -3192,13 +3192,16 @@ export class HyperLiquidSubscriptionService {
    */
   public subscribeToPositions(params: SubscribePositionsParams): () => void {
     const { callback, accountId } = params;
-    const unsubscribe = this.#createSubscription(
+    const removeListener = this.#createSubscription(
       this.#positionSubscribers,
       (positions: Position[]) => callback(positions),
     );
-
-    // Increment position subscriber count
     this.#positionSubscriberCount += 1;
+    const unsubscribe = (): void => {
+      removeListener();
+      this.#positionSubscriberCount -= 1;
+      this.#cleanupSharedWebData3ISubscription();
+    };
 
     // Replay is synchronous. A failed callback has no cleanup handle yet.
     try {
@@ -3207,7 +3210,6 @@ export class HyperLiquidSubscriptionService {
       }
     } catch (error) {
       unsubscribe();
-      this.#positionSubscriberCount -= 1;
       throw error;
     }
 
@@ -3222,11 +3224,7 @@ export class HyperLiquidSubscriptionService {
       );
     });
 
-    return () => {
-      unsubscribe();
-      this.#positionSubscriberCount -= 1;
-      this.#cleanupSharedWebData3ISubscription();
-    };
+    return unsubscribe;
   }
 
   /**
