@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `selectProviderForAsset` (also the `RampsController:selectProviderForAsset` action). It selects the provider for a token in this order, each only if the provider offers the token: the user's own pick, then an `aheadOfHistory` list, then the provider of the most recent completed buy across all accounts (plus optional `extraHistory` the client keeps outside controller state), then API ranking. A `null` asset id treats every provider as a candidate and skips the `aheadOfHistory` list, for picks made before a token is chosen ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-- Add `getPreviouslyUsedProviders`, which returns the providers the user has completed a buy with, most recent first, and the `RampsProviderHistoryEntry` and `SelectProviderForAssetOptions` types ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-- Add the `userSelectedProviderId` state property (not persisted) and a `userSelected` option on `setSelectedProvider` that sets it. It is cleared by `setSelectedProvider(null)` and on region change ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `selectProviderForAsset` (also the `RampsController:selectProviderForAsset` action). It selects the provider for a token in this order, each only if the provider offers the token: the user's own pick, then an `aheadOfHistory` list, then the provider of the most recent completed buy across all accounts (plus optional `extraHistory` the client keeps outside controller state), then API ranking. A `null` asset id treats every provider as a candidate and skips the `aheadOfHistory` list, for picks made before a token is chosen ([#11616](https://github.com/MetaMask/core/pull/11616))
+- Add `getPreviouslyUsedProviders`, which returns the providers the user has completed a buy with, most recent first, and the `RampsProviderHistoryEntry` and `SelectProviderForAssetOptions` types ([#11616](https://github.com/MetaMask/core/pull/11616))
+- Add the `userSelectedProviderId` state property (not persisted) and a `userSelected` option on `setSelectedProvider` that sets it. It is cleared by `setSelectedProvider(null)` and on region change ([#11616](https://github.com/MetaMask/core/pull/11616))
 
 ### Fixed
 
-- Order history now matches orders that store a `/providers/<id>` provider id or a text `createdAt`, and leaves out sell orders, in `setSelectedProviderForAsset` and in provider resolution for `getQuotes` and `getPaymentMethodsForContext` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Order history now matches orders that store a `/providers/<id>` provider id or a text `createdAt`, and leaves out sell orders, in `setSelectedProviderForAsset` and in provider resolution for `getQuotes` and `getPaymentMethodsForContext` ([#11616](https://github.com/MetaMask/core/pull/11616))
 
 ## [30.0.0]
 
