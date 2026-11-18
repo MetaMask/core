@@ -971,7 +971,7 @@ export type CrossMarginSummary = {
 export type AccountState = {
   /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
-   * HL: crossMarginSummary.accountValue + spot(USDC) − spot.hold
+   * HL: marginSummary.accountValue + spot(USDC) − spot.hold
    */
   totalBalance: string;
   /**
@@ -3404,7 +3404,6 @@ export const PerpsTraceOperations = {
   Operation: 'perps.operation',
   OrderSubmission: 'perps.order_submission',
   PositionManagement: 'perps.position_management',
-  MarketData: 'perps.market_data',
 } as const;
 
 /**

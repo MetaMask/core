@@ -374,9 +374,10 @@ export const PRICE_THRESHOLD = {
   /** Low values boundary (>= $0.01) */
   LOW: 0.01,
   /**
-   * Very small values threshold (< $0.01)
-   * This is the minimum value for formatWithThreshold and should align with
-   * the 6 decimal maximum (0.000001 is the smallest representable value)
+   * Very small values threshold (< $0.01).
+   * A non-zero value below this floor renders as `<` plus the formatted
+   * threshold (e.g. `<$0` under `PRICE_RANGES_UNIVERSAL`); the floor aligns
+   * with the 6-decimal price maximum.
    */
   VERY_SMALL: 0.000001,
 } as const;
@@ -555,7 +556,7 @@ export const PRICE_RANGES_MINIMAL_VIEW: FiatRangeConfig[] = [
  * - $1.3445555 → $1.3446 (≥$0.01: 5 sig figs)
  * - $0.333333 → $0.33333 (≥$0.01: 5 sig figs)
  * - $0.004236 → $0.004236 (<$0.01: 4 sig figs, max 6 decimals)
- * - $0.0000006 → $0.000001 (<$0.01: 4 sig figs, rounds with max 6 decimals)
+ * - $0.0000006 → <$0 (<$0.01: 4 sig figs; below the $0.000001 floor)
  */
 export const PRICE_RANGES_UNIVERSAL: FiatRangeConfig[] = [
   {
@@ -614,7 +615,7 @@ export const PRICE_RANGES_UNIVERSAL: FiatRangeConfig[] = [
   },
   {
     // Very small values (< $0.01): 4 significant figures, min 2 max MAX_PRICE_DECIMALS decimals
-    // Ex: $0.004236 → $0.004236 | $0.0000006 → $0.000001
+    // Ex: $0.004236 → $0.004236 | $0.0000006 → <$0
     condition: () => true,
     significantDigits: 4,
     minimumDecimals: 2,
