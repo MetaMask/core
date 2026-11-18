@@ -190,6 +190,7 @@ export type {
 export {
   SubscriptionDelegationService,
   serviceName as subscriptionDelegationServiceName,
+  isSubscriptionChargeRetryable,
 } from './subscription-delegation/SubscriptionDelegationService.js';
 export type { SubscriptionDelegationServicePrepareDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
