@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
 - Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^12.1.0` ([#11569](https://github.com/MetaMask/core/pull/11569))
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11580](https://github.com/MetaMask/core/pull/11580))
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11580](https://github.com/MetaMask/core/pull/11580))
 
 ## [15.2.2]
 

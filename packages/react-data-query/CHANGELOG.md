@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `uuid` `^11.1.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@tanstack/query-core` and `@tanstack/react-query` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
-- Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
-- Bump `@tanstack/react-query` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
-- Bump `uuid` from `^11.1.1` to `^14.0.2` ([#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@tanstack/query-core` from `^5.89.0` to `^5.107.1` ([#10511](https://github.com/MetaMask/core/pull/10511), [#11580](https://github.com/MetaMask/core/pull/11580))
+- Bump `@tanstack/react-query` from `^5.89.0` to `^5.107.1` ([#10511](https://github.com/MetaMask/core/pull/10511), [#11580](https://github.com/MetaMask/core/pull/11580))
+- Bump `uuid` from `^11.1.1` to `^14.0.3` ([#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305), [#11580](https://github.com/MetaMask/core/pull/11580))
 
 ## [2.0.0]
 

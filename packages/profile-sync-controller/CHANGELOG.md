@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-controller` from `^28.2.1` to `^28.2.2` ([#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/seedless-onboarding-controller` from `^12.0.0` to `^12.1.0` ([#11569](https://github.com/MetaMask/core/pull/11569))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11580](https://github.com/MetaMask/core/pull/11580))
 
 ## [36.1.2]
 

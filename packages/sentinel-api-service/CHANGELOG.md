@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11580](https://github.com/MetaMask/core/pull/11580))
+
 ## [2.3.0]
 
 ### Changed
