@@ -54,7 +54,7 @@ import { createNodeWasmBridge } from './lighter/nodeWasmBridge.js';
 const DEFAULT_DUMMY_ETH_KEY =
   '0x1234567812345678123456781234567812345678123456781234567812345678';
 
-const PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const PACKAGE_ROOT = resolve(import.meta.dirname, '..', '..');
 const REPO_ROOT = resolve(PACKAGE_ROOT, '..', '..');
 
 type PhaseResult = {
