@@ -290,10 +290,13 @@ export class TokensController extends BaseController<
 
   /**
    * Complete initialization once the controllers this controller reads from
-   * have been constructed: read the selected account and enrich persisted
-   * tokens with name/rwaData from the token list.
+   * have been constructed: read the selected account and start enriching
+   * persisted tokens with name/rwaData from the token list.
    *
-   * Calling it more than once has no effect.
+   * The selected account is read before this method settles. Token-list
+   * enrichment runs in the background and is not awaited, so a slow or hung
+   * token-list request does not keep this method from settling. Tokens remain
+   * usable when enrichment fails. Calling it more than once has no effect.
    */
   async init(): Promise<void> {
     if (this.#initialized) {
@@ -308,7 +311,10 @@ export class TokensController extends BaseController<
 
     this.#selectedAccountId ??= this.#getSelectedAccount().id;
 
-    await this.#enrichTokensFromTokenList(this.#tokenListService).catch(() => {
+    // Fire-and-forget. This used to run from the constructor without being
+    // awaited. Failures are swallowed; tokens stay usable without metadata.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.#enrichTokensFromTokenList(this.#tokenListService).catch(() => {
       // Tokens remain usable without metadata enrichment
     });
   }

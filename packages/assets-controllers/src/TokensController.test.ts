@@ -3407,6 +3407,60 @@ describe('TokensController', () => {
       );
     });
 
+    it('resolves init while token-list enrichment is still pending', async () => {
+      const fetchTokensByChainId = vi.fn().mockReturnValue(
+        new Promise(() => {
+          // Never settles. Awaiting this would leave `init` pending.
+        }),
+      );
+      const getSelectedAccount = vi
+        .fn()
+        .mockReturnValue(defaultMockInternalAccount);
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const tokensControllerMessenger: TokensControllerMessenger =
+        new Messenger({ namespace: 'TokensController', parent: messenger });
+      messenger.delegate({
+        messenger: tokensControllerMessenger,
+        actions: ['AccountsController:getSelectedAccount'],
+      });
+      messenger.registerActionHandler(
+        'AccountsController:getSelectedAccount',
+        getSelectedAccount,
+      );
+      const controller = new TokensController({
+        messenger: tokensControllerMessenger,
+        state: {
+          allTokens: {
+            [ChainId.mainnet]: {
+              [defaultMockInternalAccount.address]: [
+                buildToken({ address: '0x01', symbol: 'bar', name: undefined }),
+              ],
+            },
+          },
+        },
+        tokenListService: {
+          fetchTokensByChainId,
+        } as unknown as import('./TokenListService.js').TokenListService,
+      });
+
+      await expectResolvedBeforeNextMacrotask(controller.init());
+
+      expect(getSelectedAccount).toHaveBeenCalledTimes(1);
+      expect(fetchTokensByChainId).toHaveBeenCalledTimes(1);
+      expect(fetchTokensByChainId).toHaveBeenCalledWith(ChainId.mainnet);
+      expect(
+        controller.state.allTokens[ChainId.mainnet][
+          defaultMockInternalAccount.address
+        ][0].name,
+      ).toBeUndefined();
+
+      await expectResolvedBeforeNextMacrotask(controller.init());
+      expect(getSelectedAccount).toHaveBeenCalledTimes(1);
+      expect(fetchTokensByChainId).toHaveBeenCalledTimes(1);
+    });
+
     it('does not read the selected account or enrich tokens in init when isDeprecated() returns true', async () => {
       const fetchTokensByChainId = vi.fn().mockResolvedValue({});
       await withController(
@@ -4256,6 +4310,26 @@ type WithControllerArgs<ReturnValue> =
       },
       WithControllerCallback<ReturnValue>,
     ];
+
+/**
+ * Asserts that `promise` fulfills in a microtask, before the next macrotask.
+ * A fetch that `init` still awaited would lose this race to the timer.
+ *
+ * @param promise - The promise that should already be on its way to fulfilling.
+ */
+async function expectResolvedBeforeNextMacrotask(
+  promise: Promise<unknown>,
+): Promise<void> {
+  const winner = await Promise.race([
+    promise.then(() => 'resolved' as const),
+    new Promise<'timeout'>((resolve) => {
+      setTimeout(() => {
+        resolve('timeout');
+      }, 0);
+    }),
+  ]);
+  expect(winner).toBe('resolved');
+}
 
 /**
  * Runs a callback, instantiating a TokensController (and friends) for use in

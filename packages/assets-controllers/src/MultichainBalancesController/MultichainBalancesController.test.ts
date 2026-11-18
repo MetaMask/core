@@ -252,6 +252,26 @@ async function waitForAllPromises(): Promise<void> {
   await new Promise(process.nextTick);
 }
 
+/**
+ * Asserts that `promise` fulfills in a microtask, before the next macrotask.
+ * A fetch that `init` still awaited would lose this race to the timer.
+ *
+ * @param promise - The promise that should already be on its way to fulfilling.
+ */
+async function expectResolvedBeforeNextMacrotask(
+  promise: Promise<unknown>,
+): Promise<void> {
+  const winner = await Promise.race([
+    promise.then(() => 'resolved' as const),
+    new Promise<'timeout'>((resolve) => {
+      setTimeout(() => {
+        resolve('timeout');
+      }, 0);
+    }),
+  ]);
+  expect(winner).toBe('resolved');
+}
+
 describe('MultichainBalancesController', () => {
   it('initialize with default state', () => {
     const messenger = getRootMessenger();
@@ -457,6 +477,8 @@ describe('MultichainBalancesController', () => {
       });
 
       await controller.init();
+      // The fetch is not awaited by `init`; flush it before asserting the log.
+      await waitForAllPromises();
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Failed to fetch initial balances:',
@@ -468,6 +490,45 @@ describe('MultichainBalancesController', () => {
       );
       expect(controller.state.balances).toStrictEqual({});
       consoleErrorSpy.mockRestore();
+    });
+
+    it('resolves init while the initial balance fetch is still pending', async () => {
+      const messenger = getRootMessenger();
+      const handleRequest = vi.fn().mockReturnValue(
+        new Promise(() => {
+          // Never settles. Awaiting this would leave `init` pending.
+        }),
+      );
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        handleRequest,
+      );
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [mockBtcAccount],
+      );
+      messenger.registerActionHandler(
+        'MultichainAssetsController:getState',
+        () => ({
+          accountsAssets: {
+            [mockBtcAccount.id]: [mockBtcNativeAsset],
+          },
+        }),
+      );
+      messenger.registerActionHandler('KeyringController:getState', () => ({
+        isUnlocked: true,
+      }));
+      const controller = new MultichainBalancesController({
+        messenger: getRestrictedMessenger(messenger),
+      });
+
+      await expectResolvedBeforeNextMacrotask(controller.init());
+
+      expect(handleRequest).toHaveBeenCalledTimes(1);
+      expect(controller.state.balances).toStrictEqual({});
+
+      await expectResolvedBeforeNextMacrotask(controller.init());
+      expect(handleRequest).toHaveBeenCalledTimes(1);
     });
   });
 

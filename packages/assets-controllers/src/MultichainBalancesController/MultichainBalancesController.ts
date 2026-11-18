@@ -212,11 +212,14 @@ export class MultichainBalancesController extends BaseController<
 
   /**
    * Complete initialization once the controllers this controller reads from
-   * have been constructed: fetch the initial balances of all non-EVM accounts.
+   * have been constructed: start fetching the initial balances of all non-EVM
+   * accounts.
    *
    * The constructor does not call other controllers, so it can run before they
-   * are constructed. A failure to fetch the balances of one account is logged
-   * and does not affect the others. Calling it more than once has no effect.
+   * are constructed. The balance fetch runs in the background and is not
+   * awaited, so a slow or hung snap does not keep this method from settling.
+   * A failure to fetch the balances of one account is logged and does not
+   * affect the others. Calling it more than once has no effect.
    */
   async init(): Promise<void> {
     if (this.#initialized) {
@@ -229,10 +232,24 @@ export class MultichainBalancesController extends BaseController<
       return;
     }
 
+    const accounts = this.#listAccounts();
+    // Fire-and-forget. This used to run from the constructor without being
+    // awaited. Failures are logged inside `#fetchInitialBalances`.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.#fetchInitialBalances(accounts);
+  }
+
+  /**
+   * Fetches balances for the accounts that existed at `init`.
+   *
+   * A failure for one account is logged and does not reject this method, so
+   * `init` can start it without awaiting it.
+   *
+   * @param accounts - Accounts to fetch balances for.
+   */
+  async #fetchInitialBalances(accounts: InternalAccount[]): Promise<void> {
     const results = await Promise.allSettled(
-      this.#listAccounts().map(async (account) =>
-        this.updateBalance(account.id),
-      ),
+      accounts.map(async (account) => this.updateBalance(account.id)),
     );
     for (const result of results) {
       if (result.status === 'rejected') {
