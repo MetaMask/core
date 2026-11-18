@@ -700,7 +700,7 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('leaves the email out when none is given', async () => {
+    it('sends no email, because kyc-api takes it from the identity token', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
           vendor: 'kalshi',
@@ -1020,9 +1020,7 @@ describe('VendorOnboardingController', () => {
       VendorOnboardingControllerOptions['sumsubLauncher']
     >;
     const getLauncher = (
-      launch: Mock = vi
-        .fn()
-        .mockResolvedValue({ status: 'Pending' }),
+      launch: Mock = vi.fn().mockResolvedValue({ status: 'Pending' }),
       isAvailable = true,
     ): Launcher & { launch: Mock } => ({
       isAvailable: () => isAvailable,
@@ -1433,6 +1431,40 @@ describe('VendorOnboardingController', () => {
         expect(controller.state.vendors).toStrictEqual({});
       });
     });
+
+    it.each([
+      ['the vendor', { vendor: 'kalshi' as const }],
+      ['every vendor', undefined],
+    ])(
+      'drops a step read in flight when forgetting %s',
+      async (_label, params) => {
+        await withController(
+          { options: { state } },
+          async ({ controller, handlers }) => {
+            let answer: (info: KycStepInfo) => void = () => undefined;
+            handlers.getStep
+              .mockReturnValueOnce(
+                new Promise<KycStepInfo>((resolve) => {
+                  answer = resolve;
+                }),
+              )
+              .mockResolvedValueOnce({ step: 'account_link', status: 'none' });
+
+            const pending = controller.refreshStep({ vendor: 'kalshi' });
+            controller.reset(params);
+            answer({ step: 'identity_phone', status: 'none' });
+            await pending;
+
+            expect(controller.state.vendors.kalshi).toBeUndefined();
+            // A refresh after the reset asks again instead of joining.
+            expect(await controller.refreshStep({ vendor: 'kalshi' })).toBe(
+              'account_link',
+            );
+            expect(handlers.getStep).toHaveBeenCalledTimes(2);
+          },
+        );
+      },
+    );
   });
 
   describe('messenger actions', () => {

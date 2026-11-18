@@ -10,14 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `VendorOnboardingController`, which follows the onboarding step kyc-api decides for a vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
-  - State is `vendors[vendor] = { step, sessionId }`. Terms, consents and account link state stay on the server
+  - State is `vendors[vendor] = { step, status, sessionId }`. Terms, consents and account link state stay on the server
   - Actions: `refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`, `startSession`, `fetchSessionDisclaimers`, `acceptSessionDisclaimers`, `launchProviderFlow`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`, `resendEmailCode` and `reset`
   - The device-signed account link calls are supplied by the client through the `accountLinkAdapters` option
   - `acceptSessionDisclaimers` records the idOS and identity provider consents with kyc-api at once. `credentialReusabilityConsentGiven` is an argument, never stored or defaulted
-  - `launchProviderFlow` presents SumSub through the `sumsubLauncher` option, then reads the next step. It reports `submitted`, `abandoned` or `failed` and keeps nothing on the phone. kyc-api works out from the relay whether the applicant still has something to do, so nothing records that they submitted
+  - `launchProviderFlow` presents SumSub through the `sumsubLauncher` option, then reads the next step. It reports `submitted`, `abandoned` or `failed` and keeps nothing on the phone. A review decision the SDK opens on counts as `submitted` only after `Pending`, `Completed` or `ActionCompleted` in the same launch, and a later `Ready`, `Initial` or `Incomplete` clears an earlier `Pending`. kyc-api works out from the relay whether the applicant still has something to do, so nothing records that they submitted
   - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has, and sends the wrapped encryption key and capability token. It does not create a vendor customer
+  - `reset` drops any step read still in flight, so a late answer cannot bring back a forgotten vendor
   - It shares `KycService` with `KycController` and does not touch `KycController` state
-- Add `KycService.getStep`, `acceptVendorTerms` and `postOnboardingStep`, with the matching `KycService:*` messenger actions ([#11441](https://github.com/MetaMask/core/pull/11441))
+- Add `KycService.getStep`, `acceptVendorTerms` and `postOnboardingStep`, with the matching `KycService:*` messenger actions and the `KycOnboardingStep` type ([#11441](https://github.com/MetaMask/core/pull/11441))
   - `getStep` is the only one that reports a step. The others run their action and report nothing about it, so the step has a single source and cannot drift
 - Add the `KYC_STEPS` list, the `KycStep` and `OnboardingVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Add `KYC_STEP_STATUSES`, the `KycStepStatus` and `KycStepInfo` types, and `toKycStepStatus` ([#11441](https://github.com/MetaMask/core/pull/11441))
@@ -27,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
-- `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor, and `createUkycSession` takes an optional `email` ([#11441](https://github.com/MetaMask/core/pull/11441))
+- `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))

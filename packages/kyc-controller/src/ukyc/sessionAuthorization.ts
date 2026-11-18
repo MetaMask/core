@@ -62,7 +62,7 @@ export async function createAuthorizedSession(params: {
   vendor: OnboardingVendor;
   residenceCountry: string;
   aal2Token: string;
-  partnerIdentityToken?: string;
+  partnerIdentityToken: string;
 }): Promise<KycSessionStatus> {
   const { deps } = params;
   // A per-session X25519 keypair seals both secrets. The private half stays
@@ -81,9 +81,7 @@ export async function createAuthorizedSession(params: {
     residenceCountry: params.residenceCountry,
     vendor: params.vendor,
     aal2Token: params.aal2Token,
-    ...(params.partnerIdentityToken
-      ? { partnerIdentityToken: params.partnerIdentityToken }
-      : {}),
+    partnerIdentityToken: params.partnerIdentityToken,
   });
 
   return submitAuthorizations({

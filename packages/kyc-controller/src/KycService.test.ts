@@ -1033,6 +1033,18 @@ describe('KycService', () => {
       });
     });
 
+    it('sends what only the device knows as a query parameter', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/step')
+        .query({ vendorTermsAcceptedLocally: 'true' })
+        .reply(200, { vendor: 'iron', step: 'account_link', status: 'none' });
+      const { service } = getService();
+
+      expect(
+        await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
+      ).toStrictEqual({ step: 'account_link', status: 'none' });
+    });
+
     it('ignores a field kyc-api adds that this version does not know', async () => {
       nock(MOCK_API_URL).get('/vendors/kalshi/step').reply(200, {
         vendor: 'kalshi',

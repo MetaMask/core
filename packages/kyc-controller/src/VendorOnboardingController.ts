@@ -615,6 +615,15 @@ export class VendorOnboardingController extends BaseController<
    * @param params.vendor - The vendor to forget. Omit to forget all.
    */
   reset({ vendor }: { vendor?: OnboardingVendor } = {}): void {
+    // Outdate any step read in flight, so its answer cannot bring back the
+    // entry being forgotten.
+    const vendors = vendor
+      ? [vendor]
+      : (Object.keys(this.#stepRequests) as OnboardingVendor[]);
+    for (const each of vendors) {
+      this.#stepRequests[each] = (this.#stepRequests[each] ?? 0) + 1;
+      delete this.#stepReads[each];
+    }
     this.update((state) => {
       if (vendor) {
         delete state.vendors[vendor];
@@ -709,19 +718,6 @@ export class VendorOnboardingController extends BaseController<
   }
 
   /**
-   * Asks kyc-api for the step and saves it.
-   *
-   * A caller that only wants the current step (a screen opening, a poll)
-   * joins a read already in flight. A caller that has just changed something
-   * at kyc-api never joins one: that read may have started before the change
-   * and would answer with the old step.
-   *
-   * @param vendor - The vendor.
-   * @param options - The options.
-   * @param options.join - Whether to share a read already in flight.
-   * @returns The step.
-   */
-  /**
    * Mints the partner identity token kyc-api takes the session's email from.
    *
    * The consent has to be recorded first: MetaMask Auth answers
@@ -760,6 +756,19 @@ export class VendorOnboardingController extends BaseController<
     return {};
   }
 
+  /**
+   * Asks kyc-api for the step and saves it.
+   *
+   * A caller that only wants the current step (a screen opening, a poll)
+   * joins a read already in flight. A caller that has just changed something
+   * at kyc-api never joins one: that read may have started before the change
+   * and would answer with the old step.
+   *
+   * @param vendor - The vendor.
+   * @param options - The options.
+   * @param options.join - Whether to share a read already in flight.
+   * @returns The step.
+   */
   async #readStep(
     vendor: OnboardingVendor,
     { join }: { join: boolean },

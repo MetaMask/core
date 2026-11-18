@@ -166,6 +166,43 @@ Memoized `reselect` selectors over `KycControllerState`:
 `selectKycPhase`, `selectKycSumSub`, and the parametric
 `selectIsKycRequiredForProduct(product)`.
 
+#### 2.5 `VendorOnboardingController`
+
+A second controller for vendors whose onboarding kyc-api drives (Kalshi, and
+later Iron). It sits next to `KycController`, shares `KycService`, and never
+touches `KycController` state.
+
+- **kyc-api decides the step.** Each action sends its change to kyc-api, then
+  reads `GET /vendors/{vendor}/step` and saves the answer. The client maps each
+  `KycStep` to a screen; it never works out where the user is.
+- **State is a cache.** `vendors[vendor] = { step, status, sessionId }`. Terms,
+  consents and account link state stay on the server, so a reinstall or a
+  second device picks up where the user left off.
+- **Step reads are ordered.** A plain `refreshStep` joins a read already in
+  flight; an action always starts its own. An answer that arrives after a newer
+  read started (or after `reset`) is dropped.
+- **Session authorization** lives in `src/ukyc/sessionAuthorization.ts`:
+  `startSession` opens or resumes the UKYC session, then wraps the
+  `data_encryption_key` and a `ukyc_capability_token` for idOS after verifying
+  both encryption schemas' `jwtChain`. It does not create a vendor customer.
+- **Injected adapters.** `accountLinkAdapters` supplies the device-signed
+  account link calls per vendor; `sumsubLauncher` presents SumSub.
+
+Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
+
+`refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`,
+`startSession`, `fetchSessionDisclaimers`, `acceptSessionDisclaimers`,
+`launchProviderFlow`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`,
+`resendEmailCode`, `reset`.
+
+It uses these `KycService` endpoints on top of the ones above:
+
+| Method               | HTTP   | Endpoint                           | Purpose                                       |
+| -------------------- | ------ | ---------------------------------- | --------------------------------------------- |
+| `getStep`            | `GET`  | `/vendors/{vendor}/step`           | The vendor's current step and status          |
+| `acceptVendorTerms`  | `POST` | `/vendors/{vendor}/disclaimers`    | Record vendor terms acceptance (no session)   |
+| `postOnboardingStep` | `POST` | `/sessions/{id}/onboarding/{step}` | Send or verify the vendor's email or SMS code |
+
 ---
 
 ### 3. State shape
@@ -690,15 +727,17 @@ graph LR
 
 ### Appendix — key source files
 
-| File                   | Responsibility                                       |
-| ---------------------- | ---------------------------------------------------- |
-| `src/KycController.ts` | Stateful orchestrator, phase machine.                |
-| `src/KycService.ts`    | Stateless UKYC HTTP client + superstruct validation. |
-| `src/crypto.ts`        | X25519 ECDH + AES-256-GCM credential decryption.     |
-| `src/selectors.ts`     | Memoized selectors over controller state.            |
-| `src/types.ts`         | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.  |
-| `src/countryCodes.ts`  | ISO alpha-2 → alpha-3 mapping.                       |
-| `src/index.ts`         | Public exports (no barrel wildcards).                |
+| File                                | Responsibility                                       |
+| ----------------------------------- | ---------------------------------------------------- |
+| `src/KycController.ts`              | Stateful orchestrator, phase machine.                |
+| `src/VendorOnboardingController.ts` | Follows the step kyc-api decides per vendor.         |
+| `src/ukyc/sessionAuthorization.ts`  | Opens a UKYC session and wraps its authorizations.   |
+| `src/KycService.ts`                 | Stateless UKYC HTTP client + superstruct validation. |
+| `src/crypto.ts`                     | X25519 ECDH + AES-256-GCM credential decryption.     |
+| `src/selectors.ts`                  | Memoized selectors over controller state.            |
+| `src/types.ts`                      | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.  |
+| `src/countryCodes.ts`               | ISO alpha-2 → alpha-3 mapping.                       |
+| `src/index.ts`                      | Public exports (no barrel wildcards).                |
 
 Reference client (metamask-mobile):
 
