@@ -81,6 +81,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A supplied `targets` list takes precedence over `closeAll` and `symbols`, and an empty `targets` list closes nothing instead of falling through to close-all. An omitted or empty legacy `symbols` list still closes every position
   - Venues without a fee setter get no fee lookup, and a bounded subscription allowance is reserved venue by venue, so two venues cannot both spend the same remaining allowance
   - Tagged close targets work in single-venue and multi-venue execution, including per-position fallbacks. Missing or throwing venues retain explicit per-target failures, and a venue whose position lookup fails during close-all is reported in `failures` rather than treated as having nothing to close
+- Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
+- Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
+
+### Removed
+
+- **BREAKING:** Remove the unused `PERPS_EVENT_PROPERTY.AB_TEST_BUTTON_COLOR` property, the `PERPS_EVENT_VALUE.AB_TEST` values, the `perps.screen.*` and `perps.ui.*` members of `PerpsMeasurementName`, and the `PerpsTraceOperations.MarketData` operation. No Core code imports them, and no checked-in Mobile or Extension source imports them ([#11604](https://github.com/MetaMask/core/pull/11604))
 
 ### Fixed
 
@@ -106,15 +112,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Hyperliquid `prepareTradingWallet` errors include `errorCode` and provider-tagged `errorDetails` even when the signer is locked or the wallet has no exchange account yet. A pending setup step still returns `ready: false` without an error.
   - A structured failure the provider raises itself without details, such as the `ORDER_SIZE_MIN` returned when the venue rejects an opening order below its minimum, now also carries provider-tagged details. `PRICE_MOVED` is unchanged.
   - The original failure is never copied into result fields. It stays the `cause` of the reported error, including when `TradingService` reports a failed `closePosition`, `cancelOrder`, or `flipPosition` result, and when it reports a mixed `closePositions` batch.
-- Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
-- Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
-
-### Removed
-
-- **BREAKING:** Remove the unused `PERPS_EVENT_PROPERTY.AB_TEST_BUTTON_COLOR` property, the `PERPS_EVENT_VALUE.AB_TEST` values, the `perps.screen.*` and `perps.ui.*` members of `PerpsMeasurementName`, and the `PerpsTraceOperations.MarketData` operation. No Core code imports them, and no checked-in Mobile or Extension source imports them ([#11604](https://github.com/MetaMask/core/pull/11604))
-
-### Fixed
-
 - HyperLiquid chase cancels whose child the venue reports gone now read that child's status. A child that filled before the cancel ends the chase as `filled` with its final unfilled size, instead of `canceled` with the size from the last read ([#11592](https://github.com/MetaMask/core/pull/11592))
   - When that status cannot be read, the chase keeps its last status instead of `canceled`. A session kept for HIP-3 collateral cleanup asks for the child's status again on each `getChaseOrders` read until the venue reports it
 - HyperLiquid `getChaseOrders` lists only chases placed by the current account on the current network, so a chase started under another account no longer shows, with its cancel action, after the account or network changes ([#11592](https://github.com/MetaMask/core/pull/11592))
