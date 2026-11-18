@@ -732,33 +732,78 @@ describe('PerpsController', () => {
       expect(controller.state.perpsBalances).toBe(previous.perpsBalances);
     });
 
-    it('clears restored balances before treating a selection as unchanged', () => {
-      (mockMessenger.subscribe as Mock).mockClear();
-      const restoredController = new TestablePerpsController({
-        messenger: mockMessenger,
-        infrastructure: mockInfrastructure,
-        state: {
-          accountState: accountState('100'),
-          perpsBalances: {
-            hyperliquid: {
-              totalBalance: '100',
-              unrealizedPnl: '0',
-              lastUpdated: 1,
-            },
-          },
-        },
-      });
+    it('ignores late account frames after the account tree clears its selection', () => {
+      setupAggregatedMode();
+      const consumer = vi.fn();
+      controller.subscribeToAccount({ callback: consumer });
+      const callback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      callback(accountState('100'));
 
       (mockMessenger.subscribe as Mock).mock.calls
         .filter(
           ([event]) =>
             event === 'AccountTreeController:selectedAccountGroupChange',
         )
-        .forEach(([, handler]) => handler('group-1', 'group-1'));
+        .forEach(([, handler]) => handler('', 'group-1'));
 
-      expect(restoredController.state.accountState).toBeNull();
-      expect(restoredController.state.perpsBalances).toStrictEqual({});
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual({});
+      callback(accountState('200'));
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual({});
+      expect(consumer).toHaveBeenLastCalledWith(
+        expect.objectContaining({ totalBalance: '200' }),
+        expect.any(Object),
+      );
     });
+
+    it.each(['no update', 'null', 'snapshot'])(
+      'reconciles restored balances when %s precedes the first selection event',
+      (liveUpdate) => {
+        (mockMessenger.subscribe as Mock).mockClear();
+        controller = new TestablePerpsController({
+          messenger: mockMessenger,
+          infrastructure: mockInfrastructure,
+          state: {
+            accountState: accountState('100'),
+            perpsBalances: {
+              lighter: {
+                totalBalance: '100',
+                unrealizedPnl: '0',
+                lastUpdated: 1,
+              },
+            },
+          },
+        });
+        setupAggregatedMode();
+        if (liveUpdate !== 'no update') {
+          controller.subscribeToAccount({ callback: vi.fn() });
+          const callback =
+            mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+          callback(liveUpdate === 'null' ? null : accountState('200'));
+          expect(controller.state.perpsBalances.lighter).toBeUndefined();
+        }
+
+        (mockMessenger.subscribe as Mock).mock.calls
+          .filter(
+            ([event]) =>
+              event === 'AccountTreeController:selectedAccountGroupChange',
+          )
+          .forEach(([, handler]) => handler('group-1', 'group-1'));
+
+        if (liveUpdate === 'snapshot') {
+          expect(controller.state.accountState?.totalBalance).toBe('200');
+          expect(controller.state.perpsBalances.hyperliquid?.totalBalance).toBe(
+            '200',
+          );
+          expect(controller.state.perpsBalances.lighter).toBeUndefined();
+        } else {
+          expect(controller.state.accountState).toBeNull();
+          expect(controller.state.perpsBalances).toStrictEqual({});
+        }
+      },
+    );
 
     it('clears balances on an actual selected account change', () => {
       setupAggregatedMode();

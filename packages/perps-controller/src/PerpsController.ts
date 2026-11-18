@@ -1542,23 +1542,25 @@ export class PerpsController extends BaseController<
     const hasRestoredBalances =
       this.state.accountState !== null ||
       Object.keys(this.state.perpsBalances).length > 0;
-    let selectedTradingAddress = hasRestoredBalances
+    this.#selectedTradingAddress = hasRestoredBalances
       ? undefined
       : getSelectedEvmAccountFromMessenger(
           this.messenger,
         )?.address.toLowerCase();
-    const forgetRegisteredTradingAddresses = (): void => {
+    const updateSelectedTradingAccount = (deselected = false): void => {
       this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
-      const switchedAccount = getSelectedEvmAccountFromMessenger(
-        this.messenger,
-      );
-      const nextAddress = switchedAccount?.address.toLowerCase();
+      const switchedAccount = deselected
+        ? undefined
+        : getSelectedEvmAccountFromMessenger(this.messenger);
+      const nextAddress = deselected
+        ? null
+        : switchedAccount?.address.toLowerCase();
       // The account tree can re-emit its current selection on reinitialization.
       // An unchanged wallet already has live balances, and the stream may dedupe
       // its next update.
-      if (!nextAddress || nextAddress !== selectedTradingAddress) {
-        selectedTradingAddress = nextAddress;
+      if (!nextAddress || nextAddress !== this.#selectedTradingAddress) {
+        this.#selectedTradingAddress = nextAddress;
         this.update((draft) => {
           draft.accountState = null;
           draft.perpsBalances = {};
@@ -1579,13 +1581,12 @@ export class PerpsController extends BaseController<
           });
       }
     };
-    this.messenger.subscribe(
-      'AccountsController:selectedAccountChange',
-      forgetRegisteredTradingAddresses,
+    this.messenger.subscribe('AccountsController:selectedAccountChange', () =>
+      updateSelectedTradingAccount(),
     );
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      forgetRegisteredTradingAddresses,
+      (groupId) => updateSelectedTradingAccount(groupId === ''),
     );
 
     this.providers = new Map();
@@ -5687,6 +5688,9 @@ export class PerpsController extends BaseController<
   // Account events also fence round trips that finish at the original address.
   #selectedAccountGeneration = 0;
 
+  // Undefined when restored balances have no known owner. Null on deselection.
+  #selectedTradingAddress: string | null | undefined;
+
   readonly #userSnapshotRequests = new Map<
     string,
     { provider: PerpsProvider; promise: Promise<PerpsUserDataSnapshot> }
@@ -7760,20 +7764,25 @@ export class PerpsController extends BaseController<
                   this.messenger,
                 )?.address.toLowerCase()
               : getCaipAccountAddress(params.accountId);
-          const isSelectedAccountStream = (): boolean =>
-            streamAddress !== undefined &&
-            streamAddress ===
-              getSelectedEvmAccountFromMessenger(
-                this.messenger,
-              )?.address.toLowerCase();
           return nextProvider.subscribeToAccount({
             ...params,
             callback: (account, aggregate) => {
               const ownsState =
                 this.activeProviderInstance === nextProvider &&
-                isSelectedAccountStream();
+                this.#selectedTradingAddress !== null &&
+                streamAddress !== undefined &&
+                streamAddress ===
+                  getSelectedEvmAccountFromMessenger(
+                    this.messenger,
+                  )?.address.toLowerCase();
               if (ownsState && account) {
+                const sameWallet =
+                  streamAddress === this.#selectedTradingAddress;
+                this.#selectedTradingAddress = streamAddress;
                 this.update((state) => {
+                  if (!sameWallet) {
+                    state.perpsBalances = {};
+                  }
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
                   state.lastError = null;
@@ -7811,8 +7820,7 @@ export class PerpsController extends BaseController<
                         // rather than keep exposing a stale value as live.
                         delete state.perpsBalances[providerId];
                       }
-                      // A pending venue has not reported on this stream yet.
-                      // Its persisted entry stays until it reports a snapshot.
+                      // Keep pending venues' balances only for the same wallet.
                     }
                   } else {
                     const directVenueId =
@@ -7840,9 +7848,12 @@ export class PerpsController extends BaseController<
                 this.update((state) => {
                   state.accountState = null;
                   state.lastUpdateTimestamp = Date.now();
-                  if (aggregate) {
-                    // A null total may still contain pending venues. Only
-                    // explicit unavailability invalidates their balances.
+                  if (
+                    aggregate &&
+                    streamAddress === this.#selectedTradingAddress
+                  ) {
+                    // A null total may still contain pending venues. For the
+                    // same wallet, only explicit unavailability clears them.
                     for (const providerId of aggregate.unavailableProviders) {
                       delete state.perpsBalances[providerId];
                     }
