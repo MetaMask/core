@@ -73,6 +73,11 @@ import {
   normalizeRampsAssetId,
   providerServesAsset,
 } from './providerAvailability.js';
+import {
+  findFirstProviderById,
+  getPreviouslyUsedProviders,
+} from './providerHistory.js';
+import type { RampsProviderHistoryEntry } from './providerHistory.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
@@ -896,12 +901,19 @@ export type RampsControllerState = {
    */
   vbaCustomerAbilities: NeoBankCustomerAbilities | null;
   /**
-   * Whether the currently selected provider was auto-selected by the system
-   * (no order history, no Transak) rather than chosen by the user or derived
-   * from order history. When true, the UI should silently switch providers on
-   * token conflict instead of showing the "Token Not Available" modal.
+   * Whether the app chose the currently selected provider (from order
+   * history or API ranking) rather than the user. When true, the UI should
+   * silently switch providers on token conflict instead of showing the
+   * "Token Not Available" modal.
    */
   providerAutoSelected: boolean;
+  /**
+   * The provider the user chose themselves in this session, set only through
+   * `setSelectedProvider(provider, { userSelected: true })`. A system switch
+   * to another provider keeps it, so {@link RampsController.selectProviderForAsset}
+   * returns to it on the next token it offers. Not persisted.
+   */
+  userSelectedProviderId: string | null;
 };
 
 /**
@@ -992,6 +1004,12 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
+  userSelectedProviderId: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
 } satisfies StateMetadata<RampsControllerState>;
 
 /**
@@ -1058,6 +1076,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     vbaAutorampListFetchedAt: null,
     vbaCustomerAbilities: null,
     providerAutoSelected: false,
+    userSelectedProviderId: null,
   };
 }
 
@@ -1123,6 +1142,7 @@ function resetDependentResources(
     resetResource(state, key, defaultState[key]);
   }
   state.providerAutoSelected = false;
+  state.userSelectedProviderId = null;
 }
 
 // === MESSENGER ===
@@ -1416,6 +1436,22 @@ type OrderPollingMetadata = {
   errorCount: number;
 };
 
+/**
+ * Options for {@link RampsController.selectProviderForAsset}.
+ */
+export type SelectProviderForAssetOptions = {
+  /**
+   * Provider ids that win over order history (but not over the user's own
+   * pick) when they offer the asset. The first one that offers it is chosen.
+   * Ignored for a `null` asset.
+   */
+  aheadOfHistory?: string[];
+  /** Completed buys from outside controller state, merged into history. */
+  extraHistory?: RampsProviderHistoryEntry[];
+  /** Provider ids to leave out, e.g. one that returned no payment methods. */
+  excludeProviderIds?: string[];
+};
+
 // === CONTROLLER DEFINITION ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -1425,6 +1461,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setUserRegion',
   'setSelectedProvider',
   'setSelectedProviderForAsset',
+  'selectProviderForAsset',
   'init',
   'getCountries',
   'getTokens',
@@ -2223,15 +2260,19 @@ export class RampsController extends BaseController<
    * @param options.autoSelected - When true, marks the provider as system-guessed
    *   (soft selection). The UI will silently auto-switch on token conflict instead
    *   of showing the "Token Not Available" modal. Defaults to false.
+   * @param options.userSelected - When true, also records the provider as the
+   *   user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+   *   Defaults to false. Passing `null` as the provider always clears the pick.
    */
   setSelectedProvider(
     providerOrId: string | Provider | null,
-    options?: { autoSelected?: boolean },
+    options?: { autoSelected?: boolean; userSelected?: boolean },
   ): void {
     if (providerOrId === null) {
       this.update((state) => {
         state.providers.selected = null;
         state.providerAutoSelected = false;
+        state.userSelectedProviderId = null;
       });
       return;
     }
@@ -2240,22 +2281,18 @@ export class RampsController extends BaseController<
 
     // If a full Provider object is passed, store it directly (avoids
     // depending on state.providers.data being populated).
-    if (typeof providerOrId !== 'string') {
-      this.update((state) => {
-        state.providers.selected = providerOrId;
-        state.providerAutoSelected = options?.autoSelected ?? false;
-      });
-      return;
-    }
-
-    // ID string: look up from state
-    const providers = this.state.providers.data;
-    const provider = providers?.find((prov) => prov.id === providerOrId);
+    const provider =
+      typeof providerOrId === 'string'
+        ? this.state.providers.data?.find((prov) => prov.id === providerOrId)
+        : providerOrId;
 
     if (provider) {
       this.update((state) => {
         state.providers.selected = provider;
         state.providerAutoSelected = options?.autoSelected ?? false;
+        if (options?.userSelected) {
+          state.userSelectedProviderId = provider.id;
+        }
       });
     }
   }
@@ -2316,23 +2353,96 @@ export class RampsController extends BaseController<
       return false;
     }
 
-    const preferredIds = this.#getPreferredProviderIdsFromOrders().map(
-      normalizeHeadlessProviderId,
-    );
-    const preferred = preferredIds
-      .map((preferredId) =>
-        compatible.find(
-          (provider) =>
-            normalizeHeadlessProviderId(provider.id) === preferredId,
-        ),
-      )
-      .find((provider) => provider !== undefined);
+    const [preferred] = getPreviouslyUsedProviders({
+      providers: compatible,
+      orders: this.state.orders,
+    });
 
     this.setSelectedProvider(preferred ?? compatible[0], {
       autoSelected: true,
       ...options,
     });
     return true;
+  }
+
+  /**
+   * Selects the provider for the given asset and returns its id.
+   *
+   * Among the providers in `providers.data` that offer the asset (minus
+   * `excludeProviderIds`), the first match wins:
+   * 1. The user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+   * 2. The first provider in `aheadOfHistory`.
+   * 3. The provider of the most recent completed buy, across all accounts,
+   *    from controller orders plus `extraHistory`.
+   * 4. The first provider in API ranking order.
+   *
+   * With a `null` asset (no token chosen yet) every provider is a candidate
+   * and step 2 is skipped, since that list only applies to assets its
+   * providers offer.
+   *
+   * The selection is marked auto-selected unless it is the user's own pick.
+   * The user's pick is kept when another provider is chosen, so it comes back
+   * on the next asset it offers.
+   *
+   * @param assetId - CAIP-19 asset id the user is buying, or `null`.
+   * @param options - Optional inputs.
+   * @param options.aheadOfHistory - Provider ids that win over history.
+   * @param options.extraHistory - Completed buys from outside controller state.
+   * @param options.excludeProviderIds - Provider ids to leave out.
+   * @returns The selected provider id, or `null` when providers are not loaded
+   *   or none offers the asset (the selection is left unchanged).
+   */
+  selectProviderForAsset(
+    assetId: string | null,
+    options?: SelectProviderForAssetOptions,
+  ): string | null {
+    const providers = this.state.providers.data;
+    if (!providers?.length) {
+      return null;
+    }
+
+    const excluded = new Set(
+      (options?.excludeProviderIds ?? []).map(normalizeHeadlessProviderId),
+    );
+    const candidates = providers.filter(
+      (provider) =>
+        !excluded.has(normalizeHeadlessProviderId(provider.id)) &&
+        (assetId === null || providerServesAsset(provider, assetId)),
+    );
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const { userSelectedProviderId } = this.state;
+    const userPick = userSelectedProviderId
+      ? findFirstProviderById(candidates, [userSelectedProviderId])
+      : undefined;
+    const aheadOfHistory =
+      assetId === null ? [] : (options?.aheadOfHistory ?? []);
+    const [previouslyUsed] = getPreviouslyUsedProviders({
+      providers: candidates,
+      orders: this.state.orders,
+      extraHistory: options?.extraHistory,
+    });
+    const chosen =
+      userPick ??
+      findFirstProviderById(candidates, aheadOfHistory) ??
+      previouslyUsed ??
+      candidates[0];
+    const autoSelected = chosen !== userPick;
+
+    // Compared by reference so a stale copy of the same provider is replaced
+    // once a fresh provider list has arrived.
+    if (
+      this.state.providers.selected !== chosen ||
+      this.state.providerAutoSelected !== autoSelected
+    ) {
+      this.update((state) => {
+        state.providers.selected = chosen;
+        state.providerAutoSelected = autoSelected;
+      });
+    }
+    return chosen.id;
   }
 
   /**
@@ -3565,14 +3675,14 @@ export class RampsController extends BaseController<
     //    `preferredProviderIds` when supplied, otherwise completed-order
     //    history. Takes priority over Transak Native to preserve an existing
     //    KYC relationship and avoid churn.
-    const preferred =
-      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
-
-    for (const preferredId of preferred) {
-      const match = supporting.find((provider) => provider.id === preferredId);
-      if (match) {
-        return [match.id];
-      }
+    const preferred = preferredProviderIds
+      ? findFirstProviderById(supporting, preferredProviderIds)
+      : getPreviouslyUsedProviders({
+          providers: supporting,
+          orders: this.state.orders,
+        })[0];
+    if (preferred) {
+      return [preferred.id];
     }
 
     // 3. A native provider (e.g. Transak Native).
@@ -3673,35 +3783,6 @@ export class RampsController extends BaseController<
 
     const selectedId = this.state.providers.selected?.id;
     return selectedId ? [selectedId] : [];
-  }
-
-  /**
-   * Derives an ordered list of provider IDs from the user's completed-order
-   * history, most recently completed first, with duplicates removed.
-   *
-   * Reads only this controller's own normalized order state, so it carries no
-   * dependency on any client-specific order representation.
-   *
-   * @returns Provider IDs ordered by most recent completed order.
-   */
-  #getPreferredProviderIdsFromOrders(): string[] {
-    const orderedIds: string[] = [];
-
-    const completedOrders = this.state.orders
-      .filter(
-        (order) =>
-          order.status === RampsOrderStatus.Completed && order.provider?.id,
-      )
-      .sort((orderA, orderB) => orderB.createdAt - orderA.createdAt);
-
-    for (const order of completedOrders) {
-      const id = order.provider?.id;
-      if (id && !orderedIds.includes(id)) {
-        orderedIds.push(id);
-      }
-    }
-
-    return orderedIds;
   }
 
   // === ORDER MANAGEMENT ===

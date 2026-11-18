@@ -203,6 +203,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -284,6 +285,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -2660,6 +2662,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -2707,6 +2710,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaCustomerAbilities": null,
           }
         `);
@@ -2798,6 +2802,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -5935,6 +5940,429 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected).toStrictEqual(compatible);
         },
       );
+    });
+  });
+
+  describe('selectProviderForAsset', () => {
+    const ETH = 'eip155:1/slip44:60';
+    const PEPE = 'eip155:1/erc20:0x6982508145454ce325ddbe47a25d4ec3d2311933';
+
+    const makeProvider = (id: string, assetIds: string[]): Provider =>
+      createMockProvider({
+        id,
+        name: id,
+        supportedCryptoCurrencies: Object.fromEntries(
+          assetIds.map((assetId) => [assetId, true]),
+        ),
+      });
+
+    // API ranking order: transak-native first, as in US regions.
+    const transakNative = makeProvider('transak-native', [ETH]);
+    const crossmint = makeProvider('crossmint', [PEPE]);
+    const paypal = makeProvider('paypal', [ETH, PEPE]);
+    const robinhood = makeProvider('robinhood', [ETH]);
+    const moonpay = makeProvider('moonpay', [ETH, PEPE]);
+    const providers = [transakNative, crossmint, paypal, robinhood, moonpay];
+
+    const completedBuy = (
+      providerId: string,
+      createdAt: number | string,
+      overrides: Partial<RampsOrder> = {},
+    ): RampsOrder =>
+      createMockOrder({
+        id: `/providers/${providerId}/orders/${String(createdAt)}`,
+        provider: createMockProvider({ id: providerId }),
+        createdAt: createdAt as number,
+        status: RampsOrderStatus.Completed,
+        orderType: 'BUY',
+        ...overrides,
+      });
+
+    const withProviders = <ReturnValue>(
+      state: Partial<RampsControllerState>,
+      callback: WithControllerCallback<ReturnValue>,
+    ): Promise<ReturnValue> =>
+      withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-az'),
+              providers: createResourceState(providers, null),
+              ...state,
+            },
+          },
+        },
+        callback,
+      );
+
+    it('picks the API ranking when there is no history', async () => {
+      await withProviders({}, ({ controller }) => {
+        expect(controller.selectProviderForAsset(ETH)).toBe('transak-native');
+        expect(controller.state.providers.selected).toStrictEqual(
+          transakNative,
+        );
+        expect(controller.state.providerAutoSelected).toBe(true);
+      });
+    });
+
+    it('picks the provider of the most recent completed buy', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('counts completed buys from every account', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('moonpay', Date.parse('2026-10-10'), {
+              walletAddress: '0x2222222222222222222222222222222222222222',
+            }),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+        },
+      );
+    });
+
+    it('matches prefixed provider ids and text dates from older orders', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('/providers/paypal', '2026-06-15T10:00:00.000Z'),
+            completedBuy('moonpay', Date.parse('2026-10-10')),
+            completedBuy('/providers/robinhood', '2026-08-01T10:00:00.000Z'),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+        },
+      );
+    });
+
+    it('picks a prefixed provider id with a text date when it is the only history', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('/providers/moonpay', '2026-08-01T10:00:00.000Z'),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+        },
+      );
+    });
+
+    it('walks history until a provider offers the asset', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('moonpay', Date.parse('2026-09-01')),
+            completedBuy('robinhood', Date.parse('2026-10-10')),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(PEPE)).toBe('moonpay');
+          expect(controller.selectProviderForAsset(ETH)).toBe('robinhood');
+        },
+      );
+    });
+
+    it('ignores sell orders and orders that are not completed', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('moonpay', Date.parse('2026-09-01'), {
+              orderType: 'SELL',
+            }),
+            completedBuy('paypal', Date.parse('2026-10-01'), {
+              status: RampsOrderStatus.Failed,
+            }),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('transak-native');
+        },
+      );
+    });
+
+    it('merges extraHistory with controller orders by date', async () => {
+      await withProviders(
+        { orders: [completedBuy('paypal', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              extraHistory: [
+                {
+                  providerId: '/providers/moonpay',
+                  completedAt: Date.parse('2025-12-01'),
+                },
+              ],
+            }),
+          ).toBe('paypal');
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              extraHistory: [
+                {
+                  providerId: '/providers/moonpay',
+                  completedAt: '2026-11-01T00:00:00.000Z',
+                },
+              ],
+            }),
+          ).toBe('moonpay');
+        },
+      );
+    });
+
+    it('puts aheadOfHistory ahead of history when the provider offers the asset', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(PEPE, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('crossmint');
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('moonpay');
+          expect(
+            controller.selectProviderForAsset(PEPE, { aheadOfHistory: [] }),
+          ).toBe('moonpay');
+        },
+      );
+    });
+
+    it('leaves out excludeProviderIds', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              excludeProviderIds: ['/providers/moonpay'],
+            }),
+          ).toBe('transak-native');
+        },
+      );
+    });
+
+    it('returns null and keeps the selection when no provider offers the asset', async () => {
+      await withProviders(
+        { providers: createResourceState(providers, robinhood) },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset('eip155:1/erc20:0xdead'),
+          ).toBeNull();
+          expect(controller.state.providers.selected).toStrictEqual(robinhood);
+        },
+      );
+    });
+
+    it('picks from every provider for a null asset and ignores aheadOfHistory', async () => {
+      await withProviders(
+        { orders: [completedBuy('robinhood', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(null, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('robinhood');
+        },
+      );
+      await withProviders({}, ({ controller }) => {
+        expect(
+          controller.selectProviderForAsset(null, {
+            aheadOfHistory: ['crossmint'],
+          }),
+        ).toBe('transak-native');
+      });
+    });
+
+    it('replaces a stale copy of the selected provider with the listed one', async () => {
+      const staleMoonpay = { ...moonpay, supportedCryptoCurrencies: {} };
+      await withProviders(
+        {
+          providers: createResourceState(providers, staleMoonpay),
+          orders: [completedBuy('moonpay', Date.parse('2026-10-10'))],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+          expect(controller.state.providers.selected).toStrictEqual(moonpay);
+        },
+      );
+    });
+
+    it('returns null when providers are not loaded', async () => {
+      await withProviders(
+        { providers: createResourceState([], null) },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBeNull();
+          expect(controller.state.providers.selected).toBeNull();
+        },
+      );
+    });
+
+    it('keeps the user pick ahead of aheadOfHistory and history', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          controller.setSelectedProvider('paypal', { userSelected: true });
+
+          expect(
+            controller.selectProviderForAsset(PEPE, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('paypal');
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('returns to the user pick after a token it does not offer', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          controller.setSelectedProvider('robinhood', { userSelected: true });
+
+          expect(controller.selectProviderForAsset(PEPE)).toBe('moonpay');
+          expect(controller.state.providerAutoSelected).toBe(true);
+          expect(controller.state.userSelectedProviderId).toBe('robinhood');
+
+          expect(controller.selectProviderForAsset(ETH)).toBe('robinhood');
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('skips the user pick when it is excluded', async () => {
+      await withProviders({}, ({ controller }) => {
+        controller.setSelectedProvider('robinhood', { userSelected: true });
+
+        expect(
+          controller.selectProviderForAsset(ETH, {
+            excludeProviderIds: ['robinhood'],
+          }),
+        ).toBe('transak-native');
+        expect(controller.state.userSelectedProviderId).toBe('robinhood');
+      });
+    });
+
+    it('does not publish a state change when the pick is unchanged', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller, rootMessenger }) => {
+          controller.selectProviderForAsset(ETH);
+          const listener = vi.fn();
+          rootMessenger.subscribe('RampsController:stateChange', listener);
+
+          controller.selectProviderForAsset(ETH);
+
+          expect(listener).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('is exposed through the messenger', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ rootMessenger }) => {
+          expect(
+            rootMessenger.call('RampsController:selectProviderForAsset', ETH),
+          ).toBe('moonpay');
+        },
+      );
+    });
+  });
+
+  describe('userSelectedProviderId', () => {
+    const ETH = 'eip155:1/slip44:60';
+    const moonpay = createMockProvider({
+      id: 'moonpay',
+      supportedCryptoCurrencies: { [ETH]: true },
+    });
+    const paypal = createMockProvider({
+      id: 'paypal',
+      supportedCryptoCurrencies: { [ETH]: true },
+    });
+
+    const withProviders = <ReturnValue>(
+      callback: WithControllerCallback<ReturnValue>,
+    ): Promise<ReturnValue> =>
+      withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([moonpay, paypal], null),
+            },
+          },
+        },
+        callback,
+      );
+
+    it('is set only when the selection is marked as the user pick', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('moonpay');
+        controller.setSelectedProvider(paypal, { autoSelected: true });
+        expect(controller.state.userSelectedProviderId).toBeNull();
+
+        controller.setSelectedProvider(paypal, { userSelected: true });
+        expect(controller.state.userSelectedProviderId).toBe('paypal');
+
+        controller.setSelectedProvider('moonpay');
+        expect(controller.state.userSelectedProviderId).toBe('paypal');
+      });
+    });
+
+    it('ignores an unknown provider id', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('unknown', { userSelected: true });
+
+        expect(controller.state.userSelectedProviderId).toBeNull();
+        expect(controller.state.providers.selected).toBeNull();
+      });
+    });
+
+    it('is cleared when the selection is cleared', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('paypal', { userSelected: true });
+
+        controller.setSelectedProvider(null);
+
+        expect(controller.state.userSelectedProviderId).toBeNull();
+      });
+    });
+
+    it('is cleared when the region changes', async () => {
+      await withProviders(async ({ controller }) => {
+        controller.setSelectedProvider('paypal', { userSelected: true });
+
+        await controller.setUserRegion('fr');
+
+        expect(controller.state.userSelectedProviderId).toBeNull();
+      });
+    });
+
+    it('is not persisted', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('paypal', { userSelected: true });
+
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).not.toHaveProperty('userSelectedProviderId');
+      });
     });
   });
 
@@ -9329,6 +9757,50 @@ describe('RampsController', () => {
             });
 
             expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('matches a prefixed order provider id with a text date to a canonical provider', async () => {
+        const canonicalMoonpay = { ...moonpay, id: 'moonpay' };
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [transak, canonicalMoonpay],
+                  null,
+                ),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: '2026-08-01T10:00:00.000Z' as unknown as number,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['moonpay']);
           },
         );
       });
@@ -15488,6 +15960,7 @@ describe('RampsController', () => {
       'setUserRegion',
       'setSelectedProvider',
       'setSelectedProviderForAsset',
+      'selectProviderForAsset',
       'setSelectedToken',
       'setSelectedPaymentMethod',
       'addAutoramp',
