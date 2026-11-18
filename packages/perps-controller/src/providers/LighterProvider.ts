@@ -1239,12 +1239,15 @@ const scaleLeverageFromMargin = (
   defaultInitial: number | undefined,
 ): number => {
   let margin = defaultInitial === undefined ? null : defaultInitial / 100;
-  if (
-    held &&
-    (held.initialMarginFraction !== undefined ||
-      parseStrictDecimal(held.position) !== 0)
-  ) {
-    margin = parseStrictDecimal(held.initialMarginFraction);
+  if (held) {
+    const accountMargin = parseStrictDecimal(held.initialMarginFraction);
+    const isFlat = parseStrictDecimal(held.position) === 0;
+    if (
+      !isFlat ||
+      (held.initialMarginFraction !== undefined && accountMargin !== 0)
+    ) {
+      margin = accountMargin;
+    }
   }
   return margin !== null && margin > 0 ? 100 / margin : Number.NaN;
 };

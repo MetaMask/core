@@ -631,13 +631,64 @@ describe('HyperLiquidSubscriptionService', () => {
       onAccount({ dex: '', clearinghouseState: {} });
       expect(account).toHaveBeenLastCalledWith(null);
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
-      onOrders({ dex: '', orders: [] });
+      const order = {
+        oid: 1,
+        coin: 'BTC',
+        orderType: 'Stop Market',
+        isTrigger: true,
+        isPositionTpsl: true,
+        reduceOnly: true,
+        sz: '0',
+        origSz: '0',
+        limitPx: '40000',
+        triggerPx: '40000',
+      };
+      onOrders({ dex: '', orders: [order] });
+      expect(hyperLiquidAdapterModule.adaptOrderFromSDK).toHaveBeenCalledWith(
+        order,
+        undefined,
+      );
       expect(positions).toHaveBeenLastCalledWith([
         expect.objectContaining({ size: '0.1' }),
       ]);
 
       unsubscribePositions();
       unsubscribeAccount();
+    });
+
+    it('invalidates a balance replayed after an OI-only subscription warmed the cache', async () => {
+      const frames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          frames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const unsubscribeOi = service.subscribeToOICaps({ callback: vi.fn() });
+      const onAccount = await frames.promise;
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+          withdrawable: '100',
+        },
+      });
+
+      const callback = vi.fn();
+      const unsubscribeAccount = service.subscribeToAccount({ callback });
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          totalBalance: expect.any(String),
+        }),
+      );
+      onAccount({ dex: '', clearinghouseState: {} });
+      expect(callback).toHaveBeenLastCalledWith(null);
+
+      unsubscribeAccount();
+      unsubscribeOi();
     });
 
     it('reports DEX coverage for positions only once that DEX has published', async () => {

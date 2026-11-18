@@ -2813,7 +2813,8 @@ export class HyperLiquidSubscriptionService {
             this.#positionSubscriberCount > 0
           ) {
             // Get cached positions for TP/SL processing
-            const cachedPositions = this.#dexPositionsCache.get(cacheKey) ?? [];
+            const cachedPositions =
+              this.getCachedPositionsForDex(cacheKey) ?? [];
 
             // Extract TP/SL and process orders
             const {
@@ -3775,6 +3776,9 @@ export class HyperLiquidSubscriptionService {
     // spot-inclusive value.
     const account = this.#aggregateAccountStates();
     if (account) {
+      if (this.#accountSubscribers.size === 1) {
+        this.#cachedAccountHash = this.#hashAccountState(account);
+      }
       callback(account);
     }
 

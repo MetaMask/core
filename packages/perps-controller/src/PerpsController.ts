@@ -7633,11 +7633,13 @@ export class PerpsController extends BaseController<
           nextProvider.subscribeToAccount({
             ...params,
             callback: (account: AccountState | null) => {
-              if (account) {
+              if (this.activeProviderInstance === nextProvider) {
                 this.update((state) => {
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
-                  state.lastError = null;
+                  if (account) {
+                    state.lastError = null;
+                  }
                 });
               }
               originalCallback(account);
