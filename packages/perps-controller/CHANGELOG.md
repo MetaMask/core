@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove the unused `PERPS_EVENT_PROPERTY.AB_TEST_BUTTON_COLOR` property, the `PERPS_EVENT_VALUE.AB_TEST` values, the `perps.screen.*` and `perps.ui.*` members of `PerpsMeasurementName`, and the `PerpsTraceOperations.MarketData` operation. No Core code imports them, and no checked-in Mobile or Extension source imports them ([#11604](https://github.com/MetaMask/core/pull/11604))
 
+### Fixed
+
+- Send the `add_margin` and `remove_margin` Risk Management actions through `PERPS_EVENT_VALUE` constants instead of string literals ([#11608](https://github.com/MetaMask/core/pull/11608))
+
 ## [24.1.0]
 
 ### Added
