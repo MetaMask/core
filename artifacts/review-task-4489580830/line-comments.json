@@ -1,0 +1,13 @@
+{
+  "pr_number": null,
+  "recommendation": "APPROVE",
+  "summary": "Additive PerpsController.resolveWithdrawalRoute query shares withdraw's resolution and PROVIDER_ROUTE_REQUIRED refusal; no-arg getAccountSupport unchanged. Full package suite and static checks pass. One nitpick: placeholder changelog PR link.",
+  "comments": [
+    {
+      "path": "packages/perps-controller/CHANGELOG.md",
+      "line": 9,
+      "body": "This links PR #11532, which does not exist yet. Replace with the real PR number when the pull request is opened.",
+      "severity": "nitpick"
+    }
+  ]
+}

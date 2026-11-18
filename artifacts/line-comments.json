@@ -1,0 +1,6 @@
+{
+  "pr_number": 11461,
+  "recommendation": "COMMENT",
+  "summary": "Round 3 at d1b138eb829 plus uncommitted fixes. All code findings from rounds 1 and 2 are resolved, including F9: Lighter now emits null instead of an all-zero AccountState on a wallet switch or deselection. Nits N1-N3 are resolved. One minor author-owed item remains (F8): publish the client compatibility matrix with the Extension row, now drafted in artifacts/pr-11461-description.md. It is unanchored, so there are no line comments.",
+  "comments": []
+}
