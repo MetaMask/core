@@ -160,6 +160,39 @@ const MOCK_VAULT_RATE_RESPONSE = {
   indexer_lag_seconds: 4,
 };
 
+const MOCK_VAULTS_RESPONSE = {
+  vaults: [
+    {
+      chain_id: 143,
+      vault_address: MOCK_VAULT_ADDRESS,
+      vault_key: 'standard',
+      name: 'Money Account mUSD Vault',
+      asset_symbol: 'mUSD',
+      asset_decimals: 6,
+      asset_contract_address: '0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      current_apy: '0.0412',
+      as_of_block: 21455123,
+      as_of_timestamp: '2026-05-10T12:34:56Z',
+      data_freshness: 'live' as const,
+      indexer_lag_seconds: 4,
+    },
+    {
+      chain_id: 143,
+      vault_address: '0x4444444444444444444444444444444444444444',
+      vault_key: 'premium',
+      name: 'Money Account mUSD Premium Vault',
+      asset_symbol: 'mUSD',
+      asset_decimals: 6,
+      asset_contract_address: '0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      current_apy: '0.0518',
+      as_of_block: 21455123,
+      as_of_timestamp: '2026-05-10T12:34:56Z',
+      data_freshness: 'live' as const,
+      indexer_lag_seconds: 4,
+    },
+  ],
+};
+
 const MOCK_TX_HASH =
   '0x8b6975a5d81b44bbe4487b5e5237e25be7ffc71e38d48146e8a501299fddc9f1';
 const MOCK_OTHER_TX_HASH =
@@ -425,6 +458,9 @@ describe('MoneyAccountApiDataService', () => {
       )
         .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
         .reply(200, MOCK_VAULT_RATE_RESPONSE);
+      const vaultsScope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], requestHeaders)
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
       const vaultShareValuationsScope = nock(
         MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
         requestHeaders,
@@ -441,16 +477,18 @@ describe('MoneyAccountApiDataService', () => {
       await service.fetchHistory(MOCK_ADDRESS);
       await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
       await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      await service.fetchVaults();
       await service.fetchVaultShareValuations(MOCK_ADDRESS, {
         txHashes: [MOCK_TX_HASH],
       });
 
-      expect(getBearerToken).toHaveBeenCalledTimes(6);
+      expect(getBearerToken).toHaveBeenCalledTimes(7);
       positionsScope.done();
       interestScope.done();
       historyScope.done();
       rateHistoryScope.done();
       vaultRateScope.done();
+      vaultsScope.done();
       vaultShareValuationsScope.done();
       service.destroy();
     });
@@ -1261,6 +1299,50 @@ describe('MoneyAccountApiDataService', () => {
         { chainId: 143 },
       );
       expect(result).toStrictEqual(MOCK_VAULT_RATE_RESPONSE);
+      service.destroy();
+    });
+  });
+
+  describe('fetchVaults', () => {
+    it('returns the vault catalog', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, MOCK_VAULTS_RESPONSE);
+
+      const result = await service.fetchVaults();
+      expect(result).toStrictEqual(MOCK_VAULTS_RESPONSE);
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiResponseValidationError on a malformed response without retrying', async () => {
+      const { service } = createService(Env.DEV);
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .once()
+        .reply(200, { vaults: [{ not: 'valid' }] });
+
+      await expect(service.fetchVaults()).rejects.toThrow(
+        MoneyAccountApiResponseValidationError,
+      );
+      scope.done();
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiHttpError on a 5xx response', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(503);
+
+      const error: unknown = await service
+        .fetchVaults()
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(MoneyAccountApiHttpError);
       service.destroy();
     });
   });

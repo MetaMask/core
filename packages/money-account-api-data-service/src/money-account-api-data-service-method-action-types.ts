@@ -80,6 +80,17 @@ export type MoneyAccountApiDataServiceFetchVaultRateAction = {
 };
 
 /**
+ * Fetches the environment's vault catalog, including each vault's current
+ * APY.
+ *
+ * @returns The vault catalog response.
+ */
+export type MoneyAccountApiDataServiceFetchVaultsAction = {
+  type: `MoneyAccountApiDataService:fetchVaults`;
+  handler: MoneyAccountApiDataService['fetchVaults'];
+};
+
+/**
  * Batch-values vault share movements in past transactions. Each result
  * reports the shares moved and what they were worth in the vault's
  * underlying asset at that block. Unknown transactions come back with
@@ -120,5 +131,6 @@ export type MoneyAccountApiDataServiceMethodActions =
   | MoneyAccountApiDataServiceFetchHistoryAction
   | MoneyAccountApiDataServiceFetchRateHistoryAction
   | MoneyAccountApiDataServiceFetchVaultRateAction
+  | MoneyAccountApiDataServiceFetchVaultsAction
   | MoneyAccountApiDataServiceFetchVaultShareValuationsAction
   | MoneyAccountApiDataServiceFetchVbaTransfersAction;
