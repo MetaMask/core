@@ -2101,12 +2101,17 @@ export class AssetsController extends BaseController<
    * @param accountId - The account ID to add the custom asset for.
    * @param assetId - The CAIP-19 asset ID to add.
    * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
+   * @param bypassServerCache - Also bypass server-side HTTP caches (e.g. the
+   * Accounts API's 60s cache) on the force-fetch, e.g. right after a
+   * transaction that changed this asset's balance. Only applies when
+   * `accountId` belongs to the selected account group.
    */
   @syncAusUserAssets
   async addCustomAsset(
     accountId: AccountId,
     assetId: Caip19AssetId,
     pendingMetadata?: PendingTokenMetadata,
+    bypassServerCache?: boolean,
   ): Promise<void> {
     const normalizedAssetId = normalizeAssetId(assetId);
 
@@ -2177,6 +2182,7 @@ export class AssetsController extends BaseController<
         dataTypes: ['balance', 'metadata', 'price'],
         assetTypes: ['fungible'],
         forceUpdate: true,
+        bypassServerCache,
       });
     }
 
