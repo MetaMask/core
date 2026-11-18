@@ -5715,7 +5715,7 @@
       "count": 8
     },
     "typescript/no-unsafe-return": {
-      "count": 22
+      "count": 21
     },
     "vitest/no-conditional-in-test": {
       "count": 24
@@ -5753,9 +5753,6 @@
     }
   },
   "packages/transaction-pay-controller/src/utils/source-amounts.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 40
-    },
     "typescript/no-unsafe-call": {
       "count": 4
     },
