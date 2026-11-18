@@ -24,7 +24,10 @@ import {
   parseAssetName,
 } from '../../../src/utils/hyperLiquidAdapter.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 // Mock HyperLiquid SDK types
 interface MockSubscription {
@@ -887,8 +890,9 @@ describe('HyperLiquidSubscriptionService', () => {
       );
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
 
+      const accountCallback = vi.fn();
       const unsubscribe = hip3Service.subscribeToAccount({
-        callback: vi.fn(),
+        callback: accountCallback,
       });
       await vi.runAllTimersAsync();
 
@@ -927,9 +931,29 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+      expect(
+        accountCallback.mock.lastCall?.[0].subAccountBreakdown,
+      ).not.toHaveProperty('flx');
 
       await hip3Service.updateFeatureFlags(false, ['xyz'], [], []);
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+      expect(
+        accountCallback.mock.lastCall?.[0].subAccountBreakdown,
+      ).not.toHaveProperty('xyz');
+
+      // A retained stream can deliver another update after the DEX is disabled.
+      callbacks.get('xyz')?.({
+        dex: 'xyz',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+          withdrawable: '0',
+        },
+      });
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
 
       await hip3Service.updateFeatureFlags(true, [], [], [], false);
       expect(hip3Service.getFreshPositionsForAllDexs()).toBeNull();
@@ -938,8 +962,28 @@ describe('HyperLiquidSubscriptionService', () => {
     });
 
     it('does not certify a main-only snapshot after DEX discovery times out', async () => {
-      const discoverEnabledDexs = vi.fn(
-        () => new Promise<string[]>(() => undefined),
+      const accountId = 'eip155:1:0x0000000000000000000000000000000000000001';
+      const userAddress = '0x0000000000000000000000000000000000000001';
+      mockWalletService.getUserAddressWithDefault.mockImplementation(
+        async (id) =>
+          id === accountId
+            ? userAddress
+            : '0x0000000000000000000000000000000000000002',
+      );
+      const discovery = createDeferred<string[]>();
+      const rediscovery = createDeferred<string[]>();
+      const discoverEnabledDexs = vi
+        .fn<() => Promise<string[]>>()
+        .mockReturnValueOnce(discovery.promise)
+        .mockReturnValue(rediscovery.promise);
+      const callbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: { dex?: string }, callback: (payload: unknown) => void) => {
+          callbacks.set(params.dex ?? '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
       );
       const discoveryService = new HyperLiquidSubscriptionService(
         mockClientService,
@@ -953,12 +997,80 @@ describe('HyperLiquidSubscriptionService', () => {
         discoverEnabledDexs,
       );
 
-      const unsubscribe = discoveryService.subscribeToPositions({
-        callback: vi.fn(),
+      const accountCallback = vi.fn();
+      const unsubscribe = discoveryService.subscribeToAccount({
+        callback: accountCallback,
+        accountId,
       });
       await vi.advanceTimersByTimeAsync(5000);
-
+      const clearinghouseState = {
+        assetPositions: [],
+        marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+        withdrawable: '100',
+      };
+      callbacks.get('')?.({ dex: '', clearinghouseState });
       expect(discoveryService.getFreshPositionsForAllDexs()).toBeNull();
+      expect(accountCallback).not.toHaveBeenCalled();
+
+      discovery.resolve(['xyz']);
+      await vi.runAllTimersAsync();
+      expect(
+        mockSubscriptionClient.clearinghouseState,
+      ).toHaveBeenLastCalledWith(
+        { user: userAddress, dex: 'xyz' },
+        expect.any(Function),
+      );
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+      callbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
+      expect(accountCallback.mock.lastCall?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      await discoveryService.updateFeatureFlags(true, [], [], [], false);
+      const newAccountCallback = vi.fn();
+      const unsubscribeNew = discoveryService.subscribeToAccount({
+        callback: newAccountCallback,
+      });
+      expect(newAccountCallback).not.toHaveBeenCalled();
+      await discoveryService.updateFeatureFlags(true, [], [], []);
+      expect(newAccountCallback.mock.lastCall?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      unsubscribeNew();
+      unsubscribe();
+    });
+
+    it('retries transient DEX discovery while the account is subscribed', async () => {
+      const discoverEnabledDexs = vi
+        .fn<() => Promise<string[]>>()
+        .mockRejectedValueOnce(new Error('discovery unavailable'))
+        .mockResolvedValueOnce(['xyz']);
+      const discoveryService = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+        [],
+        [],
+        [],
+        undefined,
+        discoverEnabledDexs,
+      );
+      const unsubscribe = discoveryService.subscribeToAccount({
+        callback: vi.fn(),
+      });
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(discoverEnabledDexs).toHaveBeenCalledTimes(2);
+      expect(
+        mockSubscriptionClient.clearinghouseState,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({ dex: 'xyz' }),
+        expect.any(Function),
+      );
 
       unsubscribe();
     });

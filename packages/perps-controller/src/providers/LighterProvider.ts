@@ -10190,8 +10190,13 @@ export class LighterProvider implements PerpsProvider {
         await this.#clientService.getAccountByIndex(accountIndex);
       this.#assertSession(generation);
       const account = response.accounts[0];
-      if (!account?.positions) {
-        return [];
+      if (!account) {
+        throw new Error(`Lighter account ${accountIndex} not returned`);
+      }
+      if (!Array.isArray(account.positions)) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} REST positions missing`,
+        );
       }
       // Adapt BEFORE filtering: the adapter strict-validates raw numeric
       // sizes, and a prefix-parsing filter would silently drop (or keep)
@@ -10219,6 +10224,9 @@ export class LighterProvider implements PerpsProvider {
         // never degrade into empty state that can preserve stale views.
         throw caughtError;
       }
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        return [];
+      }
       const wrappedError = ensureError(
         caughtError,
         'LighterProvider.getPositions',
@@ -10227,7 +10235,7 @@ export class LighterProvider implements PerpsProvider {
         error: String(wrappedError),
         ...this.#getErrorContext('getPositions'),
       });
-      return [];
+      throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, caughtError);
     }
   };
 

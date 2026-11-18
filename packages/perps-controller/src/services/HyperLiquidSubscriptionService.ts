@@ -150,9 +150,15 @@ export class HyperLiquidSubscriptionService {
   #discoveredDexNames: string[] = []; // DEX order for mapping webData3 perpDexStates indices
 
   // DEX discovery synchronization - allows subscriptions to wait for HIP-3 DEX discovery
+  #dexDiscoveryComplete: boolean;
+
   #dexDiscoveryPromise: Promise<void> | null = null;
 
   #dexDiscoveryResolver: (() => void) | null = null;
+
+  #dexDiscoveryRetryTimer?: ReturnType<typeof setTimeout>;
+
+  #userDataBinding?: { address?: string; discoveringDexs: boolean };
 
   // Track DEXs for synchronized position notifications
   // Ensures all DEXs send initial data before notifying subscribers
@@ -528,6 +534,8 @@ export class HyperLiquidSubscriptionService {
     this.#hip3Enabled = hip3Enabled ?? false;
     this.#enabledDexs = enabledDexs ?? [];
     this.#discoveredDexNames = enabledDexs ?? [];
+    this.#dexDiscoveryComplete =
+      !this.#hip3Enabled || this.#enabledDexs.length > 0;
     this.#allowlistMarkets = allowlistMarkets ?? [];
     this.#blocklistMarkets = blocklistMarkets ?? [];
     this.#priceDeviationLimit =
@@ -802,53 +810,84 @@ export class HyperLiquidSubscriptionService {
    * This allows subscriptions to wait for DEX discovery before creating per-DEX subscriptions.
    *
    * @param timeoutMs - The maximum time in milliseconds to wait for DEX discovery.
-   * @returns Whether discovery completed before the timeout.
+   * @returns A promise that settles when discovery finishes or times out.
    */
-  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<boolean> {
-    // Already have DEXs, no need to wait
-    if (this.#enabledDexs.length > 0) {
-      return true;
-    }
+  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<void> {
+    this.#dexDiscoveryPromise ??= new Promise<void>((resolve) => {
+      this.#dexDiscoveryResolver = resolve;
+    });
+    const configured = this.#dexDiscoveryPromise;
+    this.#discoverDexsForSubscription();
 
-    // Create promise if not exists
-    if (!this.#dexDiscoveryPromise) {
-      this.#dexDiscoveryPromise = new Promise<void>((resolve) => {
-        this.#dexDiscoveryResolver = resolve;
-      });
-    }
-
-    const discovery = this.#discoverEnabledDexs
-      ? this.#discoverEnabledDexs()
-          .then((enabledDexs) => {
-            this.#enabledDexs = enabledDexs;
-            this.#discoveredDexNames = enabledDexs;
-            return;
-          })
-          .catch(() => this.#dexDiscoveryPromise ?? Promise.resolve())
-      : this.#dexDiscoveryPromise;
-
-    // Wait with timeout
-    let timeoutId: NodeJS.Timeout | undefined;
-    const timeoutPromise = new Promise<void>((_resolve, reject) => {
-      timeoutId = setTimeout(
-        () => reject(new Error('DEX discovery timeout')),
-        timeoutMs,
-      );
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<void>((resolve) => {
+      timeoutId = setTimeout(() => {
+        this.#deps.debugLogger.log(
+          'DEX discovery wait timed out, proceeding with main DEX only',
+        );
+        resolve();
+      }, timeoutMs);
     });
 
     try {
-      await Promise.race([discovery, timeoutPromise]);
-      return true;
-    } catch {
-      this.#deps.debugLogger.log(
-        'DEX discovery wait timed out, proceeding with main DEX only',
-      );
-      return false;
+      await Promise.race([configured, timedOut]);
     } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
     }
+  }
+
+  /** Retry transient discovery failures for the currently subscribed wallet. */
+  #discoverDexsForSubscription(): void {
+    const binding = this.#userDataBinding;
+    if (
+      !binding?.address ||
+      binding.discoveringDexs ||
+      this.#dexDiscoveryComplete ||
+      this.#dexDiscoveryRetryTimer !== undefined ||
+      !this.#discoverEnabledDexs
+    ) {
+      return;
+    }
+
+    binding.discoveringDexs = true;
+    this.#discoverEnabledDexs()
+      .then(async (enabledDexs) => {
+        if (this.#userDataBinding !== binding || this.#dexDiscoveryComplete) {
+          return;
+        }
+        if (this.#accountSnapshotDexs.size > 0) {
+          await this.updateFeatureFlags(
+            true,
+            enabledDexs,
+            this.#allowlistMarkets,
+            this.#blocklistMarkets,
+          );
+        } else {
+          this.#enabledDexs = enabledDexs;
+          this.#discoveredDexNames = enabledDexs;
+          this.#dexDiscoveryComplete = true;
+          this.#finishDexDiscoveryWait();
+        }
+      })
+      .finally(() => {
+        binding.discoveringDexs = false;
+      })
+      .catch(() => {
+        if (this.#userDataBinding === binding && !this.#dexDiscoveryComplete) {
+          this.#dexDiscoveryRetryTimer = setTimeout(() => {
+            this.#dexDiscoveryRetryTimer = undefined;
+            this.#discoverDexsForSubscription();
+          }, 5000);
+        }
+      });
+  }
+
+  #finishDexDiscoveryWait(): void {
+    this.#dexDiscoveryResolver?.();
+    this.#dexDiscoveryPromise = null;
+    this.#dexDiscoveryResolver = null;
+    clearTimeout(this.#dexDiscoveryRetryTimer);
+    this.#dexDiscoveryRetryTimer = undefined;
   }
 
   /**
@@ -875,6 +914,7 @@ export class HyperLiquidSubscriptionService {
     const previousHip3Enabled = this.#hip3Enabled;
 
     this.#hip3Enabled = hip3Enabled;
+    this.#dexDiscoveryComplete = !hip3Enabled || dexDiscoveryComplete;
     this.#enabledDexs = enabledDexs;
     this.#allowlistMarkets = allowlistMarkets;
     this.#blocklistMarkets = blocklistMarkets;
@@ -885,10 +925,9 @@ export class HyperLiquidSubscriptionService {
     // new DEXs before creating their subscriptions so all-DEX reads fail closed
     // until each one publishes on the current connection. Removing or disabling
     // a DEX removes it from the required set immediately.
-    this.#positionSnapshotDexs =
-      hip3Enabled && !dexDiscoveryComplete
-        ? new Set()
-        : new Set(hip3Enabled ? ['', ...enabledDexs] : ['']);
+    this.#positionSnapshotDexs = this.#dexDiscoveryComplete
+      ? new Set(hip3Enabled ? ['', ...enabledDexs] : [''])
+      : new Set();
 
     // Account completeness follows the configuration too, once user-data
     // subscriptions exist: a newly enabled DEX is unavailable until it
@@ -896,18 +935,32 @@ export class HyperLiquidSubscriptionService {
     // learn that before the async subscription work below.
     if (this.#accountSnapshotDexs.size > 0) {
       this.#accountSnapshotDexs = new Set(
-        hip3Enabled
-          ? ['', ...enabledDexs.filter((dexId) => this.#isDexEnabled(dexId))]
-          : [''],
+        hip3Enabled ? ['', ...enabledDexs] : [''],
       );
+      let removedAccount = false;
+      for (const dex of this.#dexAccountCache.keys()) {
+        if (!this.#accountSnapshotDexs.has(dex)) {
+          this.#dexAccountCache.delete(dex);
+          removedAccount = true;
+        }
+      }
+      for (const dex of this.#expectedDexs) {
+        if (!this.#accountSnapshotDexs.has(dex)) {
+          this.#expectedDexs.delete(dex);
+        }
+      }
+      if (removedAccount || !this.#dexDiscoveryComplete) {
+        this.#cachedAccount = null;
+        this.#cachedAccountHash = '';
+      }
       this.#aggregateAndNotifySubscribers();
     }
 
-    // Resolve any pending DEX discovery wait now that DEXs are available
-    if (this.#dexDiscoveryResolver && enabledDexs.length > 0) {
-      this.#dexDiscoveryResolver();
-      this.#dexDiscoveryPromise = null;
-      this.#dexDiscoveryResolver = null;
+    // A validated empty DEX list completes discovery too.
+    if (this.#dexDiscoveryComplete) {
+      this.#finishDexDiscoveryWait();
+    } else if (this.#accountSnapshotDexs.size > 0) {
+      this.#discoverDexsForSubscription();
     }
 
     this.#deps.debugLogger.log('Feature flags updated:', {
@@ -923,12 +976,11 @@ export class HyperLiquidSubscriptionService {
 
     // If equity was just enabled or new DEXs were added
     const newDexs = enabledDexs.filter(
-      (dex) => !previousEnabledDexs.includes(dex),
+      (dex) =>
+        !previousEnabledDexs.includes(dex) ||
+        (hip3Enabled && !previousHip3Enabled),
     );
-    if (
-      (!previousHip3Enabled && hip3Enabled && enabledDexs.length > 0) ||
-      newDexs.length > 0
-    ) {
+    if (newDexs.length > 0) {
       this.#deps.debugLogger.log(
         'Establishing subscriptions for new DEXs:',
         newDexs,
@@ -961,50 +1013,33 @@ export class HyperLiquidSubscriptionService {
 
       // Establish clearinghouseState/openOrders subscriptions for new DEXs
       // (needed for positions, orders, and account data when using individual subscriptions)
-      const hasUserDataSubscribers =
-        this.#positionSubscriberCount > 0 ||
-        this.#orderSubscriberCount > 0 ||
-        this.#accountSubscriberCount > 0;
-
-      if (hasUserDataSubscribers && this.#hip3Enabled) {
-        try {
-          const userAddress =
-            await this.#walletService.getUserAddressWithDefault();
-
-          await Promise.all(
-            newDexs.map(async (dex) => {
-              try {
-                await this.#ensureClearinghouseStateSubscription(
-                  userAddress,
-                  dex,
-                );
-                await this.#ensureOpenOrdersSubscription(userAddress, dex);
-                this.#deps.debugLogger.log(
-                  `Established user data subscriptions for new DEX: ${dex}`,
-                );
-              } catch (error) {
-                this.#logErrorUnlessClearing(
-                  ensureError(
-                    error,
-                    'HyperLiquidSubscriptionService.updateFeatureFlags',
-                  ),
-                  this.#getErrorContext(
-                    'updateFeatureFlags.ensureUserDataSubscription',
-                    { dex },
-                  ),
-                );
-              }
-            }),
-          );
-        } catch (error) {
-          this.#logErrorUnlessClearing(
-            ensureError(
-              error,
-              'HyperLiquidSubscriptionService.updateFeatureFlags',
-            ),
-            this.#getErrorContext('updateFeatureFlags.getUserAddress'),
-          );
-        }
+      const userAddress = this.#userDataBinding?.address;
+      if (userAddress && this.#accountSnapshotDexs.size > 0 && hip3Enabled) {
+        await Promise.all(
+          newDexs.map(async (dex) => {
+            try {
+              await this.#ensureClearinghouseStateSubscription(
+                userAddress,
+                dex,
+              );
+              await this.#ensureOpenOrdersSubscription(userAddress, dex);
+              this.#deps.debugLogger.log(
+                `Established user data subscriptions for new DEX: ${dex}`,
+              );
+            } catch (error) {
+              this.#logErrorUnlessClearing(
+                ensureError(
+                  error,
+                  'HyperLiquidSubscriptionService.updateFeatureFlags',
+                ),
+                this.#getErrorContext(
+                  'updateFeatureFlags.ensureUserDataSubscription',
+                  { dex },
+                ),
+              );
+            }
+          }),
+        );
       }
     }
   }
@@ -1432,7 +1467,7 @@ export class HyperLiquidSubscriptionService {
    * @private
    */
   #aggregateAccountStates(): AccountState | undefined {
-    if (this.#dexAccountCache.size === 0) {
+    if (!this.#dexDiscoveryComplete || this.#dexAccountCache.size === 0) {
       return undefined;
     }
     const subAccountBreakdown: Record<
@@ -2083,13 +2118,15 @@ export class HyperLiquidSubscriptionService {
       if (this.#webData3SubscriptionPromise) {
         await this.#webData3SubscriptionPromise;
       } else {
-        this.#webData3SubscriptionPromise =
-          this.#createUserDataSubscription(accountId);
+        const pending = this.#createUserDataSubscription(accountId);
+        this.#webData3SubscriptionPromise = pending;
 
         try {
-          await this.#webData3SubscriptionPromise;
+          await pending;
         } catch (error) {
-          this.#webData3SubscriptionPromise = undefined;
+          if (this.#webData3SubscriptionPromise === pending) {
+            this.#webData3SubscriptionPromise = undefined;
+          }
           throw error;
         }
       }
@@ -2117,6 +2154,8 @@ export class HyperLiquidSubscriptionService {
    * @returns A promise that resolves when the operation completes.
    */
   async #createUserDataSubscription(accountId?: CaipAccountId): Promise<void> {
+    this.#userDataBinding ??= { discoveringDexs: false };
+    const binding = this.#userDataBinding;
     await this.#clientService.ensureSubscriptionClient(
       this.#walletService.createWalletAdapter(),
     );
@@ -2127,7 +2166,12 @@ export class HyperLiquidSubscriptionService {
     }
 
     const userAddress =
-      await this.#walletService.getUserAddressWithDefault(accountId);
+      binding.address ??
+      (await this.#walletService.getUserAddressWithDefault(accountId));
+    if (this.#userDataBinding !== binding || this.#isClearing) {
+      return;
+    }
+    binding.address = userAddress;
 
     const dexName = ''; // Use empty string as key for single subscription
 
@@ -2138,18 +2182,21 @@ export class HyperLiquidSubscriptionService {
 
     // Wait for DEX discovery if HIP-3 is enabled but DEXs haven't been discovered yet
     // This ensures HIP-3 subscriptions are created together with main DEX
-    let dexDiscoveryComplete = true;
-    if (this.#hip3Enabled && this.#enabledDexs.length === 0) {
+    if (this.#hip3Enabled && !this.#dexDiscoveryComplete) {
       this.#deps.debugLogger.log(
         'Waiting for DEX discovery before creating subscriptions...',
       );
-      dexDiscoveryComplete = await this.#waitForDexDiscovery();
+      await this.#waitForDexDiscovery();
       this.#deps.debugLogger.log(
-        'DEX discovery complete, proceeding with subscriptions',
+        'Proceeding with subscriptions after waiting for DEX discovery',
         {
           enabledDexs: this.#enabledDexs,
         },
       );
+    }
+
+    if (this.#userDataBinding !== binding || this.#isClearing) {
+      return undefined;
     }
 
     return new Promise<void>((resolve, reject) => {
@@ -2171,7 +2218,7 @@ export class HyperLiquidSubscriptionService {
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
       this.#accountSnapshotDexs = new Set(dexsToSubscribe);
-      this.#positionSnapshotDexs = dexDiscoveryComplete
+      this.#positionSnapshotDexs = this.#dexDiscoveryComplete
         ? new Set(dexsToSubscribe)
         : new Set();
       this.#initializedDexs = new Set();
@@ -2436,14 +2483,14 @@ export class HyperLiquidSubscriptionService {
             );
           }
 
-          // Update account state
-          const accountState: AccountState = adaptAccountStateFromSDK(
-            data.clearinghouseState,
-          );
-
-          // Update caches
           this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
-          this.#dexAccountCache.set(cacheKey, accountState);
+          // A retained subscription can still send events after a DEX is disabled.
+          if (this.#accountSnapshotDexs.has(cacheKey)) {
+            this.#dexAccountCache.set(
+              cacheKey,
+              adaptAccountStateFromSDK(data.clearinghouseState),
+            );
+          }
 
           // Mark this DEX as initialized (has sent first data)
           this.#initializedDexs.add(cacheKey);
@@ -2712,6 +2759,9 @@ export class HyperLiquidSubscriptionService {
       this.#oiCapSubscriberCount;
 
     if (totalSubscribers <= 0) {
+      this.#userDataBinding = undefined;
+      this.#webData3SubscriptionPromise = undefined;
+      this.#finishDexDiscoveryWait();
       // Cleanup webData3 subscription (covers all DEXs)
       if (this.#webData3Subscriptions.size > 0) {
         this.#webData3Subscriptions.forEach((subscription, dexName) => {
@@ -2731,7 +2781,6 @@ export class HyperLiquidSubscriptionService {
           });
         });
         this.#webData3Subscriptions.clear();
-        this.#webData3SubscriptionPromise = undefined;
       }
 
       // Cleanup spotState subscriptions (per-user). Bump generation +
@@ -5531,6 +5580,8 @@ export class HyperLiquidSubscriptionService {
     // The WebSocket will be closed after this, causing pending unsubscribe promises to reject
     // with WebSocketRequestError - these are expected and should not be logged to Sentry.
     this.#isClearing = true;
+    this.#userDataBinding = undefined;
+    this.#finishDexDiscoveryWait();
 
     // Bump every TWAP account's generation before anything is cleared, so an
     // in-flight open discards its subscription instead of rehydrating a

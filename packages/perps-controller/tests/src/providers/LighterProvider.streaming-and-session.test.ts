@@ -1921,7 +1921,7 @@ describe('LighterProvider', () => {
       releasePositions({ code: 200, accounts: [ACCOUNT] });
       const result = await closeUnderA;
       expect(result.success).toBe(false);
-      expect(result.error).toContain('switched accounts');
+      expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       expect(
         calls.filter((call) => call.function === '_signCreateOrder'),
       ).toHaveLength(0);

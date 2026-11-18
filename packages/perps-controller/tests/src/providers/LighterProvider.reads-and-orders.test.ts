@@ -898,6 +898,41 @@ describe('LighterProvider', () => {
       expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
     });
 
+    it('rejects position reads when the venue omits the bound account', async () => {
+      const { provider, clientInstance } = buildProvider();
+      await provider.getPositions();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [],
+      });
+
+      await expect(provider.getPositions()).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+    });
+
+    it('rejects position reads when the account omits positions', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const { positions: _positions, ...withoutPositions } = ACCOUNT;
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [withoutPositions],
+      });
+
+      await expect(provider.getPositions()).rejects.toThrow(
+        'Invalid Lighter venue data: REST positions missing',
+      );
+    });
+
+    it('returns an empty position list for an explicitly empty account', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, positions: [] }],
+      });
+      expect(await provider.getPositions()).toStrictEqual([]);
+    });
+
     it('returns adapted account state', async () => {
       const { provider } = buildProvider();
       const state = await provider.getAccountState();
@@ -1038,6 +1073,7 @@ describe('LighterProvider', () => {
           throwOnUnavailable: true,
         });
         expect(state.totalBalance).toBe('0');
+        expect(await provider.getPositions()).toStrictEqual([]);
       });
 
       it('surfaces malformed venue numbers unwrapped', async () => {
