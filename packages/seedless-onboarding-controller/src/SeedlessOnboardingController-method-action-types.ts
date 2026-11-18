@@ -107,7 +107,10 @@ export type SeedlessOnboardingControllerFetchAllSecretDataAction = {
  * Derives the keys from `password`, fetches and decrypts the secret data,
  * and creates the local vault under `password`, replacing any existing
  * one. If the vault is envelope-managed, the password opens the vault keys
- * and the `envelope` state is set.
+ * and the `envelope` state is set; otherwise any existing `envelope` state
+ * is cleared. `isLocalPassword` is cleared, and so is a
+ * `pendingEnvelopeMigration` checkpoint that does not decrypt under the
+ * restored vault keys.
  *
  * @param params - The function parameters.
  * @param params.password - The global password.

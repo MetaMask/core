@@ -747,7 +747,10 @@ export class SeedlessOnboardingController<
    * Derives the keys from `password`, fetches and decrypts the secret data,
    * and creates the local vault under `password`, replacing any existing
    * one. If the vault is envelope-managed, the password opens the vault keys
-   * and the `envelope` state is set.
+   * and the `envelope` state is set; otherwise any existing `envelope` state
+   * is cleared. `isLocalPassword` is cleared, and so is a
+   * `pendingEnvelopeMigration` checkpoint that does not decrypt under the
+   * restored vault keys.
    *
    * @param params - The function parameters.
    * @param params.password - The global password.
@@ -819,12 +822,33 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
           rawToprfAuthKeyPair: authKeyPair,
         });
+        // the vault was replaced, so `isLocalPassword` and `envelope` describe
+        // the old password and key set. A checkpoint that still decrypts
+        // belongs to the restored keys, so `migrateToEnvelope` can resume from
+        // it; only an unreadable one is dropped
+        const { pendingEnvelopeMigration } = this.state;
+        const isPendingMigrationReadable =
+          pendingEnvelopeMigration !== undefined &&
+          (await decryptPendingMigration(
+            pendingEnvelopeMigration,
+            pwEncKey,
+          )) !== undefined;
+        this.update((state) => {
+          if (!isPendingMigrationReadable) {
+            delete state.pendingEnvelopeMigration;
+          }
+          delete state.isLocalPassword;
+          if (!envelope) {
+            delete state.envelope;
+          }
+        });
         if (envelope) {
           this.#setEnvelopeState(
             envelope.vaultKeySet,
             envelope.passwordAuthPubKey,
           );
         }
+        this.#resetPasswordOutdatedCache();
 
         return secrets;
       }, 'restoreVaultWithPassword');
@@ -3113,14 +3137,16 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Write the checkpointed control record and Recovery Secret envelope, and
+   * Write the checkpointed Recovery Secret envelope and control record, and
    * checkpoint `ENVELOPES_WRITTEN` (step 5).
    *
-   * Under the vault's metadata lock, the password OPRF key is re-checked and
-   * the control record is written unless the vault already has one, e.g.
-   * from another device holding the same `K_v`, or from an earlier attempt
-   * followed by a password change. The envelope is written after the lock is
-   * released.
+   * Under the vault's metadata lock, the password OPRF key is re-checked, the
+   * envelope is written and read back, and then the control record is written
+   * unless the vault already has one, e.g. from another device holding the
+   * same `K_v`, or from an earlier attempt followed by a password change.
+   * Restore and password sync treat a vault with a matching control record as
+   * envelope-managed, so the control record is written last: an interrupted
+   * migration never leaves one without the Recovery Secret envelope.
    *
    * @param pending - The `ENVELOPES_SEALED` checkpoint.
    * @param vaultKeySet - The vault key set `K_v`.
@@ -3167,6 +3193,7 @@ export class SeedlessOnboardingController<
           throw error;
         }
 
+        await this.#writeAndVerifyEnvelope(pending.recoveryEnvelope);
         if (controlRecords.length === 0) {
           await this.#envelopeStore.writeControlRecord(
             vaultKeySet,
@@ -3183,8 +3210,6 @@ export class SeedlessOnboardingController<
         return authPubKey;
       },
     );
-
-    await this.#writeAndVerifyEnvelope(pending.recoveryEnvelope);
 
     const written: WrittenEnvelopeMigration = {
       v: 1,
