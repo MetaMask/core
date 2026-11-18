@@ -17,7 +17,10 @@ import {
 
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
-import { CHASE_ORDER_CONFIG } from '../../src/constants/perpsConfig.js';
+import {
+  CHASE_ORDER_CONFIG,
+  TWAP_ORDER_CONFIG,
+} from '../../src/constants/perpsConfig.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -35,9 +38,11 @@ import * as tradingServiceModule from '../../src/services/TradingService.js';
 import type {
   CancelOrderResult,
   ChaseOrder,
+  ChaseOrderLists,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
+  SubscribeTwapOrdersParams,
   TwapOrder,
 } from '../../src/types/index.js';
 
@@ -877,6 +882,284 @@ describe('PerpsController', () => {
           }),
         ]);
         expect(stopStream).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([
+      [
+        'account',
+        (): void => {
+          selectedAddress = '0x2222222222222222222222222222222222222222';
+        },
+      ],
+      [
+        'provider',
+        (): void =>
+          controller.testUpdate((state) => {
+            state.activeProvider = 'lighter';
+          }),
+      ],
+      [
+        'network',
+        (): void =>
+          controller.testUpdate((state) => {
+            state.isTestnet = true;
+          }),
+      ],
+    ])(
+      'reopens the live TWAP stream after a %s switch and ignores the old one',
+      async (_switch, switchContext) => {
+        vi.useFakeTimers();
+        try {
+          markControllerAsInitialized();
+          controller.testSetProviders(
+            new Map([
+              ['hyperliquid', mockProvider],
+              ['lighter', mockProvider],
+            ]),
+          );
+          mockProvider.getTwapOrders.mockResolvedValue([]);
+          const streams: {
+            callback: SubscribeTwapOrdersParams['callback'];
+            stop: Mock<() => void>;
+          }[] = [];
+          mockProvider.subscribeToTwapOrders = vi.fn(
+            (streamParams: SubscribeTwapOrdersParams) => {
+              const stop = vi.fn();
+              streams.push({ callback: streamParams.callback, stop });
+              return stop;
+            },
+          );
+          const callback = vi.fn();
+
+          const stop = controller.subscribeToLiveTwapOrders({ callback });
+          await vi.advanceTimersByTimeAsync(0);
+          switchContext();
+          mockMessenger.subscribe.mock.calls
+            .filter(([event]) =>
+              [
+                'PerpsController:stateChanged',
+                'AccountsController:selectedAccountChange',
+              ].includes(event),
+            )
+            .forEach(([, handler]) => (handler as () => void)());
+          await vi.advanceTimersByTimeAsync(0);
+
+          expect(streams).toHaveLength(2);
+          expect(streams[0].stop).toHaveBeenCalledTimes(1);
+
+          // The old stream pushes after the switch; the new context's read is
+          // empty, then its own stream reports a new TWAP.
+          streams[0].callback([{ ...twapOrder, orderId: 'old' }]);
+          await vi.advanceTimersByTimeAsync(
+            TWAP_ORDER_CONFIG.RefreshIntervalMs,
+          );
+          streams[1].callback([{ ...twapOrder, orderId: 'new' }]);
+          stop();
+
+          expect(callback).not.toHaveBeenCalledWith([
+            expect.objectContaining({ orderId: 'old' }),
+          ]);
+          expect(callback).toHaveBeenLastCalledWith([
+            expect.objectContaining({ orderId: 'new' }),
+          ]);
+          expect(streams[1].stop).toHaveBeenCalledTimes(1);
+        } finally {
+          vi.useRealTimers();
+        }
+      },
+    );
+
+    it('opens the live TWAP stream only once the provider is ready, and again after a reconnect', async () => {
+      vi.useFakeTimers();
+      try {
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getTwapOrders.mockResolvedValue([]);
+        const streams: SubscribeTwapOrdersParams['callback'][] = [];
+        const stopStream = vi.fn();
+        mockProvider.subscribeToTwapOrders = vi.fn(
+          (streamParams: SubscribeTwapOrdersParams) => {
+            streams.push(streamParams.callback);
+            return stopStream;
+          },
+        );
+        const fireStateChanged = (): void =>
+          mockMessenger.subscribe.mock.calls
+            .filter(([event]) => event === 'PerpsController:stateChanged')
+            .forEach(([, handler]) => (handler as () => void)());
+        const callback = vi.fn();
+
+        // Subscribed before the provider is ready: no stream yet.
+        const stop = controller.subscribeToLiveTwapOrders({ callback });
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(mockProvider.subscribeToTwapOrders).not.toHaveBeenCalled();
+
+        markControllerAsInitialized();
+        fireStateChanged();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(streams).toHaveLength(1);
+
+        // A client reconnect in the same context tears the stream down.
+        controller.testUpdate((state) => {
+          state.initializationState = InitializationState.Initializing;
+        });
+        fireStateChanged();
+        markControllerAsInitialized();
+        fireStateChanged();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(streams).toHaveLength(2);
+        expect(stopStream).toHaveBeenCalledTimes(1);
+
+        streams[1]([{ ...twapOrder, orderId: 'after-reconnect' }]);
+        stop();
+
+        expect(callback).toHaveBeenLastCalledWith([
+          expect.objectContaining({ orderId: 'after-reconnect' }),
+        ]);
+        expect(stopStream).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('opens one live TWAP stream when initialization ends while an open is pending', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getTwapOrders.mockResolvedValue([]);
+        mockProvider.subscribeToTwapOrders = vi.fn(() => vi.fn());
+        const fireStateChanged = (): void =>
+          mockMessenger.subscribe.mock.calls
+            .filter(([event]) => event === 'PerpsController:stateChanged')
+            .forEach(([, handler]) => (handler as () => void)());
+
+        const stop = controller.subscribeToLiveTwapOrders({
+          callback: vi.fn(),
+        });
+        // A reconnect finishes before the first open resolves.
+        controller.testUpdate((state) => {
+          state.initializationState = InitializationState.Initializing;
+        });
+        fireStateChanged();
+        markControllerAsInitialized();
+        fireStateChanged();
+        await vi.advanceTimersByTimeAsync(0);
+        stop();
+
+        expect(mockProvider.subscribeToTwapOrders).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('closes a live TWAP stream whose synchronous first push stopped the list', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getTwapOrders.mockResolvedValue([]);
+        const stopStream = vi.fn();
+        mockProvider.subscribeToTwapOrders = vi.fn(
+          (streamParams: SubscribeTwapOrdersParams) => {
+            // The venue replays cached schedules before returning.
+            streamParams.callback([twapOrder]);
+            return stopStream;
+          },
+        );
+        let stop: (() => void) | undefined;
+        const callback = vi.fn(() => stop?.());
+
+        stop = controller.subscribeToLiveTwapOrders({ callback });
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(callback).toHaveBeenCalledWith([
+          expect.objectContaining({ orderId: twapOrder.orderId }),
+        ]);
+        expect(stopStream).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not open a live TWAP stream closed before it opened', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getTwapOrders.mockResolvedValue([]);
+        mockProvider.subscribeToTwapOrders = vi.fn(() => vi.fn());
+
+        const stop = controller.subscribeToLiveTwapOrders({
+          callback: vi.fn(),
+        });
+        stop();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(mockProvider.subscribeToTwapOrders).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('keeps a cancel successful when a Chase list listener throws', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getChaseOrders.mockResolvedValue([chaseOrder]);
+        const canceled: CancelOrderResult = {
+          success: true,
+          orderId: chaseOrder.handle,
+          chaseOrder: {
+            ...chaseOrder,
+            status: 'canceled' as const,
+            restingOrderId: null,
+          },
+        };
+        vi.spyOn(mockTradingServiceInstance, 'cancelOrder').mockResolvedValue(
+          canceled,
+        );
+        const throwing = vi.fn((lists: ChaseOrderLists) => {
+          if (lists.history.length > 0) {
+            throw new Error('render failed');
+          }
+        });
+        const second = vi.fn();
+        const stopFirst = controller.subscribeToChaseOrderLists({
+          callback: throwing,
+        });
+        const stopSecond = controller.subscribeToChaseOrderLists({
+          callback: second,
+        });
+        await vi.advanceTimersByTimeAsync(0);
+
+        const result = await controller.cancelOrder({
+          orderId: chaseOrder.handle,
+          symbol: chaseOrder.symbol,
+          orderType: 'chase',
+        });
+        stopFirst();
+        stopSecond();
+
+        expect(result).toStrictEqual(canceled);
+        expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'render failed' }),
+          expect.anything(),
+        );
+        expect(throwing).toHaveBeenLastCalledWith({
+          running: [],
+          history: [canceled.chaseOrder],
+        });
+        expect(second).toHaveBeenLastCalledWith({
+          running: [],
+          history: [canceled.chaseOrder],
+        });
       } finally {
         vi.useRealTimers();
       }

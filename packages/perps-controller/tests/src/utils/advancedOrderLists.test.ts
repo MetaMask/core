@@ -389,8 +389,13 @@ describe('createLiveTwapOrderList', () => {
     });
     await vi.advanceTimersByTimeAsync(0);
     context = 'hyperliquid:mainnet:0xb';
-    // A push for the new account carries no old rows; they must not linger.
+    // The stream opened for the old account; its push clears the old rows
+    // and the new account's read fills the list.
     push([twap({ orderId: 'b', status: 'completed' })]);
+
+    expect(callback).toHaveBeenLastCalledWith([]);
+
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(callback).toHaveBeenLastCalledWith([
       expect.objectContaining({ orderId: 'b' }),
@@ -481,7 +486,7 @@ describe('createLiveTwapOrderList', () => {
       callback,
     });
     context = 'b';
-    // The push for the new context moves the list to it first.
+    // A push from the old stream moves the list to the new context first.
     push?.([twap({ orderId: 'b-order' })]);
     release?.([twap({ orderId: 'a-order' })]);
     await vi.advanceTimersByTimeAsync(0);
@@ -538,6 +543,125 @@ describe('createLiveTwapOrderList', () => {
     expect(getTwapOrders).toHaveBeenCalledTimes(3);
     expect(callback).toHaveBeenLastCalledWith([
       expect.objectContaining({ orderId: 'b-order' }),
+    ]);
+  });
+
+  it('reopens the stream for a new context and ignores the old stream', async () => {
+    let context = 'a';
+    let notify: (() => void) | undefined;
+    const streams: {
+      push: SubscribeTwapOrdersParams['callback'];
+      unsubscribe: Mock<() => void>;
+    }[] = [];
+    const getTwapOrders = vi.fn(async (): Promise<TwapOrder[]> => []);
+    const callback = vi.fn();
+
+    const stop = createLiveTwapOrderList({
+      source: {
+        getTwapOrders,
+        subscribeToTwapOrders: (params): (() => void) => {
+          const unsubscribe = vi.fn();
+          streams.push({ push: params.callback, unsubscribe });
+          return unsubscribe;
+        },
+        getContextKey: (): string => context,
+        subscribeToContextChanges: (listener): (() => void) => {
+          notify = listener;
+          return () => undefined;
+        },
+      },
+      callback,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    context = 'b';
+    notify?.();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(streams).toHaveLength(2);
+    expect(streams[0].unsubscribe).toHaveBeenCalledTimes(1);
+
+    // Account A's stream still pushes after the switch to B.
+    streams[0].push([twap({ orderId: 'a-order' })]);
+    await vi.advanceTimersByTimeAsync(TWAP_ORDER_CONFIG.RefreshIntervalMs * 2);
+
+    expect(callback).not.toHaveBeenCalledWith([
+      expect.objectContaining({ orderId: 'a-order' }),
+    ]);
+    expect(callback).toHaveBeenLastCalledWith([]);
+
+    streams[1].push([twap({ orderId: 'b-order' })]);
+
+    expect(callback).toHaveBeenLastCalledWith([
+      expect.objectContaining({ orderId: 'b-order' }),
+    ]);
+
+    stop();
+
+    expect(streams[1].unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('reopens the stream when a push reveals a new context, dropping that push', async () => {
+    let context = 'a';
+    const streams: SubscribeTwapOrdersParams['callback'][] = [];
+    const callback = vi.fn();
+
+    createLiveTwapOrderList({
+      source: {
+        getTwapOrders: async (): Promise<TwapOrder[]> => [],
+        subscribeToTwapOrders: (params): (() => void) => {
+          streams.push(params.callback);
+          return () => undefined;
+        },
+        getContextKey: (): string => context,
+      },
+      callback,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    context = 'b';
+    streams[0]([twap({ orderId: 'a-order' })]);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(streams).toHaveLength(2);
+    expect(callback).not.toHaveBeenCalledWith([
+      expect.objectContaining({ orderId: 'a-order' }),
+    ]);
+  });
+
+  it('closes a stream whose first push already left its context', async () => {
+    let context = 'a';
+    const unsubscribes: Mock<() => void>[] = [];
+    const callback = vi.fn();
+    // The first stream pushes at once, after the context changed.
+    const subscribeToTwapOrders = vi
+      .fn()
+      .mockImplementationOnce((params: SubscribeTwapOrdersParams) => {
+        const unsubscribe = vi.fn();
+        unsubscribes.push(unsubscribe);
+        context = 'b';
+        params.callback([twap({ orderId: 'a-order' })]);
+        return unsubscribe;
+      })
+      .mockImplementation(() => {
+        const unsubscribe = vi.fn();
+        unsubscribes.push(unsubscribe);
+        return unsubscribe;
+      });
+
+    createLiveTwapOrderList({
+      source: {
+        getTwapOrders: async (): Promise<TwapOrder[]> => [],
+        subscribeToTwapOrders,
+        getContextKey: (): string => context,
+      },
+      callback,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(unsubscribes).toHaveLength(2);
+    expect(unsubscribes[0]).toHaveBeenCalledTimes(1);
+    expect(unsubscribes[1]).not.toHaveBeenCalled();
+    expect(callback).not.toHaveBeenCalledWith([
+      expect.objectContaining({ orderId: 'a-order' }),
     ]);
   });
 

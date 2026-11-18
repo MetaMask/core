@@ -3849,7 +3849,17 @@ export class PerpsController extends BaseController<
     ) {
       const providerId = params.providerId ?? result.providerId;
       for (const listener of [...this.#chaseCancellationListeners]) {
-        listener({ handle: params.orderId, providerId, chaseOrder });
+        // A listener that throws must not undo the cancel or starve the rest.
+        try {
+          listener({ handle: params.orderId, providerId, chaseOrder });
+        } catch (error) {
+          this.#logError(
+            ensureError(error, 'PerpsController.cancelOrder'),
+            this.#getErrorContext('cancelOrder', {
+              orderId: params.orderId,
+            }),
+          );
+        }
       }
     }
     return result;
@@ -7422,7 +7432,7 @@ export class PerpsController extends BaseController<
       source: {
         getTwapOrders: async () => await this.getTwapOrders(),
         subscribeToTwapOrders: (streamParams) =>
-          this.subscribeToTwapOrders(streamParams),
+          this.#subscribeToTwapOrdersWhenReady(streamParams),
         getContextKey: () => this.#getOrderListContextKey(),
         subscribeToContextChanges: (listener) =>
           this.#subscribeToOrderListContextChanges(listener),
@@ -7430,6 +7440,62 @@ export class PerpsController extends BaseController<
       callback: params.callback,
       onError: params.onError,
     });
+  }
+
+  /**
+   * Open the TWAP stream once the active provider is ready, and open it again
+   * each time the controller finishes initializing. A switch, or a client
+   * reconnect that keeps the same account, provider and network, tears the
+   * provider stream down, and the new provider has no stream until it is
+   * ready.
+   *
+   * @param params - Subscription parameters including callback.
+   * @returns A cleanup function that closes the stream, or cancels opening it.
+   */
+  #subscribeToTwapOrdersWhenReady(
+    params: SubscribeTwapOrdersParams,
+  ): () => void {
+    let closed = false;
+    let attempt = 0;
+    let unsubscribe: (() => void) | undefined;
+    const open = (): void => {
+      unsubscribe?.();
+      unsubscribe = undefined;
+      attempt += 1;
+      const current = attempt;
+      this.#getActiveProviderWhenReady()
+        .then(() => {
+          if (closed || current !== attempt) {
+            return;
+          }
+          const opened = this.subscribeToTwapOrders(params);
+          // A synchronous first push may already have closed this opener.
+          if (closed || current !== attempt) {
+            opened();
+          } else {
+            unsubscribe = opened;
+          }
+        })
+        // A read reports the same failure through the list's onError.
+        .catch(() => undefined);
+    };
+    let wasInitialized =
+      this.state.initializationState === InitializationState.Initialized;
+    const onStateChange = (): void => {
+      const isInitialized =
+        this.state.initializationState === InitializationState.Initialized;
+      if (isInitialized && !wasInitialized && !closed) {
+        open();
+      }
+      wasInitialized = isInitialized;
+    };
+    this.messenger.subscribe('PerpsController:stateChanged', onStateChange);
+    open();
+    return () => {
+      closed = true;
+      this.messenger.unsubscribe('PerpsController:stateChanged', onStateChange);
+      unsubscribe?.();
+    };
   }
 
   /**

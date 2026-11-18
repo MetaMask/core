@@ -19,6 +19,13 @@ import {
 } from './advancedOrders.js';
 import { ensureError } from './errorUtils.js';
 
+/**
+ * Do nothing; the cleanup of a stream not yet open.
+ *
+ * @returns Nothing.
+ */
+const noop = (): void => undefined;
+
 /** Where a live TWAP list reads and streams schedules from. */
 export type LiveTwapOrderSource = {
   getTwapOrders: () => Promise<TwapOrder[]>;
@@ -76,7 +83,8 @@ export type LiveChaseOrderSource = {
  * for example one placed elsewhere). A push the last read cannot explain
  * triggers one catch-up read. While a schedule runs, or after a failed read,
  * reads repeat so slice fills, and with them execution totals, keep rising.
- * Held rows reset when the source's context key changes.
+ * When the source's context key changes, held rows reset and the stream
+ * reopens, and pushes from the earlier stream are ignored.
  *
  * Works over any source: the controller passes itself, and a client on the
  * other side of a messenger can pass its messenger calls.
@@ -118,6 +126,7 @@ export function createLiveTwapOrderList(params: {
   // Bumped on every context reset, so a read can tell it outlived one even
   // when a stream push already moved `context` to the new value.
   let generation = 0;
+  let unsubscribeStream: () => void = noop;
 
   const resetOnContextChange = (): boolean => {
     const current = source.getContextKey?.();
@@ -129,6 +138,8 @@ export function createLiveTwapOrderList(params: {
     orders = [];
     listed = new Set();
     streamed = new Set();
+    // The stream answers for the context it opened in, so open a new one.
+    openStream();
     return true;
   };
 
@@ -222,31 +233,61 @@ export function createLiveTwapOrderList(params: {
     scheduleNext();
   }
 
-  const unsubscribe = source.subscribeToTwapOrders({
-    callback: (pushed) => {
-      if (stopped) {
-        return;
-      }
-      resetOnContextChange();
-      const before = new Map(
-        orders.map((order) => [twapOrderKey(order), order]),
-      );
-      streamed = new Set(pushed.map(twapOrderKey));
-      orders = mergeTwapOrders(orders, pushed);
+  /**
+   * Merge a stream push into the list, unless it comes from a stream opened
+   * for an earlier context.
+   *
+   * @param streamGeneration - Generation the pushing stream was opened in.
+   * @param pushed - The pushed schedules.
+   */
+  function onPush(streamGeneration: number, pushed: TwapOrder[]): void {
+    if (stopped || streamGeneration !== generation) {
+      return;
+    }
+    if (resetOnContextChange()) {
+      // The push answered for the context the list just left.
       emit();
-      const merged = new Map(
-        orders.map((order) => [twapOrderKey(order), order]),
-      );
-      const unexplained = [...streamed].some(
-        (key) =>
-          !listed.has(key) ||
-          before.get(key)?.status !== merged.get(key)?.status,
-      );
-      if (unexplained || pushed.length === 0) {
-        schedule(catchUpIntervalMs);
-      }
-    },
-  });
+      readAgain = false;
+      schedule(0);
+      return;
+    }
+    const before = new Map(orders.map((order) => [twapOrderKey(order), order]));
+    streamed = new Set(pushed.map(twapOrderKey));
+    orders = mergeTwapOrders(orders, pushed);
+    emit();
+    const merged = new Map(orders.map((order) => [twapOrderKey(order), order]));
+    const unexplained = [...streamed].some(
+      (key) =>
+        !listed.has(key) || before.get(key)?.status !== merged.get(key)?.status,
+    );
+    if (unexplained || pushed.length === 0) {
+      schedule(catchUpIntervalMs);
+    }
+  }
+
+  /**
+   * Open the stream for the current context, closing the previous one.
+   */
+  function openStream(): void {
+    const previous = unsubscribeStream;
+    unsubscribeStream = noop;
+    previous();
+    if (stopped) {
+      return;
+    }
+    const streamGeneration = generation;
+    const unsubscribe = source.subscribeToTwapOrders({
+      callback: (pushed) => onPush(streamGeneration, pushed),
+    });
+    if (stopped || streamGeneration !== generation) {
+      // A first push already moved the list to another context.
+      unsubscribe();
+    } else {
+      unsubscribeStream = unsubscribe;
+    }
+  }
+
+  openStream();
 
   const unsubscribeContext = source.subscribeToContextChanges?.(() => {
     if (!stopped && resetOnContextChange()) {
@@ -261,7 +302,7 @@ export function createLiveTwapOrderList(params: {
   return () => {
     stopped = true;
     clearTimeout(timer);
-    unsubscribe();
+    unsubscribeStream();
     unsubscribeContext?.();
   };
 }
