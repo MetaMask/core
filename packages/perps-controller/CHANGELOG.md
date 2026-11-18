@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- docs(perps-controller): client timings come from one overridable config ([#11603](https://github.com/MetaMask/core/pull/11603))
-- docs(perps-controller): mark the client contract as agreed ([#11573](https://github.com/MetaMask/core/pull/11573))
-- Release 1431.0.0 ([#11579](https://github.com/MetaMask/core/pull/11579))
-
 ## [24.1.0]
 
 ### Added

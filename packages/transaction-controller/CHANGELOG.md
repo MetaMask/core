@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.1.1]
+
 ### Added
 
 - Add `perpsLighterDeposit`, `perpsLighterWithdraw`, and `perpsLighterDepositAndOrder` to `TransactionType` ([#11574](https://github.com/MetaMask/core/pull/11574))
@@ -2929,7 +2931,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.1...HEAD
+[74.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...@metamask/transaction-controller@74.1.1
 [74.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...@metamask/transaction-controller@74.1.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...@metamask/transaction-controller@74.0.0
 [73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2
