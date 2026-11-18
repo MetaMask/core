@@ -850,6 +850,53 @@ describe('HyperLiquidProvider', () => {
       expect(markets[0].name).toBe('xyz:STOCK1');
     });
 
+    it('drops the venue normal margin mode so market info carries only restrictions', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const xyzMeta = {
+        universe: [
+          {
+            name: 'xyz:TSLA',
+            szDecimals: 3,
+            maxLeverage: 10,
+            marginMode: 'normal',
+          },
+          {
+            name: 'xyz:HOOD',
+            szDecimals: 3,
+            maxLeverage: 10,
+            marginMode: 'noCross',
+          },
+        ],
+        collateralToken: 0,
+      };
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: vi.fn().mockResolvedValue(xyzMeta),
+        metaAndAssetCtxs: vi.fn().mockResolvedValue([xyzMeta, []]),
+        spotMeta: vi.fn().mockResolvedValue({
+          tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+          universe: [],
+        }),
+      });
+
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(mockInfoClient);
+
+      const markets = await hip3Provider.getMarkets({ dex: 'xyz' });
+
+      expect(markets.map(({ name, marginMode }) => [name, marginMode])).toEqual(
+        [
+          ['xyz:TSLA', undefined],
+          ['xyz:HOOD', 'noCross'],
+        ],
+      );
+      expect(markets[0]).not.toHaveProperty('marginMode');
+    });
+
     it('filters out a HIP-3 DEX from market discovery when its collateral token index cannot be resolved against spot metadata', async () => {
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
