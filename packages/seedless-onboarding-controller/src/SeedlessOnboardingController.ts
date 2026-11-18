@@ -188,6 +188,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createToprfKeyAndBackupSeedPhrase',
   'addNewSecretData',
   'fetchAllSecretData',
+  'restoreVaultWithPassword',
   'changePassword',
   'updateBackupMetadataState',
   'verifyVaultPassword',
@@ -717,15 +718,47 @@ export class SeedlessOnboardingController<
   /**
    * Fetches all secret data items from the metadata store.
    *
-   * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
+   * Decrypts the secret data with the keys of the unlocked vault. The vault
+   * and the `envelope` state are not changed.
    *
-   * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
    * @returns A promise that resolves to the secret metadata items.
    */
-  async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
+  async fetchAllSecretData(): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
       return await this.#executeWithTokenRefresh(async () => {
-        // assert that the user is authenticated before fetching the secret data
+        this.#assertIsAuthenticatedUser(this.state);
+        this.#assertIsUnlocked();
+
+        const keysFromVault = await this.#unlockVaultAndGetVaultData();
+        const { secrets } = await this.#fetchAllSecretDataFromMetadataStore(
+          keysFromVault.toprfEncryptionKey,
+          keysFromVault.toprfAuthKeyPair,
+        );
+
+        return secrets;
+      }, 'fetchAllSecretData');
+    });
+  }
+
+  /**
+   * Restores the local vault with the global password.
+   *
+   * Derives the keys from `password`, fetches and decrypts the secret data,
+   * and creates the local vault under `password`, replacing any existing
+   * one. If the vault is envelope-managed, the password opens the vault keys
+   * and the `envelope` state is set.
+   *
+   * @param params - The function parameters.
+   * @param params.password - The global password.
+   * @returns The secret data of the vault.
+   */
+  async restoreVaultWithPassword({
+    password,
+  }: {
+    password: string;
+  }): Promise<SecretMetadata[]> {
+    return await this.#withControllerLock(async () => {
+      return await this.#executeWithTokenRefresh(async () => {
         this.#assertIsAuthenticatedUser(this.state);
 
         let encKey: Uint8Array;
@@ -739,38 +772,29 @@ export class SeedlessOnboardingController<
           | undefined;
         let passwordKeySet: VaultKeySet | undefined;
 
-        if (password) {
-          const recoverEncKeyResult = await this.#recoverEncKey(password);
-          // an envelope-managed vault keeps its keys across password
-          // changes, so the password only opens them (I6)
-          const vaultKeySet = await this.#openPasswordEnvelope(
-            recoverEncKeyResult.envelopeKeys,
-          );
-          if (vaultKeySet) {
-            encKey = vaultKeySet.encKey;
-            pwEncKey = vaultKeySet.localWrapKey;
-            authKeyPair = vaultKeySet.authKeyPair;
-            envelope = {
-              vaultKeySet,
-              passwordAuthPubKey: recoverEncKeyResult.authKeyPair.pk,
-            };
-          } else {
-            encKey = recoverEncKeyResult.encKey;
-            pwEncKey = recoverEncKeyResult.pwEncKey;
-            authKeyPair = recoverEncKeyResult.authKeyPair;
-            passwordKeySet = {
-              authKeyPair,
-              encKey,
-              localWrapKey: pwEncKey,
-            };
-          }
+        const recoverEncKeyResult = await this.#recoverEncKey(password);
+        // an envelope-managed vault keeps its keys across password
+        // changes, so the password only opens them (I6)
+        const vaultKeySet = await this.#openPasswordEnvelope(
+          recoverEncKeyResult.envelopeKeys,
+        );
+        if (vaultKeySet) {
+          encKey = vaultKeySet.encKey;
+          pwEncKey = vaultKeySet.localWrapKey;
+          authKeyPair = vaultKeySet.authKeyPair;
+          envelope = {
+            vaultKeySet,
+            passwordAuthPubKey: recoverEncKeyResult.authKeyPair.pk,
+          };
         } else {
-          this.#assertIsUnlocked();
-          // verify the password and unlock the vault
-          const keysFromVault = await this.#unlockVaultAndGetVaultData();
-          encKey = keysFromVault.toprfEncryptionKey;
-          pwEncKey = keysFromVault.toprfPwEncryptionKey;
-          authKeyPair = keysFromVault.toprfAuthKeyPair;
+          encKey = recoverEncKeyResult.encKey;
+          pwEncKey = recoverEncKeyResult.pwEncKey;
+          authKeyPair = recoverEncKeyResult.authKeyPair;
+          passwordKeySet = {
+            authKeyPair,
+            encKey,
+            localWrapKey: pwEncKey,
+          };
         }
 
         const { secrets, controlRecords } =
@@ -788,24 +812,21 @@ export class SeedlessOnboardingController<
           };
         }
 
-        if (password) {
-          // if password is provided, we need to create a new vault with the auth data. (supposedly the user is trying to rehydrate the wallet)
-          await this.#createNewVaultWithAuthData({
-            password,
-            rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
-            rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
-            rawToprfAuthKeyPair: authKeyPair,
-          });
-          if (envelope) {
-            this.#setEnvelopeState(
-              envelope.vaultKeySet,
-              envelope.passwordAuthPubKey,
-            );
-          }
+        await this.#createNewVaultWithAuthData({
+          password,
+          rawToprfEncryptionKey: encKey as Uint8Array<ArrayBuffer>,
+          rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
+          rawToprfAuthKeyPair: authKeyPair,
+        });
+        if (envelope) {
+          this.#setEnvelopeState(
+            envelope.vaultKeySet,
+            envelope.passwordAuthPubKey,
+          );
         }
 
         return secrets;
-      }, 'fetchAllSecretData');
+      }, 'restoreVaultWithPassword');
     });
   }
 

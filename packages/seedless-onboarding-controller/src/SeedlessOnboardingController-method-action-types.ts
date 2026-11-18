@@ -91,14 +91,31 @@ export type SeedlessOnboardingControllerRunMigrationsAction = {
 /**
  * Fetches all secret data items from the metadata store.
  *
- * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
+ * Decrypts the secret data with the keys of the unlocked vault. The vault
+ * and the `envelope` state are not changed.
  *
- * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
  * @returns A promise that resolves to the secret metadata items.
  */
 export type SeedlessOnboardingControllerFetchAllSecretDataAction = {
   type: `SeedlessOnboardingController:fetchAllSecretData`;
   handler: SeedlessOnboardingController['fetchAllSecretData'];
+};
+
+/**
+ * Restores the local vault with the global password.
+ *
+ * Derives the keys from `password`, fetches and decrypts the secret data,
+ * and creates the local vault under `password`, replacing any existing
+ * one. If the vault is envelope-managed, the password opens the vault keys
+ * and the `envelope` state is set.
+ *
+ * @param params - The function parameters.
+ * @param params.password - The global password.
+ * @returns The secret data of the vault.
+ */
+export type SeedlessOnboardingControllerRestoreVaultWithPasswordAction = {
+  type: `SeedlessOnboardingController:restoreVaultWithPassword`;
+  handler: SeedlessOnboardingController['restoreVaultWithPassword'];
 };
 
 /**
@@ -534,6 +551,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerAddNewSecretDataAction
   | SeedlessOnboardingControllerRunMigrationsAction
   | SeedlessOnboardingControllerFetchAllSecretDataAction
+  | SeedlessOnboardingControllerRestoreVaultWithPasswordAction
   | SeedlessOnboardingControllerChangePasswordAction
   | SeedlessOnboardingControllerUpdateBackupMetadataStateAction
   | SeedlessOnboardingControllerVerifyVaultPasswordAction

@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `resetPasswordWithVaultKeys` and the `SeedlessOnboardingController:resetPasswordWithVaultKeys` messenger action, which set a new global password on an unlocked, envelope-managed vault without the old password after `setLocalPassword` ([#11220](https://github.com/MetaMask/core/pull/11220))
   - Only allowed while `isLocalPassword` is set and with a valid aal2 session from `authenticateForRecovery`; otherwise it throws `PasswordResetRequiresRecovery` or `Aal2Required`. A successful reset clears `isLocalPassword`; after that, use `changePassword`.
   - The password OPRF key swap is signed with the auth key stored in the vault's control record. The vault keys and secret data are not changed, and the local vault is re-encrypted under `newPassword`.
+- Add `restoreVaultWithPassword` and the `SeedlessOnboardingController:restoreVaultWithPassword` messenger action, which restore the local vault with the global password and return the secret data ([#11220](https://github.com/MetaMask/core/pull/11220), [#11346](https://github.com/MetaMask/core/pull/11346))
+  - Derives the keys from `password`, fetches the secret data, and creates the local vault under `password`, replacing any existing one.
+  - Opens the envelope sealed for the password first, and restores the vault with the sealed vault keys and sets `envelope` state if there is one.
+  - If the password has no envelope but a control record in the vault has a `passwordNamespace.authSk` matching the password's auth public key, it restores with the password's keys and sets `envelope` state. Control records are `EnvelopeControl` items in the vault partition, and vault fetches ignore them when reading secrets.
+  - Malformed control records are ignored, including records with a non-positive or unsafe `seq`, empty verifier fields, or a `passwordNamespace.authSk` that is not a valid secp256k1 private key. Unknown fields of a control record are dropped.
 - Add persisted `envelope` state and the `EnvelopeState` type, set once the vault is envelope-managed, and persisted, encrypted `pendingEnvelopeMigration` state for the migration checkpoint ([#11220](https://github.com/MetaMask/core/pull/11220))
   - `EnvelopeState.passwordAuthPubKey` is the password OPRF auth public key the local password is synced with; after `setLocalPassword`, the live key matched during recovery.
 - Add persisted `isLocalPassword` state, set by `setLocalPassword` and cleared by a successful `resetPasswordWithVaultKeys`, `changePassword` or `syncLatestGlobalPassword` ([#11220](https://github.com/MetaMask/core/pull/11220))
@@ -44,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `fetchAllSecretData` no longer takes a `password`. It requires an unlocked vault and never changes the local vault or `envelope` state ([#11346](https://github.com/MetaMask/core/pull/11346))
+  - Replace `fetchAllSecretData(password)` with `restoreVaultWithPassword({ password })` to restore the vault with the password.
 - Replace JS AES implementation with `@metamask/cryptography` ([#10659](https://github.com/MetaMask/core/pull/10659))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.2` ([#10851](https://github.com/MetaMask/core/pull/10851), [#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
@@ -54,9 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope sealed for the global password first, and fall back to the existing key chain if there is none. A failed envelope fetch is reported as an error, not treated as a missing envelope ([#11220](https://github.com/MetaMask/core/pull/11220))
   - When `syncLatestGlobalPassword` falls back on a vault without `envelope` state, it sets `envelope` state if a control record's `passwordNamespace.authSk` matches the password's auth public key.
   - On a vault with `envelope` state, `syncLatestGlobalPassword` only falls back when the global password still derives the vault keys and a control record matches it, as for a migrated vault before its first envelope password change. Otherwise it throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state.
-- `fetchAllSecretData` with a password opens the envelope sealed for that password first, and restores the vault with the sealed vault keys and sets `envelope` state if there is one ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - If the password has no envelope but a control record in the vault has a `passwordNamespace.authSk` matching the password's auth public key, it restores with the password's keys and sets `envelope` state. Control records are `EnvelopeControl` items in the vault partition, and vault fetches ignore them when reading secrets.
-  - Malformed control records are ignored, including records with a non-positive or unsafe `seq`, empty verifier fields, or a `passwordNamespace.authSk` that is not a valid secp256k1 private key. Unknown fields of a control record are dropped.
 - `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on an envelope-managed vault ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Bump `@metamask/auth-network-utils` from `^0.3.0` to `^0.4.0` ([#11494](https://github.com/MetaMask/core/pull/11494))
 

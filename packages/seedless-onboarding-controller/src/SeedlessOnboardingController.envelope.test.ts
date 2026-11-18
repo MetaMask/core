@@ -3269,7 +3269,7 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('fetchAllSecretData with a password on a new device', () => {
+    describe('restoreVaultWithPassword on a new device', () => {
       it('restores with the vault keys sealed for the password after an envelope password change', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
@@ -3285,7 +3285,9 @@ describe('SeedlessOnboardingController', () => {
         await withNewDeviceController(async ({ controller, toprfClient }) => {
           mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
 
-          const secrets = await controller.fetchAllSecretData(NEW_PASSWORD);
+          const secrets = await controller.restoreVaultWithPassword({
+            password: NEW_PASSWORD,
+          });
 
           expect(secrets.map(({ data }) => data)).toStrictEqual([
             MOCK_SEED_PHRASE,
@@ -3314,7 +3316,7 @@ describe('SeedlessOnboardingController', () => {
           });
           await recover(args);
 
-          await controller.fetchAllSecretData(NEW_PASSWORD);
+          await controller.restoreVaultWithPassword({ password: NEW_PASSWORD });
 
           expect(controller.state.isLocalPassword).toBe(true);
           await baseMessenger.call(
@@ -3339,7 +3341,9 @@ describe('SeedlessOnboardingController', () => {
         await withNewDeviceController(async ({ controller, toprfClient }) => {
           mockNetwork(toprfClient, { store });
 
-          const secrets = await controller.fetchAllSecretData(MOCK_PASSWORD);
+          const secrets = await controller.restoreVaultWithPassword({
+            password: MOCK_PASSWORD,
+          });
 
           expect(secrets.map(({ data }) => data)).toStrictEqual([
             MOCK_SEED_PHRASE,
@@ -3360,7 +3364,9 @@ describe('SeedlessOnboardingController', () => {
         await withNewDeviceController(async ({ controller, toprfClient }) => {
           mockNetwork(toprfClient, { store });
 
-          const secrets = await controller.fetchAllSecretData(MOCK_PASSWORD);
+          const secrets = await controller.restoreVaultWithPassword({
+            password: MOCK_PASSWORD,
+          });
 
           expect(secrets.map(({ data }) => data)).toStrictEqual([
             MOCK_SEED_PHRASE,
@@ -3381,7 +3387,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           await expect(
-            controller.fetchAllSecretData(MOCK_PASSWORD),
+            controller.restoreVaultWithPassword({ password: MOCK_PASSWORD }),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
           );
@@ -3423,7 +3429,31 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
-      it('ignores a malformed control record with the highest seq in changePassword and fetchAllSecretData', async () => {
+      it('fetchAllSecretData does not write the vault or the envelope state of an envelope-managed vault', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient, encryptor } = args;
+          const network = mockNetwork(toprfClient);
+          await migrate(args, network);
+          storeSeedPhrase(network.store, vaultKeySetFor());
+          const vaultBefore = controller.state.vault;
+          const envelopeBefore = controller.state.envelope;
+          const encryptWithDetailSpy = vi.spyOn(encryptor, 'encryptWithDetail');
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
+
+          const secrets = await controller.fetchAllSecretData();
+
+          expect(secrets.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(controller.state.vault).toBe(vaultBefore);
+          expect(controller.state.envelope).toStrictEqual(envelopeBefore);
+          expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+          expect(encryptWithDetailSpy).not.toHaveBeenCalled();
+          expect(encryptWithKeySpy).not.toHaveBeenCalled();
+        });
+      });
+
+      it('ignores a malformed control record with the highest seq in changePassword and restoreVaultWithPassword', async () => {
         const store: MetadataStore = new Map();
         await withUnlockedController(async (args) => {
           const network = mockNetwork(args.toprfClient, { store });
@@ -3454,7 +3484,9 @@ describe('SeedlessOnboardingController', () => {
         await withNewDeviceController(async ({ controller, toprfClient }) => {
           mockNetwork(toprfClient, { store, globalPassword: NEW_PASSWORD });
 
-          const secrets = await controller.fetchAllSecretData(NEW_PASSWORD);
+          const secrets = await controller.restoreVaultWithPassword({
+            password: NEW_PASSWORD,
+          });
 
           expect(secrets.map(({ data }) => data)).toStrictEqual([
             MOCK_SEED_PHRASE,
@@ -3480,7 +3512,7 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
-      it('fetchAllSecretData does not mark the vault envelope-managed when no control record matches the password', async () => {
+      it('restoreVaultWithPassword does not mark the vault envelope-managed when no control record matches the password', async () => {
         await withNewDeviceController(async ({ controller, toprfClient }) => {
           const network = mockNetwork(toprfClient);
           storeSeedPhrase(network.store, vaultKeySetFor());
@@ -3490,7 +3522,9 @@ describe('SeedlessOnboardingController', () => {
           );
           network.spies.fetchAllSecretDataItems.mockClear();
 
-          const secrets = await controller.fetchAllSecretData(MOCK_PASSWORD);
+          const secrets = await controller.restoreVaultWithPassword({
+            password: MOCK_PASSWORD,
+          });
 
           expect(secrets.map(({ data }) => data)).toStrictEqual([
             MOCK_SEED_PHRASE,
@@ -4403,8 +4437,9 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: RECOVERED_PASSWORD,
           });
 
-          const secrets =
-            await controller.fetchAllSecretData(RECOVERED_PASSWORD);
+          const secrets = await controller.restoreVaultWithPassword({
+            password: RECOVERED_PASSWORD,
+          });
 
           expect(secrets.map(({ data }) => data)).toStrictEqual([
             MOCK_SEED_PHRASE,

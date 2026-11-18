@@ -2442,6 +2442,168 @@ describe('SeedlessOnboardingController', () => {
   describe('fetchAllSecretData', () => {
     const MOCK_PASSWORD = 'mock-password';
 
+    it('should be able to fetch seed phrases with cached encryption key without providing password', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+      );
+
+      const MOCK_VAULT = mockResult.encryptedMockVault;
+      const MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
+      const MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: MOCK_VAULT,
+            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
+            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
+          }),
+        },
+        async ({ baseMessenger, toprfClient }) => {
+          vi.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          ).mockImplementationOnce(() => {
+            // Mock the recover enc key for second time
+            mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+            // First call fails with token expired error
+            throw new TOPRFError(
+              TOPRFErrorCode.AuthTokenExpired,
+              'Auth token expired',
+            );
+          });
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: MOCK_SEED_PHRASE,
+                  type: SecretType.Mnemonic,
+                  itemId: 'primary-srp-id',
+                  dataType: EncAccountDataType.PrimarySrp,
+                  createdAt: '00000001-0000-1000-8000-000000000001',
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await baseMessenger.call(
+            'SeedlessOnboardingController:fetchAllSecretData',
+          );
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toBeDefined();
+          expect(secretData).toHaveLength(1);
+          expect(secretData[0].type).toStrictEqual(SecretType.Mnemonic);
+          expect(secretData[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+          expect(secretData[0].itemId).toBe('primary-srp-id');
+          expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(secretData[0].createdAt).toBe(
+            '00000001-0000-1000-8000-000000000001',
+          );
+        },
+      );
+    });
+
+    it('should not write the vault or the envelope state', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+
+      const mockResult = await createMockVault(
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD),
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD),
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD),
+        MOCK_PASSWORD,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, toprfClient, encryptor, baseMessenger }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+          const vaultBefore = controller.state.vault;
+          const envelopeBefore = controller.state.envelope;
+          const recoverEncKeySpy = vi.spyOn(toprfClient, 'recoverEncKey');
+          const encryptWithDetailSpy = vi.spyOn(encryptor, 'encryptWithDetail');
+          const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
+
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: MOCK_SEED_PHRASE,
+                  type: SecretType.Mnemonic,
+                  itemId: 'primary-srp-id',
+                  dataType: EncAccountDataType.PrimarySrp,
+                  createdAt: '00000001-0000-1000-8000-000000000001',
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSecretData();
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData.map(({ data }) => data)).toStrictEqual([
+            MOCK_SEED_PHRASE,
+          ]);
+          expect(controller.state.vault).toBe(vaultBefore);
+          expect(controller.state.envelope).toStrictEqual(envelopeBefore);
+          expect(recoverEncKeySpy).not.toHaveBeenCalled();
+          expect(encryptWithDetailSpy).not.toHaveBeenCalled();
+          expect(encryptWithKeySpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should throw an error if the controller is locked', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(controller.fetchAllSecretData()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.ControllerLocked,
+          );
+        },
+      );
+    });
+  });
+
+  describe('restoreVaultWithPassword', () => {
+    const MOCK_PASSWORD = 'mock-password';
+
     it('should be able to fetch secret data from metadata store', async () => {
       await withController(
         {
@@ -2485,8 +2647,8 @@ describe('SeedlessOnboardingController', () => {
             ),
           });
           const secretData = await baseMessenger.call(
-            'SeedlessOnboardingController:fetchAllSecretData',
-            MOCK_PASSWORD,
+            'SeedlessOnboardingController:restoreVaultWithPassword',
+            { password: MOCK_PASSWORD },
           );
 
           expect(mockSecretDataGet.isDone()).toBe(true);
@@ -2559,8 +2721,8 @@ describe('SeedlessOnboardingController', () => {
             ),
           });
           const secretData = await baseMessenger.call(
-            'SeedlessOnboardingController:fetchAllSecretData',
-            MOCK_PASSWORD,
+            'SeedlessOnboardingController:restoreVaultWithPassword',
+            { password: MOCK_PASSWORD },
           );
 
           expect(mockSecretDataGet.isDone()).toBe(true);
@@ -2661,8 +2823,8 @@ describe('SeedlessOnboardingController', () => {
             ),
           });
           const secretData = await baseMessenger.call(
-            'SeedlessOnboardingController:fetchAllSecretData',
-            MOCK_PASSWORD,
+            'SeedlessOnboardingController:restoreVaultWithPassword',
+            { password: MOCK_PASSWORD },
           );
 
           expect(mockSecretDataGet.isDone()).toBe(true);
@@ -2701,7 +2863,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should be able to retry fetchAllSecretData on auth token errors', async () => {
+    it('should be able to retry restoreVaultWithPassword on auth token errors', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -2745,8 +2907,8 @@ describe('SeedlessOnboardingController', () => {
             });
 
           const secretData = await baseMessenger.call(
-            'SeedlessOnboardingController:fetchAllSecretData',
-            MOCK_PASSWORD,
+            'SeedlessOnboardingController:restoreVaultWithPassword',
+            { password: MOCK_PASSWORD },
           );
 
           expect(mockSecretDataGet.isDone()).toBe(true);
@@ -2786,88 +2948,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should be able to fetch seed phrases with cached encryption key without providing password', async () => {
-      const mockToprfEncryptor = createMockToprfEncryptor();
-
-      const MOCK_ENCRYPTION_KEY =
-        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
-      const MOCK_PASSWORD_ENCRYPTION_KEY =
-        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
-      const MOCK_AUTH_KEY_PAIR =
-        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
-
-      const mockResult = await createMockVault(
-        MOCK_ENCRYPTION_KEY,
-        MOCK_PASSWORD_ENCRYPTION_KEY,
-        MOCK_AUTH_KEY_PAIR,
-        MOCK_PASSWORD,
-      );
-
-      const MOCK_VAULT = mockResult.encryptedMockVault;
-      const MOCK_VAULT_ENCRYPTION_KEY = mockResult.vaultEncryptionKey;
-      const MOCK_VAULT_ENCRYPTION_SALT = mockResult.vaultEncryptionSalt;
-
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            vault: MOCK_VAULT,
-            vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
-            vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-          }),
-        },
-        async ({ baseMessenger, toprfClient }) => {
-          vi.spyOn(
-            toprfClient,
-            'fetchAllSecretDataItems',
-          ).mockImplementationOnce(() => {
-            // Mock the recover enc key for second time
-            mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-            // First call fails with token expired error
-            throw new TOPRFError(
-              TOPRFErrorCode.AuthTokenExpired,
-              'Auth token expired',
-            );
-          });
-          await baseMessenger.call(
-            'SeedlessOnboardingController:submitPassword',
-            MOCK_PASSWORD,
-          );
-
-          const mockSecretDataGet = handleMockSecretDataGet({
-            status: 200,
-            body: createMockSecretDataGetResponse(
-              [
-                {
-                  data: MOCK_SEED_PHRASE,
-                  type: SecretType.Mnemonic,
-                  itemId: 'primary-srp-id',
-                  dataType: EncAccountDataType.PrimarySrp,
-                  createdAt: '00000001-0000-1000-8000-000000000001',
-                },
-              ],
-              MOCK_PASSWORD,
-            ),
-          });
-
-          const secretData = await baseMessenger.call(
-            'SeedlessOnboardingController:fetchAllSecretData',
-          );
-
-          expect(mockSecretDataGet.isDone()).toBe(true);
-          expect(secretData).toBeDefined();
-          expect(secretData).toHaveLength(1);
-          expect(secretData[0].type).toStrictEqual(SecretType.Mnemonic);
-          expect(secretData[0].data).toStrictEqual(MOCK_SEED_PHRASE);
-          expect(secretData[0].itemId).toBe('primary-srp-id');
-          expect(secretData[0].dataType).toBe(EncAccountDataType.PrimarySrp);
-          expect(secretData[0].createdAt).toBe(
-            '00000001-0000-1000-8000-000000000001',
-          );
-        },
-      );
-    });
-
     it('should throw an error if the key recovery failed', async () => {
       await withController(
         {
@@ -2882,8 +2962,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              'INCORRECT_PASSWORD',
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: 'INCORRECT_PASSWORD' },
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.LoginFailedError,
@@ -2909,8 +2989,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              'INCORRECT_PASSWORD',
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: 'INCORRECT_PASSWORD' },
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
@@ -2941,8 +3021,8 @@ describe('SeedlessOnboardingController', () => {
           ]);
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidSecretMetadata,
@@ -2972,8 +3052,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toStrictEqual(
             new RecoveryError(
@@ -3002,8 +3082,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toStrictEqual(
             new RecoveryError(
@@ -3028,8 +3108,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toStrictEqual(
             new RecoveryError(
@@ -3061,8 +3141,8 @@ describe('SeedlessOnboardingController', () => {
           });
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
@@ -3102,8 +3182,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toMatchObject({
             message:
@@ -3150,7 +3230,9 @@ describe('SeedlessOnboardingController', () => {
             ),
           });
 
-          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+          const secretData = await controller.restoreVaultWithPassword({
+            password: MOCK_PASSWORD,
+          });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
           expect(secretData).toHaveLength(2);
@@ -3211,7 +3293,9 @@ describe('SeedlessOnboardingController', () => {
             ),
           });
 
-          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+          const secretData = await controller.restoreVaultWithPassword({
+            password: MOCK_PASSWORD,
+          });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
           expect(secretData).toHaveLength(3);
@@ -3268,7 +3352,9 @@ describe('SeedlessOnboardingController', () => {
             ),
           });
 
-          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+          const secretData = await controller.restoreVaultWithPassword({
+            password: MOCK_PASSWORD,
+          });
 
           expect(mockSecretDataGet.isDone()).toBe(true);
           expect(secretData).toHaveLength(2);
@@ -3309,8 +3395,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toMatchObject({
             message:
@@ -6640,8 +6726,8 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
-    describe('fetchAllSecretData with token refresh', () => {
-      it('should retry fetchAllSecretData after refreshing expired tokens', async () => {
+    describe('restoreVaultWithPassword with token refresh', () => {
+      it('should retry restoreVaultWithPassword after refreshing expired tokens', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
@@ -6686,8 +6772,8 @@ describe('SeedlessOnboardingController', () => {
 
             await expect(
               baseMessenger.call(
-                'SeedlessOnboardingController:fetchAllSecretData',
-                MOCK_PASSWORD,
+                'SeedlessOnboardingController:restoreVaultWithPassword',
+                { password: MOCK_PASSWORD },
               ),
             ).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.NoSecretDataFound,
@@ -8350,8 +8436,8 @@ describe('SeedlessOnboardingController', () => {
           ]);
 
           const secretData = await baseMessenger.call(
-            'SeedlessOnboardingController:fetchAllSecretData',
-            MOCK_PASSWORD,
+            'SeedlessOnboardingController:restoreVaultWithPassword',
+            { password: MOCK_PASSWORD },
           );
           expect(secretData).toBeDefined();
           expect(secretData).toHaveLength(2);
@@ -8410,8 +8496,8 @@ describe('SeedlessOnboardingController', () => {
 
           await expect(
             baseMessenger.call(
-              'SeedlessOnboardingController:fetchAllSecretData',
-              MOCK_PASSWORD,
+              'SeedlessOnboardingController:restoreVaultWithPassword',
+              { password: MOCK_PASSWORD },
             ),
           ).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
