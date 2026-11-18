@@ -131,9 +131,7 @@ describe('VendorOnboardingController', () => {
         });
         handlers.getStep.mockRejectedValue(new Error('step unavailable'));
 
-        await expect(
-          controller.fetchSessionDisclaimers({ vendor: 'kalshi' }),
-        ).resolves.toBeDefined();
+        await controller.fetchSessionDisclaimers({ vendor: 'kalshi' });
         await expect(
           controller.refreshStep({ vendor: 'kalshi' }),
         ).rejects.toThrow('step unavailable');
