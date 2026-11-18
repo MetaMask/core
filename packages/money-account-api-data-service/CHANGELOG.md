@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchVaults`, which reads `GET /v1/vaults` for the environment's vault catalog including `current_apy`, and is exposed as the `MoneyAccountApiDataService:fetchVaults` action. Export `VaultsResponse`, `VaultSummary`, and `MoneyAccountApiDataServiceFetchVaultsAction`
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
