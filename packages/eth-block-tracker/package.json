@@ -61,11 +61,11 @@
     "@metamask/json-rpc-engine": "^11.0.0",
     "@types/json-rpc-random-id": "^1.0.1",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "rimraf": "^6.1.3",
+    "rimraf": "^6.1.4",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.1.0"
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"
