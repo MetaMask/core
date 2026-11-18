@@ -1358,7 +1358,7 @@ describe('TokenDataSource', () => {
     ).toStrictEqual({ amount: '100' });
   });
 
-  it('occurrenceFilterMiddleware keeps a custom asset that CustomAssetGraduationMiddleware just removed from customAssets', async () => {
+  it('occurrenceFilterMiddleware keeps a known asset when customAssets is empty', async () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -1378,9 +1378,8 @@ describe('TokenDataSource', () => {
     });
 
     const next = vi.fn().mockResolvedValue(undefined);
-    // Graduation runs first and empties `customAssets`, so the exemption is
-    // gone by the time this middleware reads state; the zero balance seeded
-    // by `addCustomAsset` (checksummed) is what marks the asset as known.
+    // `customAssets` is empty, so the exemption is gone; the zero balance
+    // seeded by `addCustomAsset` (checksummed) is what marks the asset as known.
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {
