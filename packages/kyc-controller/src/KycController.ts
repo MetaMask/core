@@ -2,12 +2,13 @@ import type {
   AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
   IdentitySharingAudience,
 } from '@metamask/authenticated-user-storage';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  StateMetadata,
+import {
+  BaseController,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  type StateMetadata,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { TraceRequest } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationControllerGetPartnerIdentityTokenAction } from '@metamask/profile-sync-controller/auth';
 import type {
@@ -30,6 +31,7 @@ import type {
   CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
+import { traceLogger } from './logger.js';
 import {
   getEmailFromPartnerIdentityToken,
   isEmailRequiredError,
@@ -96,6 +98,26 @@ export const KYC_PROVIDER_FLOW_STATUSES = [
  * pending session from a provider flow that the customer actually submitted.
  */
 export type KycProviderFlowStatus = (typeof KYC_PROVIDER_FLOW_STATUSES)[number];
+
+const KYC_PROVIDER_FLOW_TRACE_NAME = 'KYC Provider Flow';
+const KYC_PROVIDER_FLOW_TRACE_OPERATION = 'kyc.operation';
+
+/**
+ * Trace request for one SumSub launch. `op` is the Sentry span operation.
+ * The shared {@link TraceRequest} type does not include it.
+ */
+export type KycTraceRequest = TraceRequest & {
+  op?: string;
+};
+
+/**
+ * Records one finished span. The callback is empty: `startTime` is the
+ * beginning of the launch, so the span length is the flow.
+ */
+export type KycTraceCallback = (
+  request: KycTraceRequest,
+  fn?: () => void,
+) => void;
 
 // Lifetime of the read-only `ukyc_capability_token` minted when creating a
 // UKYC session. The storage-and-auth spec requires the token's `expires_at` to
@@ -362,6 +384,12 @@ export type KycControllerOptions = {
    * record nothing. See {@link KycAnalyticsTrackers}.
    */
   trackKycAnalytics?: KycAnalyticsTrackers;
+  /**
+   * Optional callback that records the SumSub launch duration. Omitted
+   * clients record nothing. A throwing callback does not change the launch
+   * outcome.
+   */
+  trace?: KycTraceCallback;
 };
 
 // === CONTROLLER DEFINITION ===
@@ -384,6 +412,8 @@ export class KycController extends BaseController<
 
   readonly #trackKycAnalytics?: KycAnalyticsTrackers;
 
+  readonly #trace?: KycTraceCallback;
+
   /** Handle for the scheduled next session-status poll, or `null`. */
   #sessionStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -401,12 +431,14 @@ export class KycController extends BaseController<
    * @param options.state - Partial initial state; merged over defaults.
    * @param options.sumsubLauncher - The platform SumSub launcher adapter.
    * @param options.trackKycAnalytics - Optional callbacks that record KYC analytics.
+   * @param options.trace - Optional callback that records the SumSub launch duration.
    */
   constructor({
     messenger,
     state,
     sumsubLauncher,
     trackKycAnalytics,
+    trace,
   }: KycControllerOptions) {
     super({
       messenger,
@@ -417,6 +449,7 @@ export class KycController extends BaseController<
 
     this.#sumsubLauncher = sumsubLauncher;
     this.#trackKycAnalytics = trackKycAnalytics;
+    this.#trace = trace;
     this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
     this.messenger.registerMethodActionHandlers(
@@ -1405,12 +1438,20 @@ export class KycController extends BaseController<
     locale?: string;
     debug?: boolean;
   }): Promise<KycProviderFlowStatus> {
+    const startTime = Date.now();
+    const traceAndReturn = (
+      result: KycProviderFlowStatus,
+    ): KycProviderFlowStatus => {
+      this.#traceProviderFlow(result, startTime);
+      return result;
+    };
+
     const sessionId = this.state.sessionStatus?.id;
     if (!this.#sumsubLauncher.isAvailable() || !sessionId) {
       this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
         state.providerFlowStatus = 'failed';
       });
-      return 'failed';
+      return traceAndReturn('failed');
     }
 
     try {
@@ -1460,14 +1501,14 @@ export class KycController extends BaseController<
       const currentSessionStatus = this.state.sessionStatus;
       if (currentSessionStatus?.id !== sessionId) {
         this.#recordLaunchOutcomeAndTrackAnalytics('failed');
-        return 'failed';
+        return traceAndReturn('failed');
       }
 
       if (sdkFailed) {
         this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
           state.providerFlowStatus = 'failed';
         });
-        return 'failed';
+        return traceAndReturn('failed');
       }
 
       if (submitted) {
@@ -1476,7 +1517,7 @@ export class KycController extends BaseController<
         const latestSessionStatus = this.state.sessionStatus;
         if (latestSessionStatus?.id !== sessionId) {
           this.#recordLaunchOutcomeAndTrackAnalytics('failed');
-          return 'failed';
+          return traceAndReturn('failed');
         }
 
         if (unsubmittedSessionStatus) {
@@ -1484,7 +1525,7 @@ export class KycController extends BaseController<
             state.sessionStatus = unsubmittedSessionStatus;
             state.providerFlowStatus = 'abandoned';
           });
-          return 'abandoned';
+          return traceAndReturn('abandoned');
         }
 
         // Once the SDK completes, the authoritative verification decision comes
@@ -1500,13 +1541,13 @@ export class KycController extends BaseController<
           state.providerFlowStatus = 'submitted';
         });
         this.startSessionStatusPolling();
-        return 'submitted';
+        return traceAndReturn('submitted');
       }
 
       this.#recordLaunchOutcomeAndTrackAnalytics('abandoned', (state) => {
         state.providerFlowStatus = 'abandoned';
       });
-      return 'abandoned';
+      return traceAndReturn('abandoned');
     } catch {
       if (this.state.sessionStatus?.id === sessionId) {
         this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
@@ -1515,7 +1556,38 @@ export class KycController extends BaseController<
       } else {
         this.#recordLaunchOutcomeAndTrackAnalytics('failed');
       }
-      return 'failed';
+      return traceAndReturn('failed');
+    }
+  }
+
+  /**
+   * Records the SumSub launch that just finished. `startTime` is when
+   * {@link KycController.#launchSumsubFlow} started, so the span covers the
+   * token fetch and the SDK. A throwing callback is logged and ignored.
+   *
+   * @param result - The launch outcome.
+   * @param startTime - When the launch started, in epoch milliseconds.
+   */
+  #traceProviderFlow(result: KycProviderFlowStatus, startTime: number): void {
+    try {
+      this.#trace?.(
+        {
+          name: KYC_PROVIDER_FLOW_TRACE_NAME,
+          op: KYC_PROVIDER_FLOW_TRACE_OPERATION,
+          startTime,
+          tags: {
+            feature: 'kyc',
+            provider: 'sumsub',
+            result,
+          },
+        },
+        () => undefined,
+      );
+    } catch (traceError) {
+      traceLogger('Failed to emit trace', {
+        traceName: KYC_PROVIDER_FLOW_TRACE_NAME,
+        traceError,
+      });
     }
   }
 

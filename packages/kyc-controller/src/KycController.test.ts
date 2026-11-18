@@ -21,6 +21,7 @@ import {
   KycController,
 } from './KycController.js';
 import type { KycControllerMessenger } from './KycController.js';
+import { traceLogger } from './logger.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { KYC_CURRENT_STEPS } from './types.js';
 import type {
@@ -1929,6 +1930,129 @@ describe('KycController', () => {
         expect(launcher.launch).not.toHaveBeenCalled();
         expect(controller.state.providerFlowStatus).toBe('failed');
       });
+    });
+
+    it.each([
+      ['submitted', 'Completed'],
+      ['abandoned', 'Incomplete'],
+      ['failed', 'Failed'],
+    ] as const)(
+      'records one %s span for the launch',
+      async (result, status) => {
+        const trace = vi.fn();
+        await withController(
+          {
+            options: {
+              state: { sessionStatus: sessionStatus('pending') },
+              trace,
+            },
+          },
+          async ({ controller, launcher }) => {
+            launcher.launch.mockResolvedValue({ status });
+
+            expect(await controller.launchProviderFlow({})).toBe(result);
+            expect(trace).toHaveBeenCalledTimes(1);
+            const [request, fn] = trace.mock.calls[0] as [
+              {
+                name: string;
+                op: string;
+                startTime: number;
+                tags: Record<string, string>;
+              },
+              () => void,
+            ];
+            expect(request).toMatchObject({
+              name: 'KYC Provider Flow',
+              op: 'kyc.operation',
+              tags: { feature: 'kyc', provider: 'sumsub', result },
+            });
+            expect(request.startTime).toBeLessThanOrEqual(Date.now());
+            expect(fn()).toBeUndefined();
+          },
+        );
+      },
+    );
+
+    it('records a failed span when the SDK is unavailable', async () => {
+      const trace = vi.fn();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trace,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.isAvailable.mockReturnValue(false);
+
+          expect(await controller.launchProviderFlow({})).toBe('failed');
+          expect(trace).toHaveBeenCalledWith(
+            expect.objectContaining({
+              name: 'KYC Provider Flow',
+              tags: { feature: 'kyc', provider: 'sumsub', result: 'failed' },
+            }),
+            expect.any(Function),
+          );
+        },
+      );
+    });
+
+    it('records a failed span when there is no session', async () => {
+      const trace = vi.fn();
+      await withController(
+        { options: { trace } },
+        async ({ controller }) => {
+          expect(await controller.launchProviderFlow({})).toBe('failed');
+          expect(trace).toHaveBeenCalledWith(
+            expect.objectContaining({
+              tags: { feature: 'kyc', provider: 'sumsub', result: 'failed' },
+            }),
+            expect.any(Function),
+          );
+        },
+      );
+    });
+
+    it('keeps the launch outcome and polling when trace throws', async () => {
+      const trace = vi.fn(() => {
+        throw new Error('sentry down');
+      });
+      const messages: unknown[] = [];
+      const originalLog = traceLogger.log;
+      const wasEnabled = traceLogger.enabled;
+      traceLogger.enabled = true;
+      traceLogger.log = (...args: unknown[]) => {
+        messages.push(args);
+      };
+
+      try {
+        await withController(
+          {
+            options: {
+              state: { sessionStatus: sessionStatus('pending') },
+              trace,
+            },
+          },
+          async ({ controller, handlers, launcher }) => {
+            launcher.launch.mockResolvedValue({ status: 'Completed' });
+            handlers.getSessionStatus.mockRejectedValue(
+              new Error('unavailable'),
+            );
+
+            expect(await controller.launchProviderFlow({})).toBe('submitted');
+            expect(controller.state.providerFlowStatus).toBe('submitted');
+            expect(handlers.getSessionStatus).toHaveBeenCalled();
+            expect(messages.flat()).toEqual(
+              expect.arrayContaining([
+                expect.stringContaining('Failed to emit trace'),
+              ]),
+            );
+          },
+        );
+      } finally {
+        traceLogger.log = originalLog;
+        traceLogger.enabled = wasEnabled;
+      }
     });
 
     it('records failure when the provider launcher throws', async () => {

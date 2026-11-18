@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `KycController` accepts an optional `trace` callback and records one `KYC Provider Flow` span per `launchProviderFlow` attempt (`result`: `submitted`, `abandoned`, or `failed`). A failure to emit the span is logged and does not change the launch outcome.
+
 ### Changed
 
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
