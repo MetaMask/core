@@ -163,6 +163,7 @@ vi.mock('./hooks/ExtraTransactionsPublishHook');
 vi.mock('./logger.js', () => ({
   createModuleLogger: vi.fn(() => vi.fn()),
   incomingTransactionsLogger: vi.fn(),
+  lifecycleLogger: vi.fn(),
   projectLogger: projectLoggerMock,
 }));
 vi.mock('./utils/batch');

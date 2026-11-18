@@ -131,7 +131,7 @@ const config: KnipConfig = {
       ],
     },
     'packages/multichain-network-controller': {
-      ignoreDependencies: ['@solana/addresses', 'immer', 'nock'],
+      ignoreDependencies: ['immer', 'nock'],
     },
     'packages/multichain-transactions-controller': {
       ignoreDependencies: ['@metamask/polling-controller'],

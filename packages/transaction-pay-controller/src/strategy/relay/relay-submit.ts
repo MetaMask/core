@@ -37,6 +37,7 @@ import {
 import { getNetworkClientId } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
+  getEvmQuoteSource,
   getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
   TokenAddressTarget,
@@ -375,7 +376,7 @@ function getSettlementHash({
   }
 
   const isSameChain =
-    quote.request.sourceChainId === quote.request.targetChainId;
+    getEvmQuoteSource(quote.request).chainId === quote.request.targetChainId;
 
   if (isSameChain && submittedSourceHash !== FALLBACK_HASH) {
     return submittedSourceHash;
@@ -533,7 +534,9 @@ async function validateSourceBalance(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
@@ -797,8 +800,9 @@ async function submitViaTransactionController(
   allParams: TransactionParams[],
 ): Promise<Hex> {
   const transactionIds: string[] = [];
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
-  const { isPostQuote } = quote.request;
+  const { from, isPostQuote } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
@@ -981,7 +985,8 @@ function buildRelayTransactionBatchRequest({
   quote: TransactionPayQuote<RelayQuote>;
   transaction: TransactionMeta;
 }): TransactionBatchRequest {
-  const { from, sourceChainId } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const { metamask } = quote.original;
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
   const gasLimit7702 = getGasLimit7702(quote);

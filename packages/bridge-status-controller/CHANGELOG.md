@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.1` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Split the swap/bridge-specific transactionStatusUpdated callback into a generic selector + txType router, and moved business logic into tx status handlers. To support a new tx type, add a selector, txType router, and update txStatus handlers ([#11403](https://github.com/MetaMask/core/pull/11403))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/bridge-controller` from `^83.1.5` to `^83.2.0` ([#11596](https://github.com/MetaMask/core/pull/11596))
 
 ## [78.0.3]
 
@@ -22,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 - Bump `@metamask/bridge-controller` from `^83.1.4` to `^83.1.5` ([#11472](https://github.com/MetaMask/core/pull/11472))
 - Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+### Removed
+
+- Remove unused `StartPollingForBridgeTxStatusArgsSerialized` type ([#11403](https://github.com/MetaMask/core/pull/11403))
 
 ## [78.0.2]
 

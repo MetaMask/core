@@ -96,7 +96,7 @@
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
-      "count": 12
+      "count": 11
     },
     "TS2352": {
       "count": 2
@@ -106,9 +106,6 @@
     },
     "TS2532": {
       "count": 1
-    },
-    "TS2554": {
-      "count": 7
     },
     "TS2739": {
       "count": 4
@@ -354,12 +351,6 @@
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
     "TS2322": {
-      "count": 2
-    },
-    "TS2345": {
-      "count": 1
-    },
-    "TS2741": {
       "count": 2
     }
   },

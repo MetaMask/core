@@ -1,3 +1,7 @@
+import type {
+  AccountTreeControllerGetAccountContextAction,
+  AccountTreeControllerGetAccountGroupObjectAction,
+} from '@metamask/account-tree-controller';
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import { getDefaultAssetsControllerState } from '@metamask/assets-controller';
 import type { AssetsControllerGetStateAction } from '@metamask/assets-controller';
@@ -95,6 +99,14 @@ export function getMessengerMock({
     accountIdByAddress: {},
     internalAccounts: { accounts: {}, selectedAccount: '' },
   });
+
+  const getAccountContextMock: MockedFunction<
+    AccountTreeControllerGetAccountContextAction['handler']
+  > = vi.fn();
+
+  const getAccountGroupObjectMock: MockedFunction<
+    AccountTreeControllerGetAccountGroupObjectAction['handler']
+  > = vi.fn();
 
   const getAssetsControllerStateMock: MockedFunction<
     AssetsControllerGetStateAction['handler']
@@ -219,6 +231,16 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'AccountTreeController:getAccountContext',
+      getAccountContextMock,
+    );
+
+    messenger.registerActionHandler(
+      'AccountTreeController:getAccountGroupObject',
+      getAccountGroupObjectMock,
+    );
+
+    messenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientByIdMock,
     );
@@ -293,6 +315,8 @@ export function getMessengerMock({
 
   return {
     addTransactionMock,
+    getAccountContextMock,
+    getAccountGroupObjectMock,
     getAccountsControllerStateMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
