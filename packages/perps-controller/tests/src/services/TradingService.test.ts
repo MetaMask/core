@@ -2065,6 +2065,53 @@ describe('TradingService', () => {
       );
     });
 
+    it('logs the provider-attached cause of a normalized cancel failure', async () => {
+      const venueError = new Error('Unexpected cancel status: venue detail');
+      const normalizedError = new PerpsControllerError(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        { code: PERPS_ERROR_CODES.UNKNOWN_ERROR, provider: 'hyperliquid' },
+        { cause: venueError },
+      );
+      const providerResult = attachProviderErrorCause(
+        {
+          success: false,
+          error: normalizedError.message,
+          errorCode: normalizedError.errorCode,
+          errorDetails: normalizedError.errorDetails,
+        },
+        normalizedError,
+      );
+      mockProvider.cancelOrder.mockResolvedValue(providerResult);
+
+      const result = await tradingService.cancelOrder({
+        provider: mockProvider,
+        params: { orderId: 'order-123', symbol: 'BTC' },
+        context: mockContext,
+      });
+
+      expect(result).toBe(providerResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(normalizedError);
+      expect(loggedError.cause).toBe(venueError);
+      expect(loggedOptions.context.data).toMatchObject({
+        method: 'cancelOrder',
+        symbol: 'BTC',
+        providerError: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(JSON.stringify(result)).not.toContain(venueError.message);
+      expect(JSON.stringify(loggedOptions)).not.toContain(venueError.message);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        }),
+      );
+    });
+
     it('does not log a cancel the signer could not sign', async () => {
       mockProvider.cancelOrder.mockResolvedValue({
         success: false,
@@ -4560,6 +4607,53 @@ describe('TradingService', () => {
       expect(mockProvider.placeOrder).not.toHaveBeenCalledWith(
         expect.objectContaining({
           currentPrice: expect.any(Number),
+        }),
+      );
+    });
+
+    it('logs the provider-attached cause of a normalized flip failure', async () => {
+      const venueError = new Error('Unexpected flip rejection: venue detail');
+      const normalizedError = new PerpsControllerError(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        { code: PERPS_ERROR_CODES.UNKNOWN_ERROR, provider: 'hyperliquid' },
+        { cause: venueError },
+      );
+      const providerResult = attachProviderErrorCause(
+        {
+          success: false,
+          error: normalizedError.message,
+          errorCode: normalizedError.errorCode,
+          errorDetails: normalizedError.errorDetails,
+        },
+        normalizedError,
+      );
+      mockProvider.placeOrder.mockResolvedValue(providerResult);
+
+      const result = await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockPosition,
+        context: mockContext,
+      });
+
+      expect(result).toBe(providerResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(normalizedError);
+      expect(loggedError.cause).toBe(venueError);
+      expect(loggedOptions.context.data).toMatchObject({
+        method: 'flipPosition',
+        symbol: 'BTC',
+        providerError: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(JSON.stringify(result)).not.toContain(venueError.message);
+      expect(JSON.stringify(loggedOptions)).not.toContain(venueError.message);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         }),
       );
     });

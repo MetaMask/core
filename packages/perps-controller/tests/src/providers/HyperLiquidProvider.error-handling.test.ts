@@ -11,6 +11,7 @@ import {
   REFERRAL_CONFIG,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
@@ -40,7 +41,6 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
-import { normalizedCreateErrorResult } from '../../helpers/normalizedCreateErrorResult.js';
 import {
   createDeferred,
   createMockInfrastructure,
@@ -84,19 +84,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-    ...(error instanceof Error && 'errorCode' in error
-      ? {
-          errorCode: error.errorCode,
-          ...('errorDetails' in error
-            ? { errorDetails: error.errorDetails }
-            : {}),
-        }
-      : {}),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -373,6 +361,10 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -515,7 +507,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      normalizedCreateErrorResult,
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -2288,26 +2280,62 @@ describe('HyperLiquidProvider', () => {
         expect(result.walletConnected).toBe(false);
       });
 
-      it('handles general error in readiness check', async () => {
+      it.each([
+        ['Client error', PERPS_ERROR_CODES.UNKNOWN_ERROR],
+        ['Request timed out', PERPS_ERROR_CODES.CONNECTION_TIMEOUT],
+        [PERPS_ERROR_CODES.KEYRING_LOCKED, PERPS_ERROR_CODES.KEYRING_LOCKED],
+      ])('normalizes readiness failure "%s" to %s', async (message, code) => {
         mockClientService.getExchangeClient.mockImplementation(() => {
-          throw new Error('Client error');
+          throw new Error(message);
         });
 
         const result = await provider.isReadyToTrade();
 
-        expect(result.ready).toBe(false);
-        expect(result.walletConnected).toBe(false);
-        expect(result.networkSupported).toBe(false);
-        expect(result).toMatchObject({
-          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
-          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        expect(result).toStrictEqual({
+          ready: false,
+          walletConnected: false,
+          networkSupported: false,
+          error: code,
+          errorCode: code,
           errorDetails: {
-            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            code,
             provider: 'hyperliquid',
           },
         });
-        expect(result.error).not.toContain('Client error');
       });
+
+      it.each([true, false])(
+        'preserves PRICE_MOVED in readiness failures with details: %s',
+        async (withDetails) => {
+          const errorDetails = withDetails
+            ? {
+                code: PERPS_ERROR_CODES.PRICE_MOVED,
+                priceDeltaBps: 150,
+                maxSlippageBps: 100,
+                expectedPrice: 100,
+                currentPrice: 101.5,
+              }
+            : undefined;
+          mockClientService.getExchangeClient.mockImplementation(() => {
+            throw new PerpsControllerError(
+              PERPS_ERROR_CODES.PRICE_MOVED,
+              PERPS_ERROR_CODES.PRICE_MOVED,
+              errorDetails,
+            );
+          });
+
+          const result = await provider.isReadyToTrade();
+
+          expect(result).toStrictEqual({
+            ready: false,
+            walletConnected: false,
+            networkSupported: false,
+            error: PERPS_ERROR_CODES.PRICE_MOVED,
+            errorCode: PERPS_ERROR_CODES.PRICE_MOVED,
+            ...(errorDetails === undefined ? {} : { errorDetails }),
+          });
+        },
+      );
     });
 
     describe('editOrder error scenarios', () => {

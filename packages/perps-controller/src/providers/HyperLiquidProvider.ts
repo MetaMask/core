@@ -1590,6 +1590,24 @@ const normalizeHyperLiquidScalePriceLadder = (params: {
   return prices;
 };
 
+/**
+ * Build a normalized readiness failure without exposing venue text.
+ *
+ * @param error - The failure that prevented trading readiness.
+ * @returns A not-ready result with the public error contract.
+ */
+function createNotReadyResult(error: unknown): ReadyToTradeResult {
+  const normalizedError = normalizeHyperLiquidError(error);
+  return {
+    ready: false,
+    error: normalizedError.message,
+    errorCode: normalizedError.errorCode,
+    ...(normalizedError.errorDetails === undefined
+      ? {}
+      : { errorDetails: normalizedError.errorDetails }),
+  };
+}
+
 /** Capability lookup result that carries resolved market metadata when ready. */
 type HyperLiquidOrderCapabilityMarket =
   | Readonly<{ status: 'ready'; market: MarketInfo }>
@@ -16991,17 +17009,6 @@ export class HyperLiquidProvider implements PerpsProvider {
    * `PerpsController.prepareTradingWallet`.
    */
   async prepareTradingWallet(): Promise<ReadyToTradeResult> {
-    const createNotReadyResult = (error: unknown): ReadyToTradeResult => {
-      const normalizedError = normalizeHyperLiquidError(error);
-      return {
-        ready: false,
-        error: normalizedError.message,
-        errorCode: normalizedError.errorCode,
-        ...(normalizedError.errorDetails === undefined
-          ? {}
-          : { errorDetails: normalizedError.errorDetails }),
-      };
-    };
     // Nothing can be signed, so run no setup (and log nothing) until it can.
     if (!this.#walletService.isMainAccountSignerReady()) {
       return createNotReadyResult(PERPS_ERROR_CODES.KEYRING_LOCKED);
@@ -17135,16 +17142,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         networkSupported: true,
       };
     } catch (error) {
-      const normalizedError = normalizeHyperLiquidError(error);
       return {
-        ready: false,
+        ...createNotReadyResult(error),
         walletConnected: false,
         networkSupported: false,
-        error: normalizedError.message,
-        errorCode: normalizedError.errorCode,
-        ...(normalizedError.errorDetails === undefined
-          ? {}
-          : { errorDetails: normalizedError.errorDetails }),
       };
     }
   }

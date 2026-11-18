@@ -22,11 +22,14 @@ import {
   validateWithdrawalParams,
 } from '../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../src/utils/hyperLiquidValidation.js';
-import { normalizedCreateErrorResult } from './normalizedCreateErrorResult.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
 } from './serviceMocks.js';
+
+const actualValidation = await vi.importActual<
+  typeof import('../../src/utils/hyperLiquidValidation.js')
+>('../../src/utils/hyperLiquidValidation.js');
 
 export class TestApiRequestError extends HyperliquidError {
   readonly response: unknown;
@@ -490,7 +493,7 @@ export function setUpStrategyProvider(): {
     contractAddress: '0x1234567890123456789012345678901234567890',
   });
   hyperLiquidValidation.createErrorResult.mockImplementation(
-    normalizedCreateErrorResult,
+    actualValidation.createErrorResult,
   );
   const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
     string,
