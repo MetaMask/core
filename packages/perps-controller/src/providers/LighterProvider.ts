@@ -1225,18 +1225,22 @@ const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 /** Bounded attempts for TP/SL settlement visibility. */
 const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
 
-/** Convert authoritative position percentage or default basis points to leverage.
- * @param positionMargin - Position margin percentage, when a position exists.
+/**
+ * Convert an open position's margin fraction or the flat market's default to leverage.
+ *
+ * @param held - Account position row, when present.
  * @param defaultInitial - Market initial margin in basis points.
  * @returns Leverage, or NaN when unavailable.
  */
 const scaleLeverageFromMargin = (
-  positionMargin: string | undefined,
+  held:
+    | Pick<LighterApiPosition, 'position' | 'initialMarginFraction'>
+    | undefined,
   defaultInitial: number | undefined,
 ): number => {
   let margin = defaultInitial === undefined ? null : defaultInitial / 100;
-  if (positionMargin !== undefined) {
-    margin = parseStrictDecimal(positionMargin);
+  if (held && parseStrictDecimal(held.position) !== 0) {
+    margin = parseStrictDecimal(held.initialMarginFraction);
   }
   return margin !== null && margin > 0 ? 100 / margin : Number.NaN;
 };
@@ -8876,7 +8880,7 @@ export class LighterProvider implements PerpsProvider {
       const leverage =
         params.leverage ??
         scaleLeverageFromMargin(
-          held?.initialMarginFraction,
+          held,
           this.#marginBySymbol.get(params.symbol)?.defaultInitial,
         );
       if (
@@ -9015,7 +9019,7 @@ export class LighterProvider implements PerpsProvider {
     const leverage =
       requestedLeverage ??
       scaleLeverageFromMargin(
-        held?.initialMarginFraction,
+        held,
         this.#marginBySymbol.get(group.symbol)?.defaultInitial,
       );
     const balance = parseStrictDecimal(account.availableBalance);

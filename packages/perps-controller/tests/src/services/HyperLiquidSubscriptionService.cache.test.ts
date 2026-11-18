@@ -892,6 +892,54 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it.each(['clearinghouseState', 'openOrders'] as const)(
+      'reopens %s when a DEX returns while the old subscription is retiring',
+      async (channel) => {
+        const oldOpen = createDeferred<MockSubscription>();
+        const oldClose = createDeferred<void>();
+        const unsubscribeOld = vi.fn(() => oldClose.promise);
+        const openDexs: string[] = [];
+        mockSubscriptionClient[channel].mockImplementation(
+          ({ dex }: { dex?: string }) => {
+            openDexs.push(dex ?? '');
+            if (
+              dex === 'xyz' &&
+              openDexs.filter((name) => name === 'xyz').length === 1
+            ) {
+              return oldOpen.promise;
+            }
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const hip3Service = new HyperLiquidSubscriptionService(
+          mockClientService,
+          mockWalletService,
+          mockDeps,
+          true,
+          ['xyz'],
+        );
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: vi.fn(),
+        });
+        await vi.runAllTimersAsync();
+        expect(openDexs).toContain('xyz');
+
+        await hip3Service.updateFeatureFlags(false, ['xyz'], [], []);
+        oldOpen.resolve({ unsubscribe: unsubscribeOld });
+        await vi.runAllTimersAsync();
+        expect(unsubscribeOld).toHaveBeenCalledOnce();
+        const reenable = hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+        await vi.runAllTimersAsync();
+        oldClose.resolve();
+        await reenable;
+
+        expect(openDexs.filter((dex) => dex === 'xyz')).toHaveLength(2);
+        unsubscribe();
+      },
+    );
+
     it('requires a newly enabled DEX before certifying a complete position snapshot', async () => {
       const callbacks = new Map<string, (payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(

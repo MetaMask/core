@@ -2423,6 +2423,7 @@ export class HyperLiquidSubscriptionService {
     userAddress: string,
     dexName: string,
   ): Promise<void> {
+    const binding = this.#userDataBinding;
     // Already subscribed
     if (this.#clearinghouseStateSubscriptions.has(dexName)) {
       return;
@@ -2435,6 +2436,12 @@ export class HyperLiquidSubscriptionService {
         `[ensureClearinghouseStateSubscription] Waiting for pending subscription for DEX: ${dexName || 'main'}`,
       );
       await pending;
+      if (
+        binding === this.#userDataBinding &&
+        this.#accountSnapshotDexs.has(dexName)
+      ) {
+        await this.#ensureClearinghouseStateSubscription(userAddress, dexName);
+      }
       return;
     }
 
@@ -2623,6 +2630,7 @@ export class HyperLiquidSubscriptionService {
     userAddress: string,
     dexName: string,
   ): Promise<void> {
+    const binding = this.#userDataBinding;
     // Already subscribed
     if (this.#openOrdersSubscriptions.has(dexName)) {
       return;
@@ -2635,6 +2643,12 @@ export class HyperLiquidSubscriptionService {
         `[ensureOpenOrdersSubscription] Waiting for pending subscription for DEX: ${dexName || 'main'}`,
       );
       await pending;
+      if (
+        binding === this.#userDataBinding &&
+        this.#accountSnapshotDexs.has(dexName)
+      ) {
+        await this.#ensureOpenOrdersSubscription(userAddress, dexName);
+      }
       return;
     }
 

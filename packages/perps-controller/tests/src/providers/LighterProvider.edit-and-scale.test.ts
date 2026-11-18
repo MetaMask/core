@@ -4260,6 +4260,35 @@ describe('LighterProvider', () => {
       expect((await built.provider.placeOrder(intent)).success).toBe(true);
     });
 
+    it('does not substitute market defaults for unknown leverage on a live position', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 200,
+            defaultInitialMarginFraction: 1000,
+            maintenanceMarginFraction: 120,
+          },
+        ],
+      });
+      const { initialMarginFraction: _initialMarginFraction, ...position } =
+        ACCOUNT.positions[0];
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          { ...ACCOUNT, availableBalance: '20', positions: [position] },
+        ],
+      });
+
+      expect(await built.provider.validateOrder(intent)).toMatchObject({
+        isValid: false,
+        error: 'Invalid Lighter Scale margin state',
+      });
+    });
+
     it('validates a complete scale before signer setup', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       expect(await built.provider.validateOrder(intent)).toStrictEqual({
