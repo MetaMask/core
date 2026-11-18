@@ -310,6 +310,43 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ]);
     });
 
+    it('counts the chase cap only for the account and network placing it', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      for (
+        let placed = 0;
+        placed < CHASE_ORDER_CONFIG.MaxActiveSessions;
+        placed += 1
+      ) {
+        expect(
+          await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+        ).toMatchObject({ success: true });
+      }
+      const placedBy = await mockWalletService.getUserAddressWithDefault();
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      expect(
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+      ).toMatchObject({ success: true });
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(placedBy);
+      mockClientService.isTestnetMode.mockReturnValue(true);
+      expect(
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+      ).toMatchObject({ success: true });
+
+      mockClientService.isTestnetMode.mockReturnValue(false);
+      expect(
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+      ).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED,
+      });
+    });
+
     it('refreshes the snapshot remaining size after a partial fill', async () => {
       const { infoClient } = useStrategyClients({
         exchange: { order: vi.fn().mockResolvedValue(chaseRested) },

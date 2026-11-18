@@ -1181,6 +1181,16 @@ const createScaleOrderIdentity = (count: number): ScaleOrderIdentity => {
 };
 
 /**
+ * Key for the account and network a chase belongs to.
+ *
+ * @param context - Account context the chase was placed under.
+ * @returns The scope key.
+ */
+const getChaseScope = (
+  context: Pick<AccountSupportContext, 'network' | 'userAddress'>,
+): string => `${context.network}:${context.userAddress.toLowerCase()}`;
+
+/**
  * A running chase: the order currently resting, and the loop re-pricing it.
  */
 type ChaseSession = {
@@ -1788,6 +1798,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   // two, and a reservation is what keeps concurrent placements from both
   // passing the check.
   #chasePlacementsInFlight = 0;
+
+  // The same reservations keyed by account and network, which is the scope the
+  // venue's concurrency cap applies to.
+  readonly #chasePlacementsInFlightByScope = new Map<string, number>();
 
   // Allows lifecycle teardown to wait until every placement has either
   // registered a session or retracted its newly-rested child.
@@ -7315,6 +7329,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
     }
 
+    // The venue caps chases per account and network, the same scope
+    // `getChaseOrders` lists, so sessions retained for another account or
+    // network do not take this one's slots. The placement is bound to the
+    // context it was counted against.
+    const accountContext: AccountSupportContext = expectedAccountContext ?? {
+      lifecycleGeneration: this.#lifecycleGeneration,
+      network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+      userAddress: await this.#walletService.getUserAddressWithDefault(),
+    };
+    const scope = getChaseScope(accountContext);
     if (this.#chasePlacementBlockers > 0) {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
     }
@@ -7325,15 +7349,15 @@ export class HyperLiquidProvider implements PerpsProvider {
     // concurrent placements cannot both see room during the round trips that
     // follow.
     const activeChases = [...this.#chaseSessions.values()].filter(
-      (session) => session.active,
+      (session) =>
+        session.active && getChaseScope(session.accountContext) === scope,
     ).length;
-    if (
-      activeChases + this.#chasePlacementsInFlight >=
-      CHASE_ORDER_CONFIG.MaxActiveSessions
-    ) {
+    const scopeInFlight = this.#chasePlacementsInFlightByScope.get(scope) ?? 0;
+    if (activeChases + scopeInFlight >= CHASE_ORDER_CONFIG.MaxActiveSessions) {
       throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
     }
     this.#chasePlacementsInFlight += 1;
+    this.#chasePlacementsInFlightByScope.set(scope, scopeInFlight + 1);
     this.#pauseChaseTicksForPlacement();
 
     let settlePlacement: (() => void) | undefined;
@@ -7346,7 +7370,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       await this.#chaseTickQueue;
       const context = await this.#prepareStrategyPlacement(
         params,
-        expectedAccountContext,
+        accountContext,
       );
       return await this.#submitPreparedStrategy(
         params,
@@ -7357,6 +7381,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       settlePlacement?.();
       this.#chasePlacementWaiters.delete(placementWaiter);
       this.#chasePlacementsInFlight -= 1;
+      const remainingInScope =
+        (this.#chasePlacementsInFlightByScope.get(scope) ?? 0) - 1;
+      if (remainingInScope > 0) {
+        this.#chasePlacementsInFlightByScope.set(scope, remainingInScope);
+      } else {
+        this.#chasePlacementsInFlightByScope.delete(scope);
+      }
       if (this.#chasePlacementsInFlight === 0) {
         this.#resumeChaseTicksAfterPlacement();
       }
