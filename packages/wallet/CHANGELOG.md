@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `SubscriptionDelegationService` messenger now delegates what its Money Account Plus charge retry needs ([#0000](https://github.com/MetaMask/core/pull/0000))
+- `SubscriptionDelegationService` messenger now delegates what its Money Account Plus charge retry needs ([#11612](https://github.com/MetaMask/core/pull/11612))
   - Actions: `KeyringController:getState`, `AuthenticationController:isSignedIn` and `SubscriptionController:updatePaymentMethod`
   - Events: `TransactionController:transactionConfirmed`, `KeyringController:unlock` and `SubscriptionController:stateChange`
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))

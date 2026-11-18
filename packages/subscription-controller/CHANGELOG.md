@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `SubscriptionDelegationServiceMessenger` requires new actions and events ([#0000](https://github.com/MetaMask/core/pull/0000))
+- **BREAKING:** `SubscriptionDelegationServiceMessenger` requires new actions and events ([#11612](https://github.com/MetaMask/core/pull/11612))
   - Delegate the `KeyringController:getState`, `AuthenticationController:isSignedIn` and `SubscriptionController:updatePaymentMethod` actions
   - Delegate the `KeyringController:unlock`, `SubscriptionController:stateChange` and `TransactionController:transactionConfirmed` events
-- Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#11612](https://github.com/MetaMask/core/pull/11612))
 
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
