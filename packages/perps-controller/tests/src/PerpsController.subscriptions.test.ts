@@ -727,6 +727,78 @@ describe('PerpsController', () => {
       expect(controller.state.perpsBalances).toStrictEqual({});
     });
 
+    describe('an unscoped stream after an account switch', () => {
+      const switchSelectedAccount = (): void => {
+        selectedEvmAddress = '0x00000000000000000000000000000000000000bb';
+        (mockMessenger.subscribe as Mock).mock.calls
+          .filter(
+            ([event]) => event === 'AccountsController:selectedAccountChange',
+          )
+          .forEach(([, handler]) => handler());
+      };
+
+      it.each([
+        ['a snapshot', accountState('150')],
+        ['null', null],
+      ])(
+        'does not let %s from the old direct stream change selected-account state',
+        (_label, oldUpdate) => {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+          const oldConsumer = vi.fn();
+          controller.subscribeToAccount({ callback: oldConsumer });
+          const oldCallback =
+            mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+          oldCallback(accountState('100'));
+
+          switchSelectedAccount();
+          controller.subscribeToAccount({ callback: vi.fn() });
+          const newCallback =
+            mockProvider.subscribeToAccount.mock.calls[1][0].callback;
+          newCallback(accountState('200'));
+          expect(controller.state.accountState?.totalBalance).toBe('200');
+          const selectedState = controller.state;
+
+          oldCallback(oldUpdate);
+
+          expect(controller.state).toBe(selectedState);
+          // The old stream still feeds its own consumer, not selected state.
+          expect(oldConsumer).toHaveBeenLastCalledWith(oldUpdate);
+        },
+      );
+
+      it('does not repopulate balances from the old aggregate while the new stream is pending', () => {
+        setupAggregatedMode();
+        controller.subscribeToAccount({ callback: vi.fn() });
+        const oldHlCallback =
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+        const oldLighterCallback = (lighterProvider as any).subscribeToAccount
+          .mock.calls[0][0].callback;
+        oldHlCallback(accountState('100'));
+
+        switchSelectedAccount();
+        expect(controller.state.perpsBalances).toStrictEqual({});
+
+        // Lighter's reset re-emits the old stream's cached HyperLiquid state.
+        oldLighterCallback(null);
+        expect(controller.state.perpsBalances).toStrictEqual({});
+
+        controller.subscribeToAccount({ callback: vi.fn() });
+        const newHlCallback =
+          mockProvider.subscribeToAccount.mock.calls[1][0].callback;
+        newHlCallback(null);
+        expect(controller.state.perpsBalances).toStrictEqual({});
+        expect(controller.state.accountState).toBeNull();
+
+        // A freshly opened stream owns the new account and can write normally.
+        newHlCallback(accountState('200'));
+        expect(controller.state.perpsBalances.hyperliquid).toMatchObject({
+          totalBalance: '200',
+        });
+        expect(controller.state.accountState?.totalBalance).toBe('200');
+      });
+    });
+
     describe('a stream for an explicit account', () => {
       const otherAccountId =
         'eip155:1:0x00000000000000000000000000000000000000ff' as const;

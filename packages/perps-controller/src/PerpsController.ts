@@ -7722,30 +7722,25 @@ export class PerpsController extends BaseController<
     }
     try {
       const originalCallback = params.callback;
-      // accountState and perpsBalances belong to the selected account. A
-      // stream for another wallet only feeds its own consumer: it must neither
-      // write nor clear the selected account's snapshot or balances.
-      const streamAddress =
-        params.accountId === undefined
-          ? undefined
-          : getCaipAccountAddress(params.accountId);
-      const isSelectedAccountStream = (): boolean => {
-        if (params.accountId === undefined) {
-          return true;
-        }
-        // A malformed id names no account, so it never owns selected state.
-        return (
-          streamAddress !== undefined &&
-          streamAddress ===
-            getSelectedEvmAccountFromMessenger(
-              this.messenger,
-            )?.address.toLowerCase()
-        );
-      };
       return this.#trackProviderSubscription(
         provider,
-        (nextProvider) =>
-          nextProvider.subscribeToAccount({
+        (nextProvider) => {
+          // Capture each opening's account, including implicit selection, so
+          // late emissions after an account switch cannot own selected state.
+          // A malformed explicit id names no account and never owns state.
+          const streamAddress =
+            params.accountId === undefined
+              ? getSelectedEvmAccountFromMessenger(
+                  this.messenger,
+                )?.address.toLowerCase()
+              : getCaipAccountAddress(params.accountId);
+          const isSelectedAccountStream = (): boolean =>
+            streamAddress !== undefined &&
+            streamAddress ===
+              getSelectedEvmAccountFromMessenger(
+                this.messenger,
+              )?.address.toLowerCase();
+          return nextProvider.subscribeToAccount({
             ...params,
             callback: (account, aggregate) => {
               const ownsState = isSelectedAccountStream();
@@ -7834,7 +7829,8 @@ export class PerpsController extends BaseController<
                 originalCallback(account);
               }
             },
-          }),
+          });
+        },
         () => originalCallback(null),
       );
     } catch (error) {

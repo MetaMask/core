@@ -90,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prevent account streams opened without an `accountId` from overwriting or clearing selected-account state after the selected wallet changes ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Reject failed position discovery in the per-position `closePositions` fallback instead of treating an unavailable venue account as having no positions to close; ordinary position reads remain lenient ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Withhold bounded batch-close fee waivers when any selected position has a non-finite value instead of pricing the venue from an understated subtotal ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Exclude Lighter from aggregated account totals when `getAccountState` or `subscribeToAccount` requests an account other than the selected wallet; unsupported scopes reject instead of returning or streaming the selected wallet's balance, and an aggregate keeps healthy venues live while marking Lighter unavailable ([#11461](https://github.com/MetaMask/core/pull/11461))
