@@ -3,7 +3,6 @@ import type { AssetsDataSource, Middleware } from '../types.js';
 
 /** The sources the websocket update lane composes. */
 export type WsUpdateSources = {
-  customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
   /** Also supplies the occurrence-filter middleware used for websocket airdrops. */
   tokenDataSource: AssetsDataSource & {
@@ -13,29 +12,26 @@ export type WsUpdateSources = {
 };
 
 /**
- * Compose the websocket update lane.
+ * Compose the websocket update lane: occurrence filter → RPC fallback →
+ * token metadata and prices in parallel.
  *
  * @param sources - The sources to place into the lane.
  * @param options - Lane options.
  * @param options.isBasicFunctionality - When false, no network-backed source
  * runs.
- * @param options.includeCustomAssetGraduation - `true` on the v5 lane; the
- * v6 lane runs the RPC fallback instead of graduation.
  * @returns The composed source list, ready for `executeAssetsPipeline`.
  */
 export function buildWsUpdateSources(
   sources: WsUpdateSources,
   options: {
     isBasicFunctionality: boolean;
-    includeCustomAssetGraduation: boolean;
   },
 ): AssetsDataSource[] {
-  const {
-    customAssetGraduationMiddleware,
-    rpcFallbackMiddleware,
-    tokenDataSource,
-    priceDataSource,
-  } = sources;
+  const { rpcFallbackMiddleware, tokenDataSource, priceDataSource } = sources;
+
+  if (!options.isBasicFunctionality) {
+    return [];
+  }
 
   const occurrenceFloorFilter: AssetsDataSource = {
     getName: (): string => 'OccurrenceFloorFilter',
@@ -43,15 +39,8 @@ export function buildWsUpdateSources(
   };
 
   return [
-    ...(options.includeCustomAssetGraduation
-      ? [customAssetGraduationMiddleware]
-      : []),
-    ...(options.isBasicFunctionality ? [occurrenceFloorFilter] : []),
-    ...(!options.includeCustomAssetGraduation && options.isBasicFunctionality
-      ? [rpcFallbackMiddleware]
-      : []),
-    ...(options.isBasicFunctionality
-      ? [createParallelMiddleware([tokenDataSource, priceDataSource])]
-      : []),
+    occurrenceFloorFilter,
+    rpcFallbackMiddleware,
+    createParallelMiddleware([tokenDataSource, priceDataSource]),
   ];
 }

@@ -5,20 +5,22 @@ import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import { RpcEndpointType } from '@metamask/network-controller';
 import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
-import type { NetworkState } from '@metamask/network-controller';
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+  NetworkConfiguration,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
 import {
+  createMockAutoManagedNetworkClient,
   createMockMessengers,
+  registerAssetsControllerActions,
   registerKeyringUnlockMock,
   registerWalletLifecycleMocks,
 } from './__fixtures__/MockAssetControllerMessenger.js';
@@ -28,13 +30,9 @@ import {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController.js';
-import type {
-  AssetsControllerMessenger,
-  AssetsControllerState,
-} from './AssetsController.js';
+import type { AssetsControllerState } from './AssetsController.js';
 import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
-import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
@@ -136,7 +134,7 @@ function createGatedQueryApiClient(): {
         unprocessedNetworks: [],
       })),
       fetchV6MultiAccountBalances: gatedCall(() => ({
-        accounts: [],
+        balances: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       })),
@@ -190,11 +188,6 @@ function createFailingQueryApiClient(): ApiPlatformClient {
   } as unknown as ApiPlatformClient;
 }
 
-type AllActions = MessengerActions<AssetsControllerMessenger>;
-type AllEvents = MessengerEvents<AssetsControllerMessenger>;
-
-type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
-
 const MOCK_ACCOUNT_ID = 'mock-account-id-1';
 const MOCK_ASSET_ID =
   'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
@@ -207,8 +200,6 @@ const [MOCK_DEFAULT_TRACKED_ASSET_ID] =
 // DAI — a second checksummed address so filtered blob assertions are exact.
 const OTHER_ASSET_ID =
   'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
-
-type LifecyclePublish = (topic: string, payload?: unknown) => void;
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
@@ -283,7 +274,7 @@ type AusUserAssetsActionMocks = {
  * @returns The mock handlers, for call assertions.
  */
 function registerAusUserAssetsActionMocks(
-  messenger: RootMessenger,
+  messenger: MockRootMessenger,
   options: {
     blob?: UserAssetsBlob | null;
     rejectWith?: Error;
@@ -338,7 +329,7 @@ type WithControllerOptions = {
   clientControllerState?: { isUiOpen: boolean };
   /**
    * When set, registers RemoteFeatureFlagController:getState so the controller can
-   * read feature flags (e.g. `assetsAccountsApiV6` gating the balances endpoint).
+   * read feature flags (for example the unlock spam-cleanup flag).
    */
   remoteFeatureFlags?: FeatureFlags;
   /** Extra options passed to AssetsController constructor (e.g. trace). */
@@ -672,99 +663,53 @@ describe('AssetsController', () => {
 
         // Action handlers should be registered
         expect(() => {
-          (messenger as unknown as { call: LifecyclePublish }).call(
-            'AssetsController:getCustomAssets',
-            MOCK_ACCOUNT_ID,
-          );
+          messenger.call('AssetsController:getCustomAssets', MOCK_ACCOUNT_ID);
         }).not.toThrow();
       });
     });
 
     it('accepts accountsApiDataSourceConfig option', () => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
+      const { assetsControllerMessenger } = createMockMessengers({
+        registerCustomRootActions: (rootMessenger): void => {
+          registerAssetsControllerActions(rootMessenger);
+        },
       });
 
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: {},
-          nativeAssetIdentifiers: {},
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-
-      expect(
-        () =>
-          new AssetsController({
-            messenger: messenger as unknown as AssetsControllerMessenger,
-            queryApiClient: createMockQueryApiClient(),
-            subscribeToBasicFunctionalityChange: (): void => {
-              /* no-op */
-            },
-            accountsApiDataSourceConfig: {
-              pollInterval: 15_000,
-              tokenDetectionEnabled: (): boolean => false,
-            },
-          }),
-      ).not.toThrow();
+      expect(() => {
+        const controller = new AssetsController({
+          messenger: assetsControllerMessenger,
+          queryApiClient: createMockQueryApiClient(),
+          subscribeToBasicFunctionalityChange: (): void => {
+            /* no-op */
+          },
+          accountsApiDataSourceConfig: {
+            pollInterval: 15_000,
+          },
+        });
+        controller.destroy();
+      }).not.toThrow();
     });
 
     it('accepts priceDataSourceConfig option', () => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
+      const { assetsControllerMessenger } = createMockMessengers({
+        registerCustomRootActions: (rootMessenger): void => {
+          registerAssetsControllerActions(rootMessenger);
+        },
       });
 
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: {},
-          nativeAssetIdentifiers: {},
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-
-      expect(
-        () =>
-          new AssetsController({
-            messenger: messenger as unknown as AssetsControllerMessenger,
-            queryApiClient: createMockQueryApiClient(),
-            subscribeToBasicFunctionalityChange: (): void => {
-              /* no-op */
-            },
-            priceDataSourceConfig: {
-              pollInterval: 120_000,
-            },
-          }),
-      ).not.toThrow();
+      expect(() => {
+        const controller = new AssetsController({
+          messenger: assetsControllerMessenger,
+          queryApiClient: createMockQueryApiClient(),
+          subscribeToBasicFunctionalityChange: (): void => {
+            /* no-op */
+          },
+          priceDataSourceConfig: {
+            pollInterval: 120_000,
+          },
+        });
+        controller.destroy();
+      }).not.toThrow();
     });
 
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
@@ -1077,11 +1022,11 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('custom asset graduation', () => {
+  describe('custom asset pins', () => {
     const SOLANA_ASSET_ID =
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
 
-    it('graduates an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
+    it('keeps an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
@@ -1099,11 +1044,13 @@ describe('AssetsController', () => {
           'AccountsApiDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('graduates an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
+    it('keeps an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -1118,11 +1065,13 @@ describe('AssetsController', () => {
           'AccountActivityDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('does not graduate when RpcDataSource reports a balance for a custom asset', async () => {
+    it('keeps an EVM custom asset when RpcDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -1143,7 +1092,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('does not graduate a non-EVM (Solana) custom asset', async () => {
+    it('keeps a non-EVM (Solana) custom asset when a balance is reported for it', async () => {
       await withController(
         {
           state: {
@@ -1169,7 +1118,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('does not sync to AUS when graduation removes a custom asset', async () => {
+    it('does not sync to AUS when Accounts API reports a balance for a custom asset', async () => {
       await withController(
         {
           state: {
@@ -1190,9 +1139,9 @@ describe('AssetsController', () => {
             'AccountsApiDataSource',
           );
 
-          expect(
-            controller.state.customAssets[MOCK_ACCOUNT_ID],
-          ).toBeUndefined();
+          expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+            MOCK_ASSET_ID,
+          );
           await waitUntilStable(() => [
             ausMocks.importTokens.mock.calls.length,
             ausMocks.hideTokens.mock.calls.length,
@@ -1200,8 +1149,8 @@ describe('AssetsController', () => {
             ausMocks.setUserAssets.mock.calls.length,
           ]);
 
-          // Graduation is automatic detection, not user intent: it must not
-          // strip the still-visible token from the AUS user-assets blob.
+          // A balance report is not a user import or hide, so it must not
+          // write the AUS user-assets blob.
           expect(ausMocks.importTokens).not.toHaveBeenCalled();
           expect(ausMocks.hideTokens).not.toHaveBeenCalled();
           expect(ausMocks.getUserAssets).not.toHaveBeenCalled();
@@ -1880,10 +1829,7 @@ describe('AssetsController', () => {
       );
     });
 
-    // Endpoint selection from the flag is unit-tested in AccountsApiDataSource;
-    // this asserts the controller wires its messenger through so the
-    // `assetsAccountsApiV6` flag drives endpoint selection end-to-end.
-    it('routes to the Accounts API v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
+    it('routes balance fetches to the Accounts API v6 endpoint', async () => {
       const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
@@ -1910,7 +1856,6 @@ describe('AssetsController', () => {
       await withController(
         {
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await waitUntilStable(() => [
@@ -2044,51 +1989,6 @@ describe('AssetsController', () => {
           }
         },
       );
-    });
-
-    it('includes every pinned asset on the v5 force-update request, including other chains', async () => {
-      const mainnetToken =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const polygonToken =
-        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
-
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware: MockedFunction<Middleware> = vi.fn(
-        async (ctx, next) => {
-          capturedCustomAssets.push(ctx.request.customAssets);
-          return next(ctx);
-        },
-      );
-      const middlewareGetter = vi
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'assetsMiddleware',
-          'get',
-        )
-        .mockReturnValue(
-          accountsApiMiddleware as never,
-        ) as unknown as MockInstance;
-
-      await withController(async ({ controller }) => {
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, polygonToken);
-
-        capturedCustomAssets.length = 0;
-        await controller.getAssets([createMockInternalAccount()], {
-          chainIds: ['eip155:1'],
-          forceUpdate: true,
-        });
-      });
-
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toStrictEqual(
-          expect.arrayContaining([mainnetToken, polygonToken]),
-        );
-      }
-
-      middlewareGetter.mockRestore();
     });
 
     it('includes only pins on the requested chains as includeAssetIds', async () => {
@@ -2702,81 +2602,6 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
-    it('re-reads tracked assets an Accounts API poll left empty via the RPC fallback', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000' } },
-        },
-      };
-      const rpcMiddleware = vi.fn(
-        async (ctx: unknown, next: (ctx: unknown) => Promise<unknown>) =>
-          next(ctx),
-      );
-      const rpcMiddlewareGetter = vi
-        .spyOn(
-          RpcDataSource.prototype,
-          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'assetsMiddleware',
-          'get',
-        )
-        .mockReturnValue(rpcMiddleware as never);
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        const pollRequest: DataRequest = {
-          accountsWithSupportedChains: [
-            {
-              account: createMockInternalAccount(),
-              supportedChains: ['eip155:1'],
-            },
-          ],
-          chainIds: ['eip155:1'],
-          dataTypes: ['balance'],
-        };
-
-        // The poll response omits MOCK_ASSET_ID even though state tracks it —
-        // the fallback must hand it to RPC for an on-chain re-read.
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountsApiDataSource',
-          pollRequest,
-        );
-
-        expect(rpcMiddleware).toHaveBeenCalledTimes(1);
-        const [rpcCtx] = rpcMiddleware.mock.calls[0] as [
-          { request: DataRequest },
-        ];
-        expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
-        expect(rpcCtx.request.customAssets).toContain(MOCK_ASSET_ID);
-
-        // Same update from the WebSocket source must NOT trigger the
-        // fallback: its pushes are incremental single-asset updates, so an
-        // absent asset is not stale there.
-        rpcMiddleware.mockClear();
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountActivityDataSource',
-          pollRequest,
-        );
-        expect(rpcMiddleware).not.toHaveBeenCalled();
-      });
-
-      rpcMiddlewareGetter.mockRestore();
-    });
-
     it('does not fail when parent trace rejects after enrichment completes', async () => {
       const traceMock = vi
         .fn()
@@ -3544,7 +3369,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('adds default 0 balance for native tokens when missing from response', async () => {
+    it('does not invent a native balance when the response omits it', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
@@ -3564,7 +3389,7 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
             MOCK_NATIVE_ASSET_ID
           ],
-        ).toStrictEqual({ amount: '0' });
+        ).toBeUndefined();
       });
     });
 
@@ -3586,7 +3411,7 @@ describe('AssetsController', () => {
         const nativeIds = Object.keys(accountBalances).filter((id) =>
           id.includes('/slip44:'),
         );
-        expect(nativeIds).toStrictEqual([MOCK_NATIVE_ASSET_ID]);
+        expect(nativeIds).toStrictEqual([]);
       });
     });
 
@@ -3923,82 +3748,6 @@ describe('AssetsController', () => {
       );
     });
 
-    it('replaces covered-chain balances in merge mode when replaceCoveredChainBalances is set', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_ID]: { amount: '1' },
-            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-          },
-        },
-      };
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            replaceCoveredChainBalances: true,
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'TestSource',
-        );
-
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toBeUndefined();
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '2' });
-      });
-    });
-
-    it('preserves existing staked balances when replaceCoveredChainBalances omits them', async () => {
-      const stakingAssetId =
-        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df' as Caip19AssetId;
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_ID]: { amount: '1' },
-            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-            [stakingAssetId]: { amount: '1.5' },
-          },
-        },
-      };
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            replaceCoveredChainBalances: true,
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountsApiDataSource',
-        );
-
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toBeUndefined();
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '2' });
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[stakingAssetId],
-        ).toStrictEqual({ amount: '1.5' });
-      });
-    });
-
     it('preserves existing staked balances when a full update omits them', async () => {
       const stakingAssetId =
         'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df' as Caip19AssetId;
@@ -4302,9 +4051,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           messenger.publish('AccountActivityService:balanceUpdated', {
@@ -5034,9 +4783,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5150,71 +4899,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
-            'AccountTreeController:initialized',
-            {},
-          );
-
-          await waitFor(() => {
-            expect(
-              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-            ).toBeUndefined();
-            expect(
-              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-                MOCK_NATIVE_ASSET_ID
-              ],
-            ).toStrictEqual({ amount: '2' });
-          });
-        },
-      );
-    });
-
-    it('replaces pre-lock balances on unlock via merge with covered-chain replacement', async () => {
-      const fetchV5MultiAccountBalances = vi.fn().mockResolvedValue({
-        balances: [
-          {
-            accountId: 'eip155:1:0x1234567890123456789012345678901234567890',
-            assetId: MOCK_NATIVE_ASSET_ID,
-            balance: '2',
-          },
-        ],
-        unprocessedNetworks: [],
-      });
-
-      const queryApiClient = {
-        ...createMockQueryApiClient(),
-        accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
-          fetchV5MultiAccountBalances,
-        },
-      } as unknown as ApiPlatformClient;
-
-      await withController(
-        {
-          clientControllerState: { isUiOpen: true },
-          queryApiClient,
-          state: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_ASSET_ID]: { amount: '100' },
-                [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-              },
-            },
-          },
-        },
-        async ({ controller, messenger }) => {
           messenger.publish(
-            'ClientController:stateChange',
-            { isUiOpen: true },
-            [],
-          );
-          messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
 
           await waitFor(() => {
@@ -5253,9 +4940,9 @@ describe('AssetsController', () => {
             [],
           );
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
           await waitFor(() => {
             const firstInitFetchCalls = traceMock.mock.calls.filter(
@@ -5333,9 +5020,9 @@ describe('AssetsController', () => {
           // #runStartupRefresh(), whose forced getAssets() call is still
           // pending (it never resolves until we call resolveGetAssets below).
           messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
+          messenger.publish(
             'AccountTreeController:initialized',
-            {},
+            getDefaultAccountTreeControllerState(),
           );
           await waitFor(() => {
             expect(getAssetsSpy).toHaveBeenCalledTimes(1);
@@ -5419,10 +5106,9 @@ describe('AssetsController', () => {
         // Action handlers should be unregistered
         expect(() => {
           // The handler is unregistered, so calling it should throw
-          (messenger as unknown as { call: LifecyclePublish }).call(
-            'AssetsController:getAssets',
-            createMockInternalAccount(),
-          );
+          messenger
+            .call('AssetsController:getAssets', [createMockInternalAccount()])
+            .catch(() => undefined);
         }).toThrow(
           'A handler for AssetsController:getAssets has not been registered',
         );
@@ -5433,17 +5119,17 @@ describe('AssetsController', () => {
   describe('network changes', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': true,
+                '0x1': true,
+                '0x89': true,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
               'eip155:137': 'eip155:137/slip44:966',
             },
           },
@@ -5460,6 +5146,19 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         await activateTracking(messenger);
 
+        messenger.publish(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {
+              eip155: { '0x1': true },
+            },
+            nativeAssetIdentifiers: {
+              'eip155:1': 'eip155:1/slip44:60',
+            },
+          },
+          [],
+        );
+
         let musdPresentAtPriceFetch: boolean | undefined;
         const fetchSpy = vi
           .spyOn(PriceDataSource.prototype, 'fetch')
@@ -5471,19 +5170,11 @@ describe('AssetsController', () => {
           });
 
         try {
-          (
-            messenger as unknown as {
-              publish: (
-                topic: string,
-                payload?: unknown,
-                patches?: unknown,
-              ) => void;
-            }
-          ).publish(
+          messenger.publish(
             'NetworkEnablementController:stateChange',
             {
               enabledNetworkMap: {
-                eip155: { '1': true, '59144': true },
+                eip155: { '0x1': true, '0xe708': true },
               },
               nativeAssetIdentifiers: {
                 'eip155:1': 'eip155:1/slip44:60',
@@ -5597,34 +5288,34 @@ describe('AssetsController', () => {
 
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': true,
+                '0x1': true,
+                '0x89': true,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
               'eip155:137': 'eip155:137/slip44:966',
             },
           },
           [],
         );
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
-                '1': true,
-                '137': false,
+                '0x1': true,
+                '0x89': false,
               },
             },
             nativeAssetIdentifiers: {
-              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:1': 'eip155:1/slip44:60',
             },
           },
           [],
@@ -5635,15 +5326,24 @@ describe('AssetsController', () => {
     });
 
     it('refreshes assets when a network is added or removed', async () => {
+      const polygonNetwork: NetworkConfiguration = {
+        blockExplorerUrls: [],
+        chainId: '0x89',
+        defaultRpcEndpointIndex: 0,
+        name: 'Polygon',
+        nativeCurrency: 'POL',
+        rpcEndpoints: [
+          {
+            networkClientId: 'polygon',
+            type: RpcEndpointType.Custom,
+            url: 'https://polygon-rpc.com',
+          },
+        ],
+      };
+
       await withController(async ({ messenger }) => {
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
-          'NetworkController:networkAdded',
-          { chainId: '0x89' },
-        );
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
-          'NetworkController:networkRemoved',
-          { chainId: '0x89' },
-        );
+        messenger.publish('NetworkController:networkAdded', polygonNetwork);
+        messenger.publish('NetworkController:networkRemoved', polygonNetwork);
 
         expect(true).toBe(true);
       });
@@ -5663,64 +5363,60 @@ describe('AssetsController', () => {
         selectedNetworkClientId,
       });
 
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const { rootMessenger: messenger, assetsControllerMessenger } =
+        createMockMessengers({
+          registerCustomRootActions: (rootMessenger): void => {
+            registerKeyringUnlockMock(rootMessenger);
 
-      registerKeyringUnlockMock(messenger);
-
-      messenger.registerActionHandler(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        () => [createMockInternalAccount()],
-      );
-      let isAccountTreeInitialized = false;
-      messenger.registerActionHandler(
-        'AccountTreeController:isInitialized',
-        () => isAccountTreeInitialized,
-      );
-      messenger.subscribe('AccountTreeController:initialized', () => {
-        isAccountTreeInitialized = true;
-      });
-      messenger.subscribe('AccountTreeController:uninitialized', () => {
-        isAccountTreeInitialized = false;
-      });
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
-          nativeAssetIdentifiers: {
-            'eip155:1': MOCK_NATIVE_ASSET_ID,
-            'eip155:11155111': 'eip155:11155111/slip44:60',
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:getAccountsFromSelectedAccountGroup',
+              () => [createMockInternalAccount()],
+            );
+            let isAccountTreeInitialized = false;
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:isInitialized',
+              () => isAccountTreeInitialized,
+            );
+            rootMessenger.subscribe('AccountTreeController:initialized', () => {
+              isAccountTreeInitialized = true;
+            });
+            rootMessenger.subscribe(
+              'AccountTreeController:uninitialized',
+              () => {
+                isAccountTreeInitialized = false;
+              },
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkEnablementController:getState',
+              () => ({
+                enabledNetworkMap: {
+                  eip155: { '0x1': true, '0xaa36a7': true },
+                },
+                nativeAssetIdentifiers: {
+                  'eip155:1': 'eip155:1/slip44:60',
+                  'eip155:11155111': 'eip155:11155111/slip44:60',
+                },
+              }),
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getState',
+              getNetworkState,
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getNetworkClientById',
+              (networkClientId) =>
+                createMockAutoManagedNetworkClient(
+                  networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+                ),
+            );
+            rootMessenger.registerActionHandler(
+              'ClientController:getState',
+              () => ({
+                isUiOpen: true,
+              }),
+            );
           },
-        }),
-      );
-      messenger.registerActionHandler(
-        'NetworkController:getState',
-        getNetworkState,
-      );
-      (
-        messenger as {
-          registerActionHandler: (
-            a: string,
-            h: (id: string) => unknown,
-          ) => void;
-        }
-      ).registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        (networkClientId: string) => ({
-          provider: {},
-          configuration: {
-            chainId: networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
-          },
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('ClientController:getState', () => ({
-        isUiOpen: true,
-      }));
+        });
 
       const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
         fullSupport: [1, 11155111],
@@ -5739,7 +5435,7 @@ describe('AssetsController', () => {
       } as unknown as ApiPlatformClient;
 
       const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
+        messenger: assetsControllerMessenger,
         queryApiClient,
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
@@ -5755,9 +5451,9 @@ describe('AssetsController', () => {
           [],
         );
         messenger.publish('KeyringController:unlock');
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:initialized',
-          {},
+          getDefaultAccountTreeControllerState(),
         );
         await waitFor(() => {
           expect(fetchV2SupportedNetworks).toHaveBeenCalled();
@@ -5772,7 +5468,7 @@ describe('AssetsController', () => {
         fetchV2SupportedNetworks.mockClear();
 
         selectedNetworkClientId = 'mainnet';
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
@@ -5807,67 +5503,60 @@ describe('AssetsController', () => {
         selectedNetworkClientId,
       });
 
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const { rootMessenger: messenger, assetsControllerMessenger } =
+        createMockMessengers({
+          registerCustomRootActions: (rootMessenger): void => {
+            registerKeyringUnlockMock(rootMessenger);
 
-      registerKeyringUnlockMock(messenger);
-
-      messenger.registerActionHandler(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        () => selectedAccounts,
-      );
-      let isAccountTreeInitialized = false;
-      messenger.registerActionHandler(
-        'AccountTreeController:isInitialized',
-        () => isAccountTreeInitialized,
-      );
-      messenger.subscribe('AccountTreeController:initialized', () => {
-        isAccountTreeInitialized = true;
-      });
-      messenger.subscribe('AccountTreeController:uninitialized', () => {
-        isAccountTreeInitialized = false;
-      });
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
-          nativeAssetIdentifiers: {
-            'eip155:1': 'eip155:1/slip44:60',
-            'eip155:11155111': 'eip155:11155111/slip44:60',
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:getAccountsFromSelectedAccountGroup',
+              () => selectedAccounts,
+            );
+            let isAccountTreeInitialized = false;
+            rootMessenger.registerActionHandler(
+              'AccountTreeController:isInitialized',
+              () => isAccountTreeInitialized,
+            );
+            rootMessenger.subscribe('AccountTreeController:initialized', () => {
+              isAccountTreeInitialized = true;
+            });
+            rootMessenger.subscribe(
+              'AccountTreeController:uninitialized',
+              () => {
+                isAccountTreeInitialized = false;
+              },
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkEnablementController:getState',
+              () => ({
+                enabledNetworkMap: {
+                  eip155: { '0x1': true, '0xaa36a7': true },
+                },
+                nativeAssetIdentifiers: {
+                  'eip155:1': 'eip155:1/slip44:60',
+                  'eip155:11155111': 'eip155:11155111/slip44:60',
+                },
+              }),
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getState',
+              getNetworkState,
+            );
+            rootMessenger.registerActionHandler(
+              'NetworkController:getNetworkClientById',
+              (networkClientId) =>
+                createMockAutoManagedNetworkClient(
+                  networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+                ),
+            );
+            rootMessenger.registerActionHandler(
+              'ClientController:getState',
+              () => ({
+                isUiOpen: true,
+              }),
+            );
           },
-        }),
-      );
-      messenger.registerActionHandler(
-        'NetworkController:getState',
-        getNetworkState,
-      );
-      (
-        messenger as {
-          registerActionHandler: (
-            actionName: string,
-            handler: (id: string) => unknown,
-          ) => void;
-        }
-      ).registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        (networkClientId: string) => ({
-          provider: {},
-          configuration: {
-            chainId: networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
-          },
-        }),
-      );
-      (
-        messenger as {
-          registerActionHandler: (
-            actionName: string,
-            handler: () => unknown,
-          ) => void;
-        }
-      ).registerActionHandler('ClientController:getState', () => ({
-        isUiOpen: true,
-      }));
+        });
 
       const queryApiClient = {
         ...createMockQueryApiClient(),
@@ -5884,7 +5573,7 @@ describe('AssetsController', () => {
       } as unknown as ApiPlatformClient;
 
       const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
+        messenger: assetsControllerMessenger,
         queryApiClient,
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
@@ -5910,9 +5599,9 @@ describe('AssetsController', () => {
           [],
         );
         messenger.publish('KeyringController:unlock');
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:initialized',
-          {},
+          getDefaultAccountTreeControllerState(),
         );
         await waitFor(() => {
           expect(fetchSpy).toHaveBeenCalled();
@@ -5927,7 +5616,7 @@ describe('AssetsController', () => {
           createMockInternalAccount({ id: switchedAccountId }),
         ];
         selectedNetworkClientId = 'mainnet';
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'NetworkController:networkDidChange',
           getNetworkState(),
         );
@@ -5959,7 +5648,7 @@ describe('AssetsController', () => {
 
         getAssetsSpy.mockClear();
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/1',
           'entropy:mock-keyring-id-1/0',
@@ -5976,7 +5665,7 @@ describe('AssetsController', () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
           '',
           'entropy:mock-keyring-id-1/0',
@@ -6001,7 +5690,7 @@ describe('AssetsController', () => {
         messenger.publish('KeyringController:unlock');
         await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
           '',
@@ -6010,9 +5699,9 @@ describe('AssetsController', () => {
 
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
-        (messenger as unknown as { publish: LifecyclePublish }).publish(
+        messenger.publish(
           'AccountTreeController:initialized',
-          {},
+          getDefaultAccountTreeControllerState(),
         );
         await waitFor(() => {
           expect(getAssetsSpy).toHaveBeenCalled();
@@ -6046,17 +5735,14 @@ describe('AssetsController', () => {
 
   describe('assets loading status', () => {
     /**
-     * Publishes an account group switch on the mock messenger. The event
-     * publishes one entropy per previously selected account variadically,
-     * which the mock messenger's single-payload publish type cannot express,
-     * hence the one cast here instead of in every test.
+     * Publishes an account group switch on the mock messenger.
      *
      * @param messenger - The root messenger to publish on.
-     * @param fromEntropy - Entropy of the previously selected account.
-     * @param toEntropy - Entropy of the newly selected account.
+     * @param fromEntropy - The newly selected account group id.
+     * @param toEntropy - The previously selected account group id.
      */
     const switchSelectedAccountGroup = (
-      messenger: RootMessenger,
+      messenger: MockRootMessenger,
       fromEntropy: `entropy:${string}/${string}`,
       toEntropy: `entropy:${string}/${string}`,
     ): void => {
@@ -6468,69 +6154,69 @@ describe('AssetsController', () => {
   });
   describe('account tree initialized', () => {
     it('triggers start when the tree initializes after unlock with empty accounts', async () => {
-      const getAccountsMock = vi.fn().mockReturnValue([]);
+      const getAccountsMock: Mock<() => InternalAccount[]> = vi.fn(() => []);
 
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-      registerKeyringUnlockMock(messenger);
-      messenger.registerActionHandler(
-        'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        getAccountsMock,
-      );
-      let isAccountTreeInitialized = false;
-      messenger.registerActionHandler(
-        'AccountTreeController:isInitialized',
-        () => isAccountTreeInitialized,
-      );
-      messenger.subscribe('AccountTreeController:initialized', () => {
-        isAccountTreeInitialized = true;
-      });
-      messenger.subscribe('AccountTreeController:uninitialized', () => {
-        isAccountTreeInitialized = false;
-      });
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler(
-        'AccountsController:getSelectedAccount',
-        () => undefined,
-      );
-      messenger.registerActionHandler(
-        'NetworkEnablementController:getState',
-        () => ({
-          enabledNetworkMap: { eip155: { '1': true } },
-          nativeAssetIdentifiers: {
-            'eip155:1': 'eip155:1/slip44:60',
+      const { rootMessenger, assetsControllerMessenger } = createMockMessengers(
+        {
+          registerCustomRootActions: (messenger) => {
+            registerKeyringUnlockMock(messenger);
+            messenger.registerActionHandler(
+              'AccountTreeController:getAccountsFromSelectedAccountGroup',
+              getAccountsMock,
+            );
+            let isAccountTreeInitialized = false;
+            messenger.registerActionHandler(
+              'AccountTreeController:isInitialized',
+              () => isAccountTreeInitialized,
+            );
+            messenger.subscribe('AccountTreeController:initialized', () => {
+              isAccountTreeInitialized = true;
+            });
+            messenger.subscribe('AccountTreeController:uninitialized', () => {
+              isAccountTreeInitialized = false;
+            });
+            messenger.registerActionHandler(
+              'AccountsController:getSelectedAccount',
+              () => undefined as unknown as InternalAccount,
+            );
+            messenger.registerActionHandler(
+              'NetworkEnablementController:getState',
+              () => ({
+                enabledNetworkMap: {
+                  eip155: { '1': true },
+                } as NetworkEnablementControllerState['enabledNetworkMap'],
+                nativeAssetIdentifiers: {
+                  'eip155:1': 'eip155:1/slip44:60',
+                },
+              }),
+            );
+            messenger.registerActionHandler(
+              'NetworkController:getState',
+              () =>
+                ({
+                  networkConfigurationsByChainId: {},
+                  networksMetadata: {},
+                }) as NetworkState,
+            );
+            messenger.registerActionHandler(
+              'NetworkController:getNetworkClientById',
+              () =>
+                ({
+                  provider: {},
+                }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+            );
+            messenger.registerActionHandler(
+              'ClientController:getState',
+              () => ({
+                isUiOpen: true,
+              }),
+            );
           },
-        }),
+        },
       );
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('ClientController:getState', () => ({
-        isUiOpen: true,
-      }));
 
       const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
+        messenger: assetsControllerMessenger,
         queryApiClient: createMockQueryApiClient(),
         subscribeToBasicFunctionalityChange: (): void => {
           /* no-op */
@@ -6540,17 +6226,21 @@ describe('AssetsController', () => {
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
       // Step 1: UI open + unlock — accounts empty, #start() is a no-op
-      messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
-      messenger.publish('KeyringController:unlock');
+      rootMessenger.publish(
+        'ClientController:stateChange',
+        { isUiOpen: true },
+        [],
+      );
+      rootMessenger.publish('KeyringController:unlock');
       await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
 
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
       // Intermediate tree mutations during init must not start tracking.
       getAccountsMock.mockReturnValue([createMockInternalAccount()]);
-      (messenger as unknown as { publish: LifecyclePublish }).publish(
+      rootMessenger.publish(
         'AccountTreeController:stateChange',
-        {},
+        getDefaultAccountTreeControllerState(),
         [],
       );
       await waitUntilStable(() => [getAssetsSpy.mock.calls.length]);
@@ -6558,9 +6248,9 @@ describe('AssetsController', () => {
       expect(getAssetsSpy).not.toHaveBeenCalled();
 
       // Step 2: AccountTreeController.init() completes — tree is ready
-      (messenger as unknown as { publish: LifecyclePublish }).publish(
+      rootMessenger.publish(
         'AccountTreeController:initialized',
-        {},
+        getDefaultAccountTreeControllerState(),
       );
       await waitFor(() => {
         expect(getAssetsSpy).toHaveBeenCalledTimes(1);

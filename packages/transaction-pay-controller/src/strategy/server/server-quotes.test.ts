@@ -4,6 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -29,6 +30,7 @@ import { getMaxQuotes, isAtomicMaxSupported } from '../../utils/max-quote.js';
 import type { MaxQuotesRequest } from '../../utils/max-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
 import {
+  buildCaipAssetType,
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
@@ -59,7 +61,12 @@ vi.mock(import('../../utils/gas.js'));
 vi.mock(import('../../utils/hyperliquid-activation.js'));
 vi.mock(import('../../utils/max-quote.js'));
 vi.mock(import('../../utils/quote-gas.js'));
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const SOURCE_TOKEN_ADDRESS_MOCK =
@@ -84,9 +91,9 @@ const COMPLEX_TRANSACTION_META_MOCK = {
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: FROM_MOCK,
+  sourceAccountId: `eip155:1:${FROM_MOCK}`,
+  sourceAssetId: `eip155:1/erc20:${SOURCE_TOKEN_ADDRESS_MOCK}`,
   sourceBalanceRaw: '10000000000000000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
@@ -804,7 +811,6 @@ describe('server-quotes', () => {
       // transaction's chain.
       const SAME_CHAIN_REQUEST_MOCK: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
-        sourceChainId: '0x1',
         targetChainId: '0x1',
       };
 
@@ -1520,7 +1526,10 @@ describe('server-quotes', () => {
           {
             ...QUOTE_REQUEST_MOCK,
             isMaxAmount: true,
-            sourceChainId: CHAIN_ID_HYPERCORE,
+            sourceAssetId: buildCaipAssetType(
+              CHAIN_ID_HYPERCORE,
+              SOURCE_TOKEN_ADDRESS_MOCK,
+            ),
           },
         ],
         transaction: CONTRACT_CALL_TRANSACTION_MOCK,
@@ -2484,8 +2493,8 @@ describe('server-quotes', () => {
       ...QUOTE_REQUEST_MOCK,
       isHyperliquidSource: true,
       isPostQuote: true,
-      sourceChainId: CHAIN_ID_ARBITRUM,
-      sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+      sourceAccountId: `eip155:42161:${FROM_MOCK}`,
+      sourceAssetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
       sourceTokenAmount: '4800000',
       targetAmountMinimum: '0',
     };
@@ -2512,7 +2521,9 @@ describe('server-quotes', () => {
 
       expect(vi.mocked(applyHyperliquidActivationFee)).toHaveBeenCalledWith(
         expect.objectContaining({
-          sourceChainId: CHAIN_ID_HYPERCORE,
+          sourceAssetId: expect.stringMatching(
+            new RegExp(`^eip155:${Number(CHAIN_ID_HYPERCORE)}/`, 'u'),
+          ),
           sourceTokenAmount: '480000000',
         }),
         messenger,

@@ -1,6 +1,12 @@
-import { ecsign, hashPersonalMessage, publicToAddress } from '@ethereumjs/util';
+import { ecsign, publicToAddress } from '@ethereumjs/util';
 import type { ToBytesInputTypes } from '@ethereumjs/util';
-import { bigIntToBytes, bytesToHex } from '@metamask/utils';
+import {
+  bigIntToBytes,
+  bytesToHex,
+  concatBytes,
+  stringToBytes,
+} from '@metamask/utils';
+import { keccak256 } from 'ethereum-cryptography/keccak';
 
 import {
   concatSig,
@@ -34,8 +40,8 @@ export function personalSign({
   }
 
   const message = legacyToBytes(data);
-  const msgHash = hashPersonalMessage(message);
-  const signature = ecsign(msgHash, privateKey);
+  const messageHash = hashPersonalMessage(message);
+  const signature = ecsign(messageHash, privateKey);
   return concatSig(bigIntToBytes(signature.v), signature.r, signature.s);
 }
 
@@ -91,6 +97,19 @@ export function extractPublicKey({
 
   const publicKey = getPublicKeyFor(data, signature);
   return bytesToHex(publicKey);
+}
+
+/**
+ * Produce the keccak256 hash for a personal_sign message.
+ *
+ * @param message The message.
+ * @returns The hash.
+ */
+function hashPersonalMessage(message: Uint8Array): Uint8Array {
+  const prefix = stringToBytes(
+    `\u0019Ethereum Signed Message:\n${message.length}`,
+  );
+  return keccak256(concatBytes([prefix, message]));
 }
 
 /**

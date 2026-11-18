@@ -96,19 +96,16 @@
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
-      "count": 12
+      "count": 11
     },
     "TS2352": {
-      "count": 2
+      "count": 1
     },
     "TS2493": {
       "count": 1
     },
     "TS2532": {
       "count": 1
-    },
-    "TS2554": {
-      "count": 7
     },
     "TS2739": {
       "count": 4
@@ -150,11 +147,6 @@
       "count": 2
     }
   },
-  "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
-    "TS2554": {
-      "count": 2
-    }
-  },
   "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
     "TS2418": {
       "count": 3
@@ -162,10 +154,7 @@
   },
   "packages/assets-controller/src/middlewares/RpcFallbackMiddleware.test.ts": {
     "TS18048": {
-      "count": 5
-    },
-    "TS2532": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {
@@ -354,12 +343,6 @@
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
     "TS2322": {
-      "count": 2
-    },
-    "TS2345": {
-      "count": 1
-    },
-    "TS2741": {
       "count": 2
     }
   },

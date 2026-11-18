@@ -843,6 +843,21 @@ export enum TransactionType {
   perpsDepositAndOrder = 'perpsDepositAndOrder',
 
   /**
+   * Deposit funds to be available for trading via Perps on Lighter.
+   */
+  perpsLighterDeposit = 'perpsLighterDeposit',
+
+  /**
+   * Deposit funds and place an order for trading via Perps on Lighter.
+   */
+  perpsLighterDepositAndOrder = 'perpsLighterDepositAndOrder',
+
+  /**
+   * Withdraw funds from Perps on Lighter.
+   */
+  perpsLighterWithdraw = 'perpsLighterWithdraw',
+
+  /**
    * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
    */
   perpsRelayDeposit = 'perpsRelayDeposit',

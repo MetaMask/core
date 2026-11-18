@@ -4,7 +4,7 @@ import type {
   PermissionConstraint,
   SubjectPermissions,
 } from '@metamask/permission-controller';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -233,13 +233,14 @@ function createMockHandleRequest(
   });
 }
 
+const teardowns: (() => void)[] = [];
+
 function setupController(
   options: {
     installedSnaps?: Record<string, { version: string; chainIds?: ChainId[] }>;
     accountAssets?: string[];
     balances?: Record<string, Balance>;
     configuredNetworks?: ChainId[];
-    isBalanceV6Enabled?: () => boolean;
     getAssetVisibility?: GetAssetVisibility;
     getAssetsState?: () => AssetsControllerState;
   } = {},
@@ -248,7 +249,6 @@ function setupController(
     installedSnaps = {},
     accountAssets = [],
     balances = {},
-    isBalanceV6Enabled = (): boolean => false,
     getAssetVisibility = (): ReturnType<GetAssetVisibility> => ({
       visibleAssetIds: [],
       hiddenAssetIds: [],
@@ -303,12 +303,17 @@ function setupController(
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated: activeChainsUpdateHandler,
     onAssetsUpdate: assetsUpdateHandler,
-    isBalanceV6Enabled,
     getAssetVisibility,
     getAssetsState,
   };
 
   const controller = new SnapDataSource(controllerOptions);
+
+  const cleanup = (): void => {
+    controller.destroy();
+    rootMessenger.clearSubscriptions();
+  };
+  teardowns.push(cleanup);
 
   // Subscribe so that balance updates are reported via onAssetsUpdate
   const chainIdsFromSnaps = Object.values(installedSnaps).flatMap(
@@ -331,11 +336,6 @@ function setupController(
     payload: AccountBalancesUpdatedEventPayload,
   ): void => {
     rootMessenger.publish('AccountsController:accountBalancesUpdated', payload);
-  };
-
-  const cleanup = (): void => {
-    controller.destroy();
-    rootMessenger.clearSubscriptions();
   };
 
   return {
@@ -403,24 +403,25 @@ describe('SnapDataSource helper functions', () => {
 });
 
 describe('SnapDataSource', () => {
+  afterEach(() => {
+    teardowns.splice(0).forEach((teardown) => teardown());
+  });
+
   it('initializes with correct name', () => {
-    const { controller, cleanup } = setupController();
+    const { controller } = setupController();
     expect(controller.getName()).toBe('SnapDataSource');
-    cleanup();
   });
 
   it('initializes with empty chains when no keyring snaps discovered', async () => {
-    const { controller, cleanup } = setupController();
+    const { controller } = setupController();
     await waitUntilStable(() => controller.getActiveChainsSync());
 
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([]);
-
-    cleanup();
   });
 
   it('discovers keyring snaps and populates active chains', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
         [BITCOIN_SNAP_ID]: { version: '2.0.0', chainIds: [BITCOIN_MAINNET] },
@@ -432,38 +433,31 @@ describe('SnapDataSource', () => {
       expect(chains).toContain(SOLANA_MAINNET);
       expect(chains).toContain(BITCOIN_MAINNET);
     });
-
-    cleanup();
   });
 
   it('exposes assetsMiddleware on instance', () => {
-    const { controller, cleanup } = setupController();
+    const { controller } = setupController();
 
     const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
     expect(typeof middleware).toBe('function');
-
-    cleanup();
   });
 
   it('checks snap availability on initialization via PermissionController', async () => {
-    const { mockGetRunnableSnaps, mockGetPermissions, cleanup } =
-      setupController({
-        installedSnaps: {
-          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
-        },
-      });
+    const { mockGetRunnableSnaps, mockGetPermissions } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+    });
 
     await waitFor(() => {
       expect(mockGetRunnableSnaps).toHaveBeenCalled();
       expect(mockGetPermissions).toHaveBeenCalledWith(SOLANA_SNAP_ID);
     });
-
-    cleanup();
   });
 
   it('fetch returns empty response for accounts without snap metadata', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -487,26 +481,22 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'merge',
+      updateMode: 'full',
     });
-
-    cleanup();
   });
 
   it('fetch returns empty response when request is undefined', async () => {
-    const { controller, cleanup } = setupController();
+    const { controller } = setupController();
 
     const response = await controller.fetch(
       undefined as unknown as DataRequest,
     );
 
     expect(response).toStrictEqual({});
-
-    cleanup();
   });
 
   it('fetch returns empty response when accounts array is empty', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -520,14 +510,12 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'merge',
+      updateMode: 'full',
     });
-
-    cleanup();
   });
 
   it('fetch calls snap keyring methods when snap discovered', async () => {
-    const { controller, mockHandleRequest, cleanup } = setupController({
+    const { controller, mockHandleRequest } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -560,8 +548,6 @@ describe('SnapDataSource', () => {
     expect(
       response.assetsBalance?.['mock-account-id']?.[MOCK_SOL_ASSET],
     ).toStrictEqual({ amount: '1000000000' });
-
-    cleanup();
   });
 
   it('requests the union of snap holdings, visible assets, and balance-state tokens', async () => {
@@ -569,7 +555,7 @@ describe('SnapDataSource', () => {
       visibleAssetIds: [MOCK_SOL_PIN],
       hiddenAssetIds: [],
     });
-    const { controller, mockHandleRequest, cleanup } = setupController({
+    const { controller, mockHandleRequest } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -579,7 +565,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_PIN]: { amount: '7', unit: 'WSOL' },
         [MOCK_SOL_TRACKED]: { amount: '3', unit: 'USDC' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility,
       getAssetsState: () => ({
         ...getDefaultAssetsControllerState(),
@@ -618,12 +603,10 @@ describe('SnapDataSource', () => {
       assetsInfo: {},
       updateMode: 'full',
     });
-
-    cleanup();
   });
 
   it('requests expected visible assets and zero-fills any the snap omitted', async () => {
-    const { controller, mockHandleRequest, cleanup } = setupController({
+    const { controller, mockHandleRequest } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -631,7 +614,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
         hiddenAssetIds: [],
@@ -653,12 +635,10 @@ describe('SnapDataSource', () => {
       [MOCK_SOL_ASSET]: { amount: '1000000000' },
       [MOCK_SOL_PIN]: { amount: '0' },
     });
-
-    cleanup();
   });
 
   it('seeds omitted Stellar visible tokens with empty trustline metadata', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
       },
@@ -666,7 +646,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_STELLAR_ASSET]: { amount: '1000000000', unit: 'XLM' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_STELLAR_ASSET, MOCK_STELLAR_PIN],
         hiddenAssetIds: [],
@@ -705,18 +684,15 @@ describe('SnapDataSource', () => {
         },
       },
     });
-
-    cleanup();
   });
 
   it('does not zero-fill visible assets when the snap returns no balances', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {},
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET, MOCK_SOL_PIN],
         hiddenAssetIds: [],
@@ -730,12 +706,10 @@ describe('SnapDataSource', () => {
       assetsInfo: {},
       updateMode: 'full',
     });
-
-    cleanup();
   });
 
   it('does not write balances when getAccountBalances throws', async () => {
-    const { controller, mockHandleRequest, cleanup } = setupController({
+    const { controller, mockHandleRequest } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -743,7 +717,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET],
         hiddenAssetIds: [],
@@ -768,12 +741,10 @@ describe('SnapDataSource', () => {
       assetsInfo: {},
       updateMode: 'full',
     });
-
-    cleanup();
   });
 
   it('leaves out a balance-state token the snap omitted from its response', async () => {
-    const { controller, mockHandleRequest, cleanup } = setupController({
+    const { controller, mockHandleRequest } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -781,7 +752,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [],
         hiddenAssetIds: [],
@@ -810,12 +780,10 @@ describe('SnapDataSource', () => {
     expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
       [MOCK_SOL_ASSET]: { amount: '1000000000' },
     });
-
-    cleanup();
   });
 
   it('uses the snap balance for a balance-state token omitted from listAccountAssets', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -824,7 +792,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
         [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [],
         hiddenAssetIds: [],
@@ -845,12 +812,10 @@ describe('SnapDataSource', () => {
       [MOCK_SOL_ASSET]: { amount: '1000000000' },
       [MOCK_SOL_PIN]: { amount: '42' },
     });
-
-    cleanup();
   });
 
   it('does not request hidden assets on the v6 snap fetch', async () => {
-    const { controller, mockHandleRequest, cleanup } = setupController({
+    const { controller, mockHandleRequest } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -859,7 +824,6 @@ describe('SnapDataSource', () => {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
         [MOCK_SOL_PIN]: { amount: '42', unit: 'WSOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET],
         hiddenAssetIds: [MOCK_SOL_PIN],
@@ -888,8 +852,6 @@ describe('SnapDataSource', () => {
     expect(response.assetsBalance?.['mock-account-id']).toStrictEqual({
       [MOCK_SOL_ASSET]: { amount: '1000000000' },
     });
-
-    cleanup();
   });
 
   it('fetch includes balance metadata when provided by the snap', async () => {
@@ -898,7 +860,7 @@ describe('SnapDataSource', () => {
       trustline: true,
     };
 
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
       },
@@ -939,12 +901,10 @@ describe('SnapDataSource', () => {
       amount: '1000000000',
       metadata: balanceMetadata,
     });
-
-    cleanup();
   });
 
   it('fetch handles empty account assets gracefully', async () => {
-    const { controller, mockHandleRequest, cleanup } = setupController({
+    const { controller, mockHandleRequest } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -960,12 +920,10 @@ describe('SnapDataSource', () => {
     });
     expect(getBalancesCalls).toHaveLength(0);
     expect(response.assetsBalance).toStrictEqual({});
-
-    cleanup();
   });
 
   it('fetch merges results from multiple snaps', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
         [BITCOIN_SNAP_ID]: { version: '1.0.0', chainIds: [BITCOIN_MAINNET] },
@@ -984,18 +942,14 @@ describe('SnapDataSource', () => {
     );
 
     expect(response.assetsBalance?.['mock-account-id']).toBeDefined();
-
-    cleanup();
   });
 
   it('handles snap balances updated event', async () => {
-    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController({
-        installedSnaps: {
-          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
-        },
-        isBalanceV6Enabled: () => true,
-      });
+    const { triggerBalancesUpdated, assetsUpdateHandler } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+    });
     assetsUpdateHandler.mockClear();
 
     triggerBalancesUpdated({
@@ -1017,8 +971,6 @@ describe('SnapDataSource', () => {
         },
       });
     });
-
-    cleanup();
   });
 
   it('includes balance metadata from snap balances updated event', async () => {
@@ -1027,12 +979,11 @@ describe('SnapDataSource', () => {
       trustline: true,
     };
 
-    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController({
-        installedSnaps: {
-          [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
-        },
-      });
+    const { triggerBalancesUpdated, assetsUpdateHandler } = setupController({
+      installedSnaps: {
+        [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_MAINNET] },
+      },
+    });
 
     triggerBalancesUpdated({
       balances: {
@@ -1060,17 +1011,14 @@ describe('SnapDataSource', () => {
         }),
       );
     });
-
-    cleanup();
   });
 
   it('filters assets for chains without discovered snaps from balance update event', async () => {
-    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController({
-        installedSnaps: {
-          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
-        },
-      });
+    const { triggerBalancesUpdated, assetsUpdateHandler } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+    });
 
     const evmAsset = 'eip155:1/slip44:60' as Caip19AssetId;
 
@@ -1094,17 +1042,14 @@ describe('SnapDataSource', () => {
         }),
       );
     });
-
-    cleanup();
   });
 
   it('skips malformed asset IDs in balance update and still applies valid balances', async () => {
-    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController({
-        installedSnaps: {
-          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
-        },
-      });
+    const { triggerBalancesUpdated, assetsUpdateHandler } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+    });
 
     triggerBalancesUpdated({
       balances: {
@@ -1126,17 +1071,14 @@ describe('SnapDataSource', () => {
         }),
       );
     });
-
-    cleanup();
   });
 
   it('does not report empty balance updates', async () => {
-    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController({
-        installedSnaps: {
-          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
-        },
-      });
+    const { triggerBalancesUpdated, assetsUpdateHandler } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
+    });
 
     const evmAsset = 'eip155:1/slip44:60' as Caip19AssetId;
 
@@ -1152,12 +1094,10 @@ describe('SnapDataSource', () => {
     await waitUntilStable(() => [assetsUpdateHandler.mock.calls.length]);
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
-
-    cleanup();
   });
 
   it('subscribe performs initial fetch', async () => {
-    const { controller, assetsUpdateHandler, cleanup } = setupController({
+    const { controller, assetsUpdateHandler } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -1180,12 +1120,10 @@ describe('SnapDataSource', () => {
     await waitFor(() => {
       expect(assetsUpdateHandler).toHaveBeenCalled();
     });
-
-    cleanup();
   });
 
   it('subscribe reports fetched balances via the constructor onAssetsUpdate, not the per-subscription callback', async () => {
-    const { controller, assetsUpdateHandler, cleanup } = setupController({
+    const { controller, assetsUpdateHandler } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -1210,12 +1148,10 @@ describe('SnapDataSource', () => {
     });
     await waitUntilStable(() => [subscriptionOnAssetsUpdate.mock.calls.length]);
     expect(subscriptionOnAssetsUpdate).not.toHaveBeenCalled();
-
-    cleanup();
   });
 
   it('subscribe does nothing for chains without discovered snaps', async () => {
-    const { controller, assetsUpdateHandler, cleanup } = setupController();
+    const { controller, assetsUpdateHandler } = setupController();
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
@@ -1226,12 +1162,10 @@ describe('SnapDataSource', () => {
 
     await waitUntilStable(() => [assetsUpdateHandler.mock.calls.length]);
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
-
-    cleanup();
   });
 
   it('subscribe update fetches data', async () => {
-    const { controller, assetsUpdateHandler, cleanup } = setupController({
+    const { controller, assetsUpdateHandler } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -1266,12 +1200,10 @@ describe('SnapDataSource', () => {
     });
     await waitUntilStable(() => [subscriptionOnAssetsUpdate.mock.calls.length]);
     expect(subscriptionOnAssetsUpdate).not.toHaveBeenCalled();
-
-    cleanup();
   });
 
   it('middleware passes to next when no supported chains', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -1285,12 +1217,10 @@ describe('SnapDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(next).toHaveBeenCalledWith(context);
-
-    cleanup();
   });
 
   it('middleware merges response into context', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -1309,12 +1239,10 @@ describe('SnapDataSource', () => {
       context.response.assetsBalance?.['mock-account-id']?.[MOCK_SOL_ASSET],
     ).toBeDefined();
     expect(next).toHaveBeenCalled();
-
-    cleanup();
   });
 
   it('middleware forwards full update mode for v6 snapshots', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -1322,7 +1250,6 @@ describe('SnapDataSource', () => {
       balances: {
         [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
       },
-      isBalanceV6Enabled: () => true,
       getAssetVisibility: () => ({
         visibleAssetIds: [MOCK_SOL_ASSET],
         hiddenAssetIds: [],
@@ -1337,12 +1264,10 @@ describe('SnapDataSource', () => {
     expect(next.mock.calls[0]?.[0]).toMatchObject({
       response: { updateMode: 'full' },
     });
-
-    cleanup();
   });
 
   it('middleware removes handled chains from next request', async () => {
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {
         [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
@@ -1366,13 +1291,11 @@ describe('SnapDataSource', () => {
     expect(next.mock.calls[0]?.[0]).toMatchObject({
       request: { chainIds: [CHAIN_MAINNET] },
     });
-
-    cleanup();
   });
 
   it('middleware keeps chains without discovered snaps in request', async () => {
     // No snaps discovered
-    const { controller, cleanup } = setupController({
+    const { controller } = setupController({
       installedSnaps: {},
     });
 
@@ -1387,8 +1310,6 @@ describe('SnapDataSource', () => {
 
     // All chains passed through since no snaps handle any chains
     expect(next).toHaveBeenCalledWith(context);
-
-    cleanup();
   });
 
   it('destroy cleans up subscriptions', async () => {
@@ -1437,7 +1358,6 @@ describe('SnapDataSource', () => {
       messenger: assetsControllerMessenger,
       onActiveChainsUpdated: vi.fn(),
       onAssetsUpdate: vi.fn(),
-      isBalanceV6Enabled: () => false,
       getAssetVisibility: () => ({
         visibleAssetIds: [],
         hiddenAssetIds: [],
@@ -1445,9 +1365,11 @@ describe('SnapDataSource', () => {
       getAssetsState: getDefaultAssetsControllerState,
     });
 
+    teardowns.push((): void => {
+      instance.destroy();
+    });
+
     expect(instance).toBeInstanceOf(SnapDataSource);
     expect(instance.getName()).toBe('SnapDataSource');
-
-    instance.destroy();
   });
 });

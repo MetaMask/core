@@ -14,18 +14,21 @@ export function getRecoveryPhase(
 }
 
 /**
- * Ensures a persisted mutation targets the build-configured escrow set.
+ * Ensures a persisted mutation targets configured escrows, in configured
+ * order. Repairs target only the lagging escrows.
  *
  * @param audiences - Mutation audience ids.
  * @param escrowIds - Configured escrow ids.
  */
-export function assertSameAudienceIds(
+export function assertConfiguredAudienceIds(
   audiences: string[],
   escrowIds: string[],
 ): void {
+  const expected = escrowIds.filter((id) => audiences.includes(id));
   if (
-    audiences.length !== escrowIds.length ||
-    audiences.some((id, index) => id !== escrowIds[index])
+    audiences.length === 0 ||
+    audiences.length !== expected.length ||
+    audiences.some((id, index) => id !== expected[index])
   ) {
     throw new MfaRecoveryError(
       'Persisted mutation audiences do not match configured escrows',
