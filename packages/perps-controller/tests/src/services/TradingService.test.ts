@@ -4316,6 +4316,26 @@ describe('TradingService', () => {
       );
     });
 
+    it('omits unknown leverage from flip position analytics', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: { ...mockPosition, leverage: { type: 'cross' } },
+        context: mockContext,
+      });
+
+      const flipEvents = vi
+        .mocked(mockDeps.metrics.trackPerpsEvent)
+        .mock.calls.filter(
+          ([event]) => event === PerpsAnalyticsEvent.TradeTransaction,
+        );
+      expect(flipEvents).toHaveLength(2);
+      for (const [, properties] of flipEvents) {
+        expect(properties).not.toHaveProperty('leverage');
+      }
+    });
+
     it('places order with 2x position size to flip position', async () => {
       const mockResult: OrderResult = {
         success: true,

@@ -3147,7 +3147,9 @@ export class TradingService {
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
         ...flipIntentProperties,
-        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+        ...(orderParams.leverage !== undefined && {
+          [PERPS_EVENT_PROPERTY.LEVERAGE]: orderParams.leverage,
+        }),
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
         [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
         ...this.#buildAttributionProperties(trackingData),
@@ -3196,7 +3198,9 @@ export class TradingService {
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
             ...flipIntentProperties,
-            [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+            ...(orderParams.leverage !== undefined && {
+              [PERPS_EVENT_PROPERTY.LEVERAGE]: orderParams.leverage,
+            }),
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
