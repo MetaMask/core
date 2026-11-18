@@ -2,12 +2,12 @@ import type {
   AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
   IdentitySharingAudience,
 } from '@metamask/authenticated-user-storage';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
-  type StateMetadata,
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { TraceRequest } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationControllerGetPartnerIdentityTokenAction } from '@metamask/profile-sync-controller/auth';

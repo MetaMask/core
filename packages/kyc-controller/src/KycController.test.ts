@@ -1999,18 +1999,15 @@ describe('KycController', () => {
 
     it('records a failed span when there is no session', async () => {
       const trace = vi.fn();
-      await withController(
-        { options: { trace } },
-        async ({ controller }) => {
-          expect(await controller.launchProviderFlow({})).toBe('failed');
-          expect(trace).toHaveBeenCalledWith(
-            expect.objectContaining({
-              tags: { feature: 'kyc', provider: 'sumsub', result: 'failed' },
-            }),
-            expect.any(Function),
-          );
-        },
-      );
+      await withController({ options: { trace } }, async ({ controller }) => {
+        expect(await controller.launchProviderFlow({})).toBe('failed');
+        expect(trace).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tags: { feature: 'kyc', provider: 'sumsub', result: 'failed' },
+          }),
+          expect.any(Function),
+        );
+      });
     });
 
     it('keeps the launch outcome and polling when trace throws', async () => {
@@ -2021,7 +2018,7 @@ describe('KycController', () => {
       const originalLog = traceLogger.log;
       const wasEnabled = traceLogger.enabled;
       traceLogger.enabled = true;
-      traceLogger.log = (...args: unknown[]) => {
+      traceLogger.log = (...args: unknown[]): void => {
         messages.push(args);
       };
 
@@ -2042,7 +2039,7 @@ describe('KycController', () => {
             expect(await controller.launchProviderFlow({})).toBe('submitted');
             expect(controller.state.providerFlowStatus).toBe('submitted');
             expect(handlers.getSessionStatus).toHaveBeenCalled();
-            expect(messages.flat()).toEqual(
+            expect(messages.flat()).toStrictEqual(
               expect.arrayContaining([
                 expect.stringContaining('Failed to emit trace'),
               ]),
