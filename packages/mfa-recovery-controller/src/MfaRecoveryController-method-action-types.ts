@@ -35,6 +35,17 @@ export type MfaRecoveryControllerTrustIdentifierAction = {
 };
 
 /**
+ * Stops trusting a passkey, so a later approval cannot add it back. Call it
+ * before removing the passkey from Auth.
+ *
+ * @param credentialId - The passkey's base64url WebAuthn credential ID.
+ */
+export type MfaRecoveryControllerUntrustPasskeyAction = {
+  type: `MfaRecoveryController:untrustPasskey`;
+  handler: MfaRecoveryController['untrustPasskey'];
+};
+
+/**
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
@@ -156,6 +167,7 @@ export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerAcquireLockAction
   | MfaRecoveryControllerReleaseLockAction
   | MfaRecoveryControllerTrustIdentifierAction
+  | MfaRecoveryControllerUntrustPasskeyAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction

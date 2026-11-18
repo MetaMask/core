@@ -221,6 +221,7 @@ describe('UserStorageTrustedIdentifierStore', () => {
       actions: [
         'UserStorageController:performGetStorageAllFeatureEntries',
         'UserStorageController:performSetStorage',
+        'UserStorageController:performDeleteStorage',
       ],
       events: [],
       messenger,
@@ -240,6 +241,12 @@ describe('UserStorageTrustedIdentifierStore', () => {
         storage.set(path, value);
       },
     );
+    rootMessenger.registerActionHandler(
+      'UserStorageController:performDeleteStorage',
+      async (path) => {
+        storage.delete(path);
+      },
+    );
     return {
       store: new UserStorageTrustedIdentifierStore({ messenger }),
       storage,
@@ -251,7 +258,7 @@ describe('UserStorageTrustedIdentifierStore', () => {
     expect(await store.get()).toStrictEqual([]);
   });
 
-  it('stores each identifier under its own key, once', async () => {
+  it('stores each identifier under its own key, once, and removes it', async () => {
     const { store, storage } = setup();
     const social: TrustedIdentifier = {
       type: 'social',
@@ -266,5 +273,8 @@ describe('UserStorageTrustedIdentifierStore', () => {
       expect.stringMatching(/^mfaRecoveryTrustedIdentifiers\.[0-9a-f]{64}$/u),
     ]);
     expect(await store.get()).toStrictEqual([TRUSTED_PASSKEY, social]);
+
+    await store.remove(TRUSTED_PASSKEY);
+    expect(await store.get()).toStrictEqual([social]);
   });
 });

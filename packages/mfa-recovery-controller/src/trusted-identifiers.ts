@@ -1,6 +1,7 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  UserStorageControllerPerformDeleteStorageAction,
   UserStorageControllerPerformGetStorageAllFeatureEntriesAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
@@ -127,6 +128,7 @@ export type UserStorageTrustedIdentifierStoreMessenger = Messenger<
   'UserStorageTrustedIdentifierStore',
   | UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageControllerPerformSetStorageAction
+  | UserStorageControllerPerformDeleteStorageAction
 >;
 
 /**
@@ -162,8 +164,21 @@ export class UserStorageTrustedIdentifierStore implements RecoveryTrustedIdentif
   async add(entry: TrustedIdentifier): Promise<void> {
     await this.#messenger.call(
       'UserStorageController:performSetStorage',
-      `${STORAGE_FEATURE}.${remove0x(await hash(entry))}`,
+      await storagePath(entry),
       JSON.stringify(entry),
     );
   }
+
+  async remove(entry: TrustedIdentifier): Promise<void> {
+    await this.#messenger.call(
+      'UserStorageController:performDeleteStorage',
+      await storagePath(entry),
+    );
+  }
+}
+
+async function storagePath(
+  entry: TrustedIdentifier,
+): Promise<`${typeof STORAGE_FEATURE}.${string}`> {
+  return `${STORAGE_FEATURE}.${remove0x(await hash(entry))}`;
 }

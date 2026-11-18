@@ -383,6 +383,17 @@ describe('MfaRecoveryController', () => {
     });
   });
 
+  describe('untrustPasskey', () => {
+    it('stops register from accepting the passkey', async () => {
+      await withController(async ({ controller }) => {
+        await controller.untrustPasskey('AQ');
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'untrusted_identifier' });
+      });
+    });
+  });
+
   describe('register', () => {
     it('replicates the recovery secret to every escrow', async () => {
       await withController(async ({ controller, escrowA, escrowB }) => {

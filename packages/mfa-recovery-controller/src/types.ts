@@ -362,6 +362,7 @@ export type IdentifierWitness =
 export type RecoveryTrustedIdentifierStore = {
   get: () => Promise<TrustedIdentifier[]>;
   add: (entry: TrustedIdentifier) => Promise<void>;
+  remove: (entry: TrustedIdentifier) => Promise<void>;
 };
 
 /**

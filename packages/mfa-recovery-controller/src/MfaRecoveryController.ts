@@ -11,6 +11,7 @@ import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
   decryptFromPublic,
   encryptToPublic,
+  fromBase64Url,
   generateWrapKey,
   hash,
   randomId,
@@ -96,6 +97,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'acquireLock',
   'releaseLock',
   'trustIdentifier',
+  'untrustPasskey',
   'register',
   'updateRecoverySecret',
   'updateIdentifiers',
@@ -357,6 +359,21 @@ export class MfaRecoveryController extends BaseController<
    */
   async trustIdentifier(witness: IdentifierWitness): Promise<void> {
     await this.#trustedIdentifierStore.add(toTrustedIdentifier(witness));
+  }
+
+  /**
+   * Stops trusting a passkey, so a later approval cannot add it back. Call it
+   * before removing the passkey from Auth.
+   *
+   * @param credentialId - The passkey's base64url WebAuthn credential ID.
+   */
+  async untrustPasskey(credentialId: string): Promise<void> {
+    const id = bytesToHex(fromBase64Url(credentialId));
+    for (const entry of await this.#trustedIdentifierStore.get()) {
+      if (entry.type === 'passkey' && entry.credentialId === id) {
+        await this.#trustedIdentifierStore.remove(entry);
+      }
+    }
   }
 
   /**

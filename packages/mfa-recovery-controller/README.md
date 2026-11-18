@@ -81,11 +81,15 @@ cannot add its own or swap a passkey's public key. Record identifiers with
 - After a social login, pass its issuer and identity (the email for Google,
   `sub` for Apple) from the device's own login.
 
+Before removing a passkey from Auth, call `untrustPasskey(credentialId)` so a
+later approval cannot add it back.
+
 `UserStorageTrustedIdentifierStore` keeps one entry per identifier in user
 storage encrypted from the seed phrase, so Auth can delete entries but not
 write them. Its messenger needs
-`UserStorageController:performGetStorageAllFeatureEntries` and
-`UserStorageController:performSetStorage`.
+`UserStorageController:performGetStorageAllFeatureEntries`,
+`UserStorageController:performSetStorage` and
+`UserStorageController:performDeleteStorage`.
 
 ## Seedless password unlock
 

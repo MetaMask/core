@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Adds `trustIdentifier`, which records a passkey or social identifier a user device saw, and exports `UserStorageTrustedIdentifierStore`, which keeps one entry per identifier in encrypted user storage ([#11606](https://github.com/MetaMask/core/pull/11606))
+- Adds `trustIdentifier`, which records a passkey or social identifier a user device saw, `untrustPasskey`, which forgets a removed passkey, and exports `UserStorageTrustedIdentifierStore`, which keeps one entry per identifier in encrypted user storage ([#11606](https://github.com/MetaMask/core/pull/11606))
 - Add dependencies `@levischuck/tiny-cbor` `^0.3.6` and `@noble/hashes` `^1.8.0` ([#11606](https://github.com/MetaMask/core/pull/11606))
 
 ### Changed

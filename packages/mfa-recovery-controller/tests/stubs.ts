@@ -178,6 +178,10 @@ export class StubTrustedIdentifierStore implements RecoveryTrustedIdentifierStor
   async add(entry: TrustedIdentifier): Promise<void> {
     this.trusted.push(entry);
   }
+
+  async remove(entry: TrustedIdentifier): Promise<void> {
+    this.trusted = this.trusted.filter((item) => item !== entry);
+  }
 }
 
 /**

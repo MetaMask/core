@@ -22,6 +22,7 @@ export type {
   MfaRecoveryControllerReleaseLockAction,
   MfaRecoveryControllerResumeAction,
   MfaRecoveryControllerTrustIdentifierAction,
+  MfaRecoveryControllerUntrustPasskeyAction,
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
 } from './MfaRecoveryController-method-action-types.js';
