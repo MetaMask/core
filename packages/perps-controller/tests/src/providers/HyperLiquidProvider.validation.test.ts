@@ -1316,6 +1316,87 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it.each([0, Number.NaN, -2])(
+      'rejects leverage %s as invalid',
+      async (leverage) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size: '0.1',
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+        });
+      },
+    );
+
+    it.each(['', '0'])(
+      'leaves an empty or zero size (%j) to the minimum-size check',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage: 10,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        });
+      },
+    );
+
+    it.each(['abc', 'Infinity', '-1'])(
+      'rejects size %s when no USD amount is given',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: true,
+          orderType: 'market',
+          currentPrice: 50000,
+          leverage: 10,
+        });
+
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        });
+      },
+    );
+
+    it('rejects an infinite limit price', async () => {
+      const actualValidation = await vi.importActual<
+        typeof import('../../../src/utils/hyperLiquidValidation.js')
+      >('../../../src/utils/hyperLiquidValidation.js');
+      mockValidateOrderParams.mockImplementation(
+        actualValidation.validateOrderParams,
+      );
+
+      const result = await provider.validateOrder({
+        symbol: 'BTC',
+        size: '0.1',
+        isBuy: true,
+        orderType: 'limit',
+        price: 'Infinity',
+        currentPrice: 50000,
+        leverage: 10,
+      });
+
+      expect(result).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      });
+    });
+
     it('handles validation errors gracefully', async () => {
       mockValidateOrderParams.mockImplementation(() => {
         throw new Error('Unexpected error');

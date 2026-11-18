@@ -562,6 +562,72 @@ describe('LighterProvider', () => {
     });
   });
 
+  describe('market order market status', () => {
+    const marketOrder = {
+      symbol: 'BTC',
+      isBuy: true,
+      orderType: 'market' as const,
+      size: '0.001',
+    };
+
+    it('refreshes metadata and refuses a market order once the market is no longer active', async () => {
+      const { provider, clientInstance, calls } = buildProvider();
+      await provider.getMarkets();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      expect(await provider.validateOrder(marketOrder)).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
+      });
+      expect(await provider.placeOrder(marketOrder)).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it('keeps a reduce-only market close available on an inactive market', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, status: 'inactive' },
+      ]);
+
+      const validation = await provider.validateOrder({
+        ...marketOrder,
+        reduceOnly: true,
+      });
+
+      expect(validation.error).not.toBe(
+        PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
+      );
+    });
+  });
+
+  describe('validateOrder leverage and price bounds', () => {
+    it.each([
+      [{ leverage: 0 }, 'Invalid leverage'],
+      [{ leverage: -2 }, 'Invalid leverage'],
+      [{ price: 'Infinity' }, 'Invalid limit price'],
+    ])('rejects %o', async (overrides, error) => {
+      const { provider, calls } = buildProvider();
+
+      const validation = await provider.validateOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        orderType: 'limit',
+        price: '90000',
+        size: '0.001',
+        ...overrides,
+      });
+
+      expect(validation.isValid).toBe(false);
+      expect(validation.error).toContain(error);
+      expect(calls).toHaveLength(0);
+    });
+  });
+
   describe('round-9 finite-positive intent parity', () => {
     it('rejects non-finite size, usdAmount, and leverage in validateOrder and placeOrder before any signer call', async () => {
       const { provider, calls } = buildProvider();

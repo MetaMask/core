@@ -10,6 +10,7 @@ import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   BUILDER_FEE_CONFIG,
+  HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
   REFERRAL_CONFIG,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
@@ -170,6 +171,7 @@ const createTestProvider = (
     blocklistMarkets?: string[];
     useUnifiedAccount?: boolean;
     initialAssetMapping?: [string, number][];
+    subscriptionBuilderAddressMainnet?: string;
   } = {},
 ): HyperLiquidProvider =>
   new HyperLiquidProvider({
@@ -1510,6 +1512,228 @@ describe('HyperLiquidProvider', () => {
 
       expect(userToMultiSigSigners).toHaveBeenCalledTimes(1);
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
+    describe('write dispatch fence', () => {
+      const multiSigStatus = {
+        status: 'ok',
+        response: { data: { statuses: [{ error: 'Multi-sig required' }] } },
+      };
+      let exchangeClient: Record<string, Mock>;
+      let dispatchFences: (() => Promise<void>)[];
+
+      beforeEach(() => {
+        primeSupportedTradingSetup();
+        exchangeClient = createMockExchangeClient();
+        dispatchFences = [];
+        mockClientService.getExchangeClient = vi
+          .fn()
+          .mockImplementation((beforeDispatch?: () => Promise<void>) => {
+            if (beforeDispatch) {
+              dispatchFences.push(beforeDispatch);
+            }
+            return exchangeClient;
+          });
+        mockSubscriptionService.isPositionsCacheInitialized = vi
+          .fn()
+          .mockReturnValue(true);
+        mockSubscriptionService.getCachedPositionsForDex = vi
+          .fn()
+          .mockReturnValue([
+            createMockPosition({
+              leverage: { type: 'isolated', value: 10, rawUsd: '500' },
+            }),
+          ]);
+      });
+
+      const takeLastFence = (): (() => Promise<void>) => {
+        const fence = dispatchFences.at(-1);
+        if (!fence) {
+          throw new Error('Exchange client was requested without a fence');
+        }
+        return fence;
+      };
+
+      // A status-based venue rejection is how support flips mid-session.
+      const recordVenueMultiSigRejection = async (): Promise<void> => {
+        exchangeClient.cancel.mockResolvedValueOnce(multiSigStatus);
+        await provider.cancelOrder({ orderId: '999', symbol: 'BTC' });
+      };
+
+      it.each([
+        [
+          'updateMargin',
+          async (): Promise<unknown> =>
+            await provider.updateMargin({ symbol: 'BTC', amount: '-1' }),
+        ],
+        [
+          'cancelOrder',
+          async (): Promise<unknown> =>
+            await provider.cancelOrder({ orderId: '123', symbol: 'BTC' }),
+        ],
+        [
+          'editOrder',
+          async (): Promise<unknown> => {
+            mockInfoClient.frontendOpenOrders.mockResolvedValue([
+              {
+                coin: 'BTC',
+                side: 'B',
+                limitPx: '50000',
+                sz: '0.1',
+                origSz: '0.1',
+                oid: 123,
+                timestamp: 1_700_000_000_000,
+                isTrigger: false,
+                triggerCondition: 'N/A',
+                triggerPx: '0',
+                children: [],
+                isPositionTpsl: false,
+                reduceOnly: false,
+                orderType: 'Limit',
+              },
+            ]);
+            return await provider.editOrder({
+              orderId: '123',
+              newOrder: {
+                symbol: 'BTC',
+                isBuy: true,
+                size: '0.2',
+                price: '52000',
+                orderType: 'limit',
+              },
+            });
+          },
+        ],
+      ])(
+        '%s dispatches through a fence that refuses a known multi-sig account',
+        async (_name, write) => {
+          await expect(write()).resolves.toMatchObject({ success: true });
+          const fence = takeLastFence();
+          await expect(fence()).resolves.toBeUndefined();
+
+          await recordVenueMultiSigRejection();
+
+          await expect(fence()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+        },
+      );
+
+      it('re-probes a supported account after the recheck interval', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+          const cancellation = { orderId: '123', symbol: 'BTC' };
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({ success: true });
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+
+          vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS - 1);
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({ success: true });
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+
+          vi.advanceTimersByTime(1);
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({
+            success: false,
+            error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          });
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
+          expect(exchangeClient.cancel).toHaveBeenCalledTimes(2);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('keeps an unsupported result after the recheck interval', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+          const cancellation = { orderId: '123', symbol: 'BTC' };
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({
+            error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          });
+
+          vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+          await expect(
+            provider.cancelOrder(cancellation),
+          ).resolves.toMatchObject({
+            error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          });
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+          expect(exchangeClient.cancel).not.toHaveBeenCalled();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+    });
+
+    describe('approveSubscriptionBuilderFee', () => {
+      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
+
+      beforeEach(() => {
+        provider = createTestProvider({
+          subscriptionBuilderAddressMainnet: subscriptionBuilder,
+        });
+        mockInfoClient.maxBuilderFee.mockResolvedValue(0);
+      });
+
+      it('refuses to sign for a multi-sig account', async () => {
+        const exchangeClient = createMockExchangeClient();
+        mockClientService.getExchangeClient = vi
+          .fn()
+          .mockReturnValue(exchangeClient);
+        mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        });
+
+        await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+          false,
+        );
+
+        expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      });
+
+      it('signs through a dispatch fence and records a venue multi-sig rejection', async () => {
+        const exchangeClient = createMockExchangeClient({
+          approveBuilderFee: vi
+            .fn()
+            .mockRejectedValue(
+              new Error('ApiRequestError: Multi-sig required'),
+            ),
+        });
+        mockClientService.getExchangeClient = vi
+          .fn()
+          .mockReturnValue(exchangeClient);
+        mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+        await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
+          false,
+        );
+
+        expect(mockClientService.getExchangeClient).toHaveBeenCalledWith(
+          expect.any(Function),
+        );
+        expect(exchangeClient.approveBuilderFee).toHaveBeenCalledTimes(1);
+        await expect(provider.getAccountSupport()).resolves.toEqual({
+          isSupported: false,
+          reason: 'multi_sig_account',
+        });
+      });
     });
   });
 

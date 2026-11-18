@@ -962,6 +962,78 @@ describe('PerpsController', () => {
       );
     });
 
+    it.each([
+      [100, 100],
+      [undefined, undefined],
+    ])(
+      'forwards the saved max slippage (%s) to the flip',
+      async (savedBps, expectedBps) => {
+        const position = {
+          symbol: 'BTC',
+          size: '0.5',
+          entryPrice: '50000',
+          positionValue: '25000',
+          unrealizedPnl: '1000',
+          returnOnEquity: '0.04',
+          leverage: { type: 'cross' as const, value: 10 },
+          liquidationPrice: '45000',
+          marginUsed: '2500',
+          maxLeverage: 100,
+          cumulativeFunding: {
+            allTime: '0',
+            sinceOpen: '0',
+            sinceChange: '0',
+          },
+          takeProfitCount: 0,
+          stopLossCount: 0,
+        };
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        if (savedBps !== undefined) {
+          controller.setMaxSlippage(savedBps);
+        }
+        vi.spyOn(mockTradingServiceInstance, 'flipPosition').mockResolvedValue({
+          success: true,
+        });
+
+        await controller.flipPosition({ symbol: 'BTC', position });
+
+        expect(mockTradingServiceInstance.flipPosition).toHaveBeenCalledWith(
+          expect.objectContaining({ maxSlippageBps: expectedBps }),
+        );
+      },
+    );
+
+    it.each([
+      ['the per-call value', 200, 100, 200],
+      ['the saved preference', undefined, 100, 100],
+      ['nothing', undefined, undefined, undefined],
+    ])(
+      'prices whole-position TP/SL market legs with %s',
+      async (_label, perCallBps, savedBps, expectedBps) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        if (savedBps !== undefined) {
+          controller.setMaxSlippage(savedBps);
+        }
+        vi.spyOn(
+          mockTradingServiceInstance,
+          'updatePositionTPSL',
+        ).mockResolvedValue({ success: true });
+
+        await controller.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: '45000',
+          ...(perCallBps === undefined ? {} : { maxSlippageBps: perCallBps }),
+        });
+
+        expect(
+          vi.mocked(mockTradingServiceInstance.updatePositionTPSL).mock
+            .calls[0][0].params.maxSlippageBps,
+        ).toBe(expectedBps);
+      },
+    );
+
     it('handles flipPosition error', async () => {
       const mockPosition = {
         symbol: 'BTC',

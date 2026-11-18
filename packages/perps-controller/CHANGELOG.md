@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `providerId` to each `BatchCancelOrdersParams` item, so a batch cancel names the venue each order rests on ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add optional `maxSlippageBps` to `UpdatePositionTPSLParams`, the slippage cap for a HyperLiquid market-executed TP/SL leg ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add optional `providerId` to `CancelOrdersParams`, restricting a batch cancel to one venue ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add the `ORDER_MARKET_INACTIVE` error code, returned when a Lighter market order targets a market that is not an active perpetual ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ### Changed
 
+- `PerpsController.cancelOrders` no longer refuses with `PROVIDER_ROUTE_REQUIRED` while several venues are registered: the aggregated provider cancels each order on the venue it rests on, using single cancels on a venue without a batch cancel; an `orderIds` entry found on two venues is refused with `PROVIDER_ROUTE_REQUIRED` unless `providerId` scopes the batch ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
 
@@ -18,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `PerpsController.flipPosition` now signs the flip at the saved max slippage (`setMaxSlippage`); with nothing saved it keeps the `ORDER_SLIPPAGE_CONFIG` market default ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- HyperLiquid `validateOrder` now rejects leverage `0`, `NaN` or below `1` with `ORDER_LEVERAGE_INVALID`, a non-finite or negative size (or `usdAmount`) with `ORDER_SIZE_POSITIVE`, and a non-finite price with `ORDER_PRICE_POSITIVE` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Every HyperLiquid signed write (edit, cancel, batch cancel, batch close, margin update, TWAP, scale and chase orders, referral setup, subscription builder approval) now dispatches through the account-guarded exchange client, and the pre-sign multi-sig support check re-probes once the last successful check is older than 60 seconds instead of trusting it for the whole session ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `approveSubscriptionBuilderFee` now checks account support before signing and records a multi-sig rejection
+- `PerpsController.updatePositionTPSL` on HyperLiquid now caps a market stop loss at the per-call `maxSlippageBps`, else the saved max slippage, else the 10% TP/SL default; it was signed at its trigger with no slippage. A whole-position take profit still fills as a limit at its trigger ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Lighter market orders now refresh market metadata and require an active perpetual market, as trigger orders already did; reduce-only closes skip both, so a close never depends on the metadata read ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - Send the `add_margin` and `remove_margin` Risk Management actions through `PERPS_EVENT_VALUE` constants instead of string literals ([#11608](https://github.com/MetaMask/core/pull/11608))
 - HyperLiquid now allows Cross margin on HIP-3 markets whose venue `marginMode` is `normal` or absent: `getOrderCapabilities` reports `supportedMarginModes` `['isolated', 'cross']` for them and Cross orders are accepted ([#11610](https://github.com/MetaMask/core/pull/11610))
   - HIP-3 markets with `marginMode` `noCross` or `strictIsolated`, or `onlyIsolated`, still report `['isolated']` and refuse Cross with `ORDER_MARGIN_MODE_UNSUPPORTED`

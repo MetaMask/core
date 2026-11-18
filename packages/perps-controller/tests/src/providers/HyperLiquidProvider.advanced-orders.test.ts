@@ -2670,6 +2670,36 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each([
+      [undefined, '39600'],
+      [300, '42680'],
+    ] as const)(
+      'caps a whole-position market stop loss below its trigger with slippage %s',
+      async (maxSlippageBps, cappedPrice) => {
+        setOpenOrders([]);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '61000',
+          stopLossPrice: '44000',
+          ...(maxSlippageBps !== undefined && { maxSlippageBps }),
+        });
+
+        expect(result.success).toBe(true);
+        const [request] = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0];
+        const stopLoss = request.orders.find(
+          (order: { t: { trigger: { tpsl: string } } }) =>
+            order.t.trigger.tpsl === 'sl',
+        );
+        // The long closes by selling, so the cap sits below the trigger.
+        expect(stopLoss).toMatchObject({
+          p: cappedPrice,
+          t: { trigger: { isMarket: true, triggerPx: '44000', tpsl: 'sl' } },
+        });
+      },
+    );
+
     it('replaces only this side from the warm order cache', async () => {
       const cachedTrigger = (leg: Leg): Order => ({
         orderId: String(oidFor(leg)),

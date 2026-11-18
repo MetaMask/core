@@ -1034,22 +1034,101 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   async cancelOrders(
     params: BatchCancelOrdersParams,
   ): Promise<CancelOrdersResult> {
-    // Batch cancel delegates to default provider
-    const provider = this.#getDefaultProvider();
-    if (!provider.cancelOrders) {
-      return {
-        success: false,
-        successCount: 0,
-        failureCount: params.length,
-        results: params.map((param) => ({
-          orderId: param.orderId,
-          symbol: param.symbol,
-          success: false,
-          error: 'Batch cancel not supported',
-        })),
-      };
+    // Each order is cancelled on the venue it belongs to; an order without a
+    // route stays on the default venue.
+    const ordersByProvider = new Map<
+      PerpsProviderType,
+      BatchCancelOrdersParams
+    >();
+    for (const param of params) {
+      const providerId = param.providerId ?? this.#defaultProvider;
+      const orders = ordersByProvider.get(providerId) ?? [];
+      orders.push(param);
+      ordersByProvider.set(providerId, orders);
     }
-    return provider.cancelOrders(params);
+
+    // A venue that throws fails only its own orders, so cancels that already
+    // landed on another venue are still reported.
+    const resultsByProvider = await Promise.all(
+      Array.from(ordersByProvider, async ([providerId, orders]) => {
+        try {
+          return (await this.#cancelOrdersOnProvider(providerId, orders))
+            .results;
+        } catch (caughtError) {
+          const error = ensureError(
+            caughtError,
+            'AggregatedPerpsProvider.cancelOrders',
+          ).message;
+          return orders.map(({ orderId, symbol }) => ({
+            orderId,
+            symbol,
+            success: false,
+            error,
+          }));
+        }
+      }),
+    );
+    const results = resultsByProvider.flat();
+    const successCount = results.filter((result) => result.success).length;
+    return {
+      success: successCount > 0,
+      successCount,
+      failureCount: results.length - successCount,
+      results,
+    };
+  }
+
+  /**
+   * Cancel one venue's share of a batch, using the venue's batch cancel when it
+   * has one and single cancels otherwise.
+   *
+   * @param providerId - Venue that owns the orders.
+   * @param orders - Orders resting on that venue.
+   * @returns The venue's per-order cancel results.
+   */
+  async #cancelOrdersOnProvider(
+    providerId: PerpsProviderType,
+    orders: BatchCancelOrdersParams,
+  ): Promise<CancelOrdersResult> {
+    const [, provider] = this.#getProviderOrDefault(providerId);
+    if (provider.cancelOrders) {
+      return provider.cancelOrders(orders);
+    }
+    // Settled one by one so a throwing cancel fails only its own order.
+    const settled = await Promise.allSettled(
+      orders.map(async ({ orderId, symbol }) =>
+        provider.cancelOrder({ orderId, symbol, providerId }),
+      ),
+    );
+    const results = settled.map((outcome, index) => {
+      const { orderId, symbol } = orders[index];
+      if (outcome.status === 'rejected') {
+        return {
+          orderId,
+          symbol,
+          success: false,
+          error: ensureError(
+            outcome.reason,
+            'AggregatedPerpsProvider.cancelOrdersOnProvider',
+          ).message,
+        };
+      }
+      return {
+        orderId,
+        symbol,
+        success: outcome.value.success,
+        ...(outcome.value.error === undefined
+          ? {}
+          : { error: outcome.value.error }),
+      };
+    });
+    const successCount = results.filter((result) => result.success).length;
+    return {
+      success: successCount > 0,
+      successCount,
+      failureCount: results.length - successCount,
+      results,
+    };
   }
 
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {

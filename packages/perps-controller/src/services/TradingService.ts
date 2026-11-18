@@ -2037,7 +2037,13 @@ export class TradingService {
         if (!context.getOpenOrders) {
           throw new Error('getOpenOrders callback not provided in context');
         }
-        const orders = await context.getOpenOrders();
+        const openOrders = await context.getOpenOrders();
+        const orders =
+          params.providerId === undefined
+            ? openOrders
+            : openOrders.filter(
+                (order) => order.providerId === params.providerId,
+              );
 
         // Filter orders based on params
         let ordersToCancel = orders;
@@ -2054,6 +2060,32 @@ export class TradingService {
           ordersToCancel = orders.filter((order) =>
             params.orderIds?.includes(order.orderId),
           );
+          // Order IDs are only unique per venue: an ID resting on two venues
+          // cannot say which order the caller meant.
+          const venuesByOrderId = new Map<
+            string,
+            Set<PerpsProviderType | undefined>
+          >();
+          for (const order of ordersToCancel) {
+            const venues =
+              venuesByOrderId.get(order.orderId) ??
+              new Set<PerpsProviderType | undefined>();
+            venues.add(order.providerId);
+            venuesByOrderId.set(order.orderId, venues);
+          }
+          if (
+            Array.from(venuesByOrderId.values()).some(
+              (venues) => venues.size > 1,
+            )
+          ) {
+            return {
+              success: false,
+              successCount: 0,
+              failureCount: 0,
+              results: [],
+              error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+            };
+          }
         } else if (params.symbols && params.symbols.length > 0) {
           // Cancel orders for specific symbols
           ordersToCancel = orders.filter((order) =>
@@ -2076,6 +2108,9 @@ export class TradingService {
             ordersToCancel.map((order) => ({
               symbol: order.symbol,
               orderId: order.orderId,
+              ...(order.providerId === undefined
+                ? {}
+                : { providerId: order.providerId }),
             })),
           );
         }
@@ -3085,9 +3120,12 @@ export class TradingService {
     provider: PerpsProvider;
     position: Position;
     trackingData?: TrackingData;
+    /** Saved max slippage; the provider's market default applies when absent. */
+    maxSlippageBps?: number;
     context: ServiceContext;
   }): Promise<OrderResult> {
-    const { provider, position, trackingData, context } = options;
+    const { provider, position, trackingData, maxSlippageBps, context } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     const flipIntentProperties = this.#buildTradeIntentProperties({
@@ -3133,6 +3171,7 @@ export class TradingService {
         ...(position.providerId === undefined
           ? {}
           : { providerId: position.providerId }),
+        ...(maxSlippageBps === undefined ? {} : { maxSlippageBps }),
         // Lighter placeOrder otherwise logs order_management/place_order and
         // marks the result reported, which drops this flip from flip filters.
         // Close already suppresses that provider report. One Sentry event remains.

@@ -1413,12 +1413,20 @@ export type CancelOrderResult = {
 export type BatchCancelOrdersParams = {
   orderId: string;
   symbol: string;
+  /** Venue the order rests on; the aggregated provider's default when omitted. */
+  providerId?: PerpsProviderType;
 }[];
 
 export type CancelOrdersParams = {
   symbols?: string[]; // Optional: specific symbols (omit to cancel all orders)
   orderIds?: string[]; // Optional: specific order IDs (omit to cancel all orders for specified coins)
   cancelAll?: boolean; // Explicitly cancel all orders
+  /**
+   * Restrict the batch to one venue. Required when an `orderIds` entry rests
+   * on more than one venue; such a batch is refused with
+   * `PROVIDER_ROUTE_REQUIRED`.
+   */
+  providerId?: PerpsProviderType;
 };
 
 export type CancelOrdersResult = {
@@ -1429,7 +1437,7 @@ export type CancelOrdersResult = {
    * Batch-level operation error.
    *
    * Set when the cancel is refused as a whole before any order is submitted,
-   * such as `PROVIDER_ROUTE_REQUIRED`.
+   * such as `PROVIDER_ROUTE_REQUIRED` for an order ID found on two venues.
    */
   error?: string;
   results: {
@@ -2710,6 +2718,11 @@ export type UpdatePositionTPSLParams = {
   stopLossSize?: string;
   /** Pair-only opt-in for partial position coverage; omission keeps the provider default. */
   partialPairLinkage?: 'equal-quantity-oco' | 'independent';
+  /**
+   * HyperLiquid: max slippage in basis points for a market-executed leg. Omit
+   * to use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing

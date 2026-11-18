@@ -3641,8 +3641,8 @@ export class PerpsController extends BaseController<
   /**
    * Structured refusal for an aggregated-mode batch write.
    *
-   * Batch cancel and close cannot name a venue, so while multiple venues are
-   * registered they are refused instead of being sent to the default venue.
+   * Batch close cannot name a venue, so while multiple venues are registered
+   * it is refused instead of being sent to the default venue.
    *
    * @param provider - Resolved provider, when initialization has settled.
    * @returns The batch refusal result, or undefined when the batch may proceed.
@@ -4015,16 +4015,9 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
-    const unroutedRefusal = this.#getUnroutedAggregatedBatchRefusal();
-    if (unroutedRefusal) {
-      return unroutedRefusal;
-    }
-
+    // Each open order carries its venue, so the aggregated provider routes
+    // every cancel without an explicit route here.
     const provider = await this.#getActiveProviderWhenReady();
-    const resolvedRefusal = this.#getUnroutedAggregatedBatchRefusal(provider);
-    if (resolvedRefusal) {
-      return resolvedRefusal;
-    }
 
     return this.#tradingService.cancelOrders({
       provider,
@@ -4137,10 +4130,13 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
     this.#ensureTradingServiceDeps();
+    // A market leg uses the caller's tolerance, else the saved preference.
+    const maxSlippageBps = params.maxSlippageBps ?? this.state.maxSlippageBps;
 
     return this.#tradingService.updatePositionTPSL({
       provider,
-      params,
+      params:
+        maxSlippageBps === undefined ? params : { ...params, maxSlippageBps },
       context: this.#createServiceContext('updatePositionTPSL'),
     });
   }
@@ -4250,6 +4246,7 @@ export class PerpsController extends BaseController<
       provider,
       position: params.position,
       trackingData: params.trackingData,
+      maxSlippageBps: this.state.maxSlippageBps,
       context: this.#createServiceContext('flipPosition'),
     });
   }

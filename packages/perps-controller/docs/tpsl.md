@@ -56,7 +56,7 @@ Code: `src/utils/hyperLiquidAdapter.ts` `adaptTpslLinkageToGrouping`; `src/utils
 
 - A whole-position update sends size `'0'` with grouping `positionTpsl` while `UsePositionBoundTpsl` is on.
 - A partial update (`takeProfitSize` / `stopLossSize`) sends an explicit size floored to `szDecimals` with grouping `na`, validated against the position size.
-- Legs are reduce-only on the side that closes the position. The TP leg is a limit trigger with `p` = TP price. The SL leg is a market trigger with `p` = SL price, no slippage offset.
+- Legs are reduce-only on the side that closes the position. The TP leg is a limit trigger with `p` = TP price. The SL leg is a market trigger capped at the SL price moved against the closing side by `maxSlippageBps`: the per-call value, else the saved preference, else `DefaultTpslSlippageBps`.
 - `replacePositionTPSLLeg` replaces one leg. Its leg is a limit trigger when `limitPrice` is given; otherwise a market trigger capped at the trigger moved by `maxSlippageBps` (default `DefaultTpslSlippageBps`).
 - Before placing, the update cancels every standalone reduce-only trigger on the symbol, not only the ones it placed. TP/SL children of a pending order are kept.
 

@@ -1119,13 +1119,30 @@ describe('PerpsController default provider', () => {
       error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
     };
 
+    it('sends a batch cancel to the aggregated provider while multiple providers are registered', async () => {
+      const batchResult = {
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [],
+      };
+      vi.mocked(mockTradingServiceInstance.cancelOrders).mockResolvedValue(
+        batchResult,
+      );
+
+      // Each open order carries its venue, so no route is required here.
+      await expect(
+        controller.cancelOrders({ cancelAll: true }),
+      ).resolves.toStrictEqual(batchResult);
+
+      expect(mockTradingServiceInstance.cancelOrders).toHaveBeenCalledTimes(1);
+      expect(
+        vi.mocked(mockTradingServiceInstance.cancelOrders).mock.calls[0][0]
+          .provider,
+      ).toBe(aggregatedProvider);
+    });
+
     it.each([
-      [
-        'cancelOrders',
-        () => controller.cancelOrders({ cancelAll: true }),
-        () => mockTradingServiceInstance.cancelOrders,
-        batchRouteRefusal,
-      ],
       [
         'closePositions',
         () => controller.closePositions({ closeAll: true }),

@@ -1194,6 +1194,128 @@ describe('AggregatedPerpsProvider', () => {
     );
   });
 
+  describe('Write Operations - cancelOrders', () => {
+    type BatchCancel = NonNullable<PerpsProvider['cancelOrders']>;
+    let hlCancelOrders: MockedFunction<BatchCancel>;
+    let lighterCancelOrders: MockedFunction<BatchCancel>;
+
+    beforeEach(() => {
+      hlCancelOrders = vi.fn<BatchCancel>().mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ orderId: 'hl-1', symbol: 'BTC', success: true }],
+      });
+      lighterCancelOrders = vi.fn<BatchCancel>();
+      mockHLProvider.cancelOrders = hlCancelOrders;
+      mockLighterProvider.cancelOrders = lighterCancelOrders;
+    });
+
+    it('cancels each order on the venue it rests on', async () => {
+      delete mockLighterProvider.cancelOrders;
+      mockLighterProvider.cancelOrder.mockResolvedValue({ success: true });
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(hlCancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+      expect(mockLighterProvider.cancelOrder).toHaveBeenCalledWith({
+        orderId: 'lt-1',
+        symbol: 'ETH',
+        providerId: 'lighter',
+      });
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({
+        success: true,
+        successCount: 2,
+        failureCount: 0,
+        results: [
+          { orderId: 'hl-1', symbol: 'BTC', success: true },
+          { orderId: 'lt-1', symbol: 'ETH', success: true },
+        ],
+      });
+    });
+
+    it('fails only the single cancel that throws on a venue without batch cancel', async () => {
+      delete mockLighterProvider.cancelOrders;
+      mockLighterProvider.cancelOrder
+        .mockResolvedValueOnce({ success: true })
+        .mockRejectedValueOnce(new Error('timeout'));
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+        { orderId: 'lt-2', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(result.results).toStrictEqual([
+        { orderId: 'lt-1', symbol: 'ETH', success: true },
+        { orderId: 'lt-2', symbol: 'ETH', success: false, error: 'timeout' },
+      ]);
+    });
+
+    it('sends an order without a venue to the default provider', async () => {
+      await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC' },
+      ]);
+
+      expect(hlCancelOrders).toHaveBeenCalledWith([
+        { orderId: 'hl-1', symbol: 'BTC' },
+      ]);
+      expect(lighterCancelOrders).not.toHaveBeenCalled();
+    });
+
+    it('fails only the orders of a venue that throws', async () => {
+      lighterCancelOrders.mockRejectedValue(new Error('venue down'));
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(result).toStrictEqual({
+        success: true,
+        successCount: 1,
+        failureCount: 1,
+        results: [
+          { orderId: 'hl-1', symbol: 'BTC', success: true },
+          {
+            orderId: 'lt-1',
+            symbol: 'ETH',
+            success: false,
+            error: 'venue down',
+          },
+        ],
+      });
+    });
+
+    it('fails orders routed to an unregistered venue', async () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      const result = await aggregatedProvider.cancelOrders([
+        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+      ]);
+
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 1,
+        results: [
+          {
+            orderId: 'lt-1',
+            symbol: 'ETH',
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+          },
+        ],
+      });
+      expect(hlCancelOrders).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Write Operations - replacePositionTPSLLeg', () => {
     it('routes to the specified provider and tags the result', async () => {
       const replacePositionTPSLLeg = vi

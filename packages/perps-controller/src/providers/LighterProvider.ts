@@ -11470,6 +11470,7 @@ export class LighterProvider implements PerpsProvider {
       // side effects).
       const markets = await this.#ensureMarkets(
         isTriggerOrderType(params.orderType) ||
+          (params.orderType === 'market' && params.reduceOnly !== true) ||
           hasAttached ||
           params.timeInForce === 'ALO' ||
           params.marginMode !== undefined,
@@ -11497,6 +11498,18 @@ export class LighterProvider implements PerpsProvider {
         return {
           success: false,
           error: 'Lighter trigger orders require an active perpetual market',
+        };
+      }
+      // Reduce-only closes stay allowed so a position is never trapped by the
+      // market's status.
+      if (
+        params.orderType === 'market' &&
+        params.reduceOnly !== true &&
+        (market.status !== 'active' || market.marketType !== 'perp')
+      ) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
         };
       }
       if (isLimitExecutionOrderType(params.orderType) && !params.price) {
@@ -17419,6 +17432,7 @@ export class LighterProvider implements PerpsProvider {
     }
     const markets = await this.#ensureMarkets(
       isTriggerOrderType(params.orderType) ||
+        (params.orderType === 'market' && params.reduceOnly !== true) ||
         hasAttached ||
         params.timeInForce === 'ALO' ||
         params.marginMode !== undefined,
@@ -17446,6 +17460,18 @@ export class LighterProvider implements PerpsProvider {
       return {
         isValid: false,
         error: 'Lighter trigger orders require an active perpetual market',
+      };
+    }
+    // Reduce-only closes stay allowed so a position is never trapped by the
+    // market's status.
+    if (
+      params.orderType === 'market' &&
+      params.reduceOnly !== true &&
+      (market.status !== 'active' || market.marketType !== 'perp')
+    ) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
       };
     }
     await this.#validateExplicitMarginMode(

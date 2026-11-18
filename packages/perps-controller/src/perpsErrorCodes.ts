@@ -55,6 +55,7 @@ export const PERPS_ERROR_CODES = {
   ORDER_MARGIN_MODE_ORDER_OPEN: 'ORDER_MARGIN_MODE_ORDER_OPEN',
   ORDER_LEVERAGE_BELOW_POSITION: 'ORDER_LEVERAGE_BELOW_POSITION',
   ORDER_MAX_VALUE_EXCEEDED: 'ORDER_MAX_VALUE_EXCEEDED',
+  ORDER_MARKET_INACTIVE: 'ORDER_MARKET_INACTIVE', // market order on a market that is not an active perpetual
   // Validation errors - trigger placement (stop / take profit) and partial TP/SL
   ORDER_TRIGGER_PRICE_REQUIRED: 'ORDER_TRIGGER_PRICE_REQUIRED', // stop_*/take_profit_* placed without a trigger price
   ORDER_TRIGGER_PRICE_POSITIVE: 'ORDER_TRIGGER_PRICE_POSITIVE',

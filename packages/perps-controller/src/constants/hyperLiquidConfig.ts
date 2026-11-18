@@ -262,6 +262,10 @@ export const DEPOSIT_CONFIG = {
 // Withdrawal constants (HyperLiquid-specific)
 export const HYPERLIQUID_WITHDRAWAL_MINUTES = 5; // HyperLiquid withdrawal processing time in minutes
 
+// A supported-account probe is re-run after this long, so a wallet converted
+// to multi-sig mid-session is refused before signing instead of at the venue.
+export const HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS = 60_000;
+
 // Type helpers
 export type SupportedAsset = keyof typeof HYPERLIQUID_ASSET_CONFIGS;
 
