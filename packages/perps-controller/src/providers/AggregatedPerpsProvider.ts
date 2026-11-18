@@ -120,12 +120,12 @@ import type {
   PerpsReadOptions,
   PerpsFeeResolution,
 } from '../types/index.js';
-import { carryProviderErrorCause } from '../utils/errorContext.js';
 import {
   buildAggregatedAccountState,
   getAccountAggregateMetadata,
 } from '../utils/accountAggregation.js';
 import { resolveCloseSelection } from '../utils/closePositions.js';
+import { carryProviderErrorCause } from '../utils/errorContext.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { hasFeeSetter } from '../utils/feeSupport.js';
 
