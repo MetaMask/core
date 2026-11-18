@@ -443,16 +443,52 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await provider.disconnect();
     });
 
-    // A market buy is priced at mid + 3% slippage (103), plus the 0.3% buffer.
+    // Without Unified Account, a 5-coin buy at 5x adds to an open 10-coin
+    // position worth 1000. A market buy is priced at mid + 3% slippage (103),
+    // plus the 0.3% buffer.
     it.each([
       // Isolated: the venue checks the whole position's margin (15 * 103 / 5).
-      { marginMode: 'isolated', expectedTransfer: 309 * 1.003 },
-      // Cross: the position's margin is already in the DEX balance, so only
-      // the new order's margin (5 * 103 / 5) moves.
-      { marginMode: 'cross', expectedTransfer: 103 * 1.003 },
+      {
+        case: 'isolated',
+        marginMode: 'isolated',
+        positionLeverage: 5,
+        marginUsed: '200',
+        expectedTransfer: 309 * 1.003,
+      },
+      // Cross at the same leverage: the position's margin (1000 / 5) is already
+      // in the DEX balance, so only the new order's margin (5 * 103 / 5) moves.
+      {
+        case: 'Cross, same leverage',
+        marginMode: 'cross',
+        positionLeverage: 5,
+        marginUsed: '200',
+        expectedTransfer: 103 * 1.003,
+      },
+      // Cross from 10x to 5x: the existing size now needs 1000 / 5 = 200 but
+      // holds 100, so the 100 shortfall moves with the new order's 103.
+      {
+        case: 'Cross, leverage lowered',
+        marginMode: 'cross',
+        positionLeverage: 10,
+        marginUsed: '100',
+        expectedTransfer: 203 * 1.003,
+      },
+      // Cross from 2x to 5x: the existing margin (500) already covers 200.
+      {
+        case: 'Cross, leverage raised',
+        marginMode: 'cross',
+        positionLeverage: 2,
+        marginUsed: '500',
+        expectedTransfer: 103 * 1.003,
+      },
     ] as const)(
-      'funds a $marginMode position increase with the margin the venue checks',
-      async ({ marginMode, expectedTransfer }) => {
+      'funds a position increase with the margin the venue checks ($case)',
+      async ({
+        marginMode,
+        positionLeverage,
+        marginUsed,
+        expectedTransfer,
+      }) => {
         const sendAsset = vi
           .fn<
             (params: {
@@ -476,8 +512,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
                   entryPx: '100',
                   positionValue: '1000',
                   unrealizedPnl: '0',
-                  marginUsed: '200',
-                  leverage: { type: marginMode, value: 5 },
+                  marginUsed,
+                  leverage: { type: marginMode, value: positionLeverage },
                   liquidationPx: '50',
                 },
               },

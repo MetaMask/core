@@ -703,6 +703,32 @@ export const MAINNET_HIP3_CONFIG = {
 } as const;
 
 /**
+ * Margin-mode values HyperLiquid sends on a market. `normal` means no
+ * restriction; `MarketInfo.marginMode` carries only the restricting values.
+ */
+export const HYPERLIQUID_VENUE_MARGIN_MODES = [
+  'normal',
+  'strictIsolated',
+  'noCross',
+] as const;
+
+/**
+ * Whether a venue `marginMode` places no restriction on the market. Absent,
+ * null and `normal` are unrestricted; any other value, including ones added
+ * later, restricts it.
+ *
+ * @param marginMode - The venue `marginMode`, if any.
+ * @returns True when the value allows Cross margin.
+ */
+export function isUnrestrictedMarginMode(
+  marginMode: string | null | undefined,
+): marginMode is 'normal' | null | undefined {
+  return (
+    marginMode === undefined || marginMode === null || marginMode === 'normal'
+  );
+}
+
+/**
  * HIP-3 margin management configuration
  * Controls margin buffers and auto-rebalance behavior for manual HIP-3 collateral transfers
  *
