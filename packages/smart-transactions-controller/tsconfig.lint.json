@@ -27,10 +27,10 @@
       "path": "../polling-controller/tsconfig.lint.json"
     },
     {
-      "path": "../profile-sync-controller/tsconfig.lint.json"
+      "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {
-      "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+      "path": "../sentinel-api-service/tsconfig.lint.json"
     },
     {
       "path": "../transaction-controller/tsconfig.lint.json"

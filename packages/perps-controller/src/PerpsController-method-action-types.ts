@@ -1037,6 +1037,33 @@ export type PerpsControllerSubscribeToTwapOrdersAction = {
 };
 
 /**
+ * Keep one merged, live TWAP list for the active provider: reads and the
+ * venue stream merged by schedule, execution totals raised from slice
+ * fills, and re-reads while a schedule runs. Split it with
+ * `partitionTwapOrders`. Follows the selected account.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads and the stream.
+ */
+export type PerpsControllerSubscribeToLiveTwapOrdersAction = {
+  type: `PerpsController:subscribeToLiveTwapOrders`;
+  handler: PerpsController['subscribeToLiveTwapOrders'];
+};
+
+/**
+ * Keep running and history chase lists for the active provider. Ended
+ * chases stay in history after the provider drops them, up to
+ * `CHASE_ORDER_CONFIG.HistoryLimit`.
+ *
+ * @param params - Listener and optional error listener.
+ * @returns A cleanup function that stops reads.
+ */
+export type PerpsControllerSubscribeToChaseOrderListsAction = {
+  type: `PerpsController:subscribeToChaseOrderLists`;
+  handler: PerpsController['subscribeToChaseOrderLists'];
+};
+
+/**
  * Subscribe to live order updates
  *
  * @param params - The operation parameters.
@@ -1839,6 +1866,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction
   | PerpsControllerSubscribeToTwapOrdersAction
+  | PerpsControllerSubscribeToLiveTwapOrdersAction
+  | PerpsControllerSubscribeToChaseOrderListsAction
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction
