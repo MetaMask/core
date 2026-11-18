@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 1437.0.0 ([#11611](https://github.com/MetaMask/core/pull/11611))
-- Release/1435.0.0 ([#11605](https://github.com/MetaMask/core/pull/11605))
-- docs(perps-controller): client timings come from one overridable config ([#11603](https://github.com/MetaMask/core/pull/11603))
-- docs(perps-controller): mark the client contract as agreed ([#11573](https://github.com/MetaMask/core/pull/11573))
-- Release 1431.0.0 ([#11579](https://github.com/MetaMask/core/pull/11579))
-
 ### Changed
 
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))

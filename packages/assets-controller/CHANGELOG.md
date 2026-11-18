@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
 ### Uncategorized
 
 - test(assets-controller): scope PriceDataSource fake timers to the clock tests ([#11561](https://github.com/MetaMask/core/pull/11561))
@@ -1378,7 +1380,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.1...@metamask/assets-controller@21.0.0
 [20.4.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.0...@metamask/assets-controller@20.4.1
 [20.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...@metamask/assets-controller@20.4.0
 [20.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...@metamask/assets-controller@20.3.1
