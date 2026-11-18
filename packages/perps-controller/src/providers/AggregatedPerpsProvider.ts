@@ -2110,7 +2110,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       return (
         this.#resolveExplicitStreamRoute(
           params.providerId,
-          params,
+          undefined,
         )?.subscribeToOICaps(params) ?? (() => undefined)
       );
     }
@@ -2127,7 +2127,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       return (
         this.#resolveExplicitStreamRoute(
           params.providerId,
-          params,
+          params.onError,
         )?.subscribeToCandles(params) ?? (() => undefined)
       );
     }
@@ -2141,7 +2141,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       return (
         this.#resolveExplicitStreamRoute(
           params.providerId,
-          params,
+          params.onError,
         )?.subscribeToOrderBook(params) ?? (() => undefined)
       );
     }
@@ -2207,19 +2207,18 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   /**
    * Resolve an explicitly named stream venue.
    *
-   * A route that is not registered is reported through the params' `onError`
-   * (or thrown when the params have none) and never silently subscribes to a
+   * A route that is not registered is reported through the stream's
+   * `onError` (or thrown when it has none) and never silently subscribes to a
    * different venue: no callback, no data, no fallback.
    *
    * @param providerId - The venue the caller named.
-   * @param params - The subscription params carrying the route and error handler.
+   * @param onError - The stream's error handler, when it has one.
    * @returns The provider, or undefined after reporting a missing route.
    */
   #resolveExplicitStreamRoute(
     providerId: PerpsProviderType,
-    params: { onError?: (error: Error) => void } | SubscribeOICapsParams,
+    onError: ((error: Error) => void) | undefined,
   ): PerpsProvider | undefined {
-    const onError = 'onError' in params ? params.onError : undefined;
     const provider = this.#providers.get(providerId);
     if (!provider) {
       // A bare code, like every other refusal here, so clients can map it.

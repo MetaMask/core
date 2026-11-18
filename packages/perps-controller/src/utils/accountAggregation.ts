@@ -149,11 +149,12 @@ export function buildAggregatedAccountState(params: {
 }): AccountState | null {
   const { entries } = params;
   const metadata = getAccountAggregateMetadata(entries);
-  const validatedEntries = entries.map((entry) =>
-    entry.status === 'available' &&
-    metadata.unavailableProviders.includes(entry.providerId)
-      ? { status: 'unavailable' as const, providerId: entry.providerId }
-      : entry,
+  const validatedEntries = entries.map(
+    (entry): PerpsProviderAccountStateEntry =>
+      entry.status === 'available' &&
+      metadata.unavailableProviders.includes(entry.providerId)
+        ? { status: 'unavailable', providerId: entry.providerId }
+        : entry,
   );
   const availableStates = validatedEntries.flatMap((entry) =>
     entry.status === 'available' ? [entry.state] : [],
