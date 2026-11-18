@@ -69,7 +69,7 @@
     "@metamask/ramps-controller": "^30.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/sentinel-api-service": "^2.3.0",
-    "@metamask/transaction-controller": "^74.1.1",
+    "@metamask/transaction-controller": "^74.2.0",
     "@metamask/utils": "^12.0.2",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.5",
