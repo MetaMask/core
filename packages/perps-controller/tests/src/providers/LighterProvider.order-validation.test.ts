@@ -2148,6 +2148,34 @@ describe('LighterProvider', () => {
       expect(marketPlacement.success).toBe(true);
     });
 
+    it('resolves the canonical symbol on a cold strict open-orders snapshot', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      const orderIndex = venue.seedTrigger('stop-loss', '80000');
+      expect(clientInstance.getOrderBooks).not.toHaveBeenCalled();
+
+      const orders = await provider.getOpenOrders(undefined, {
+        requireComplete: true,
+      });
+
+      expect(orders).toMatchObject([
+        { symbol: 'BTC', orderId: String(orderIndex) },
+      ]);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a strict open-orders snapshot with an unknown market ID', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      const venue = setupTriggerVenue(clientInstance, bridge);
+      venue.seedTrigger('stop-loss', '80000');
+      venue.rawTriggers[0].marketIndex = 999;
+
+      await expect(
+        provider.getOpenOrders(undefined, { requireComplete: true }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(clientInstance.getOrderBooks).toHaveBeenCalledTimes(1);
+    });
+
     it('reads a confirmed missing account as empty without swallowing outages', async () => {
       const { provider, clientInstance } = buildProvider({
         configuredAccountIndex: null,

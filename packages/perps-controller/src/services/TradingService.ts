@@ -56,6 +56,7 @@ import type {
 import { ensureError } from '../utils/errorUtils.js';
 import { captureScaleOrderParams } from '../utils/lighterScaleOrders.js';
 import {
+  assertCancelOrderFilters,
   isLimitExecutionOrderType,
   SCALE_ORDER_COUNT,
 } from '../utils/orderTypes.js';
@@ -2011,6 +2012,7 @@ export class TradingService {
     ) => Promise<TResult>;
   }): Promise<CancelOrdersResult> {
     const { provider, params, context, withStreamPause } = options;
+    assertCancelOrderFilters(params);
     const traceId = uuidv4();
     // Correlation id linking every per-item event to the batch summary
     const bulkActionId = uuidv4();
@@ -2056,7 +2058,9 @@ export class TradingService {
         let ordersToCancel = orders;
         if (
           params.cancelAll === true ||
-          (!params.orders && !params.symbols && !params.orderIds)
+          (params.orders === undefined &&
+            params.symbols === undefined &&
+            params.orderIds === undefined)
         ) {
           // Cancel all orders (excluding TP/SL orders for positions)
           ordersToCancel = orders.filter(

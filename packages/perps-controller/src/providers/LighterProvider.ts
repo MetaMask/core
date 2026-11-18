@@ -10370,12 +10370,14 @@ export class LighterProvider implements PerpsProvider {
    * @param rows - Authoritative venue rows.
    * @param accountIndex - Bound account.
    * @param generation - Issuing session.
+   * @param requireCanonicalSymbols - Whether each market must have a canonical symbol.
    * @returns Adapted orders, with exact durable group ownership when present.
    */
   readonly #adaptScaleOrders = async (
     rows: LighterApiOrder[],
     accountIndex: number,
     generation: number,
+    requireCanonicalSymbols = false,
   ): Promise<Order[]> => {
     let groups: LighterScaleGroup[] = [];
     try {
@@ -10388,10 +10390,13 @@ export class LighterProvider implements PerpsProvider {
     }
     this.#assertSession(generation);
     return rows.map((row) => {
+      const symbol = this.#marketsById.get(row.marketIndex)?.symbol;
+      if (requireCanonicalSymbols && !symbol?.trim()) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
       const order = adaptOrderFromLighter(
         row,
-        this.#marketsById.get(row.marketIndex)?.symbol ??
-          String(row.marketIndex),
+        symbol ?? String(row.marketIndex),
       );
       const matches = groups.filter(
         (group) =>
@@ -10424,11 +10429,11 @@ export class LighterProvider implements PerpsProvider {
    * flows (TP/SL replacement/removal) must use this — treating a swallowed
    * [] as authoritative would let them "succeed" while cancelling nothing.
    *
-   * @param allowMissingAccount - Whether venue-confirmed absence is an empty snapshot.
+   * @param requireComplete - Resolve canonical symbols and allow confirmed account absence.
    * @returns Adapted open orders.
    */
   readonly #readOpenOrdersStrict = async (
-    allowMissingAccount = false,
+    requireComplete = false,
   ): Promise<Order[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
@@ -10436,7 +10441,7 @@ export class LighterProvider implements PerpsProvider {
     try {
       accountIndex = await this.#ensureAccountIndex();
     } catch (error) {
-      if (allowMissingAccount && error instanceof LighterAccountNotFoundError) {
+      if (requireComplete && error instanceof LighterAccountNotFoundError) {
         this.#assertSession(generation);
         return [];
       }
@@ -10452,7 +10457,21 @@ export class LighterProvider implements PerpsProvider {
       authToken,
     );
     this.#assertSession(generation);
-    return this.#adaptScaleOrders(response.orders, accountIndex, generation);
+    if (
+      requireComplete &&
+      response.orders.some(
+        (row) => !this.#marketsById.get(row.marketIndex)?.symbol?.trim(),
+      )
+    ) {
+      await this.#ensureMarkets(true);
+      this.#assertSession(generation);
+    }
+    return this.#adaptScaleOrders(
+      response.orders,
+      accountIndex,
+      generation,
+      requireComplete,
+    );
   };
 
   async getOpenOrders(

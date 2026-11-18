@@ -1418,7 +1418,10 @@ export type BatchCancelOrdersParams = {
 }[];
 
 export type CancelOrdersParams = {
-  /** Exact selection across venues. Takes precedence over IDs and symbols unless cancelAll is true. */
+  /**
+   * Exact selection. Cross-venue selections require aggregated mode.
+   * Takes precedence over IDs and symbols unless cancelAll is true.
+   */
   orders?: (BatchCancelOrdersParams[number] & {
     providerId: PerpsProviderType;
   })[];

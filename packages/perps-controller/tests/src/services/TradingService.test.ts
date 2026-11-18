@@ -2151,6 +2151,24 @@ describe('TradingService', () => {
       },
     ];
 
+    it.each([{ orders: null }, { orderIds: {} }, { symbols: null }])(
+      'rejects an invalid batch filter before reading orders: %j',
+      async (params) => {
+        const getOpenOrders = vi.fn().mockResolvedValue(mockOrders);
+
+        await expect(
+          tradingService.cancelOrders({
+            provider: mockProvider,
+            params: params as unknown as CancelOrdersParams,
+            context: { ...mockContext, getOpenOrders },
+            withStreamPause: async (operation) => operation(),
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED);
+        expect(getOpenOrders).not.toHaveBeenCalled();
+        expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      },
+    );
+
     it.each([
       { successCount: 2, failureCount: 0 },
       { successCount: 1, failureCount: 1 },

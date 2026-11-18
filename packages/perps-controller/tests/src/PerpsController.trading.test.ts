@@ -35,6 +35,7 @@ import * as featureFlagConfigurationServiceModule from '../../src/services/Featu
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import type {
+  CancelOrdersParams,
   Order,
   PerpsProvider,
   PerpsPlatformDependencies,
@@ -964,6 +965,74 @@ describe('PerpsController', () => {
         { orderId: '123', symbol: 'BTC', providerId: 'hyperliquid' },
       ]);
     });
+
+    it('rejects a mixed qualified selection after switching to a direct provider', async () => {
+      markControllerAsInitialized();
+      await useRealBatchService();
+      const lighter = createMockHyperLiquidProvider();
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', aggregated]]));
+      const orders = [
+        { ...order, providerId: 'hyperliquid' as const },
+        { ...order, providerId: 'lighter' as const },
+      ];
+      mockProvider.getOpenOrders.mockResolvedValue([order]);
+      lighter.getOpenOrders.mockResolvedValue([order]);
+      mockProvider.cancelOrders.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ ...order, success: true }],
+      });
+
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      await expect(controller.cancelOrders({ orders })).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+      expect(mockProvider.getOpenOrders).not.toHaveBeenCalled();
+      expect(lighter.getOpenOrders).not.toHaveBeenCalled();
+      expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      expect(lighter.cancelOrders).not.toHaveBeenCalled();
+
+      const result = await controller.cancelOrders({ orders: [orders[0]] });
+      expect(result.successCount).toBe(1);
+      expect(mockProvider.cancelOrders).toHaveBeenCalledWith([order]);
+    });
+
+    it.each([{ orders: null }, { orderIds: null }, { symbols: 'BTC' }])(
+      'rejects malformed selections before discovering orders: %j',
+      async (params) => {
+        markControllerAsInitialized();
+        await useRealBatchService();
+        const lighter = createMockHyperLiquidProvider();
+        const aggregated = new AggregatedPerpsProvider({
+          providers: new Map([
+            ['hyperliquid', mockProvider],
+            ['lighter', lighter],
+          ]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+        });
+        controller.testSetProviders(new Map([['hyperliquid', aggregated]]));
+        mockProvider.getOpenOrders.mockResolvedValue([order]);
+        lighter.getOpenOrders.mockResolvedValue([order]);
+
+        await expect(
+          controller.cancelOrders(params as unknown as CancelOrdersParams),
+        ).rejects.toThrow(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED);
+        expect(mockProvider.getOpenOrders).not.toHaveBeenCalled();
+        expect(lighter.getOpenOrders).not.toHaveBeenCalled();
+        expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+        expect(lighter.cancelOrders).not.toHaveBeenCalled();
+      },
+    );
 
     it('fails closed on a venue read failure while allowing an explicitly scoped healthy venue', async () => {
       markControllerAsInitialized();

@@ -1,4 +1,9 @@
-import type { Order, PositionTriggerOrder } from '../types/index.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type {
+  CancelOrdersParams,
+  Order,
+  PositionTriggerOrder,
+} from '../types/index.js';
 import type {
   OrderExecution,
   OrderType,
@@ -351,4 +356,19 @@ export function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
         `${order.orderId}:${order.direction}:${order.orderType ?? '?'}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
     )
     .join(',');
+}
+
+/**
+ * Reject malformed batch filters at the runtime API boundary.
+ *
+ * @param params - Batch cancellation request.
+ */
+export function assertCancelOrderFilters(params: CancelOrdersParams): void {
+  for (const key of ['orders', 'orderIds', 'symbols'] as const) {
+    if (params[key] !== undefined && !Array.isArray(params[key])) {
+      throw new Error(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED, {
+        cause: new TypeError(`${key} must be an array`),
+      });
+    }
+  }
 }

@@ -1612,6 +1612,43 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each([
+      { orders: { orders: [] } },
+      { row: { coin: '', oid: 112, orderType: 'Limit', isTrigger: false } },
+      { row: { coin: 'BTC', oid: null, orderType: 'Limit', isTrigger: false } },
+      { row: { coin: 'BTC', oid: 112, isTrigger: true, reduceOnly: true } },
+      {
+        row: {
+          coin: 'BTC',
+          oid: 112,
+          orderType: 'Limit',
+          isTrigger: true,
+          reduceOnly: true,
+        },
+      },
+    ])('rejects malformed strict open orders (%j)', async ({ orders, row }) => {
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
+        createMockInfoClient({
+          frontendOpenOrders: vi.fn().mockResolvedValue(
+            orders ?? [
+              {
+                coin: 'BTC',
+                oid: 111,
+                orderType: 'Limit',
+                isTrigger: false,
+                reduceOnly: false,
+              },
+              { reduceOnly: false, ...row },
+            ],
+          ),
+        }),
+      );
+
+      await expect(
+        provider.getOpenOrders(undefined, { requireComplete: true }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    });
+
     it('returns empty array when frontendOpenOrders throws error', async () => {
       // Arrange
       mockClientService.getInfoClient = vi.fn().mockReturnValue({

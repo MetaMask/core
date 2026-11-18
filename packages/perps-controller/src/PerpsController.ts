@@ -220,7 +220,10 @@ import {
   shouldIncludeMarket,
 } from './utils/marketUtils.js';
 import type { CompiledMarketPattern } from './utils/marketUtils.js';
-import { isStrategyOrderType } from './utils/orderTypes.js';
+import {
+  assertCancelOrderFilters,
+  isStrategyOrderType,
+} from './utils/orderTypes.js';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
@@ -4015,6 +4018,7 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
+    assertCancelOrderFilters(params);
     const request = {
       ...params,
       ...(params.orders && {
@@ -4064,6 +4068,16 @@ export class PerpsController extends BaseController<
       if (refusal) {
         return refusal;
       }
+    }
+
+    if (
+      selection &&
+      (this.#hasConflictingProviderRoute(providerId, provider) ||
+        selection.some((order) =>
+          this.#hasConflictingProviderRoute(order.providerId, provider),
+        ))
+    ) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
     }
 
     const providerIds = selection && [

@@ -34,7 +34,7 @@ import {
   USDC_DECIMALS,
   USDC_SYMBOL,
 } from '../constants/hyperLiquidConfig.js';
-import { DETAILED_ORDER_TYPES } from '../constants/orderTypes.js';
+import { DETAILED_ORDER_TYPES, isTPSLOrder } from '../constants/orderTypes.js';
 import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
@@ -14549,6 +14549,29 @@ export class HyperLiquidProvider implements PerpsProvider {
             ),
           },
         );
+      }
+
+      if (options?.requireComplete) {
+        const knownTypes = Object.values(DETAILED_ORDER_TYPES);
+        for (const { data } of orderResults) {
+          if (
+            !Array.isArray(data) ||
+            data.some(
+              (order) =>
+                !order ||
+                typeof order.coin !== 'string' ||
+                !order.coin.trim() ||
+                !Number.isSafeInteger(order.oid) ||
+                order.oid < 0 ||
+                !knownTypes.includes(order.orderType) ||
+                order.isTrigger !== isTPSLOrder(order.orderType) ||
+                (order.isPositionTpsl && !order.isTrigger) ||
+                typeof order.reduceOnly !== 'boolean',
+            )
+          ) {
+            throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+          }
+        }
       }
 
       // Combine all orders from all DEXs
