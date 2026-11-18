@@ -1555,6 +1555,16 @@ describe('LighterProvider', () => {
         { supportedPriceDecimals: 1.5 },
         { pricePrecision: false, orderLimits: true },
       ],
+      [
+        'price decimals outside the venue range',
+        { supportedPriceDecimals: 256 },
+        { pricePrecision: false, orderLimits: true },
+      ],
+      [
+        'size decimals outside the sizing range',
+        { supportedSizeDecimals: 101 },
+        { pricePrecision: true, orderLimits: false },
+      ],
     ])(
       'omits the field its metadata does not support (%s)',
       async (_name, override, present) => {
@@ -1572,26 +1582,56 @@ describe('LighterProvider', () => {
       },
     );
 
-    it('omits minimums the market metadata does not carry', async () => {
+    it('reports an exact positive tick beyond BigNumber division precision', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBooks.mockResolvedValue([
-        { ...BTC_MARKET, minBaseAmount: '', minQuoteAmount: '0' },
+        { ...BTC_MARKET, supportedPriceDecimals: 21 },
       ]);
 
       const capabilities = await provider.getOrderCapabilities({
         symbol: 'BTC',
       });
-
       expect(capabilities).toMatchObject({
         status: 'ready',
-        orderLimits: { sizeDecimals: 5, scaleOrderCount: { min: 2, max: 20 } },
+        pricePrecision: {
+          type: 'fixed_decimals',
+          decimals: 21,
+          tickSize: '0.000000000000000000001',
+        },
       });
-      expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
-      expect(capabilities).not.toHaveProperty(
-        'orderLimits.minOrderNotionalUsd',
-      );
-      expect(capabilities).not.toHaveProperty('orderLimits.minimumAppliesTo');
     });
+
+    it.each([
+      { minBaseAmount: '', minQuoteAmount: '10' },
+      { minBaseAmount: '1e999', minQuoteAmount: '10' },
+      { minBaseAmount: '0.001', minQuoteAmount: '1e999' },
+      { minBaseAmount: '0.001', minQuoteAmount: '0' },
+    ])(
+      'reports maker minimums as unavailable together for %j',
+      async (override) => {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getOrderBooks.mockResolvedValue([
+          { ...BTC_MARKET, ...override },
+        ]);
+
+        const capabilities = await provider.getOrderCapabilities({
+          symbol: 'BTC',
+        });
+
+        expect(capabilities).toMatchObject({
+          status: 'ready',
+          orderLimits: {
+            sizeDecimals: 5,
+            minimumAppliesTo: 'resting_limit_orders',
+            scaleOrderCount: { min: 2, max: 20 },
+          },
+        });
+        expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
+        expect(capabilities).not.toHaveProperty(
+          'orderLimits.minOrderNotionalUsd',
+        );
+      },
+    );
 
     it('refreshes cached capability metadata before approving an inactive market', async () => {
       const { provider, clientInstance, calls } = buildProvider();

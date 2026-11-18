@@ -2488,10 +2488,11 @@ export type PerpsOrderLimits = Readonly<{
   /** Minimum base-asset size of one order, as a decimal string. */
   minOrderSize?: string;
   /**
-   * Orders the two minimums above apply to; present with either of them.
-   * `all_orders`: every order. `resting_limit_orders`: limit-execution orders
-   * that are not IOC; market and IOC orders can go down to one size step.
-   * A full close is never refused for size.
+   * Orders the reported placement minimums apply to. Lighter reports
+   * `resting_limit_orders` even when its maker minimums are unavailable.
+   * Market and IOC orders there can go down to one size step.
+   * A verified full close can qualify for a minimum-order exception.
+   * The venue's size grid still applies.
    */
   minimumAppliesTo?: 'all_orders' | 'resting_limit_orders';
   /** Rung count bounds of a Scale placement; present when Scale is supported. */

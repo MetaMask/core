@@ -36,10 +36,12 @@ import {
   LIGHTER_CHASE_QUOTE_MAX_AGE_MS,
   LIGHTER_POST_ONLY_QUOTE_MAX_AGE_MS,
   fromLighterInteger,
+  getLighterMakerMinimums,
   getLighterChainId,
   getLighterTransactionOutcome,
   LIGHTER_RESOLUTION_MS,
   LIGHTER_MAX_WIRE_PRICE,
+  LIGHTER_MAX_DECIMALS,
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
   LIGHTER_SUPPORTED_RESOLUTIONS,
   LIGHTER_CHANNEL_RELEASE_DELAY_MS,
@@ -91,6 +93,7 @@ import {
   LIGHTER_SCALE_SETTLEMENT_WINDOW_MS,
   LIGHTER_SCALE_SETTLEMENT_POLL_MS,
   parseLighterStrictDecimal,
+  isLighterOrderSizeDecimals,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
 import { createTpslLegReplaceUnsupportedError } from '../errors.js';
@@ -8555,36 +8558,36 @@ export class LighterProvider implements PerpsProvider {
     pricePrecision?: PerpsPricePrecision;
     orderLimits?: PerpsOrderLimits;
   } {
-    const isDecimalCount = (value: number): boolean =>
-      Number.isSafeInteger(value) && value >= 0;
-    const minQuote = parseLighterStrictDecimal(market.minQuoteAmount);
-    const minBase = parseLighterStrictDecimal(market.minBaseAmount);
-    const hasMinQuote = minQuote !== null && minQuote > 0;
-    const hasMinBase = minBase !== null && minBase > 0;
+    const { supportedPriceDecimals, supportedSizeDecimals } = market;
+    const hasPriceGrid =
+      Number.isSafeInteger(supportedPriceDecimals) &&
+      supportedPriceDecimals >= 0 &&
+      supportedPriceDecimals <= LIGHTER_MAX_DECIMALS;
+    const makerMinimums = getLighterMakerMinimums(market);
     return {
-      ...(isDecimalCount(market.supportedPriceDecimals)
+      ...(hasPriceGrid
         ? {
             pricePrecision: Object.freeze({
               type: 'fixed_decimals',
-              decimals: market.supportedPriceDecimals,
-              tickSize: new BigNumber(10)
-                .pow(-market.supportedPriceDecimals)
+              decimals: supportedPriceDecimals,
+              tickSize: new BigNumber(1)
+                .shiftedBy(-supportedPriceDecimals)
                 .toFixed(),
             }),
           }
         : {}),
-      ...(isDecimalCount(market.supportedSizeDecimals)
+      ...(isLighterOrderSizeDecimals(supportedSizeDecimals)
         ? {
             orderLimits: Object.freeze({
-              sizeDecimals: market.supportedSizeDecimals,
-              ...(hasMinQuote ? { minOrderNotionalUsd: minQuote } : {}),
-              ...(hasMinBase
-                ? { minOrderSize: new BigNumber(minBase).toFixed() }
-                : {}),
-              // Placement applies these only to maker orders
-              // (`isLighterMakerOrder`).
-              ...(hasMinQuote || hasMinBase
-                ? { minimumAppliesTo: 'resting_limit_orders' as const }
+              sizeDecimals: supportedSizeDecimals,
+              minimumAppliesTo: 'resting_limit_orders' as const,
+              ...(makerMinimums
+                ? {
+                    minOrderNotionalUsd: makerMinimums.minQuote,
+                    minOrderSize: new BigNumber(
+                      makerMinimums.minBase,
+                    ).toFixed(),
+                  }
                 : {}),
               scaleOrderCount: Object.freeze({ ...SCALE_ORDER_COUNT }),
             }),

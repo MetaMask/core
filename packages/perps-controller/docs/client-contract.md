@@ -24,7 +24,9 @@ Shared answers clients used to keep their own copies of. Each one is exported fr
 | `scaleOrderCount`     | `SCALE_ORDER_COUNT`       | `SCALE_ORDER_COUNT`       |
 | `twap`                | `HYPERLIQUID_TWAP_LIMITS` | not reported (no TWAP)    |
 
-The values are the ones placement validation enforces, so a form that respects them is not refused for precision or size. Apply the two minimums only to the orders `minimumAppliesTo` names: on Lighter, market and IOC orders can go down to one size step. A full close is never refused for size.
+Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighter, market and IOC orders can go down to one size step. Lighter reports `resting_limit_orders` even when maker minimums are unavailable. It omits both minimum values if either is missing or invalid, so clients should treat maker minimum validation as unavailable.
+
+A verified full close can qualify for an exception to the normal minimum notional. The close must still satisfy the venue's size grid. For example, a HyperLiquid batch close refuses a position whose size rounds down to zero, with `ORDER_SIZE_POSITIVE` on that row.
 
 ## Order-book grouping
 
@@ -46,7 +48,7 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 
 - `accountValue` is the cross collateral: `getCrossCollateral(crossMarginSummary, spotCollateral)`, which counts spot collateral on a unified account.
 - For an existing position, `maintenanceMargin` is `crossMarginSummary.maintenanceMargin` (it already includes the position) or `estimateCrossMaintenanceMargin` over every cross position.
-- For an order preview, pass the order price as `markPrice`, the order size as `positionSize`, and add the new position's maintenance to the account's: with a single tier this is the same estimate as `entry - side * (collateral - maintenanceMargin - size * entry / (2 * maxLeverage)) / size / (1 - side / (2 * maxLeverage))`.
+- For an opening order preview, require a current position snapshot confirming there is no existing position in the target market. Keep Mobile's guard for an existing position and for Scale orders. Pass the order price as `markPrice` and the order size as `positionSize`, and add the new position's maintenance at that price to the account's existing maintenance. Show the preview as unavailable when the snapshot is missing or the order adds to, reduces, or flips an existing position.
 
 ## Error copy
 
@@ -71,3 +73,5 @@ Defaults can carry `{{name}}` placeholders (for example `ORDER_SIZE_MIN` uses `{
 Requested items that were no longer open (an order that filled, a position already closed) are not attempted and do not appear in `results`; compare `results` with the request to name them.
 
 `getBatchOperationStatus(result)` derives the same value from a provider-level result.
+
+Typed controller substitutes and messenger handler mocks for either batch method must return `status`. When adapting a provider result, return `{ ...result, status: getBatchOperationStatus(result) }`.

@@ -50,6 +50,20 @@ describe('aggregateOrderBookLevels', () => {
     expect(aggregateOrderBookLevels(levels, 0.1, 'ask')[0].price).toBe('100.1');
   });
 
+  it.each([
+    ['0.999999999999999999999', 'bid', '0'],
+    ['1.000000000000000000001', 'ask', '2'],
+    ['-1.000000000000000000001', 'bid', '-2'],
+    ['-0.999999999999999999999', 'ask', '0'],
+  ] as const)(
+    'buckets %s on the %s side without rounding the quotient',
+    (price, side, expected) => {
+      expect(
+        aggregateOrderBookLevels([level(price, '1')], '1', side)[0].price,
+      ).toBe(expected);
+    },
+  );
+
   it('sums each bucket and rebuilds cumulative totals best price first', () => {
     const bids = aggregateOrderBookLevels(
       [

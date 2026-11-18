@@ -37,6 +37,14 @@ describe('PERPS_ERROR_COPY', () => {
 
   it('cannot be changed by a consumer', () => {
     expect(Object.isFrozen(PERPS_ERROR_COPY)).toBe(true);
+    expect(Object.values(PERPS_ERROR_COPY).every(Object.isFrozen)).toBe(true);
+    expect(
+      Reflect.set(
+        getPerpsErrorCopy(PERPS_ERROR_CODES.ORDER_SIZE_MIN),
+        'defaultMessage',
+        'Changed',
+      ),
+    ).toBe(false);
   });
 });
 
@@ -60,6 +68,13 @@ describe('getPerpsErrorCopy', () => {
 });
 
 describe('PERPS_ORDER_TYPE_LABELS', () => {
+  it('keeps each label immutable at runtime', () => {
+    expect(Object.isFrozen(PERPS_ORDER_TYPE_LABELS)).toBe(true);
+    expect(Object.values(PERPS_ORDER_TYPE_LABELS).every(Object.isFrozen)).toBe(
+      true,
+    );
+  });
+
   it('labels every order type and nothing else', () => {
     expect(Object.keys(PERPS_ORDER_TYPE_LABELS).sort()).toStrictEqual(
       [...ORDER_TYPES].sort(),

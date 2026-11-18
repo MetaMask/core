@@ -28,8 +28,6 @@ export function aggregateOrderBookLevels(
     return [...levels];
   }
 
-  const roundingMode =
-    side === 'bid' ? BigNumber.ROUND_FLOOR : BigNumber.ROUND_CEIL;
   const buckets = new Map<
     string,
     { price: BigNumber; size: BigNumber; notional: BigNumber }
@@ -45,10 +43,15 @@ export function aggregateOrderBookLevels(
     const notional = reportedNotional.isFinite()
       ? reportedNotional
       : price.multipliedBy(size);
-    const bucketPrice = price
-      .dividedBy(step)
-      .integerValue(roundingMode)
-      .multipliedBy(step);
+    const gridPrice = price.dividedToIntegerBy(step).multipliedBy(step);
+    // Integer division truncates toward zero without rounding away the
+    // remainder, even when a price sits just beside an exact grid point.
+    let bucketPrice = gridPrice;
+    if (side === 'bid' && gridPrice.gt(price)) {
+      bucketPrice = gridPrice.minus(step);
+    } else if (side === 'ask' && gridPrice.lt(price)) {
+      bucketPrice = gridPrice.plus(step);
+    }
     const key = bucketPrice.toFixed();
     const bucket = buckets.get(key);
     if (bucket) {

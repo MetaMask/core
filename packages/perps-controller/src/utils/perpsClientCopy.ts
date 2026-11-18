@@ -16,13 +16,28 @@ export type PerpsOrderTypeLabel = Readonly<{
 }>;
 
 /**
+ * Freeze a client copy map and its string-valued entries.
+ *
+ * @param copyMap - The copy or label entries.
+ * @returns The immutable copy map.
+ */
+function freezeCopyMap<CopyMap extends Record<string, object>>(
+  copyMap: CopyMap,
+): Readonly<CopyMap> {
+  for (const entry of Object.values(copyMap)) {
+    Object.freeze(entry);
+  }
+  return Object.freeze(copyMap);
+}
+
+/**
  * Copy for every `PERPS_ERROR_CODES` value. Keys follow the Mobile locale
  * files. `IOC_CANCEL` expects `{{maxSlippage}}`; without a known tolerance,
  * clients show `perps.errors.iocCancelUnknownTolerance` instead.
  */
 export const PERPS_ERROR_COPY: Readonly<
   Record<PerpsErrorCode, PerpsErrorCopy>
-> = Object.freeze({
+> = freezeCopyMap({
   [PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED]: {
     key: 'perps.errors.clientNotInitialized',
     defaultMessage: 'HyperLiquid SDK clients not properly initialized',
@@ -501,7 +516,7 @@ export function getPerpsErrorCopy(code: unknown): PerpsErrorCopy {
 /** Label for every normalised order type, keyed by `OrderType`. */
 export const PERPS_ORDER_TYPE_LABELS: Readonly<
   Record<OrderType, PerpsOrderTypeLabel>
-> = Object.freeze({
+> = freezeCopyMap({
   market: { key: 'perps.order.type.market.title', defaultLabel: 'Market' },
   limit: { key: 'perps.order.type.limit.title', defaultLabel: 'Limit' },
   stop_market: {

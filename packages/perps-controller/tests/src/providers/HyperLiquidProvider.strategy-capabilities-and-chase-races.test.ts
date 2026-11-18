@@ -219,6 +219,24 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
     });
 
+    it.each([-1, 1.5, 7, Number.NaN])(
+      'omits grid and limits for invalid size decimals %s',
+      async (szDecimals) => {
+        const { infoClient } = useStrategyClients();
+        infoClient.meta.mockResolvedValue({
+          universe: [{ name: 'ETH', szDecimals, maxLeverage: 50 }],
+        });
+
+        const capabilities = await provider.getOrderCapabilities({
+          symbol: 'ETH',
+        });
+
+        expect(capabilities.status).toBe('ready');
+        expect(capabilities).not.toHaveProperty('pricePrecision');
+        expect(capabilities).not.toHaveProperty('orderLimits');
+      },
+    );
+
     it('resolves support before the asset mapping is populated', async () => {
       useStrategyClients();
       const coldProvider = createTestProvider();
