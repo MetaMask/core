@@ -69,6 +69,24 @@ Before `updateIdentifiers`, call `getIdentifiers()` (AAL1) for the enrolled
 identifiers, their `epoch` (pass as `expectedEpoch`), and Auth's identifiers;
 build the new set from Auth's entries.
 
+## Trusted Identifiers
+
+`register` and `updateIdentifiers` reject, with `untrusted_identifier`, any
+passkey or social identifier no user device recorded, so a compromised Auth API
+cannot add its own or swap a passkey's public key. Record identifiers with
+`trustIdentifier(witness)`:
+
+- After creating a passkey, pass its `attestationObject`. Auth's verifier must
+  carry the same `rpId`, `credentialId` and `publicKey.cose`.
+- After a social login, pass its issuer and identity (the email for Google,
+  `sub` for Apple) from the device's own login.
+
+`UserStorageTrustedIdentifierStore` keeps one entry per identifier in user
+storage encrypted from the seed phrase, so Auth can delete entries but not
+write them. Its messenger needs
+`UserStorageController:performGetStorageAllFeatureEntries` and
+`UserStorageController:performSetStorage`.
+
 ## Seedless password unlock
 
 `RecoveryIdentifierAuthProvider` has one method, `getKeyBoundIdentifierLogin`.

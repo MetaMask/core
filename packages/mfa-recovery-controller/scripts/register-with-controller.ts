@@ -7,7 +7,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
+import { sha256 } from '@noble/hashes/sha2';
 import { randomBytes } from 'node:crypto';
 
 import { CubistEscrowProvider } from '../src/escrow-providers/cubist-escrow-provider.js';
@@ -18,6 +19,7 @@ import {
   StubAuthProvider,
   StubIdentifierAuthProvider,
   StubRecoveryLockProvider,
+  StubTrustedIdentifierStore,
   passthroughEncryptor,
 } from '../tests/stubs.js';
 
@@ -39,7 +41,11 @@ const PASSKEY: Identifier = {
   type: 'passkey',
   namespace: 'example.com',
   value: 'cred-1',
-  verifier: { publicKey: 'mock-passkey' },
+  verifier: {
+    rpId: 'example.com',
+    credentialId: 'AQ',
+    publicKey: { cose: 'Ag' },
+  },
 };
 
 const SOCIAL: Identifier = {
@@ -136,6 +142,15 @@ async function main(flags: Record<string, string>): Promise<void> {
     authProvider: new StubAuthProvider([PASSKEY, SOCIAL]),
     lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
+    trustedIdentifierStore: new StubTrustedIdentifierStore([
+      {
+        type: 'passkey',
+        rpIdHash: bytesToHex(sha256(stringToBytes('example.com'))),
+        credentialId: '0x01',
+        publicKey: '0x02',
+      },
+      { type: 'social', namespace: SOCIAL.namespace, value: SOCIAL.value },
+    ]),
     escrows: [escrow],
     pendingOperationEncryptor: passthroughEncryptor,
   });

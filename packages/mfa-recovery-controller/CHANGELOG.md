@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adds `trustIdentifier`, which records a passkey or social identifier a user device saw, and exports `UserStorageTrustedIdentifierStore`, which keeps one entry per identifier in encrypted user storage
+- Add dependencies `@levischuck/tiny-cbor` `^0.3.6` and `@noble/hashes` `^1.8.0`
+
+### Changed
+
+- **BREAKING:** Requires a `trustedIdentifierStore`; `register` and `updateIdentifiers` reject passkey and social identifiers no user device recorded with `untrusted_identifier`. A passkey must match the recorded RP ID hash, credential ID and COSE public key
+
 ## [0.1.0]
 
 ### Added

@@ -44,9 +44,11 @@ import type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryLockProvider,
+  RecoveryTrustedIdentifierStore,
   GetRecoverySecretResponse,
   RegisterPayload,
   SeedlessAuthData,
+  TrustedIdentifier,
   UpdateIdentifiersPayload,
   UpdateRecoverySecretPayload,
   WrappedSecret,
@@ -156,6 +158,25 @@ export class StubRecoveryLockProvider implements RecoveryLockProvider {
       throw new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict');
     }
     this.lockId = null;
+  }
+}
+
+/**
+ * In-memory trusted identifier list.
+ */
+export class StubTrustedIdentifierStore implements RecoveryTrustedIdentifierStore {
+  trusted: TrustedIdentifier[];
+
+  constructor(trusted: TrustedIdentifier[] = []) {
+    this.trusted = trusted;
+  }
+
+  async get(): Promise<TrustedIdentifier[]> {
+    return this.trusted;
+  }
+
+  async add(entry: TrustedIdentifier): Promise<void> {
+    this.trusted.push(entry);
   }
 }
 

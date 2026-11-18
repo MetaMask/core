@@ -23,6 +23,18 @@ export type MfaRecoveryControllerReleaseLockAction = {
 };
 
 /**
+ * Records an identifier the device saw itself, such as a passkey it just
+ * created. `register` and `updateIdentifiers` only accept recorded passkey
+ * and social identifiers, so a compromised Auth API cannot add its own.
+ *
+ * @param witness - What the device saw.
+ */
+export type MfaRecoveryControllerTrustIdentifierAction = {
+  type: `MfaRecoveryController:trustIdentifier`;
+  handler: MfaRecoveryController['trustIdentifier'];
+};
+
+/**
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
@@ -143,6 +155,7 @@ export type MfaRecoveryControllerGetPhaseAction = {
 export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerAcquireLockAction
   | MfaRecoveryControllerReleaseLockAction
+  | MfaRecoveryControllerTrustIdentifierAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction

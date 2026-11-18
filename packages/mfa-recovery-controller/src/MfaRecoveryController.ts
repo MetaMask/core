@@ -54,12 +54,17 @@ import {
   selectHighestConsistentVersion,
 } from './replica-utils.js';
 import { getRecoveryPhase } from './state-machine.js';
+import {
+  isTrustedIdentifier,
+  toTrustedIdentifier,
+} from './trusted-identifiers.js';
 import type {
   AuthControllerToken,
   GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
+  IdentifierWitness,
   KeyBoundCredential,
   Mutation,
   MutationPayload,
@@ -77,6 +82,7 @@ import type {
   RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
+  RecoveryTrustedIdentifierStore,
   WrappedSecret,
   WritingPendingOperation,
 } from './types.js';
@@ -89,6 +95,7 @@ const CLOCK_SKEW_SECONDS = 5 * 60;
 const MESSENGER_EXPOSED_METHODS = [
   'acquireLock',
   'releaseLock',
+  'trustIdentifier',
   'register',
   'updateRecoverySecret',
   'updateIdentifiers',
@@ -189,6 +196,11 @@ export type MfaRecoveryControllerOptions = {
   identifierAuthProvider: RecoveryIdentifierAuthProvider;
 
   /**
+   * Stores the identifiers user devices saw. Writes may only use these.
+   */
+  trustedIdentifierStore: RecoveryTrustedIdentifierStore;
+
+  /**
    * Ordered, non-empty set of recovery escrow replicas. This is build-time
    * configuration; public methods cannot override it.
    */
@@ -240,6 +252,8 @@ export class MfaRecoveryController extends BaseController<
 
   readonly #identifierAuthProvider: RecoveryIdentifierAuthProvider;
 
+  readonly #trustedIdentifierStore: RecoveryTrustedIdentifierStore;
+
   readonly #escrows: RecoveryEscrowProvider[];
 
   readonly #encryptor: PendingOperationEncryptor;
@@ -254,6 +268,7 @@ export class MfaRecoveryController extends BaseController<
     authProvider,
     lockProvider,
     identifierAuthProvider,
+    trustedIdentifierStore,
     escrows,
     pendingOperationEncryptor,
     now = unixNow,
@@ -282,6 +297,7 @@ export class MfaRecoveryController extends BaseController<
     this.#authProvider = authProvider;
     this.#lockProvider = lockProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
+    this.#trustedIdentifierStore = trustedIdentifierStore;
     this.#escrows = [...escrows];
     this.#encryptor = pendingOperationEncryptor;
     this.#now = now;
@@ -333,6 +349,17 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
+   * Records an identifier the device saw itself, such as a passkey it just
+   * created. `register` and `updateIdentifiers` only accept recorded passkey
+   * and social identifiers, so a compromised Auth API cannot add its own.
+   *
+   * @param witness - What the device saw.
+   */
+  async trustIdentifier(witness: IdentifierWitness): Promise<void> {
+    await this.#trustedIdentifierStore.add(toTrustedIdentifier(witness));
+  }
+
+  /**
    * Creates version 1 of a recovery record.
    *
    * @param recoverySecret - Secret replicated in full to every escrow.
@@ -345,6 +372,7 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<void> {
     this.#assertValidIdentifiers(identifiers);
     this.#assertIdentifierSet(identifiers);
+    await this.#assertTrusted(identifiers);
     await this.#mutate({
       operation: 'register',
       payload: {
@@ -394,6 +422,7 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<void> {
     this.#assertValidIdentifiers([identifier, ...identifiers]);
     this.#assertIdentifierSet(identifiers);
+    await this.#assertTrusted(identifiers);
     await this.#mutate({
       operation: 'updateIdentifiers',
       payload: { identifiers },
@@ -1130,6 +1159,23 @@ export class MfaRecoveryController extends BaseController<
           'invalid_identifier',
         );
       }
+    }
+  }
+
+  // SIWE identifiers are proven by their own authorizations.
+  async #assertTrusted(identifiers: Identifier[]): Promise<void> {
+    const trusted = await this.#trustedIdentifierStore.get();
+    if (
+      identifiers.some(
+        (identifier) =>
+          identifier.type !== 'siwe' &&
+          !isTrustedIdentifier(identifier, trusted),
+      )
+    ) {
+      throw new MfaRecoveryError(
+        'Identifier was not seen on a user device; call trustIdentifier first',
+        'untrusted_identifier',
+      );
     }
   }
 

@@ -334,6 +334,37 @@ export type RecoveryLockProvider = {
 };
 
 /**
+ * What a user device saw for an identifier, so Auth cannot add or swap one.
+ * Passkey fields are hex; `value` is the escrow's social identifier value.
+ */
+export type TrustedIdentifier =
+  | {
+      type: 'passkey';
+      rpIdHash: string;
+      credentialId: string;
+      publicKey: string;
+    }
+  | { type: 'social'; namespace: string; value: string };
+
+/**
+ * Proof the device saw an identifier: the passkey's base64url
+ * `attestationObject` from its creation, or the social login's issuer and
+ * identity (the email for Google, `sub` for Apple).
+ */
+export type IdentifierWitness =
+  | { type: 'passkey'; attestationObject: string }
+  | { type: 'social'; namespace: string; identity: string };
+
+/**
+ * Stores {@link TrustedIdentifier}s where only the user can write them.
+ * Adding one already stored has no effect.
+ */
+export type RecoveryTrustedIdentifierStore = {
+  get: () => Promise<TrustedIdentifier[]>;
+  add: (entry: TrustedIdentifier) => Promise<void>;
+};
+
+/**
  * Obtains a key-bound identifier assertion from an IdP (OIDC, Passkey, SIWE).
  */
 export type RecoveryIdentifierAuthProvider = {
