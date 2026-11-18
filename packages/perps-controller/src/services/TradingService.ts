@@ -1092,7 +1092,7 @@ export class TradingService {
           parseFloat(position.returnOnEquity) * 100,
       }),
       ...(params.trackingData?.totalFee !== undefined && {
-        [PERPS_EVENT_PROPERTY.FEES]: params.trackingData.totalFee,
+        [PERPS_EVENT_PROPERTY.FEE]: params.trackingData.totalFee,
       }),
       ...(params.trackingData?.metamaskFee !== undefined && {
         [PERPS_EVENT_PROPERTY.METAMASK_FEE]: params.trackingData.metamaskFee,

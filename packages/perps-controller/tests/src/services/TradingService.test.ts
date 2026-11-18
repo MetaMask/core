@@ -5534,12 +5534,12 @@ describe('TradingService', () => {
   describe('TAT-4662 analytics consistency', () => {
     it('reads add_margin from PERPS_EVENT_VALUE.ACTION at emit time', async () => {
       mockProvider.updateMargin = vi.fn().mockResolvedValue({ success: true });
-      const actionValues = PERPS_EVENT_VALUE.ACTION as unknown as Record<
-        string,
-        string
-      >;
-      const original = actionValues.ADD_MARGIN;
-      actionValues.ADD_MARGIN = 'sentinel_add_margin';
+      const original = PERPS_EVENT_VALUE.ACTION.ADD_MARGIN;
+      Reflect.set(
+        PERPS_EVENT_VALUE.ACTION,
+        'ADD_MARGIN',
+        'sentinel_add_margin',
+      );
 
       try {
         await tradingService.updateMargin({
@@ -5554,18 +5554,18 @@ describe('TradingService', () => {
           expect.objectContaining({ action: 'sentinel_add_margin' }),
         );
       } finally {
-        actionValues.ADD_MARGIN = original;
+        Reflect.set(PERPS_EVENT_VALUE.ACTION, 'ADD_MARGIN', original);
       }
     });
 
     it('reads remove_margin from PERPS_EVENT_VALUE.ACTION at emit time', async () => {
       mockProvider.updateMargin = vi.fn().mockResolvedValue({ success: true });
-      const actionValues = PERPS_EVENT_VALUE.ACTION as unknown as Record<
-        string,
-        string
-      >;
-      const original = actionValues.REMOVE_MARGIN;
-      actionValues.REMOVE_MARGIN = 'sentinel_remove_margin';
+      const original = PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN;
+      Reflect.set(
+        PERPS_EVENT_VALUE.ACTION,
+        'REMOVE_MARGIN',
+        'sentinel_remove_margin',
+      );
 
       try {
         await tradingService.updateMargin({
@@ -5580,11 +5580,11 @@ describe('TradingService', () => {
           expect.objectContaining({ action: 'sentinel_remove_margin' }),
         );
       } finally {
-        actionValues.REMOVE_MARGIN = original;
+        Reflect.set(PERPS_EVENT_VALUE.ACTION, 'REMOVE_MARGIN', original);
       }
     });
 
-    it('reports the trade fee under the shared FEES key', async () => {
+    it('reports the trade fee under the fees key', async () => {
       mockProvider.placeOrder.mockResolvedValue({
         success: true,
         orderId: 'order-1',
@@ -5618,7 +5618,7 @@ describe('TradingService', () => {
       expect(executed).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEE);
     });
 
-    it('reports the close fee under the same shared FEES key', async () => {
+    it('reports the close fee under the fee key', async () => {
       const position: Position = {
         symbol: 'BTC',
         size: '0.5',
@@ -5660,9 +5660,9 @@ describe('TradingService', () => {
           props.status === PERPS_EVENT_VALUE.STATUS.EXECUTED,
       )?.[1];
       expect(executed).toEqual(
-        expect.objectContaining({ [PERPS_EVENT_PROPERTY.FEES]: 7 }),
+        expect.objectContaining({ [PERPS_EVENT_PROPERTY.FEE]: 7 }),
       );
-      expect(executed).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEE);
+      expect(executed).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEES);
     });
   });
 });
