@@ -178,6 +178,7 @@ import type {
   PerpsAccountSupport,
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
+  PerpsProviderAccountStateEntry,
   PerpsProviderType,
   PerpsProviderTradeConfigurations,
   PerpsTradeConfiguration,
@@ -202,6 +203,7 @@ import {
   LastTransactionResult,
   TransactionStatus,
 } from './types/transactionTypes.js';
+import { buildAggregatedAccountState } from './utils/accountAggregation.js';
 import {
   getCaipAccountAddress,
   getSelectedEvmAccountFromMessenger,
@@ -1788,37 +1790,50 @@ export class PerpsController extends BaseController<
       // Assemble from all registered provider entries
       const allPositions: Position[] = [];
       const allOrders: Order[] = [];
-      let defaultAccountState: AccountState | null = null;
+      const accountEntries: PerpsProviderAccountStateEntry[] = [];
       let hasValidEntry = false;
 
       for (const providerId of this.#getAggregatedCacheProviderIds(
         Object.keys(cache),
-      )) {
+      ).filter(isPerpsProviderType)) {
         const providerNetworkKey = buildProviderCacheKey(
           providerId,
           this.state.isTestnet,
         );
         const entry = cache[providerNetworkKey];
         if (!isValidEntry(providerId, entry)) {
+          accountEntries.push({ status: 'unavailable', providerId });
           continue;
         }
         hasValidEntry = true;
         allPositions.push(...entry.positions);
         allOrders.push(...entry.orders);
-        // AccountState from default provider (hyperliquid)
-        if (providerId === 'hyperliquid') {
-          defaultAccountState = entry.accountState;
-        }
+        accountEntries.push(
+          entry.accountState
+            ? {
+                status: 'available',
+                providerId,
+                state: { ...entry.accountState, providerId },
+              }
+            : { status: 'unavailable', providerId },
+        );
       }
 
       if (!hasValidEntry) {
         return null;
       }
 
+      // Match live reads: combine venue snapshots, but preserve venue-local
+      // detail and the direct shape when only one venue participates.
+      const [onlyEntry] = accountEntries;
+      const accountState =
+        accountEntries.length === 1 && onlyEntry.status === 'available'
+          ? onlyEntry.state
+          : buildAggregatedAccountState({ entries: accountEntries });
       return {
         positions: allPositions,
         orders: allOrders,
-        accountState: defaultAccountState,
+        accountState,
       };
     }
 

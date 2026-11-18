@@ -90,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Return combined portfolio totals and per-venue completeness metadata from aggregated cached user-data reads, including disk-hydrated startup data, instead of returning only HyperLiquid's account snapshot ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Prevent account streams opened without an `accountId` from overwriting or clearing selected-account state after the selected wallet changes ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Reject failed position discovery in the per-position `closePositions` fallback instead of treating an unavailable venue account as having no positions to close; ordinary position reads remain lenient ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Withhold bounded batch-close fee waivers when any selected position has a non-finite value instead of pricing the venue from an understated subtotal ([#11461](https://github.com/MetaMask/core/pull/11461))
