@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `useTestClock` to `StartSubscriptionWithDelegationRequest` and forward it to `SubscriptionController:startSubscriptionWithCrypto` so Money Account checkout can attach a Stripe test clock
+- Add optional `useTestClock` to `StartSubscriptionWithDelegationRequest` and forward it to `SubscriptionController:startSubscriptionWithCrypto` so Money Account checkout can attach a Stripe test clock ([#11594](https://github.com/MetaMask/core/pull/11594))
 
 ### Changed
 
