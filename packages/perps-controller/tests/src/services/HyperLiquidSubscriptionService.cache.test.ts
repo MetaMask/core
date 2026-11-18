@@ -924,6 +924,42 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribeNext();
     });
 
+    it('does not replay orders after the position callback retires the stream', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockResolvedValue({
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      });
+      const unsubscribe = service.subscribeToPositions({
+        callback: () => unsubscribe(),
+      });
+      const onAccount = await accountFrames.promise;
+      await vi.runAllTimersAsync();
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+
+      const orders = vi.fn();
+      const unsubscribeOrders = service.subscribeToOrders({ callback: orders });
+      expect(orders).not.toHaveBeenCalled();
+      expect(service.getOrdersCacheIfInitialized()).toBeNull();
+      unsubscribeOrders();
+    });
+
     it('does not initialize the order stream from a malformed clearinghouse frame', async () => {
       const frames = createDeferred<(payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(
