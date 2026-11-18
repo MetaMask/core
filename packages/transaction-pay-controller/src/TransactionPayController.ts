@@ -34,7 +34,6 @@ import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import { getEvmPaymentToken } from './utils/token.js';
 import {
-  persistPayAccountOverride,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction.js';
@@ -181,16 +180,11 @@ export class TransactionPayController extends BaseController<
 
       Object.assign(transactionData, config);
 
-      if (config.accountOverride !== previousAccountOverride) {
-        if (!config.isPostQuote) {
-          transactionData.paymentToken = undefined;
-        }
-
-        persistPayAccountOverride({
-          accountOverride: config.accountOverride,
-          messenger: this.messenger,
-          transactionId,
-        });
+      if (
+        !config.isPostQuote &&
+        config.accountOverride !== previousAccountOverride
+      ) {
+        transactionData.paymentToken = undefined;
       }
     });
   }

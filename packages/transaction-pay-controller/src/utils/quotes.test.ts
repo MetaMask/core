@@ -1201,6 +1201,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
         isPostQuote: undefined,
@@ -1226,6 +1227,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
         isPostQuote: undefined,
@@ -1235,12 +1237,10 @@ describe('Quotes Utils', () => {
         tokenAddress: PAYMENT_TOKEN_ADDRESS_MOCK,
         totalFiat: TOTALS_MOCK.total.usd,
       });
-      expect(transactionMetaMock.metamaskPay?.accountOverride).toBeUndefined();
     });
 
     it('persists accountOverride in metadata when set', async () => {
-      const accountOverride =
-        '0x1111111111111111111111111111111111111112' as Hex;
+      const accountOverride = 'override-account-id';
 
       await run({
         transactionData: {
@@ -1255,6 +1255,17 @@ describe('Quotes Utils', () => {
       expect(transactionMetaMock.metamaskPay).toMatchObject({
         accountOverride,
       });
+    });
+
+    it('clears previous accountOverride in metadata when unset', async () => {
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { accountOverride: 'override-account-id' },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.accountOverride).toBeUndefined();
     });
 
     it('preserves existing metamaskPay properties such as sourceHash during sync', async () => {
@@ -1985,6 +1996,7 @@ describe('Quotes Utils', () => {
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        accountOverride: undefined,
         bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
         chainId: undefined,
         isPostQuote: undefined,

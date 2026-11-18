@@ -5,22 +5,16 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
-import type {
-  TransactionControllerState,
-  TransactionControllerUpdateTransactionAction,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { TransactionControllerState } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash-es';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MockedFunction } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
 import type {
   TransactionData,
-  TransactionPayControllerGetStateAction,
-  TransactionPayControllerMessenger,
   TransactionPayControllerState,
   TransactionPayRequiredToken,
 } from '../types.js';
@@ -30,7 +24,6 @@ import {
   collectTransactionIds,
   getTransaction,
   getTransferredAmountFromTxHash,
-  persistPayAccountOverride,
   subscribeAssetChanges,
   subscribeTransactionChanges,
   updateTransaction,
@@ -58,20 +51,6 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
   balanceFiat: '4',
   balanceUsd: '5',
 } as TransactionPayRequiredToken;
-
-type IsolatedMessengerMocks = {
-  getControllerStateMock: MockedFunction<
-    TransactionPayControllerGetStateAction['handler']
-  >;
-  getTransactionControllerStateMock: {
-    mockReturnValue: (state: unknown) => void;
-  };
-  messenger: TransactionPayControllerMessenger;
-  publish: (event: string, ...args: unknown[]) => void;
-  updateTransactionMock: MockedFunction<
-    TransactionControllerUpdateTransactionAction['handler']
-  >;
-};
 
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = vi.mocked(parseRequiredTokens);
@@ -313,198 +292,6 @@ describe('Transaction Utils', () => {
         TRANSACTION_ID_MOCK,
       );
     });
-
-    describe('accountOverride persistence on finalization', () => {
-      const accountOverride =
-        '0x1111111111111111111111111111111111111112' as Hex;
-
-      let mocks: IsolatedMessengerMocks;
-
-      beforeEach(() => {
-        mocks = getMessengerMock() as IsolatedMessengerMocks;
-        mocks.getControllerStateMock.mockReturnValue({
-          transactionData: {
-            [TRANSACTION_ID_MOCK]: {
-              accountOverride,
-              isLoading: false,
-              tokens: [],
-            },
-          },
-        });
-      });
-
-      it('persists accountOverride to metamaskPay before removing state on finalization', () => {
-        const finalizedTx = {
-          ...TRANSACTION_META_MOCK,
-          metamaskPay: { isPostQuote: true },
-          status: TransactionStatus.confirmed,
-        } as TransactionMeta;
-        const callOrder: string[] = [];
-        const removeTransactionDataMock = vi.fn(() => {
-          callOrder.push('remove');
-        });
-
-        mocks.updateTransactionMock.mockImplementation(() => {
-          callOrder.push('update');
-        });
-        mocks.getTransactionControllerStateMock.mockReturnValue({
-          transactions: [finalizedTx],
-        });
-
-        subscribeTransactionChanges(
-          mocks.messenger,
-          noop,
-          removeTransactionDataMock,
-        );
-
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [TRANSACTION_META_MOCK] },
-          [],
-        );
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [finalizedTx] },
-          [],
-        );
-
-        expect(callOrder).toStrictEqual(['update', 'remove']);
-        expect(mocks.updateTransactionMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            id: TRANSACTION_ID_MOCK,
-            metamaskPay: {
-              accountOverride,
-              isPostQuote: true,
-            },
-          }),
-          'Persist pay account override',
-        );
-      });
-
-      it('does not update transaction on finalization when accountOverride already matches metamaskPay', () => {
-        const finalizedTx = {
-          ...TRANSACTION_META_MOCK,
-          metamaskPay: { accountOverride, isPostQuote: true },
-          status: TransactionStatus.confirmed,
-        } as TransactionMeta;
-
-        mocks.getTransactionControllerStateMock.mockReturnValue({
-          transactions: [finalizedTx],
-        });
-
-        subscribeTransactionChanges(mocks.messenger, noop, vi.fn());
-
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [TRANSACTION_META_MOCK] },
-          [],
-        );
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [finalizedTx] },
-          [],
-        );
-
-        expect(mocks.updateTransactionMock).not.toHaveBeenCalled();
-      });
-
-      it('does not create metamaskPay on finalization when transaction is unquoted', () => {
-        const finalizedTx = {
-          ...TRANSACTION_META_MOCK,
-          status: TransactionStatus.confirmed,
-        } as TransactionMeta;
-
-        mocks.getTransactionControllerStateMock.mockReturnValue({
-          transactions: [finalizedTx],
-        });
-
-        subscribeTransactionChanges(mocks.messenger, noop, vi.fn());
-
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [TRANSACTION_META_MOCK] },
-          [],
-        );
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [finalizedTx] },
-          [],
-        );
-
-        expect(mocks.updateTransactionMock).not.toHaveBeenCalled();
-      });
-
-      it('does not update transaction on finalization when transaction was deleted from TransactionController', () => {
-        const deletedTx = {
-          ...TRANSACTION_META_MOCK,
-          metamaskPay: { isPostQuote: true },
-        } as TransactionMeta;
-
-        mocks.getTransactionControllerStateMock.mockReturnValue({
-          transactions: [] as TransactionMeta[],
-        });
-
-        subscribeTransactionChanges(mocks.messenger, noop, vi.fn());
-
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [deletedTx] },
-          [],
-        );
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [] as TransactionMeta[] },
-          [],
-        );
-
-        expect(mocks.updateTransactionMock).not.toHaveBeenCalled();
-      });
-
-      it('clears stale metamaskPay.accountOverride on finalization when transactionData.accountOverride is undefined', () => {
-        const finalizedTx = {
-          ...TRANSACTION_META_MOCK,
-          metamaskPay: { accountOverride, isPostQuote: true },
-          status: TransactionStatus.confirmed,
-        } as TransactionMeta;
-
-        mocks.getControllerStateMock.mockReturnValue({
-          transactionData: {
-            [TRANSACTION_ID_MOCK]: {
-              accountOverride: undefined,
-              isLoading: false,
-              tokens: [],
-            },
-          },
-        });
-        mocks.getTransactionControllerStateMock.mockReturnValue({
-          transactions: [finalizedTx],
-        });
-
-        subscribeTransactionChanges(mocks.messenger, noop, vi.fn());
-
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [TRANSACTION_META_MOCK] },
-          [],
-        );
-        mocks.publish(
-          'TransactionController:stateChange',
-          { transactions: [finalizedTx] },
-          [],
-        );
-
-        expect(mocks.updateTransactionMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            id: TRANSACTION_ID_MOCK,
-            metamaskPay: {
-              accountOverride: undefined,
-              isPostQuote: true,
-            },
-          }),
-          'Persist pay account override',
-        );
-      });
-    });
   });
 
   describe('subscribeAssetChanges', () => {
@@ -670,101 +457,6 @@ describe('Transaction Utils', () => {
           noop,
         ),
       ).toThrow(`Transaction not found: ${TRANSACTION_ID_MOCK}`);
-    });
-  });
-
-  describe('persistPayAccountOverride', () => {
-    const accountOverride = '0x1111111111111111111111111111111111111112' as Hex;
-
-    it('updates metamaskPay.accountOverride when metamaskPay exists', () => {
-      const {
-        messenger: isolatedMessenger,
-        getTransactionControllerStateMock:
-          isolatedGetTransactionControllerStateMock,
-        updateTransactionMock: isolatedUpdateTransactionMock,
-      } = getMessengerMock() as unknown as IsolatedMessengerMocks;
-
-      isolatedGetTransactionControllerStateMock.mockReturnValue({
-        transactions: [
-          {
-            ...TRANSACTION_META_MOCK,
-            metamaskPay: { isPostQuote: true },
-          },
-        ],
-      });
-
-      persistPayAccountOverride({
-        accountOverride,
-        messenger: isolatedMessenger,
-        transactionId: TRANSACTION_ID_MOCK,
-      });
-
-      expect(isolatedUpdateTransactionMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: TRANSACTION_ID_MOCK,
-          metamaskPay: {
-            accountOverride,
-            isPostQuote: true,
-          },
-        }),
-        'Persist pay account override',
-      );
-    });
-
-    it('clears metamaskPay.accountOverride when set to undefined', () => {
-      const {
-        messenger: isolatedMessenger,
-        getTransactionControllerStateMock:
-          isolatedGetTransactionControllerStateMock,
-        updateTransactionMock: isolatedUpdateTransactionMock,
-      } = getMessengerMock() as unknown as IsolatedMessengerMocks;
-
-      isolatedGetTransactionControllerStateMock.mockReturnValue({
-        transactions: [
-          {
-            ...TRANSACTION_META_MOCK,
-            metamaskPay: { accountOverride, isPostQuote: true },
-          },
-        ],
-      });
-
-      persistPayAccountOverride({
-        accountOverride: undefined,
-        messenger: isolatedMessenger,
-        transactionId: TRANSACTION_ID_MOCK,
-      });
-
-      expect(isolatedUpdateTransactionMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: TRANSACTION_ID_MOCK,
-          metamaskPay: {
-            accountOverride: undefined,
-            isPostQuote: true,
-          },
-        }),
-        'Persist pay account override',
-      );
-    });
-
-    it('does nothing when transaction is unquoted', () => {
-      const {
-        messenger: isolatedMessenger,
-        getTransactionControllerStateMock:
-          isolatedGetTransactionControllerStateMock,
-        updateTransactionMock: isolatedUpdateTransactionMock,
-      } = getMessengerMock() as unknown as IsolatedMessengerMocks;
-
-      isolatedGetTransactionControllerStateMock.mockReturnValue({
-        transactions: [TRANSACTION_META_MOCK],
-      });
-
-      persistPayAccountOverride({
-        accountOverride,
-        messenger: isolatedMessenger,
-        transactionId: TRANSACTION_ID_MOCK,
-      });
-
-      expect(isolatedUpdateTransactionMock).not.toHaveBeenCalled();
     });
   });
 

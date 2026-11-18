@@ -287,7 +287,7 @@ function getFrom(
  * Sync batch transactions to the transaction meta.
  *
  * @param request - Request object.
- * @param request.accountOverride - Optional address overriding the default account.
+ * @param request.accountOverride - Optional ID of an `InternalAccount` overriding the default account.
  * @param request.batchTransactions - Batch transactions to sync.
  * @param request.hasQuotes - Whether MM Pay produced any quotes for this transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
@@ -310,7 +310,7 @@ function syncTransaction({
   totals,
   transactionId,
 }: {
-  accountOverride?: Hex;
+  accountOverride?: string;
   batchTransactions: BatchTransaction[];
   selectedFiatPayment?: string;
   hasQuotes: boolean;

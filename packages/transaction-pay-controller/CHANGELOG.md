@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Persist `accountOverride` in `TransactionMeta.metamaskPay` across quote refreshes, config updates, and transaction finalization so clients retain the override address after controller state cleanup ([#11588](https://github.com/MetaMask/core/pull/11588))
+- Persist `accountOverride` (the `InternalAccount` ID) in `TransactionMeta.metamaskPay` when syncing transaction quotes so clients retain the override account ID after controller state cleanup ([#11588](https://github.com/MetaMask/core/pull/11588))
 
 ## [32.0.0]
 

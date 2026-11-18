@@ -99,7 +99,7 @@ export function subscribeTransactionChanges(
       );
 
       [...finalizedTransactions, ...deletedTransactions].forEach((tx) =>
-        onTransactionFinalized(tx, messenger, removeTransactionData),
+        onTransactionFinalized(tx, removeTransactionData),
       );
 
       [...newTransactions, ...updatedTransactions].forEach((tx) =>
@@ -307,73 +307,16 @@ function onTransactionChange(
 }
 
 /**
- * Persist `accountOverride` onto an existing `metamaskPay` metadata object.
- * Does nothing if the transaction is missing, has no `metamaskPay` metadata,
- * or already has the same `accountOverride`.
- *
- * @param request - Request object.
- * @param request.accountOverride - Override address to persist (or `undefined` to clear).
- * @param request.messenger - Controller messenger.
- * @param request.transactionId - ID of the transaction to update.
- */
-export function persistPayAccountOverride({
-  accountOverride,
-  messenger,
-  transactionId,
-}: {
-  accountOverride: Hex | undefined;
-  messenger: TransactionPayControllerMessenger;
-  transactionId: string;
-}): void {
-  const currentTransaction = getTransaction(transactionId, messenger);
-
-  if (
-    !currentTransaction?.metamaskPay ||
-    currentTransaction.metamaskPay.accountOverride === accountOverride
-  ) {
-    return;
-  }
-
-  updateTransaction(
-    {
-      transactionId,
-      messenger,
-      note: 'Persist pay account override',
-    },
-    (tx) => {
-      tx.metamaskPay = {
-        ...tx.metamaskPay,
-        accountOverride,
-      };
-    },
-  );
-}
-
-/**
  * Handle a finalized transaction by removing its associated data.
  *
  * @param transaction - Transaction metadata.
- * @param messenger - Controller messenger.
  * @param removeTransactionData - Callback to remove transaction data.
  */
 function onTransactionFinalized(
   transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
   removeTransactionData: (transactionId: string) => void,
 ): void {
   log('Transaction finalized', { transaction });
-
-  const transactionData = messenger.call('TransactionPayController:getState')
-    ?.transactionData[transaction.id];
-
-  if (transactionData) {
-    persistPayAccountOverride({
-      accountOverride: transactionData.accountOverride,
-      messenger,
-      transactionId: transaction.id,
-    });
-  }
-
   removeTransactionData(transaction.id);
 }
 
