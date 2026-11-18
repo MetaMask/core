@@ -166,7 +166,7 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
     ],
   });
 
-  // The `isResumable` hook reads feature flags through `payMessenger` during
+  // The `isResumable` option reads feature flags through `payMessenger` during
   // TC boot cleanup (which runs synchronously inside the TC constructor), so
   // delegate that action before constructing the TC.
   unrestrictedMessenger.delegate({
@@ -177,10 +177,9 @@ function setupControllers({ flags }: { flags: Record<string, unknown> }): {
   const transactionController = new TransactionController({
     disableSwaps: false,
     getPermittedAccounts: async (): Promise<Hex[]> => [WALLET_ADDRESS_MOCK],
-    hooks: {
-      isResumable: (transaction): boolean =>
-        isPayTransactionResumable(payMessenger, transaction),
-    },
+    hooks: {},
+    isResumable: (transaction): boolean =>
+      isPayTransactionResumable(payMessenger, transaction),
     messenger: transactionControllerMessenger,
     state: { transactions: [getParentTransactionMock()] },
   });
