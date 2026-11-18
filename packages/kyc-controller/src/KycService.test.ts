@@ -444,6 +444,38 @@ describe('KycService', () => {
       ).toStrictEqual(response);
     });
 
+    it('forwards the phone-signed Kalshi calls when provided', async () => {
+      const signedVendorRequests = [
+        {
+          operation: 'enrollment/intents' as const,
+          venueAuthorization: 'signed-intent',
+        },
+        {
+          operation: 'users/link' as const,
+          venueAuthorization: 'signed-link',
+        },
+      ];
+      nock(MOCK_API_URL)
+        .post(
+          '/sessions',
+          (body: Record<string, unknown>) =>
+            JSON.stringify(body.signedVendorRequests) ===
+            JSON.stringify(signedVendorRequests),
+        )
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          signedVendorRequests,
+        }),
+      ).toStrictEqual(response);
+    });
+
     it('omits the partner identity token when not provided', async () => {
       nock(MOCK_API_URL)
         .post(
@@ -1024,11 +1056,15 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/vendors/kalshi/step')
         .matchHeader('authorization', 'Bearer test-bearer')
-        .reply(200, { vendor: 'kalshi', step: 'account_link', status: 'none' });
+        .reply(200, {
+          vendor: 'kalshi',
+          step: 'confirm_identity',
+          status: 'none',
+        });
       const { service } = getService();
 
       expect(await service.getStep('kalshi')).toStrictEqual({
-        step: 'account_link',
+        step: 'confirm_identity',
         status: 'none',
       });
     });
@@ -1037,12 +1073,16 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/vendors/iron/step')
         .query({ vendorTermsAcceptedLocally: 'true' })
-        .reply(200, { vendor: 'iron', step: 'account_link', status: 'none' });
+        .reply(200, {
+          vendor: 'iron',
+          step: 'confirm_identity',
+          status: 'none',
+        });
       const { service } = getService();
 
       expect(
         await service.getStep('iron', { vendorTermsAcceptedLocally: true }),
-      ).toStrictEqual({ step: 'account_link', status: 'none' });
+      ).toStrictEqual({ step: 'confirm_identity', status: 'none' });
     });
 
     it('ignores a field kyc-api adds that this version does not know', async () => {
@@ -1149,6 +1189,30 @@ describe('KycService', () => {
           sessionId: 'sid-1',
           step: 'phone/send-otp',
           body: { phoneNumber: '+18888888888' },
+        }),
+      ).toStrictEqual(status);
+    });
+
+    it('forwards a signed Kalshi email call', async () => {
+      const body = {
+        otp: '123456',
+        signedVendorRequests: [
+          {
+            operation: 'users/link/verify' as const,
+            venueAuthorization: 'signed-verify',
+          },
+        ],
+      };
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/verify-otp', body)
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.postOnboardingStep({
+          sessionId: 'sid-1',
+          step: 'email/verify-otp',
+          body,
         }),
       ).toStrictEqual(status);
     });

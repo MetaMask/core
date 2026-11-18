@@ -35,6 +35,7 @@ import type {
   KycSessionDisclaimers,
   KycSessionStatus,
   KycClientContext,
+  KycSignedVendorRequest,
   KycStepInfo,
   KycVendor,
   KycVendorSigning,
@@ -390,10 +391,29 @@ export type CreateUkycSessionParams = {
   /**
    * Partner identity token minted by
    * `AuthenticationController:getPartnerIdentityToken`. kyc-api verifies it
-   * and takes the session's email from its `ext.email` claim, so no email is
-   * sent separately. Omitted from the request body when not provided.
+   * and takes the MetaMask user's email from its `ext.email` claim.
+   * Omitted from the request body when not provided.
    */
   partnerIdentityToken?: string;
+  /**
+   * Kalshi calls the phone signed (`enrollment/intents` and `users/link` at
+   * session creation). kyc-api forwards them to the relay, which checks the
+   * signature and sends them to Kalshi. Omitted for vendors that do not
+   * link an account this way.
+   */
+  signedVendorRequests?: readonly KycSignedVendorRequest[];
+};
+
+/**
+ * Body of `POST /sessions/{id}/onboarding/{step}`.
+ *
+ * Phone steps send `phoneNumber` or `otp`. Kalshi's email steps also send
+ * the phone-signed call the relay forwards.
+ */
+export type KycOnboardingStepBody = {
+  otp?: string;
+  phoneNumber?: string;
+  signedVendorRequests?: readonly KycSignedVendorRequest[];
 };
 
 /**
@@ -900,6 +920,9 @@ export class KycService extends BaseDataService<
           ...(params.partnerIdentityToken && {
             partnerIdentityToken: params.partnerIdentityToken,
           }),
+          ...(params.signedVendorRequests && {
+            signedVendorRequests: params.signedVendorRequests,
+          }),
         }),
       },
       { bearerToken: params.aal2Token },
@@ -1194,13 +1217,14 @@ export class KycService extends BaseDataService<
    * @param params - The parameters.
    * @param params.sessionId - UKYC session id.
    * @param params.step - The onboarding step.
-   * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
+   * @param params.body - Step payload: `{ otp }`, `{ phoneNumber }`, and for
+   * Kalshi's email steps the signed call the relay forwards.
    * @returns The session status after the step.
    */
   async postOnboardingStep(params: {
     sessionId: string;
     step: KycOnboardingStep;
-    body?: Record<string, string>;
+    body?: KycOnboardingStepBody;
   }): Promise<KycSessionStatus> {
     const url = new URL(
       `/sessions/${encodeURIComponent(params.sessionId)}/onboarding/${params.step}`,

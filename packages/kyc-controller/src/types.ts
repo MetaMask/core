@@ -386,17 +386,64 @@ export type KycSessionDisclaimers = {
 export type OnboardingVendor = 'iron' | 'kalshi';
 
 /**
+ * Kalshi calls the phone signs and kyc-api forwards to the relay.
+ *
+ * Relay checks the signature and sends the call to Kalshi unchanged. The
+ * phone signs with its A2T and device key. Relay does not sign these.
+ */
+export const KYC_VENDOR_SIGN_OPERATIONS = [
+  'enrollment/intents',
+  'users/link',
+  'users/link/verify',
+] as const;
+
+/** One Kalshi call the phone can sign. See {@link KYC_VENDOR_SIGN_OPERATIONS}. */
+export type KycVendorSignOperation =
+  (typeof KYC_VENDOR_SIGN_OPERATIONS)[number];
+
+/**
+ * A Kalshi call waiting to be signed.
+ *
+ * `email` is the address inside `users/link`. `code` is the code inside
+ * `users/link/verify`. `enrollment/intents` carries neither.
+ */
+export type KycVendorSignRequest = {
+  operation: KycVendorSignOperation;
+  email?: string;
+  code?: string;
+};
+
+/**
+ * A Kalshi call the phone has signed.
+ *
+ * `venueAuthorization` is the `Venue-Authorization` header value. kyc-api
+ * forwards it to the relay and does not check it.
+ */
+export type KycSignedVendorRequest = {
+  operation: KycVendorSignOperation;
+  venueAuthorization: string;
+};
+
+/**
+ * Builds the signed Kalshi calls for one vendor.
+ *
+ * Injected by the client. The signing key lives on the device, so the
+ * controller decides which calls to sign and the client only signs them.
+ */
+export type KycVendorRequestSigner = (params: {
+  vendor: OnboardingVendor;
+  requests: readonly KycVendorSignRequest[];
+}) => Promise<readonly KycSignedVendorRequest[]>;
+
+/**
  * The steps kyc-api can send for a vendor. The client maps each step to a
  * screen it already has; kyc-api never sends copy or layout.
+ *
+ * Kalshi's email link is not a step. The phone signs it into session
+ * creation and the email-code calls, and the relay forwards those to Kalshi.
  */
 export const KYC_STEPS = [
   'vendor_terms',
-  /**
-   * One step, two screens. The client owns the email screen and the code
-   * screen, so someone who mistyped their email can go back and fix it;
-   * kyc-api only knows whether the account is linked.
-   */
-  'account_link',
   'confirm_identity',
   'identity_email_code',
   'identity_phone',

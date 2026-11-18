@@ -37,36 +37,6 @@ export type VendorOnboardingControllerAcceptTermsAction = {
 };
 
 /**
- * Starts linking the user's account at the vendor (Kalshi), then reads the
- * next step.
- *
- * @param params - The parameters.
- * @param params.vendor - The vendor.
- * @param params.email - The email the vendor sends its code to.
- * @returns The next step.
- */
-export type VendorOnboardingControllerStartAccountLinkAction = {
-  type: `VendorOnboardingController:startAccountLink`;
-  handler: VendorOnboardingController['startAccountLink'];
-};
-
-/**
- * Verifies the code the vendor sent for the account link, then reads the
- * next step.
- *
- * @param params - The parameters.
- * @param params.vendor - The vendor.
- * @param params.code - The code from the user.
- * @returns The next step, and the MFA method the vendor wants, if any. The
- * MFA method is not kept: the screen asks for the code and calls this
- * again.
- */
-export type VendorOnboardingControllerVerifyAccountLinkAction = {
-  type: `VendorOnboardingController:verifyAccountLink`;
-  handler: VendorOnboardingController['verifyAccountLink'];
-};
-
-/**
  * Opens the vendor's UKYC session, or picks up the one kyc-api already has,
  * then reads the next step. Call it from the step that asks for MFA
  * (`confirm_identity`), with the token MFA returned.
@@ -84,6 +54,9 @@ export type VendorOnboardingControllerVerifyAccountLinkAction = {
  * @param params.vendor - The vendor.
  * @param params.aal2Token - AAL2 token from MFA. Required only when a new
  * session has to be created. Omit it to pick up an existing session.
+ * @param params.email - The Kalshi email the user typed. Required when
+ * creating a Kalshi session. The phone signs `users/link` with it. A
+ * resumed session ignores it.
  * @returns The step the user is on once the session exists.
  */
 export type VendorOnboardingControllerStartSessionAction = {
@@ -190,6 +163,8 @@ export type VendorOnboardingControllerSubmitEmailCodeAction = {
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor.
+ * @param params.email - The Kalshi email to sign into the new `users/link`.
+ * Required for Kalshi, including when the user corrects the address.
  * @returns The next step.
  */
 export type VendorOnboardingControllerResendEmailCodeAction = {
@@ -215,8 +190,6 @@ export type VendorOnboardingControllerResetAction = {
 export type VendorOnboardingControllerMethodActions =
   | VendorOnboardingControllerRefreshStepAction
   | VendorOnboardingControllerAcceptTermsAction
-  | VendorOnboardingControllerStartAccountLinkAction
-  | VendorOnboardingControllerVerifyAccountLinkAction
   | VendorOnboardingControllerStartSessionAction
   | VendorOnboardingControllerFetchSessionDisclaimersAction
   | VendorOnboardingControllerAcceptSessionDisclaimersAction

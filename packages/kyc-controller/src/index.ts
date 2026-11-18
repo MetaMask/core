@@ -45,8 +45,6 @@ export {
   getDefaultVendorOnboardingControllerState,
 } from './VendorOnboardingController.js';
 export type {
-  KycAccountLinkAdapter,
-  KycAccountLinkMfaMethod,
   VendorOnboardingControllerActions,
   VendorOnboardingControllerEvents,
   OnboardingProviderOutcome,
@@ -65,12 +63,10 @@ export type {
   VendorOnboardingControllerRefreshStepAction,
   VendorOnboardingControllerResendEmailCodeAction,
   VendorOnboardingControllerResetAction,
-  VendorOnboardingControllerStartAccountLinkAction,
   VendorOnboardingControllerStartSessionAction,
   VendorOnboardingControllerSubmitEmailCodeAction,
   VendorOnboardingControllerSubmitPhoneAction,
   VendorOnboardingControllerSubmitPhoneCodeAction,
-  VendorOnboardingControllerVerifyAccountLinkAction,
 } from './VendorOnboardingController-method-action-types.js';
 
 export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
@@ -93,6 +89,7 @@ export type {
   CreateDeletionResponse,
   CreateUkycSessionParams,
   EncryptionSchema,
+  KycOnboardingStepBody,
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
   GetDataSharesParams,
@@ -154,6 +151,7 @@ export {
   KYC_STATUSES,
   KYC_STEP_STATUSES,
   KYC_STEPS,
+  KYC_VENDOR_SIGN_OPERATIONS,
   TERMINAL_SESSION_STATUSES,
   toKycStep,
   toKycStepStatus,
@@ -173,6 +171,10 @@ export type {
   KycSessionDisclaimers,
   KycClientContext,
   KycSessionStatus,
+  KycSignedVendorRequest,
+  KycVendorRequestSigner,
+  KycVendorSignOperation,
+  KycVendorSignRequest,
   KycStep,
   KycStepInfo,
   KycStepStatus,

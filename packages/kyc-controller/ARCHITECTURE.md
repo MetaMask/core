@@ -185,15 +185,17 @@ touches `KycController` state.
   `startSession` opens or resumes the UKYC session, then wraps the
   `data_encryption_key` and a `ukyc_capability_token` for idOS after verifying
   both encryption schemas' `jwtChain`. It does not create a vendor customer.
-- **Injected adapters.** `accountLinkAdapters` supplies the device-signed
-  account link calls per vendor; `sumsubLauncher` presents SumSub.
+- **Injected adapters.** `vendorRequestSigners` signs Kalshi calls
+  (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
+  key. The controller attaches them to session creation and the email-code
+  calls. kyc-api forwards them to the relay, which is the only Kalshi client.
+  `sumsubLauncher` presents SumSub.
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`,
-`startSession`, `fetchSessionDisclaimers`, `acceptSessionDisclaimers`,
-`launchProviderFlow`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`,
-`resendEmailCode`, `reset`.
+`refreshStep`, `acceptTerms`, `startSession`, `fetchSessionDisclaimers`,
+`acceptSessionDisclaimers`, `launchProviderFlow`, `submitPhone`,
+`submitPhoneCode`, `submitEmailCode`, `resendEmailCode`, `reset`.
 
 It uses these `KycService` endpoints on top of the ones above:
 
