@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `KycController` accepts an optional `trace` callback and records one `KYC Provider Flow` span per `launchProviderFlow` attempt (`result`: `submitted`, `abandoned`, or `failed`). A failure to emit the span is logged and does not change the launch outcome.
+- `KycController` accepts an optional `trace` callback and records one `KYC Provider Flow` span per `launchProviderFlow` attempt (`result`: `submitted`, `abandoned`, or `failed`). A failure to emit the span is logged and does not change the launch outcome ([#11627](https://github.com/MetaMask/core/pull/11627))
 
 ### Changed
 
