@@ -5441,6 +5441,24 @@ export class PerpsController extends BaseController<
     }
 
     const provider = this.getActiveProvider();
+    if (this.#selectedTradingAddress === undefined) {
+      const selectedAddress = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      )?.address.toLowerCase();
+      if (
+        selectedAddress &&
+        (params?.accountId === undefined ||
+          getCaipAccountAddress(params.accountId) === selectedAddress)
+      ) {
+        // Establish the wallet before the first selected-wallet refresh so a
+        // later startup selection event can keep the fresh account snapshot.
+        this.#selectedTradingAddress = selectedAddress;
+        this.update((state) => {
+          state.accountState = null;
+          state.perpsBalances = {};
+        });
+      }
+    }
     return this.#marketDataService.getAccountState({
       provider,
       params,

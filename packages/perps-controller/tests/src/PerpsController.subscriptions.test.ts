@@ -758,9 +758,9 @@ describe('PerpsController', () => {
       );
     });
 
-    it.each(['no update', 'null', 'snapshot'])(
+    it.each(['no update', 'null', 'snapshot', 'REST snapshot'])(
       'reconciles restored balances when %s precedes the first selection event',
-      (liveUpdate) => {
+      async (liveUpdate) => {
         (mockMessenger.subscribe as Mock).mockClear();
         controller = new TestablePerpsController({
           messenger: mockMessenger,
@@ -776,8 +776,24 @@ describe('PerpsController', () => {
             },
           },
         });
-        setupAggregatedMode();
-        if (liveUpdate !== 'no update') {
+        if (liveUpdate === 'REST snapshot') {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+          mockProvider.getAccountState.mockResolvedValueOnce(
+            accountState('200'),
+          );
+          const { MarketDataService } = await vi.importActual<
+            typeof marketDataServiceModule
+          >('../../src/services/MarketDataService.js');
+          const service = new MarketDataService(mockInfrastructure);
+          mockMarketDataServiceInstance.getAccountState.mockImplementationOnce(
+            service.getAccountState.bind(service),
+          );
+          await controller.getAccountState();
+        } else {
+          setupAggregatedMode();
+        }
+        if (liveUpdate === 'null' || liveUpdate === 'snapshot') {
           controller.subscribeToAccount({ callback: vi.fn() });
           const callback =
             mockProvider.subscribeToAccount.mock.calls[0][0].callback;
@@ -798,6 +814,9 @@ describe('PerpsController', () => {
             '200',
           );
           expect(controller.state.perpsBalances.lighter).toBeUndefined();
+        } else if (liveUpdate === 'REST snapshot') {
+          expect(controller.state.accountState?.totalBalance).toBe('200');
+          expect(controller.state.perpsBalances).toStrictEqual({});
         } else {
           expect(controller.state.accountState).toBeNull();
           expect(controller.state.perpsBalances).toStrictEqual({});
