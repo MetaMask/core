@@ -1425,7 +1425,7 @@ describe('LighterProvider', () => {
     it('updates protection without adapting an unrelated market’s margin', async () => {
       const { provider, clientInstance, bridge } = buildProvider();
       setupTriggerVenue(clientInstance, bridge);
-      const btc = ACCOUNT.positions[0];
+      const btc = { ...ACCOUNT.positions[0], sign: -1, position: ' +0.1 ' };
       clientInstance.getAccountByIndex.mockResolvedValue({
         code: 200,
         accounts: [
@@ -1447,7 +1447,7 @@ describe('LighterProvider', () => {
       expect(
         await provider.updatePositionTPSL({
           symbol: 'BTC',
-          takeProfitPrice: '110000',
+          stopLossPrice: '110000',
         }),
       ).toMatchObject({ success: true });
     });

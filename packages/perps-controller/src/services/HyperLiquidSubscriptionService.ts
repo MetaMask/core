@@ -204,7 +204,7 @@ export class HyperLiquidSubscriptionService {
     Set<(twapOrders: TwapOrder[], isSnapshot?: boolean) => void>
   >();
 
-  readonly #accountSubscribers = new Set<(account: AccountState) => void>();
+  readonly #accountSubscribers = new Set<SubscribeAccountParams['callback']>();
 
   // Track which subscribers want market data
   readonly #marketDataSubscribers = new Map<
@@ -2598,7 +2598,6 @@ export class HyperLiquidSubscriptionService {
 
           if (!Array.isArray(data.clearinghouseState?.assetPositions)) {
             this.#dexAccountCache.delete(cacheKey);
-            this.#dexPositionsCache.delete(cacheKey);
             this.#dexPositionsEpoch.delete(cacheKey);
             this.#notifyAccountSubscribers();
             return;
@@ -2952,7 +2951,10 @@ export class HyperLiquidSubscriptionService {
   #notifyAccountSubscribers(): void {
     const account = this.#aggregateAccountStates();
     if (!account) {
-      this.#cachedAccountHash = '';
+      if (this.#cachedAccountHash) {
+        this.#cachedAccountHash = '';
+        this.#accountSubscribers.forEach((callback) => callback(null));
+      }
       return;
     }
     const hash = this.#hashAccountState(account);

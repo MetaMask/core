@@ -4289,6 +4289,38 @@ describe('LighterProvider', () => {
       });
     });
 
+    it('uses a flat row’s configured leverage for Scale', async () => {
+      const built = buildProvider({ registeredKey: '9c'.repeat(40) });
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 200,
+            defaultInitialMarginFraction: 2000,
+            maintenanceMarginFraction: 120,
+          },
+        ],
+      });
+      const position = {
+        ...ACCOUNT.positions[0],
+        position: '0',
+        positionValue: '0',
+        initialMarginFraction: '10',
+      };
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          { ...ACCOUNT, availableBalance: '15', positions: [position] },
+        ],
+      });
+
+      expect(await built.provider.validateOrder(intent)).toMatchObject({
+        isValid: true,
+      });
+    });
+
     it('validates a complete scale before signer setup', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       expect(await built.provider.validateOrder(intent)).toStrictEqual({

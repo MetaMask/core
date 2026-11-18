@@ -1226,7 +1226,7 @@ const LIGHTER_TPSL_SETTLE_POLL_MS = 150;
 const LIGHTER_TPSL_SETTLE_ATTEMPTS = 10;
 
 /**
- * Convert an open position's margin fraction or the flat market's default to leverage.
+ * Convert account margin settings to leverage, falling back only for a flat market.
  *
  * @param held - Account position row, when present.
  * @param defaultInitial - Market initial margin in basis points.
@@ -1239,7 +1239,11 @@ const scaleLeverageFromMargin = (
   defaultInitial: number | undefined,
 ): number => {
   let margin = defaultInitial === undefined ? null : defaultInitial / 100;
-  if (held && parseStrictDecimal(held.position) !== 0) {
+  if (
+    held &&
+    (held.initialMarginFraction !== undefined ||
+      parseStrictDecimal(held.position) !== 0)
+  ) {
     margin = parseStrictDecimal(held.initialMarginFraction);
   }
   return margin !== null && margin > 0 ? 100 / margin : Number.NaN;
@@ -14536,7 +14540,7 @@ export class LighterProvider implements PerpsProvider {
           `${LIGHTER_DATA_INTEGRITY_PREFIX} duplicate position for ${symbol}`,
         );
       }
-      if (size === null || size < 0) {
+      if (size === null || !Number.isFinite(size) || size < 0) {
         throw new Error(
           `${LIGHTER_DATA_INTEGRITY_PREFIX} position size '${row.position}' for ${symbol}`,
         );
@@ -14550,7 +14554,7 @@ export class LighterProvider implements PerpsProvider {
         return undefined;
       }
       return {
-        size: `${row.sign === -1 ? '-' : ''}${row.position}`,
+        size: new BigNumber(row.position).times(row.sign).toFixed(),
         entryPrice: row.avgEntryPrice,
       };
     } catch (error) {

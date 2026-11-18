@@ -581,6 +581,65 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe2();
     });
 
+    it('clears unavailable balances without reporting positions as flat', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      const orderFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          orderFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const account = vi.fn();
+      const positions = vi.fn();
+      const unsubscribeAccount = service.subscribeToAccount({
+        callback: account,
+      });
+      const unsubscribePositions = service.subscribeToPositions({
+        callback: positions,
+      });
+      const onAccount = await accountFrames.promise;
+      const onOrders = await orderFrames.promise;
+
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      expect(account).toHaveBeenCalledWith(
+        expect.objectContaining({ totalBalance: expect.any(String) }),
+      );
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '0.1' }),
+      ]);
+
+      onAccount({ dex: '', clearinghouseState: {} });
+      expect(account).toHaveBeenLastCalledWith(null);
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
+      onOrders({ dex: '', orders: [] });
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '0.1' }),
+      ]);
+
+      unsubscribePositions();
+      unsubscribeAccount();
+    });
+
     it('reports DEX coverage for positions only once that DEX has published', async () => {
       // closePosition treats a cache miss as "position closed" only for a
       // covered DEX, so coverage must be false until data arrives
