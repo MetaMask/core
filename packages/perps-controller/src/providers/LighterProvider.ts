@@ -10170,18 +10170,6 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   async getPositions(_params?: GetPositionsParams): Promise<Position[]> {
-    return this.#getPositions(false);
-  }
-
-  /**
-   * Keep raw signed decimals only for exact partial protection intent.
-   *
-   * @param preserveRawSize - Preserve venue size before adapter number conversion.
-   * @returns Validated positions.
-   */
-  readonly #getPositions = async (
-    preserveRawSize: boolean,
-  ): Promise<Position[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     // Risk metadata is required for every returned position. A transport
@@ -10206,18 +10194,12 @@ export class LighterProvider implements PerpsProvider {
       // sizes, and a prefix-parsing filter would silently drop (or keep)
       // malformed entries like '0oops' before validation could fire.
       return account.positions
-        .map((position) => {
-          const adapted = adaptPositionFromLighter(
+        .map((position) =>
+          adaptPositionFromLighter(
             position,
             this.#maxLeverageForPosition(position),
-          );
-          return preserveRawSize
-            ? {
-                ...adapted,
-                size: `${position.sign === -1 ? '-' : ''}${position.position}`,
-              }
-            : adapted;
-        })
+          ),
+        )
         .filter((position) => parseFloat(position.size) !== 0);
     } catch (caughtError) {
       if (
@@ -10241,7 +10223,7 @@ export class LighterProvider implements PerpsProvider {
       });
       throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, caughtError);
     }
-  };
+  }
 
   /**
    * Report the margin mode Lighter currently binds to a market. Only an
@@ -14524,12 +14506,14 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
-   * Read only the position identity and signed size needed to reduce exposure.
+   * Read the target position without adapting account-wide display data.
    *
-   * @param symbol - Market being closed.
-   * @returns Signed base size, or zero when the target position is absent.
+   * @param symbol - Market whose exposure is being reduced or protected.
+   * @returns Signed base size and entry price, or undefined for a flat market.
    */
-  async #readPositionSizeForClose(symbol: string): Promise<number> {
+  async #readPositionForReduction(
+    symbol: string,
+  ): Promise<{ size: string; entryPrice: string } | undefined> {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     try {
@@ -14543,7 +14527,7 @@ export class LighterProvider implements PerpsProvider {
       }
       const rows = positions.filter((position) => position.symbol === symbol);
       if (rows.length === 0) {
-        return 0;
+        return undefined;
       }
       const row = rows[0];
       const size = parseStrictDecimal(row.position);
@@ -14562,16 +14546,27 @@ export class LighterProvider implements PerpsProvider {
           `${LIGHTER_DATA_INTEGRITY_PREFIX} position sign '${String(row.sign)}' for ${symbol}`,
         );
       }
-      return size * row.sign;
+      if (size === 0) {
+        return undefined;
+      }
+      return {
+        size: `${row.sign === -1 ? '-' : ''}${row.position}`,
+        entryPrice: row.avgEntryPrice,
+      };
     } catch (error) {
       if (error instanceof LighterAccountNotFoundError) {
-        return 0;
+        return undefined;
       }
       if (this.#mustSurfaceReadError(error)) {
         throw error;
       }
       throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, error);
     }
+  }
+
+  async #readPositionSizeForClose(symbol: string): Promise<number> {
+    const position = await this.#readPositionForReduction(symbol);
+    return position ? Number(position.size) : 0;
   }
 
   /**
@@ -14821,10 +14816,7 @@ export class LighterProvider implements PerpsProvider {
       // fill landing DURING the read belongs to the operation's window
       // and must count as lifecycle evidence.
       const lifecycleBoundary = Date.now();
-      const positions = await this.#getPositions(partialRequested);
-      const position = positions.find(
-        (entry) => entry.symbol === params.symbol,
-      );
+      const position = await this.#readPositionForReduction(params.symbol);
       this.#assertSession(generationAtIntent);
       assertExpectedPosition(expectedPosition, position);
       if (partialRequested && position && expectedPosition === undefined) {

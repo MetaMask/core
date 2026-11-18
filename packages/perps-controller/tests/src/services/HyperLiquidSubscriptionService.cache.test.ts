@@ -29,6 +29,12 @@ import {
   createMockInfrastructure,
 } from '../../helpers/serviceMocks.js';
 
+const validPositionBalances = {
+  unrealizedPnl: '100',
+  marginUsed: '500',
+  returnOnEquity: '0.2',
+};
+
 // Mock HyperLiquid SDK types
 interface MockSubscription {
   unsubscribe: Mock;
@@ -230,7 +236,7 @@ describe('HyperLiquidSubscriptionService', () => {
                 clearinghouseState: {
                   assetPositions: [
                     {
-                      position: { szi: '0.1' },
+                      position: { ...validPositionBalances, szi: '0.1' },
                       coin: 'BTC',
                     },
                   ],
@@ -263,7 +269,7 @@ describe('HyperLiquidSubscriptionService', () => {
                 clearinghouseState: {
                   assetPositions: [
                     {
-                      position: { szi: '0.2' }, // Changed position size
+                      position: { ...validPositionBalances, szi: '0.2' }, // Changed position size
                       coin: 'BTC',
                     },
                   ],
@@ -297,7 +303,7 @@ describe('HyperLiquidSubscriptionService', () => {
             clearinghouseState: {
               assetPositions: [
                 {
-                  position: { szi: '0.1' },
+                  position: { ...validPositionBalances, szi: '0.1' },
                   coin: 'BTC',
                 },
               ],
@@ -387,7 +393,7 @@ describe('HyperLiquidSubscriptionService', () => {
             clearinghouseState: {
               assetPositions: [
                 {
-                  position: { szi: '0.1' },
+                  position: { ...validPositionBalances, szi: '0.1' },
                   coin: 'BTC',
                 },
               ],
@@ -695,11 +701,35 @@ describe('HyperLiquidSubscriptionService', () => {
       });
 
       orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
+      accountCallbacks.get('xyz')?.({
+        dex: 'xyz',
+        clearinghouseState: {
+          ...clearinghouseState,
+          marginSummary: { accountValue: 'bad', totalMarginUsed: '' },
+        },
+      });
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+
       accountCallbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
       await vi.runAllTimersAsync();
       expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
         'unavailableSubAccounts',
       );
+
+      vi.mocked(adaptAccountStateFromSDK).mockImplementationOnce(() => ({
+        spendableBalance: '1000.00',
+        withdrawableBalance: '1000.00',
+        marginUsed: '500.00',
+        unrealizedPnl: '100.00',
+        returnOnEquity: '40.0',
+        totalBalance: '10100.00',
+      }));
+      accountCallbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        returnOnEquity: '30',
+      });
 
       expect(hip3Service.getOrdersCacheIfInitialized(true)).toBeNull();
       orderCallbacks.get('')?.({ dex: '', orders: [] });
@@ -999,7 +1029,12 @@ describe('HyperLiquidSubscriptionService', () => {
       callbacks.get('flx')?.({
         dex: 'flx',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '1' }, coin: 'flx:ABC' }],
+          assetPositions: [
+            {
+              position: { ...validPositionBalances, szi: '1' },
+              coin: 'flx:ABC',
+            },
+          ],
           marginSummary: { accountValue: '100', totalMarginUsed: '10' },
           withdrawable: '90',
         },
@@ -1024,7 +1059,12 @@ describe('HyperLiquidSubscriptionService', () => {
       callbacks.get('flx')?.({
         dex: 'flx',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '2' }, coin: 'flx:ABC' }],
+          assetPositions: [
+            {
+              position: { ...validPositionBalances, szi: '2' },
+              coin: 'flx:ABC',
+            },
+          ],
           marginSummary: { accountValue: '100', totalMarginUsed: '10' },
           withdrawable: '90',
         },
@@ -1358,7 +1398,9 @@ describe('HyperLiquidSubscriptionService', () => {
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' }, coin: 'BTC' },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
@@ -1387,7 +1429,12 @@ describe('HyperLiquidSubscriptionService', () => {
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.04' }, coin: 'BTC' }],
+          assetPositions: [
+            {
+              position: { ...validPositionBalances, szi: '0.04' },
+              coin: 'BTC',
+            },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '200' },
           withdrawable: '9800',
         },
@@ -1419,7 +1466,9 @@ describe('HyperLiquidSubscriptionService', () => {
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' }, coin: 'BTC' },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
@@ -1439,7 +1488,9 @@ describe('HyperLiquidSubscriptionService', () => {
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' }, coin: 'BTC' },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
@@ -1495,7 +1546,12 @@ describe('HyperLiquidSubscriptionService', () => {
             callback({
               dex: '',
               clearinghouseState: {
-                assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+                assetPositions: [
+                  {
+                    position: { ...validPositionBalances, szi: '0.1' },
+                    coin: 'BTC',
+                  },
+                ],
                 marginSummary: {
                   accountValue: '10000',
                   totalMarginUsed: '500',
@@ -1575,7 +1631,9 @@ describe('HyperLiquidSubscriptionService', () => {
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' } }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.1' } },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
           withdrawable: '9500',
         },
@@ -1586,7 +1644,9 @@ describe('HyperLiquidSubscriptionService', () => {
       publish?.({
         dex: '',
         clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.04' } }],
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.04' } },
+          ],
           marginSummary: { accountValue: '10000', totalMarginUsed: '200' },
           withdrawable: '9800',
         },

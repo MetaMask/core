@@ -87,6 +87,7 @@ import {
   hashTriggerOrders,
   resolvePositionTriggerSummaryPrice,
 } from '../utils/orderTypes.js';
+import { parseFiniteDecimal } from '../utils/stringParseUtils.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
 
@@ -113,9 +114,6 @@ type SubscriptionWallet = Pick<
  * different things and should be tunable apart.
  */
 const MAX_RETAINED_TWAP_ORDERS = 100;
-
-const DEX_DISCOVERY_INITIAL_WAIT_MS = 5000;
-const DEX_DISCOVERY_RETRY_DELAY_MS = 5000;
 
 /**
  * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
@@ -177,6 +175,10 @@ export class HyperLiquidSubscriptionService {
   // failures do not remove entries, so a DEX that never published is reported
   // as unavailable instead of silently left out of the totals.
   #accountSnapshotDexs: Set<string> = new Set();
+
+  // Identity of each DEX's currently configured membership. Removing and
+  // re-adding a DEX must not reopen its already-retired callbacks.
+  readonly #userDataDexBindings = new Map<string, object>();
 
   #initializedDexs: Set<string> = new Set();
 
@@ -830,7 +832,7 @@ export class HyperLiquidSubscriptionService {
           'DEX discovery wait timed out, proceeding with main DEX only',
         );
         resolve();
-      }, DEX_DISCOVERY_INITIAL_WAIT_MS);
+      }, HYPERLIQUID_CONFIG.DexDiscoveryInitialWaitMs);
     });
 
     try {
@@ -881,7 +883,7 @@ export class HyperLiquidSubscriptionService {
           this.#dexDiscoveryRetryTimer = setTimeout(() => {
             this.#dexDiscoveryRetryTimer = undefined;
             this.#discoverDexsForSubscription();
-          }, DEX_DISCOVERY_RETRY_DELAY_MS);
+          }, HYPERLIQUID_CONFIG.DexDiscoveryRetryDelayMs);
         }
       });
   }
@@ -940,11 +942,10 @@ export class HyperLiquidSubscriptionService {
     // learn that before the async subscription work below.
     if (this.#accountSnapshotDexs.size > 0) {
       const previousDexs = this.#accountSnapshotDexs;
-      this.#accountSnapshotDexs = new Set(
-        hip3Enabled ? ['', ...enabledDexs] : [''],
-      );
+      this.#setAccountSnapshotDexs(hip3Enabled ? ['', ...enabledDexs] : ['']);
       for (const dex of previousDexs) {
         if (!this.#accountSnapshotDexs.has(dex)) {
+          this.#userDataDexBindings.delete(dex);
           this.#dexAccountCache.delete(dex);
           this.#dexPositionsCache.delete(dex);
           this.#dexOrdersCache.delete(dex);
@@ -952,14 +953,16 @@ export class HyperLiquidSubscriptionService {
           this.#dexOrdersEpoch.delete(dex);
           this.#expectedDexs.delete(dex);
           this.#initializedDexs.delete(dex);
-          for (const subscriptions of [
+          this.#retireDexSubscription(
+            dex,
             this.#clearinghouseStateSubscriptions,
+            this.#pendingClearinghouseSubscriptions,
+          );
+          this.#retireDexSubscription(
+            dex,
             this.#openOrdersSubscriptions,
-          ]) {
-            const subscription = subscriptions.get(dex);
-            subscriptions.delete(dex);
-            subscription?.unsubscribe().catch(() => undefined);
-          }
+            this.#pendingOpenOrdersSubscriptions,
+          );
         }
       }
       this.#aggregateAndNotifySubscribers();
@@ -1124,7 +1127,7 @@ export class HyperLiquidSubscriptionService {
     // JSON keeps the main DEX ('') distinct from a complete account.
     const unavailable = JSON.stringify(account.unavailableSubAccounts ?? null);
     const breakdown = JSON.stringify(account.subAccountBreakdown ?? null);
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}:${unavailable}:${breakdown}`;
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${account.returnOnEquity}:${spotCollateral}:${summaryHash}:${unavailable}:${breakdown}`;
   }
 
   // Cache hashes to avoid recomputation
@@ -1481,6 +1484,47 @@ export class HyperLiquidSubscriptionService {
     });
   }
 
+  #cacheDexAccount(
+    dex: string,
+    state: ClearinghouseStateWsEvent['clearinghouseState'],
+  ): void {
+    try {
+      const balanceValues = [
+        state.marginSummary?.accountValue,
+        state.marginSummary?.totalMarginUsed,
+        state.withdrawable,
+      ];
+      const invalidSummary = balanceValues.some(
+        (value) => parseFiniteDecimal(value) === null,
+      );
+      const invalidPosition = state.assetPositions.some(({ position }) =>
+        [
+          position.unrealizedPnl,
+          position.marginUsed,
+          position.returnOnEquity,
+        ].some((value) => parseFiniteDecimal(value) === null),
+      );
+      if (invalidSummary || invalidPosition) {
+        throw new Error('Invalid Hyperliquid account balance');
+      }
+      const account = adaptAccountStateFromSDK(state);
+      if (
+        ![account.unrealizedPnl, account.returnOnEquity].every((value) =>
+          Number.isFinite(Number(value)),
+        )
+      ) {
+        throw new Error('Invalid Hyperliquid account calculation');
+      }
+      this.#dexAccountCache.set(dex, account);
+    } catch (error) {
+      this.#dexAccountCache.delete(dex);
+      this.#deps.debugLogger.log(
+        'Ignoring malformed clearinghouse account state',
+        { dex, error },
+      );
+    }
+  }
+
   /**
    * Aggregate account states from all cached DEXs
    * Sums balances and creates per-DEX breakdown for multi-DEX portfolio view
@@ -1542,7 +1586,8 @@ export class HyperLiquidSubscriptionService {
     // Configured DEXs whose account state has not arrived (late, or the
     // subscription failed): the totals exclude them, so say which.
     const unavailableSubAccounts = Array.from(this.#accountSnapshotDexs).filter(
-      (dex) => !this.#isPositionDexFresh(dex),
+      (dex) =>
+        !this.#dexAccountCache.has(dex) || !this.#isPositionDexFresh(dex),
     );
 
     return addSpotBalanceToAccountState(
@@ -2160,6 +2205,36 @@ export class HyperLiquidSubscriptionService {
     // Note: webData3 includes all DEX data, so no separate HIP-3 subscriptions needed
   }
 
+  #retireDexSubscription(
+    dex: string,
+    subscriptions: Map<string, ISubscription>,
+    pending: Map<string, Promise<void>>,
+  ): void {
+    const subscription = subscriptions.get(dex);
+    if (!subscription) {
+      return;
+    }
+    subscriptions.delete(dex);
+    const closing = subscription
+      .unsubscribe()
+      .catch(() => undefined)
+      .finally(() => {
+        if (pending.get(dex) === closing) {
+          pending.delete(dex);
+        }
+      });
+    pending.set(dex, closing);
+  }
+
+  #setAccountSnapshotDexs(dexs: string[]): void {
+    this.#accountSnapshotDexs = new Set(dexs);
+    for (const dex of this.#accountSnapshotDexs) {
+      if (!this.#userDataDexBindings.has(dex)) {
+        this.#userDataDexBindings.set(dex, {});
+      }
+    }
+  }
+
   #isCurrentUserDataStream(
     binding: UserDataBinding,
     client: ReturnType<HyperLiquidClientService['getSubscriptionClient']>,
@@ -2253,7 +2328,7 @@ export class HyperLiquidSubscriptionService {
       // Track expected DEXs for synchronized notifications
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
-      this.#accountSnapshotDexs = new Set(dexsToSubscribe);
+      this.#setAccountSnapshotDexs(dexsToSubscribe);
       this.#positionSnapshotDexs = this.#dexDiscoveryComplete
         ? new Set(dexsToSubscribe)
         : new Set();
@@ -2476,7 +2551,8 @@ export class HyperLiquidSubscriptionService {
     dexName: string,
   ): Promise<void> {
     const binding = this.#userDataBinding;
-    if (binding?.address !== userAddress) {
+    const dexBinding = this.#userDataDexBindings.get(dexName);
+    if (binding?.address !== userAddress || !dexBinding) {
       return;
     }
     await this.#clientService.ensureSubscriptionClient(
@@ -2489,7 +2565,7 @@ export class HyperLiquidSubscriptionService {
 
     if (
       !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
-      !this.#accountSnapshotDexs.has(dexName)
+      this.#userDataDexBindings.get(dexName) !== dexBinding
     ) {
       return;
     }
@@ -2513,7 +2589,18 @@ export class HyperLiquidSubscriptionService {
           }
 
           const cacheKey = data.dex || '';
-          if (!this.#accountSnapshotDexs.has(cacheKey)) {
+          if (
+            cacheKey !== dexName ||
+            this.#userDataDexBindings.get(dexName) !== dexBinding
+          ) {
+            return;
+          }
+
+          if (!Array.isArray(data.clearinghouseState?.assetPositions)) {
+            this.#dexAccountCache.delete(cacheKey);
+            this.#dexPositionsCache.delete(cacheKey);
+            this.#dexPositionsEpoch.delete(cacheKey);
+            this.#notifyAccountSubscribers();
             return;
           }
 
@@ -2555,10 +2642,7 @@ export class HyperLiquidSubscriptionService {
           }
 
           this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
-          this.#dexAccountCache.set(
-            cacheKey,
-            adaptAccountStateFromSDK(data.clearinghouseState),
-          );
+          this.#cacheDexAccount(cacheKey, data.clearinghouseState);
 
           // Mark this DEX as initialized (has sent first data)
           this.#initializedDexs.add(cacheKey);
@@ -2588,7 +2672,7 @@ export class HyperLiquidSubscriptionService {
 
       if (
         !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
-        !this.#accountSnapshotDexs.has(dexName)
+        this.#userDataDexBindings.get(dexName) !== dexBinding
       ) {
         await subscription.unsubscribe().catch(() => undefined);
         return;
@@ -2598,7 +2682,10 @@ export class HyperLiquidSubscriptionService {
         `clearinghouseState subscription established for DEX: ${dexName || 'main'}`,
       );
     } catch (error) {
-      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+      if (
+        !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
+        this.#userDataDexBindings.get(dexName) !== dexBinding
+      ) {
         return;
       }
       // Remove this DEX from expected set so it doesn't block notifications for other DEXs
@@ -2683,7 +2770,8 @@ export class HyperLiquidSubscriptionService {
     dexName: string,
   ): Promise<void> {
     const binding = this.#userDataBinding;
-    if (binding?.address !== userAddress) {
+    const dexBinding = this.#userDataDexBindings.get(dexName);
+    if (binding?.address !== userAddress || !dexBinding) {
       return;
     }
     await this.#clientService.ensureSubscriptionClient(
@@ -2696,7 +2784,7 @@ export class HyperLiquidSubscriptionService {
 
     if (
       !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
-      !this.#accountSnapshotDexs.has(dexName)
+      this.#userDataDexBindings.get(dexName) !== dexBinding
     ) {
       return;
     }
@@ -2713,7 +2801,10 @@ export class HyperLiquidSubscriptionService {
           }
 
           const cacheKey = data.dex || '';
-          if (!this.#accountSnapshotDexs.has(cacheKey)) {
+          if (
+            cacheKey !== dexName ||
+            this.#userDataDexBindings.get(dexName) !== dexBinding
+          ) {
             return;
           }
 
@@ -2762,7 +2853,7 @@ export class HyperLiquidSubscriptionService {
 
       if (
         !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
-        !this.#accountSnapshotDexs.has(dexName)
+        this.#userDataDexBindings.get(dexName) !== dexBinding
       ) {
         await subscription.unsubscribe().catch(() => undefined);
         return;
@@ -2772,7 +2863,10 @@ export class HyperLiquidSubscriptionService {
         `openOrders subscription established for DEX: ${dexName || 'main'}`,
       );
     } catch (error) {
-      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+      if (
+        !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
+        this.#userDataDexBindings.get(dexName) !== dexBinding
+      ) {
         return;
       }
       // Remove this DEX from expected set so it doesn't block notifications for other DEXs
@@ -2990,6 +3084,7 @@ export class HyperLiquidSubscriptionService {
       this.#expectedDexs.clear();
       this.#positionSnapshotDexs.clear();
       this.#accountSnapshotDexs.clear();
+      this.#userDataDexBindings.clear();
       this.#initializedDexs.clear();
       this.#dexPositionsEpoch.clear();
 

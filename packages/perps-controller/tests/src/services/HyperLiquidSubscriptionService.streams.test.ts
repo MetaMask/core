@@ -2450,6 +2450,9 @@ describe('HyperLiquidSubscriptionService', () => {
                     position: {
                       coin: 'BTC',
                       szi: '1.5',
+                      unrealizedPnl: '100',
+                      marginUsed: '7500',
+                      returnOnEquity: '0.0133333333',
                     },
                   },
                 ],

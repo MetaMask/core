@@ -1422,6 +1422,36 @@ describe('LighterProvider', () => {
         expect(venue.rawTriggers[0].triggerPrice).toBe('110000');
       },
     );
+    it('updates protection without adapting an unrelated market’s margin', async () => {
+      const { provider, clientInstance, bridge } = buildProvider();
+      setupTriggerVenue(clientInstance, bridge);
+      const btc = ACCOUNT.positions[0];
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              btc,
+              {
+                ...btc,
+                symbol: 'ETH',
+                marketId: btc.marketId + 1,
+                initialMarginFraction: 'unavailable',
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '110000',
+        }),
+      ).toMatchObject({ success: true });
+    });
+
     it("a malformed venue position size ('0.1oops') fails closed with an explicit error and zero signer mutation", async () => {
       const { provider, calls, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue({
