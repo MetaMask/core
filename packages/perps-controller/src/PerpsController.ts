@@ -1538,9 +1538,15 @@ export class PerpsController extends BaseController<
     // must learn the new trading address after every account switch, and the
     // preload-scoped account handler is torn down on disconnect, so it cannot
     // carry this.
-    let selectedTradingAddress = getSelectedEvmAccountFromMessenger(
-      this.messenger,
-    )?.address.toLowerCase();
+    // A restored balance does not record which wallet it belongs to.
+    const hasRestoredBalances =
+      this.state.accountState !== null ||
+      Object.keys(this.state.perpsBalances).length > 0;
+    let selectedTradingAddress = hasRestoredBalances
+      ? undefined
+      : getSelectedEvmAccountFromMessenger(
+          this.messenger,
+        )?.address.toLowerCase();
     const forgetRegisteredTradingAddresses = (): void => {
       this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
