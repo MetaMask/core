@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
+
+### Removed
+
+- **BREAKING:** Remove the unused `PERPS_EVENT_PROPERTY.AB_TEST_BUTTON_COLOR` property, the `PERPS_EVENT_VALUE.AB_TEST` values, the `perps.screen.*` and `perps.ui.*` members of `PerpsMeasurementName`, and the `PerpsTraceOperations.MarketData` operation. No Core code imports them, and no checked-in Mobile or Extension source imports them ([#11604](https://github.com/MetaMask/core/pull/11604))
+
+## [24.1.0]
+
 ### Added
 
+- Add `AccountState.spotCollateral`, the spot USDC that counts as cross collateral, so clients can pass it to `calculateAccountSummary` instead of assuming spot collateral is `0` ([#11457](https://github.com/MetaMask/core/pull/11457))
+  - The value is a canonical USDC decimal string. It is absent while the spot state or the Hyperliquid abstraction mode is still unknown, and `calculateAccountSummary` then leaves `accountRatio` and `crossMarginUsage` undefined
+  - Hyperliquid Standard (`disabled` and `default`) reports `'0'`: spot is a separate ledger and is not collateral
+  - Hyperliquid Unified and portfolio margin report free spot USDC, `max(0, spot.total - spot.hold)`, counting USDC only. A USDC balance with a missing or non-finite `total` or `hold`, or a response whose `balances` is not a list, leaves the field absent instead of counting the bad amount as `0`. A response that lists no USDC balance is a genuine `'0'`
+  - The live account stream republishes when a previously unknown abstraction mode resolves to Standard (`disabled` or `default`). Unknown and Standard both keep spot out of spendable balance, so the stream compares the published `spotCollateral` and pushes `'0'` without waiting for the next balance tick
+  - A known Lighter account reports `'0'`. That venue has no separate spot ledger; its collateral is already in the account value. A failed Lighter read still omits the field
+- Add `getCrossMarginSpotCollateral(spotState, abstractionMode)`, the same free-spot USDC calculation published as `AccountState.spotCollateral` ([#11457](https://github.com/MetaMask/core/pull/11457))
+  - Returns `undefined` while the spot state or the abstraction mode is unknown, `'0'` for Standard (`disabled` and `default`), and free spot USDC for Unified and portfolio margin
+- Export the `HyperLiquidAbstractionMode` type (`unifiedAccount`, `portfolioMargin`, `disabled`, `default`), the mode argument of `getCrossMarginSpotCollateral` ([#11457](https://github.com/MetaMask/core/pull/11457))
 - Add `PerpsController.getProviderHealth(providerId)` and `PerpsController.subscribeToProviderHealth({ providerId, callback })` (messenger actions `PerpsController:getProviderHealth` and `PerpsController:subscribeToProviderHealth`) to report each provider's health separately, including in aggregated mode ([#11502](https://github.com/MetaMask/core/pull/11502))
   - New types `PerpsProviderHealth`, `PerpsProviderHealthReason` and `SubscribeProviderHealthParams`, and messenger action types `PerpsControllerGetProviderHealthAction` and `PerpsControllerSubscribeToProviderHealthAction`
   - Status is `healthy`, `degraded` (with `reasons`: `socket_down`, `server_errors`, `rate_limited`) or `unavailable` when the provider is not registered, or is disconnected with no reconnect pending. It describes the provider, not its socket: Lighter still reports `healthy` after closing its socket because nothing listens
@@ -35,10 +54,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalPriceMoveBuffer` (0.01), the default headroom
   - Types `MaxRemovableMarginParams` and `LiquidationPriceAfterMarginChangeParams`
 - Add `calculateExpectedTriggerPnl({ triggerPrice, entryPrice, size, closingFee })`, the expected PnL when a take profit or stop loss closes a position, net of the closing fee, as Mobile's TP/SL form shows it: `calculateExpectedTriggerPnl({ triggerPrice: 110, entryPrice: 100, size: 2, closingFee: 0.1 })` returns `19.9`. Type `ExpectedTriggerPnlParams` ([#11529](https://github.com/MetaMask/core/pull/11529))
+- Add `formatCrossMarginRatio` so Mobile and Extension can render a 0..1 cross margin ratio as an unsigned percentage with at most one decimal ([#11456](https://github.com/MetaMask/core/pull/11456))
+  - `formatCrossMarginRatio(0.174)` returns `17.4%`, `formatCrossMarginRatio(0.63)` returns `63%` and `formatCrossMarginRatio(0)` returns `0%`. A negative ratio keeps its minus: `formatCrossMarginRatio(-0.174)` returns `-17.4%`. A missing ratio returns `--%`
+  - Pass `createFormatters({ locale })` as `formatters` and the locale's percent style renders the value, so separators, rounding and the `%` placement follow the locale: `formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) })` returns `17,4 %` (no-break space) and Turkish returns `%17,4`. The ratio is passed to the formatter as is, so decimal ties round as `Intl` percent formatting does (`0.0255` returns `2.6%`, `-0.0255` returns `-2.6%`). A ratio that rounds to zero is `0%`, never `-0%`. The minus sign is the shared `-`, the same prefix as the other display formatters
+  - This is the percent-style formatter. `formatPercentage`, `formatFundingRate` and `formatLiquidationDistance` still append a bare `%` after a fixed-decimal number, so in `de` this returns `17,4 %` while `formatPercentage(17.4, { decimals: 1, sign: 'never' })` returns `17,4%`. A follow-up should move those three onto the same percent style
+  - `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent` is 1, the most decimals shown
 
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/subscription-controller` from `^15.2.1` to `^15.2.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
 - Lighter releases a stream channel 5 seconds after its last listener leaves: it sends `unsubscribe`, drops the channel from the reconnect set and drops its cached order book, candle series or price snapshot ([#11502](https://github.com/MetaMask/core/pull/11502))
   - Applies to `order_book`, `candle`, `trade` and `market_stats` channels; account channels are released as a group once no account, position, order or fill listener is left
   - A listener that returns within the wait keeps the channel without new frames
@@ -1565,7 +1594,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.1.0...HEAD
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@24.0.0...@metamask/perps-controller@24.1.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.1.0...@metamask/perps-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.0.0...@metamask/perps-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.3.0...@metamask/perps-controller@23.0.0

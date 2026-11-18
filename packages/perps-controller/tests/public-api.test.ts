@@ -21,7 +21,11 @@ import {
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
   PERPS_ERROR_CODES,
+  PERPS_EVENT_PROPERTY,
+  PERPS_EVENT_VALUE,
   PerpsController,
+  PerpsMeasurementName,
+  PerpsTraceOperations,
   TP_SL_PRECISION_CONFIG,
   calculateAccountSummary,
   calculateNetClosedPnl,
@@ -34,6 +38,7 @@ import {
   estimateIsolatedLeverageChange,
   formatRoePercent,
   getCrossCollateral,
+  getCrossMarginSpotCollateral,
   getMaxStopLossPercentage,
   isPositiveTriggerPrice,
   isStopLossSafeFromLiquidation,
@@ -344,6 +349,30 @@ describe('@metamask/perps-controller public API', () => {
     expect(summary.accountLeverage).toBeCloseTo(12.31 / 15.57);
   });
 
+  it('exports the spot USDC that counts as cross collateral', () => {
+    const spot = {
+      balances: [
+        { coin: 'USDC', token: 0, total: '900', hold: '0', entryNtl: '900' },
+      ],
+    };
+    const spotCollateral = getCrossMarginSpotCollateral(spot, 'unifiedAccount');
+    const summary: PerpsAccountSummary = calculateAccountSummary({
+      totalEquity: '1000',
+      crossMarginSummary: {
+        accountValue: '100',
+        maintenanceMargin: '60',
+        notional: '0',
+        marginUsed: '60',
+      },
+      spotCollateral,
+    });
+
+    expect(spotCollateral).toBe('900');
+    expect(getCrossMarginSpotCollateral(spot, 'disabled')).toBe('0');
+    expect(getCrossMarginSpotCollateral(spot, null)).toBeUndefined();
+    expect(summary.accountRatio).toBeCloseTo(0.06);
+  });
+
   it('exports the shared close-receive estimate and net closed PnL', () => {
     const closeParams: CloseReceiveEstimateParams = {
       position: {
@@ -414,5 +443,22 @@ describe('@metamask/perps-controller public API', () => {
       await rewardsWithGrant.getPerpsTradingFeeGrant?.(scope),
     ).toStrictEqual(grant);
     expect(legacyRewards.getPerpsTradingFeeGrant).toBeUndefined();
+  });
+
+  it('keeps the unused A/B button-colour constants removed', () => {
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('AB_TEST_BUTTON_COLOR');
+    expect(PERPS_EVENT_VALUE).not.toHaveProperty('AB_TEST');
+  });
+
+  it('keeps the unused screen and UI measurement names removed', () => {
+    expect(PerpsMeasurementName).not.toHaveProperty('PerpsTabLoaded');
+    expect(PerpsMeasurementName).not.toHaveProperty('PerpsAssetScreenLoaded');
+    expect(PerpsMeasurementName).not.toHaveProperty(
+      'PerpsLeverageBottomSheetLoaded',
+    );
+  });
+
+  it('keeps the unused MarketData trace operation removed', () => {
+    expect(PerpsTraceOperations).not.toHaveProperty('MarketData');
   });
 });

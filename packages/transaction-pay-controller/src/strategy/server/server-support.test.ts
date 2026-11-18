@@ -2,23 +2,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import { describe, expect, it } from 'vitest';
 
-import type { QuoteRequest } from '../../types.js';
 import {
   DEFAULT_SERVER_ENABLED_TRANSACTION_TYPES,
   getServerUnsupportedReason,
   ServerUnsupportedReason,
 } from './server-support.js';
-
-const REQUEST_MOCK: QuoteRequest = {
-  from: '0x1234567890123456789012345678901234567890',
-  sourceBalanceRaw: '1000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0x0000000000000000000000000000000000000001',
-  sourceTokenAmount: '1000',
-  targetAmountMinimum: '900',
-  targetChainId: '0xa4b1',
-  targetTokenAddress: '0x0000000000000000000000000000000000000002',
-};
 
 const TRANSACTION_MOCK = {
   type: TransactionType.perpsDeposit,
@@ -29,22 +17,18 @@ const TRANSACTION_MOCK = {
  *
  * @param overrides - Values to override on the default arguments.
  * @param overrides.enabledTransactionTypes - Allowlisted transaction types.
- * @param overrides.requests - Quote requests.
  * @param overrides.transaction - Parent transaction.
  * @returns The unsupported reason, if any.
  */
 function getReason({
   enabledTransactionTypes = [TransactionType.perpsDeposit],
-  requests = [REQUEST_MOCK],
   transaction = TRANSACTION_MOCK,
 }: {
   enabledTransactionTypes?: TransactionType[];
-  requests?: QuoteRequest[];
   transaction?: TransactionMeta;
 } = {}): ServerUnsupportedReason | undefined {
   return getServerUnsupportedReason({
     enabledTransactionTypes,
-    requests,
     transaction,
   });
 }
@@ -57,12 +41,8 @@ describe('server-support', () => {
   });
 
   describe('getServerUnsupportedReason', () => {
-    it('returns undefined when the flow is allowlisted and uses no unsupported capability', () => {
+    it('returns undefined when the flow is allowlisted', () => {
       expect(getReason()).toBeUndefined();
-    });
-
-    it('returns undefined when there are no requests', () => {
-      expect(getReason({ requests: [] })).toBeUndefined();
     });
 
     it('supports a flow only once it is added to the allowlist', () => {
@@ -114,67 +94,5 @@ describe('server-support', () => {
         ).toBeUndefined();
       },
     );
-
-    it.each([
-      [
-        'isDirectMusdMoneyAccount',
-        { isDirectMusdMoneyAccount: true },
-        ServerUnsupportedReason.DirectMusdMoneyAccount,
-      ],
-    ] as const)(
-      'returns %s reason for an unsupported capability',
-      (_name, overrides, expected) => {
-        expect(
-          getReason({ requests: [{ ...REQUEST_MOCK, ...overrides }] }),
-        ).toBe(expected);
-      },
-    );
-
-    it('returns a reason when any request is unsupported', () => {
-      expect(
-        getReason({
-          requests: [
-            REQUEST_MOCK,
-            { ...REQUEST_MOCK, isDirectMusdMoneyAccount: true },
-          ],
-        }),
-      ).toBe(ServerUnsupportedReason.DirectMusdMoneyAccount);
-    });
-
-    it('supports max amount requests', () => {
-      expect(
-        getReason({ requests: [{ ...REQUEST_MOCK, isMaxAmount: true }] }),
-      ).toBeUndefined();
-    });
-
-    it('supports non-atomic requests', () => {
-      expect(
-        getReason({ requests: [{ ...REQUEST_MOCK, atomic: false }] }),
-      ).toBeUndefined();
-    });
-
-    it('supports Polymarket deposit wallet requests', () => {
-      expect(
-        getReason({
-          requests: [{ ...REQUEST_MOCK, isPolymarketDepositWallet: true }],
-        }),
-      ).toBeUndefined();
-    });
-
-    it('ignores capability flags that are explicitly false or undefined', () => {
-      expect(
-        getReason({
-          requests: [
-            {
-              ...REQUEST_MOCK,
-              atomic: true,
-              isDirectMusdMoneyAccount: false,
-              isMaxAmount: false,
-              isPolymarketDepositWallet: false,
-            },
-          ],
-        }),
-      ).toBeUndefined();
-    });
   });
 });

@@ -971,7 +971,7 @@ export type CrossMarginSummary = {
 export type AccountState = {
   /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
-   * HL: crossMarginSummary.accountValue + spot(USDC) − spot.hold
+   * HL: marginSummary.accountValue + spot(USDC) − spot.hold
    */
   totalBalance: string;
   /**
@@ -999,6 +999,21 @@ export type AccountState = {
    * one for this read.
    */
   crossMarginSummary?: CrossMarginSummary;
+  /**
+   * Spot USDC this venue counts as cross collateral, as a decimal string.
+   * Pass it to `calculateAccountSummary` as `spotCollateral`.
+   *
+   * Absent while the spot state or the abstraction mode is still unknown.
+   * `calculateAccountSummary` then leaves `accountRatio` and
+   * `crossMarginUsage` undefined.
+   *
+   * `'0'` when spot is not collateral: Hyperliquid Standard (`disabled` /
+   * `default`), and venues with no separate spot ledger (Lighter).
+   *
+   * Free spot USDC (`max(0, total − hold)`, USDC only) for Hyperliquid
+   * Unified and portfolio margin.
+   */
+  spotCollateral?: string;
   /**
    * Per-sub-account balance breakdown (protocol-specific, optional)
    * Maps sub-account identifier to its balance details.
@@ -3389,7 +3404,6 @@ export const PerpsTraceOperations = {
   Operation: 'perps.operation',
   OrderSubmission: 'perps.order_submission',
   PositionManagement: 'perps.position_management',
-  MarketData: 'perps.market_data',
 } as const;
 
 /**
@@ -3998,6 +4012,7 @@ export type * from './perps-types.js';
 export * from './transactionTypes.js';
 // hyperliquid-types: selective export to avoid OrderType clash with main types
 export type {
+  HyperLiquidAbstractionMode,
   AssetPosition,
   SpotBalance,
   PerpsUniverse,

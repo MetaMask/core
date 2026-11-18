@@ -9,8 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove `getAssetsState` from `AccountsApiDataSourceOptions`. Include and exclude asset IDs come from `getAssetVisibility`.
+- **BREAKING:** Balance data sources always use the Accounts API v6 path. `isBalanceV6Enabled` is no longer accepted. Fetches use the v6 balances endpoint and `full` snapshots, and the stale-asset RPC supplement is removed. The `assetsAccountsApiV6` remote feature flag is no longer read ([#11564](https://github.com/MetaMask/core/pull/11564))
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware` and `includeCustomAssetGraduation`. A reported balance no longer removes a pin from `customAssets` ([#11564](https://github.com/MetaMask/core/pull/11564))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the EVM RPC Multicall3 address map, as the network is being terminated ([#11598](https://github.com/MetaMask/core/pull/11598))
 
 ## [20.4.1]
 

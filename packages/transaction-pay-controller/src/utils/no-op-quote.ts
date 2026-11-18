@@ -3,10 +3,11 @@ import type { Hex, Json } from '@metamask/utils';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
   Amount,
+  EvmPaymentToken,
   FiatValue,
-  TransactionPaymentToken,
   TransactionPayQuote,
 } from '../types.js';
+import { getCaipAccountId } from './account.js';
 
 function zeroFiat(): FiatValue {
   return { fiat: '0', usd: '0' };
@@ -27,12 +28,12 @@ function zeroAmount(): Amount {
  * ignored by fee totals and quote refreshes.
  *
  * @param from - Resolved wallet address for the transaction.
- * @param paymentToken - Selected payment token.
+ * @param paymentToken - Selected EVM payment token.
  * @returns The no-op quote.
  */
 export function buildNoOpQuote(
   from: Hex,
-  paymentToken: TransactionPaymentToken,
+  paymentToken: EvmPaymentToken,
 ): TransactionPayQuote<Json> {
   return {
     dust: zeroFiat(),
@@ -50,9 +51,9 @@ export function buildNoOpQuote(
     original: null,
     request: {
       from,
+      sourceAccountId: getCaipAccountId(paymentToken.assetId, from),
+      sourceAssetId: paymentToken.assetId,
       sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceChainId: paymentToken.chainId,
-      sourceTokenAddress: paymentToken.address,
       sourceTokenAmount: '0',
       targetAmountMinimum: '0',
       targetChainId: paymentToken.chainId,

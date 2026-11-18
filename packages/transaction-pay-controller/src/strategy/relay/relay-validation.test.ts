@@ -119,8 +119,8 @@ function buildQuote(
     } as unknown as RelayQuote,
     request: {
       from: FROM_MOCK,
-      sourceChainId: CHAIN_ID_MOCK,
-      sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+      sourceAccountId: `eip155:1:${FROM_MOCK}`,
+      sourceAssetId: `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`,
       sourceBalanceRaw: '1000',
       sourceTokenAmount: '100',
       targetAmountMinimum: '100',
@@ -193,10 +193,67 @@ describe('validateRelayQuotes', () => {
     });
   });
 
-  it('skips validation when the Money Account payer is an MPC keyring', async () => {
+  it('skips validation when a Money Account payment is signed by an MPC keyring', async () => {
     keyringStateMock.mockReturnValue({
       isUnlocked: true,
       keyrings: [
+        {
+          type: 'MPC Money Keyring',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+        },
+      ],
+    });
+
+    const quote = buildQuote({
+      paymentOverride: PaymentOverride.MoneyAccount,
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('validates a Money Account quote when the signing keyring does not require MFA', async () => {
+    keyringStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'Money Keyring',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'money-keyring', name: 'Money Keyring' },
+        },
+      ],
+    });
+
+    const quote = buildQuote({
+      paymentOverride: PaymentOverride.MoneyAccount,
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelaySubmitCallsMock).toHaveBeenCalledTimes(1);
+    expect(validateQuoteExecutionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips validation when a Money Account payment is signed by an MPC keyring on refundTo', async () => {
+    keyringStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
         {
           type: 'MPC Money Keyring',
           accounts: [REFUND_TO_MOCK],
@@ -218,33 +275,6 @@ describe('validateRelayQuotes', () => {
 
     expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
     expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
-  });
-
-  it('validates a Money Account quote when the payer keyring does not require MFA', async () => {
-    keyringStateMock.mockReturnValue({
-      isUnlocked: true,
-      keyrings: [
-        {
-          type: 'Money Keyring',
-          accounts: [REFUND_TO_MOCK],
-          metadata: { id: 'money-keyring', name: 'Money Keyring' },
-        },
-      ],
-    });
-
-    const quote = buildQuote({
-      paymentOverride: PaymentOverride.MoneyAccount,
-      refundTo: REFUND_TO_MOCK,
-    });
-
-    await validateRelayQuotes({
-      messenger,
-      quotes: [quote],
-      transaction: TRANSACTION_MOCK,
-    });
-
-    expect(getRelaySubmitCallsMock).toHaveBeenCalledTimes(1);
-    expect(validateQuoteExecutionMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips validation for Hyperliquid source quotes', async () => {

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `RampsService.getBuyWidgetUrl` now rejects a buy URL whose origin does not match the ramps API origin for the configured environment, before common params are added and before a bearer token is requested. This stops a malicious or compromised quotes response from sending the user's token to an arbitrary host. `baseUrlOverride` does not relax the check. ([#11551](https://github.com/MetaMask/core/pull/11551))
 - Order history now matches orders that store a `/providers/<id>` provider id or a text `createdAt`, and leaves out sell orders, in `setSelectedProviderForAsset` and in provider resolution for `getQuotes` and `getPaymentMethodsForContext` ([#11616](https://github.com/MetaMask/core/pull/11616))
 
 ## [30.0.0]
