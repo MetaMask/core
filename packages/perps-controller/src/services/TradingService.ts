@@ -15,6 +15,7 @@ import {
   PerpsControllerError,
 } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../providers/AggregatedPerpsProvider.js';
 import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import {
   PerpsAnalyticsEvent,
@@ -1441,7 +1442,12 @@ export class TradingService {
     );
 
     try {
-      const positions = await provider.getPositions();
+      const positions =
+        provider instanceof AggregatedPerpsProvider
+          ? await provider.getPositionsForBatchClose(
+              new Set(venues.filter(isPerpsProviderType)),
+            )
+          : await provider.getPositions();
       // A direct provider's positions are untagged and all its own; an
       // aggregator tags each position with the venue that holds it.
       const venueOf = (position: Position): string =>

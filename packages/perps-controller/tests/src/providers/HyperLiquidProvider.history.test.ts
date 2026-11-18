@@ -2099,6 +2099,57 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it('retains discovered orders when whole-position sizing fails', async () => {
+      const order: FrontendOpenOrdersResponse[number] = {
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '0',
+        sz: '0',
+        oid: 403,
+        timestamp: Date.now(),
+        origSz: '0',
+        triggerCondition: 'Price above 60000',
+        isTrigger: true,
+        triggerPx: '60000',
+        children: [],
+        isPositionTpsl: true,
+        reduceOnly: true,
+        orderType: 'Take Profit Market',
+        tif: null,
+        cloid: null,
+      };
+      const infoClient = createMockInfoClient();
+      vi.spyOn(infoClient, 'clearinghouseState').mockRejectedValue(
+        new Error('position read failed'),
+      );
+      vi.spyOn(infoClient, 'frontendOpenOrders').mockResolvedValue([
+        order,
+        {
+          ...order,
+          oid: 404,
+          sz: '0.5',
+          origSz: '0.5',
+          orderType: 'Limit',
+          isTrigger: false,
+          isPositionTpsl: false,
+        },
+      ]);
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(infoClient);
+
+      const read = provider.getOpenOrders({
+        skipCache: true,
+        throwOnUnavailable: true,
+      });
+
+      await expect(read).resolves.toStrictEqual([
+        expect.objectContaining({ orderId: '403', symbol: 'BTC', size: '0' }),
+        expect.objectContaining({ orderId: '404', symbol: 'BTC', size: '0.5' }),
+      ]);
+      await expect(provider.getOpenOrders({ skipCache: true })).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
+    });
+
     it('resolves a whole-position TP/SL size from positions under partial strict discovery', async () => {
       const hip3Provider = createTestProvider({
         hip3Enabled: true,

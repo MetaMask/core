@@ -1544,6 +1544,7 @@ export class PerpsController extends BaseController<
       // Balance entries belong to the selected account; another account's
       // observations must not show as this one's.
       this.update((draft) => {
+        draft.accountState = null;
         draft.perpsBalances = {};
       });
       // Clearing alone only guarantees the *next preview* re-registers. An
@@ -6344,8 +6345,9 @@ export class PerpsController extends BaseController<
           for (const [pid, entry] of Object.entries(
             accountState.providerStates,
           )) {
-            if (entry?.status === 'available') {
-              ensureBucket(pid).accountState = entry.state;
+            if (entry) {
+              ensureBucket(pid).accountState =
+                entry.status === 'available' ? entry.state : null;
             }
           }
         } else {

@@ -750,8 +750,11 @@ describe('PerpsController', () => {
           const oldCallback =
             mockProvider.subscribeToAccount.mock.calls[0][0].callback;
           oldCallback(accountState('100'));
+          expect(controller.state.accountState?.totalBalance).toBe('100');
 
           switchSelectedAccount();
+          expect(controller.state.accountState).toBeNull();
+          expect(controller.state.perpsBalances).toStrictEqual({});
           controller.subscribeToAccount({ callback: vi.fn() });
           const newCallback =
             mockProvider.subscribeToAccount.mock.calls[1][0].callback;

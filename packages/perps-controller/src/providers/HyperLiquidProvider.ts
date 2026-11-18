@@ -14438,7 +14438,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           (userParam) => standaloneInfoClient.frontendOpenOrders(userParam),
           dexs,
         );
-        if (failedDexs.length > 0) {
+        if (failedDexs.length > 0 && !params.throwOnUnavailable) {
           throw failedDexs[0].error;
         }
 
@@ -14452,6 +14452,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
 
         this.#assertCacheWriteLifecycleCurrent(generation, 'Get open orders');
+        if (failedDexs.length > 0) {
+          throw new OrderDiscoveryError({
+            orders,
+            failures: [
+              {
+                providerId: this.protocolId,
+                error: failedDexs
+                  .map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`)
+                  .join('; '),
+              },
+            ],
+          });
+        }
         return orders;
       }
 
@@ -14531,11 +14544,14 @@ export class HyperLiquidProvider implements PerpsProvider {
               protectionDexs,
             ));
         } catch (error) {
-          if (failedDexs.length === 0) {
+          if (!params?.throwOnUnavailable) {
             throw error;
           }
-          // Cancellation discovery needs the IDs even when a failed DEX
-          // prevents enriching a whole-position trigger's quantity.
+          // Cancellation discovery only needs the IDs and symbols.
+          this.#deps.debugLogger.log(
+            'Using discovered orders without position sizing',
+            error,
+          );
         }
       }
 

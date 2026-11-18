@@ -11,6 +11,7 @@ import {
   REFERRAL_CONFIG,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { OrderDiscoveryError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
@@ -1470,6 +1471,43 @@ describe('HyperLiquidProvider', () => {
           null, // main DEX
           { name: 'xyz' },
         ]);
+      });
+
+      it('retains reachable orders in a typed standalone discovery failure', async () => {
+        mockStandaloneInfoClient.frontendOpenOrders
+          .mockResolvedValueOnce([
+            {
+              coin: 'BTC',
+              oid: 12345,
+              side: 'B',
+              limitPx: '50000',
+              sz: '0.1',
+              origSz: '0.1',
+              timestamp: Date.now(),
+              orderType: 'Limit',
+              isTrigger: false,
+              reduceOnly: false,
+              isPositionTpsl: false,
+              children: [],
+            },
+          ])
+          .mockRejectedValueOnce(new Error('HIP-3 DEX timeout'));
+
+        const read = hip3Provider.getOpenOrders({
+          standalone: true,
+          userAddress: mockUserAddress,
+          throwOnUnavailable: true,
+        });
+
+        await expect(read).rejects.toBeInstanceOf(OrderDiscoveryError);
+        await expect(read).rejects.toMatchObject({
+          orders: [
+            expect.objectContaining({ orderId: '12345', symbol: 'BTC' }),
+          ],
+          failures: [
+            { providerId: 'hyperliquid', error: 'xyz: HIP-3 DEX timeout' },
+          ],
+        });
       });
 
       it('names the HIP-3 DEX that failed in an otherwise complete account read', async () => {

@@ -720,6 +720,34 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     ).flat();
   }
 
+  /**
+   * Read positions for batch-close fee pricing. Each venue supplies its own
+   * notional independently, so an unavailable venue cannot affect another.
+   *
+   * @internal
+   * @param providerIds - Venues targeted by the batch close.
+   * @returns Positions from the targeted venues that answered.
+   */
+  async getPositionsForBatchClose(
+    providerIds: ReadonlySet<PerpsProviderType>,
+  ): Promise<Position[]> {
+    const results = await Promise.allSettled(
+      this.#getActiveProviders()
+        .filter(([id]) => providerIds.has(id))
+        .map(async ([id, provider]) => {
+          const positions = await provider.getPositions({
+            throwOnUnavailable: true,
+          });
+          return positions.map((position) => ({ ...position, providerId: id }));
+        }),
+    );
+
+    return this.#extractSuccessfulResults(
+      results,
+      'getPositionsForBatchClose',
+    ).flat();
+  }
+
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
     // Single-venue aggregation (for example a fallback when one venue failed
     // to load) keeps the direct result shape: there is nothing to combine and
