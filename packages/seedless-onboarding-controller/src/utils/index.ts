@@ -15,6 +15,12 @@ export {
   parseAndValidateSecretMetadataBackup,
 } from './secret-data-utils.js';
 export {
+  convertUrlSafeBase64StringToBase64String,
+  decodeBase64WithSafeUrlReplacements,
+  decodeIdToken,
+  padBase64String,
+} from './token.js';
+export {
   compareAndGetLatestToken,
   decodeJWTToken,
   decodeNodeAuthToken,

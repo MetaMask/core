@@ -248,7 +248,12 @@ describe('assertIdTokenMatchesUserId', () => {
    * @returns The encoded JWT token (header.payload.signature).
    */
   const createMockIdToken = (
-    params: Partial<DecodedBaseJWTToken> & { sub?: string } = {},
+    params: Partial<DecodedBaseJWTToken> & {
+      sub?: string;
+      email?: string;
+      // eslint-disable-next-line @typescript-eslint/naming-convention -- JWT claim name
+      user_id?: string;
+    } = {},
   ): string => {
     const defaultPayload: DecodedBaseJWTToken = {
       exp: Math.floor(Date.now() / 1000) + 3600,
@@ -264,6 +269,40 @@ describe('assertIdTokenMatchesUserId', () => {
     return `${encode(header)}.${encode(payload)}.${'mock_signature'}`;
   };
 
+  /**
+   * Creates a spec-compliant base64url JWT. The `nonce` claim is chosen so
+   * the payload segment contains both `-` and `_`.
+   *
+   * @param params - The payload claims for the token.
+   * @returns The encoded JWT token (header.payload.signature).
+   */
+  const createBase64UrlIdToken = (
+    params: Partial<DecodedBaseJWTToken> = {},
+  ): string => {
+    const payload = {
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      aud: 'mock_audience',
+      iss: 'mock_issuer',
+      sub: 'mock_user_id',
+      nonce: '~~~?',
+      ...params,
+    };
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const encode = (value: Record<string, unknown>): string =>
+      bytesToBase64(utf8ToBytes(JSON.stringify(value)))
+        .replace(/\+/gu, '-')
+        .replace(/\//gu, '_')
+        .replace(/=+$/u, '');
+    const encodedPayload = encode(payload);
+    if (!encodedPayload.includes('-') || !encodedPayload.includes('_')) {
+      throw new Error(
+        'Test payload did not produce base64url characters (- and _).',
+      );
+    }
+    return `${encode(header)}.${encodedPayload}.mock_signature`;
+  };
+
   it('should not throw when idToken sub matches the userId', () => {
     expect(() => {
       assertIdTokenMatchesUserId(
@@ -271,6 +310,24 @@ describe('assertIdTokenMatchesUserId', () => {
         'user-1',
       );
     }).not.toThrow();
+  });
+
+  it('should not throw when a base64url idToken sub matches the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createBase64UrlIdToken({ sub: 'user-1' })],
+        'user-1',
+      );
+    }).not.toThrow();
+  });
+
+  it('should throw IdentityMismatch when a base64url idToken sub does not match the userId', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createBase64UrlIdToken({ sub: 'user-A' })],
+        'user-B',
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
 
   it('should throw IdentityMismatch when idToken sub does not match the userId', () => {
@@ -292,6 +349,47 @@ describe('assertIdTokenMatchesUserId', () => {
         'user-1',
       );
     }).not.toThrow();
+  });
+
+  it('should not throw when sub is missing and userId matches the email claim', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: undefined, email: 'user@email.com' })],
+        'user@email.com',
+      );
+    }).not.toThrow();
+  });
+
+  it('should not throw when sub is empty and userId matches the email claim', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: '', email: 'user@email.com' })],
+        'user@email.com',
+      );
+    }).not.toThrow();
+  });
+
+  it('should not throw when sub is missing and userId matches the Telegram user_id claim', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: undefined, user_id: 'telegram-user' })],
+        'telegram-user',
+      );
+    }).not.toThrow();
+  });
+
+  it('should throw IdentityMismatch when sub does not match even if email does', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [
+          createMockIdToken({
+            sub: 'opaque-subject',
+            email: 'user@email.com',
+          }),
+        ],
+        'user@email.com',
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
 
   it('should throw IdentityMismatch when the idToken has no sub claim', () => {
@@ -325,10 +423,7 @@ describe('assertIdTokenMatchesUserId', () => {
 
   it('should throw IdentityMismatch when userId is null', () => {
     expect(() => {
-      assertIdTokenMatchesUserId(
-        [createMockIdToken({ sub: 'user-1' })],
-        null,
-      );
+      assertIdTokenMatchesUserId([createMockIdToken({ sub: 'user-1' })], null);
     }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
 

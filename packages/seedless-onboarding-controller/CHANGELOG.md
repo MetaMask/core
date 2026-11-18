@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export the OAuth idToken decode helpers `padBase64String`, `convertUrlSafeBase64StringToBase64String`, `decodeBase64WithSafeUrlReplacements`, and `decodeIdToken`, so clients can decode base64url JWTs the same way ([#11531](https://github.com/MetaMask/core/pull/11531))
 - Add `SeedlessOnboardingControllerErrorMessage.IdentityMismatch`, thrown when an idToken does not belong to the user identity it is paired with ([#11531](https://github.com/MetaMask/core/pull/11531))
-  - `authenticate` validates that the first idToken's `sub` claim matches the provided `userId` before making any network request
+  - `authenticate` validates that the first idToken belongs to the provided `userId` before making any network request. The token user id is derived the same way clients derive it: `sub`, then Telegram `user_id` when `sub` is nullish, then `email`
   - Token refreshes validate that the refreshed idTokens match the identity in state before re-authenticating
-  - A missing idToken, an idToken that cannot be decoded, or an idToken with no `sub` claim throws `IdentityMismatch` instead of being sent to the nodes
+  - A missing idToken, an idToken that cannot be decoded, or an idToken with no `sub`, `user_id`, or `email` claim throws `IdentityMismatch` instead of being sent to the nodes
 
 ### Fixed
 
+- Decode JWT idToken payloads that use base64url (`-` and `_`), so a spec-compliant OAuth idToken is checked locally and can still be sent to the nodes ([#11531](https://github.com/MetaMask/core/pull/11531))
 - Prevent stale identity data from being written into state when the controller identity changes while a token refresh is in flight ([#11531](https://github.com/MetaMask/core/pull/11531))
   - If the identity is switched by a new `authenticate()` call or wiped by `clearState()` while a refresh is pending, the pending refresh results are discarded and the refresh-token rotation side effects are skipped
   - These situations now throw `SeedlessOnboardingControllerErrorMessage.IdentityMismatch` instead of a generic authentication error
