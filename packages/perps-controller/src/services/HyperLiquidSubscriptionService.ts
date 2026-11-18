@@ -1427,6 +1427,7 @@ export class HyperLiquidSubscriptionService {
             order: convertedOrder,
             positionSize: (position ?? positionForCoin)?.size ?? '0',
             entryPrice: (position ?? positionForCoin)?.entryPrice,
+            positionSizeIsFresh: positionSizesAreFresh,
           }),
         );
       }

@@ -659,7 +659,13 @@ describe('HyperLiquidSubscriptionService', () => {
       ]);
 
       expect(positions).toHaveBeenLastCalledWith([
-        expect.objectContaining({ stopLossCount: 1, takeProfitCount: 0 }),
+        expect.objectContaining({
+          stopLossCount: 1,
+          takeProfitCount: 0,
+          stopLossOrders: [
+            expect.objectContaining({ size: '0', isPartial: false }),
+          ],
+        }),
       ]);
       const shortStop = {
         ...order,

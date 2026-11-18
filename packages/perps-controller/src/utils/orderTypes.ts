@@ -191,14 +191,21 @@ export function classifyTriggerDirection(params: {
  * @param params.order - Normalized open order
  * @param params.positionSize - Size of the position the trigger is attached to
  * @param params.entryPrice - Entry price, used to classify an unnamed trigger
+ * @param params.positionSizeIsFresh - Whether the position can supply coverage quantities
  * @returns The position trigger order, or undefined
  */
 export function buildPositionTriggerOrderFromOrder(params: {
   order: Order;
   positionSize: string;
   entryPrice?: string;
+  positionSizeIsFresh?: boolean;
 }): PositionTriggerOrder | undefined {
-  const { order, positionSize, entryPrice } = params;
+  const {
+    order,
+    positionSize,
+    entryPrice,
+    positionSizeIsFresh = true,
+  } = params;
 
   if (!order.isTrigger) {
     return undefined;
@@ -223,7 +230,9 @@ export function buildPositionTriggerOrderFromOrder(params: {
     return undefined;
   }
 
-  const absolutePositionSize = Math.abs(parseFloat(positionSize || '0'));
+  const absolutePositionSize = positionSizeIsFresh
+    ? Math.abs(parseFloat(positionSize || '0'))
+    : undefined;
   const rawSize = Math.abs(parseFloat(order.size || '0'));
 
   // A position-bound TP/SL covers whatever the position currently is. The
@@ -235,7 +244,9 @@ export function buildPositionTriggerOrderFromOrder(params: {
   // call the order partial whenever the position had since grown.
   const isPositionBound = order.isPositionTpsl === true;
   const size =
-    isPositionBound || rawSize === 0 ? absolutePositionSize : rawSize;
+    isPositionBound || rawSize === 0
+      ? (absolutePositionSize ?? rawSize)
+      : rawSize;
 
   return {
     orderId: order.orderId,
@@ -246,6 +257,7 @@ export function buildPositionTriggerOrderFromOrder(params: {
     isPartial:
       !isPositionBound &&
       rawSize > 0 &&
+      absolutePositionSize !== undefined &&
       absolutePositionSize > 0 &&
       rawSize < absolutePositionSize,
     reduceOnly: Boolean(order.reduceOnly),
