@@ -904,6 +904,10 @@ describe('HyperLiquidSubscriptionService', () => {
       const unsubscribe = hip3Service.subscribeToAccount({
         callback: accountCallback,
       });
+      const positionCallback = vi.fn();
+      const unsubscribePositions = hip3Service.subscribeToPositions({
+        callback: positionCallback,
+      });
       await vi.runAllTimersAsync();
 
       for (const dex of ['', 'xyz']) {
@@ -939,8 +943,21 @@ describe('HyperLiquidSubscriptionService', () => {
         { size: '1' },
       ]);
 
+      expect(positionCallback).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '1' }),
+      ]);
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
       expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+      expect(positionCallback).toHaveBeenLastCalledWith([]);
+      callbacks.get('flx')?.({
+        dex: 'flx',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '2' }, coin: 'flx:ABC' }],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      expect(positionCallback).toHaveBeenLastCalledWith([]);
       expect(
         accountCallback.mock.lastCall?.[0].subAccountBreakdown,
       ).not.toHaveProperty('flx');
@@ -968,6 +985,7 @@ describe('HyperLiquidSubscriptionService', () => {
       await hip3Service.updateFeatureFlags(true, [], [], [], false);
       expect(hip3Service.getFreshPositionsForAllDexs()).toBeNull();
 
+      unsubscribePositions();
       unsubscribe();
     });
 

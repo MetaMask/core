@@ -947,6 +947,8 @@ export class HyperLiquidSubscriptionService {
       for (const dex of previousDexs) {
         if (!this.#accountSnapshotDexs.has(dex)) {
           removedAccount = this.#dexAccountCache.delete(dex) || removedAccount;
+          this.#dexPositionsCache.delete(dex);
+          this.#dexOrdersCache.delete(dex);
           this.#dexPositionsEpoch.delete(dex);
           this.#dexOrdersEpoch.delete(dex);
           this.#expectedDexs.delete(dex);
@@ -2487,6 +2489,9 @@ export class HyperLiquidSubscriptionService {
           }
 
           const cacheKey = data.dex || '';
+          if (!this.#accountSnapshotDexs.has(cacheKey)) {
+            return;
+          }
 
           // Keep authoritative slices current for as long as the subscription
           // exists. Order-only subscribers keep this subscription alive too.
@@ -2526,13 +2531,10 @@ export class HyperLiquidSubscriptionService {
           }
 
           this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
-          // A retained subscription can still send events after a DEX is disabled.
-          if (this.#accountSnapshotDexs.has(cacheKey)) {
-            this.#dexAccountCache.set(
-              cacheKey,
-              adaptAccountStateFromSDK(data.clearinghouseState),
-            );
-          }
+          this.#dexAccountCache.set(
+            cacheKey,
+            adaptAccountStateFromSDK(data.clearinghouseState),
+          );
 
           // Mark this DEX as initialized (has sent first data)
           this.#initializedDexs.add(cacheKey);
@@ -2545,12 +2547,10 @@ export class HyperLiquidSubscriptionService {
           // the epoch cannot interleave with this callback. Only this
           // clearinghouseState path stamps because openOrders carries no
           // authoritative size or side.
-          if (this.#accountSnapshotDexs.has(cacheKey)) {
-            this.#dexPositionsEpoch.set(
-              cacheKey,
-              this.#clientService.getConnectionEpoch(),
-            );
-          }
+          this.#dexPositionsEpoch.set(
+            cacheKey,
+            this.#clientService.getConnectionEpoch(),
+          );
 
           if (
             this.#positionSubscriberCount > 0 ||
@@ -2676,6 +2676,9 @@ export class HyperLiquidSubscriptionService {
           }
 
           const cacheKey = data.dex || '';
+          if (!this.#accountSnapshotDexs.has(cacheKey)) {
+            return;
+          }
 
           // Update caches and notify subscribers if we have order subscribers
           if (
@@ -2695,12 +2698,10 @@ export class HyperLiquidSubscriptionService {
 
             // Update orders cache with processed orders
             this.#dexOrdersCache.set(cacheKey, orders);
-            if (this.#accountSnapshotDexs.has(cacheKey)) {
-              this.#dexOrdersEpoch.set(
-                cacheKey,
-                this.#clientService.getConnectionEpoch(),
-              );
-            }
+            this.#dexOrdersEpoch.set(
+              cacheKey,
+              this.#clientService.getConnectionEpoch(),
+            );
 
             // Update positions with TP/SL if we have positions
             if (cachedPositions.length > 0) {
