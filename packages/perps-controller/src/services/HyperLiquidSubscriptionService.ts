@@ -2608,8 +2608,11 @@ export class HyperLiquidSubscriptionService {
           if (!Array.isArray(data.clearinghouseState?.assetPositions)) {
             this.#dexAccountCache.delete(cacheKey);
             this.#dexPositionsEpoch.delete(cacheKey);
-            this.#invalidateDexProtectionCoverage(cacheKey);
-            this.#notifyAccountSubscribers();
+            try {
+              this.#notifyAccountSubscribers();
+            } finally {
+              this.#invalidateDexProtectionCoverage(cacheKey);
+            }
             return;
           }
 

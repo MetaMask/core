@@ -646,7 +646,13 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.objectContaining({ stopLossCount: 1 }),
       ]);
 
-      onAccount({ dex: '', clearinghouseState: {} });
+      const callbackFailure = new Error('position listener failed');
+      positions.mockImplementationOnce(() => {
+        throw callbackFailure;
+      });
+      expect(() => onAccount({ dex: '', clearinghouseState: {} })).toThrow(
+        callbackFailure,
+      );
       expect(account).toHaveBeenLastCalledWith(null);
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
       expect(positions).toHaveBeenLastCalledWith([
