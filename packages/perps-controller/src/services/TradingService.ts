@@ -2733,7 +2733,9 @@ export class TradingService {
         if (!context.getPositions) {
           throw new Error('getPositions callback not provided in context');
         }
-        const positions = await context.getPositions();
+        const positions = await context.getPositions({
+          throwOnUnavailable: true,
+        });
 
         // Tagged targets name the positions to close. A provider without a
         // batch method must not treat a target list as close-all just because

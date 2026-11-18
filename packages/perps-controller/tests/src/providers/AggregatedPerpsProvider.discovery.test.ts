@@ -6,11 +6,13 @@ import { TradingService } from '../../../src/services/TradingService.js';
 import type {
   CancelOrdersParams,
   GetOrdersParams,
+  GetPositionsParams,
   Order,
   PerpsProvider,
   PerpsProviderType,
   SubscribeAccountParams,
 } from '../../../src/types/index.js';
+import type { LighterAccountResponse } from '../../../src/types/lighter-types.js';
 import {
   ACCOUNT,
   buildProvider,
@@ -205,6 +207,72 @@ describe('aggregated account and destructive-operation discovery', () => {
     await expect(
       aggregate.getPositions({ throwOnUnavailable: true }),
     ).rejects.toThrow('account transport down');
+  });
+
+  it.each([
+    {
+      failure: 'transport failure',
+      readAccount: (): Promise<LighterAccountResponse> =>
+        Promise.reject(new Error('account transport down')),
+      error: 'account transport down',
+    },
+    {
+      failure: 'missing account payload',
+      readAccount: (): Promise<LighterAccountResponse> =>
+        Promise.resolve({ code: 200, accounts: [] }),
+      error: 'Lighter account 28 not returned',
+    },
+  ])(
+    'rejects direct Lighter close-all discovery on $failure instead of reporting no positions',
+    async ({ readAccount, error }) => {
+      const { provider, clientInstance, infrastructure } = setup();
+      await provider.getPositions();
+      clientInstance.getAccountByIndex.mockImplementation(readAccount);
+      const close = vi.spyOn(provider, 'closePosition');
+      const trading = new TradingService(infrastructure);
+      const context = createMockServiceContext({
+        getPositions: (params?: GetPositionsParams) =>
+          provider.getPositions(params),
+      });
+
+      await expect(
+        trading.closePositions({
+          provider,
+          params: { closeAll: true },
+          context,
+        }),
+      ).rejects.toThrow(error);
+      expect(close).not.toHaveBeenCalled();
+      // Ordinary display reads keep their established lenient behavior.
+      expect(await provider.getPositions()).toStrictEqual([]);
+    },
+  );
+
+  it('keeps confirmed empty direct Lighter close-all as a no-op', async () => {
+    const { provider, clientInstance, infrastructure } = setup();
+    clientInstance.getAccountByIndex.mockResolvedValue({
+      code: 200,
+      accounts: [{ ...ACCOUNT, positions: [] }],
+    });
+    const close = vi.spyOn(provider, 'closePosition');
+    const trading = new TradingService(infrastructure);
+
+    const result = await trading.closePositions({
+      provider,
+      params: { closeAll: true },
+      context: createMockServiceContext({
+        getPositions: (params?: GetPositionsParams) =>
+          provider.getPositions(params),
+      }),
+    });
+
+    expect(result).toStrictEqual({
+      success: false,
+      successCount: 0,
+      failureCount: 0,
+      results: [],
+    });
+    expect(close).not.toHaveBeenCalled();
   });
 
   it('retains successful closes while reporting a real Lighter account transport failure', async () => {

@@ -4176,7 +4176,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('closePositions', {
-        getPositions: () => this.getPositions(),
+        getPositions: (readParams) => this.getPositions(readParams),
       }),
     });
   }

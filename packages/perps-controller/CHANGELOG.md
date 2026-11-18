@@ -90,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject failed position discovery in the per-position `closePositions` fallback instead of treating an unavailable venue account as having no positions to close; ordinary position reads remain lenient ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Withhold bounded batch-close fee waivers when any selected position has a non-finite value instead of pricing the venue from an understated subtotal ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Exclude Lighter from aggregated account totals when `getAccountState` or `subscribeToAccount` requests an account other than the selected wallet; unsupported scopes reject instead of returning or streaming the selected wallet's balance, and an aggregate keeps healthy venues live while marking Lighter unavailable ([#11461](https://github.com/MetaMask/core/pull/11461))
 - Report batch-cancel discovery failures in the result instead of throwing or silently skipping orders. When open orders cannot be read from a venue or a HyperLiquid DEX, `cancelOrders` (including cancel-all) still cancels the orders it could discover and returns `error: BATCH_INCOMPLETE` with the unavailable venues and unresolved order IDs in the new `CancelOrdersResult.discoveryFailures` ([#11461](https://github.com/MetaMask/core/pull/11461))
