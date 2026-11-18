@@ -265,7 +265,9 @@ function cloneUserDataSnapshot(
     positions: snapshot.positions.map((position) => ({
       ...position,
       leverage: { ...position.leverage },
-      cumulativeFunding: { ...position.cumulativeFunding },
+      ...(position.cumulativeFunding && {
+        cumulativeFunding: { ...position.cumulativeFunding },
+      }),
       ...(position.takeProfitOrders && {
         takeProfitOrders: position.takeProfitOrders.map((order) => ({
           ...order,

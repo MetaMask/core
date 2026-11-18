@@ -187,6 +187,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -226,6 +227,61 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     });
   });
 
+  it.each([
+    ['omitted', undefined],
+    ['NaN', Number.NaN],
+    ['negative', -1],
+  ])(
+    'leaves increase and flip margin unavailable when the fee is %s',
+    (_label, feeAmountUsd) => {
+      const increase = previewHyperLiquidIsolatedPositionModify({
+        position: isolatedPosition(),
+        direction: 'long',
+        size: '0.5',
+        price: '2000',
+        leverage: 5,
+        feeAmountUsd,
+        marginTiers: singleTier25x,
+      });
+      const flip = previewHyperLiquidIsolatedPositionModify({
+        position: isolatedPosition(),
+        direction: 'short',
+        size: '1.5',
+        price: '2000',
+        leverage: 5,
+        feeAmountUsd,
+        marginTiers: singleTier25x,
+      });
+
+      const unavailable = {
+        status: 'open',
+        resulting: {
+          margin: { available: false },
+          liquidationPrice: { available: false },
+        },
+      };
+      expect(increase).toMatchObject({ kind: 'increase', ...unavailable });
+      expect(flip).toMatchObject({ kind: 'flip', ...unavailable });
+    },
+  );
+
+  it('keeps decrease margin available when the fee is unknown', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition(),
+      direction: 'short',
+      size: '0.4',
+      price: '2000',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    expect(result).toMatchObject({
+      status: 'open',
+      kind: 'decrease',
+      resulting: { margin: { available: true } },
+    });
+  });
+
   it('keeps the existing isolated margin when order leverage is higher', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition(),
@@ -233,6 +289,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -300,6 +357,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 4,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -323,6 +381,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -347,6 +406,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2500',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -452,6 +512,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '1.5',
       price: '2000',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -511,6 +572,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -536,6 +598,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: null,
     });
 
@@ -566,6 +629,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.0001',
       price: '2500',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: testnetEthTiers,
     });
 
@@ -610,6 +674,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '1',
       price: '1800',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -690,6 +755,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -710,6 +776,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -742,6 +809,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
         size,
         price: '2000',
         leverage: 5,
+        feeAmountUsd: 0,
         marginTiers: singleTier25x,
       });
 
@@ -766,6 +834,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -795,6 +864,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '0.5',
       price: '2000',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -820,6 +890,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '1',
       price: '2200',
       leverage: 5,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -871,6 +942,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '1.5',
       price: '1900',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 
@@ -918,6 +990,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       size: '1.5',
       price: '1800',
       leverage: 10,
+      feeAmountUsd: 0,
       marginTiers: singleTier25x,
     });
 

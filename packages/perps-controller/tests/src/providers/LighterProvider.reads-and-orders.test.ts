@@ -905,11 +905,15 @@ describe('LighterProvider', () => {
       expect(state.providerId).toBe('lighter');
     });
 
-    it('returns empty account state on failure', async () => {
+    it('throws ACCOUNT_STATE_FAILED with the cause instead of a zero balance on failure', async () => {
       const { provider, clientInstance } = buildProvider();
-      clientInstance.getAccountByIndex.mockRejectedValue(new Error('down'));
-      const state = await provider.getAccountState();
-      expect(state.totalBalance).toBe('0');
+      const cause = new Error('down');
+      clientInstance.getAccountByIndex.mockRejectedValue(cause);
+      const read = provider.getAccountState();
+      await expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
+      );
+      await expect(read).rejects.toHaveProperty('cause', cause);
     });
 
     it('attaches the cross margin summary from the account positions', async () => {
@@ -967,20 +971,16 @@ describe('LighterProvider', () => {
       ).rejects.toThrow('cross margin summary unavailable');
     });
 
-    it('keeps the account state without a summary when the response omits positions', async () => {
+    it('rejects a response without positions instead of reading zero PnL', async () => {
       const { provider, clientInstance } = buildProvider();
       const { positions: _positions, ...withoutPositions } = ACCOUNT;
       clientInstance.getAccountByIndex.mockResolvedValue({
         code: 200,
         accounts: [withoutPositions],
       });
-      const state = await provider.getAccountState();
-      expect(state.totalBalance).toBe('10000');
-      expect(state).not.toHaveProperty('crossMarginSummary');
-      expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
-      await expect(
-        provider.getAccountState({ throwOnUnavailable: true }),
-      ).rejects.toThrow('cross margin summary unavailable');
+      await expect(provider.getAccountState()).rejects.toThrow(
+        'Invalid Lighter venue data: REST positions missing',
+      );
     });
 
     describe('with throwOnUnavailable', () => {
@@ -1009,7 +1009,9 @@ describe('LighterProvider', () => {
           code: 200,
           accounts: [],
         });
-        expect((await provider.getAccountState()).totalBalance).toBe('0');
+        await expect(provider.getAccountState()).rejects.toThrow(
+          PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
+        );
         await expect(
           provider.getAccountState({ throwOnUnavailable: true }),
         ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
@@ -1106,6 +1108,61 @@ describe('LighterProvider', () => {
         'Invalid Lighter venue data',
       );
     });
+
+    it('throws ORDERS_FAILED with the cause instead of [] when the open-orders read fails', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const cause = new Error('down');
+      clientInstance.getActiveOrders.mockRejectedValue(cause);
+
+      const read = provider.getOpenOrders();
+      await expect(read).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+      await expect(read).rejects.toHaveProperty('cause', cause);
+    });
+
+    it('throws ORDERS_FAILED instead of [] when the order-history read fails', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const cause = new Error('down');
+      clientInstance.getInactiveOrders.mockRejectedValue(cause);
+
+      const read = provider.getOrders();
+      await expect(read).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+      await expect(read).rejects.toHaveProperty('cause', cause);
+    });
+
+    it('keeps ORDERS_FAILED from the open-orders leg of the order history', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getInactiveOrders.mockResolvedValue({
+        code: 200,
+        orders: [],
+      });
+      clientInstance.getActiveOrders.mockRejectedValue(new Error('down'));
+
+      await expect(provider.getOrders()).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
+    });
+
+    it.each([
+      ['entry price', { entryPrice: 0, leverage: 5 }, 'PRICE_UNAVAILABLE'],
+      [
+        'leverage',
+        { entryPrice: 100, leverage: Number.NaN },
+        'ORDER_LEVERAGE_INVALID',
+      ],
+    ])(
+      'throws instead of returning 0.00 for an invalid %s',
+      async (_label, input, code) => {
+        const { provider } = buildProvider();
+        await expect(
+          provider.calculateLiquidationPrice({
+            ...input,
+            direction: 'long',
+            asset: 'BTC',
+            marginType: 'isolated',
+          }),
+        ).rejects.toThrow(code);
+      },
+    );
 
     it('builds a CAIP account id from the L1 address', async () => {
       const { provider } = buildProvider();

@@ -13534,7 +13534,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       state.assetPositions
         .filter(({ position }) => position.szi !== '0')
         .map((assetPosition) => {
-          const position = adaptPositionFromSDK(assetPosition);
+          const position = adaptPositionFromSDK(
+            assetPosition,
+            state.crossMarginSummary,
+          );
           const {
             takeProfitOrders,
             stopLossOrders,
@@ -13722,7 +13725,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     return results.flatMap(({ data }) =>
       data.assetPositions
         .filter((assetPos) => assetPos.position.szi !== '0')
-        .map((assetPos) => adaptPositionFromSDK(assetPos)),
+        .map((assetPos) =>
+          adaptPositionFromSDK(assetPos, data.crossMarginSummary),
+        ),
     );
   }
 
@@ -13756,7 +13761,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       const positions = state.assetPositions
         .filter((assetPos) => assetPos.position.szi !== '0')
-        .map((assetPos) => adaptPositionFromSDK(assetPos));
+        .map((assetPos) =>
+          adaptPositionFromSDK(assetPos, state.crossMarginSummary),
+        );
 
       this.#deps.debugLogger.log('Target DEX position query answered', {
         dex: dexName ?? 'main',
@@ -13809,7 +13816,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           isTestnet: this.#clientService.isTestnetMode(),
         });
         const dexs = await this.#getStandaloneValidatedDexs();
-        const results = await queryStandaloneClearinghouseStates(
+        const { results } = await queryStandaloneClearinghouseStates(
           standaloneInfoClient,
           userAddress,
           dexs,
@@ -13817,10 +13824,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // Combine and filter positions from all DEXs
         // Skip TP/SL lookup (would require additional API call)
-        const positions = results.flatMap((state) =>
+        const positions = results.flatMap(({ data: state }) =>
           state.assetPositions
             .filter((assetPos) => assetPos.position.szi !== '0')
-            .map((assetPos) => adaptPositionFromSDK(assetPos)),
+            .map((assetPos) =>
+              adaptPositionFromSDK(assetPos, state.crossMarginSummary),
+            ),
         );
 
         this.#deps.debugLogger.log(
@@ -13918,7 +13927,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         result.data.assetPositions
           .filter((assetPos) => assetPos.position.szi !== '0')
           .map((assetPos) => {
-            const position = adaptPositionFromSDK(assetPos);
+            const position = adaptPositionFromSDK(
+              assetPos,
+              result.data.crossMarginSummary,
+            );
 
             // Find TP/SL orders for this position
             // First check direct trigger orders (raw SDK uses 'coin', adapted position uses 'symbol')
@@ -14806,10 +14818,14 @@ export class HyperLiquidProvider implements PerpsProvider {
             }),
         ]);
 
+        // No DEX answered: the account is unknown, not empty.
+        if (standalonePerpsResults.results.length === 0) {
+          throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+        }
         // Aggregate account states across all DEXs, then apply spot-backed
         // adjustments so streamed/standalone/full paths report the same totals.
-        const dexAccountStates = standalonePerpsResults.map((perpsState) =>
-          adaptAccountStateFromSDK(perpsState),
+        const dexAccountStates = standalonePerpsResults.results.map(
+          ({ data: perpsState }) => adaptAccountStateFromSDK(perpsState),
         );
         const aggregatedAccountState = addSpotBalanceToAccountState(
           aggregateAccountStates(dexAccountStates),
@@ -14821,6 +14837,10 @@ export class HyperLiquidProvider implements PerpsProvider {
             abstractionMode: standaloneAbstractionResult,
           },
         );
+        if (standalonePerpsResults.failedDexs.length > 0) {
+          aggregatedAccountState.unavailableSubAccounts =
+            standalonePerpsResults.failedDexs.map(({ dex }) => dex ?? '');
+        }
 
         this.#deps.debugLogger.log(
           'HyperLiquidProvider: standalone account state fetched',
@@ -14987,6 +15007,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Add sub-account breakdown to result
       aggregatedAccountState.subAccountBreakdown = subAccountBreakdown;
+      // The totals exclude DEXs that did not answer; say which.
+      if (failedPerpsDexs.length > 0) {
+        aggregatedAccountState.unavailableSubAccounts = failedPerpsDexs.map(
+          ({ dex }) => dex ?? '',
+        );
+      }
 
       this.#deps.debugLogger.log(
         'Aggregated account state:',

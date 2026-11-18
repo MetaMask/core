@@ -1315,30 +1315,17 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('returns fallback account state when standalone client fails', async () => {
-        // Arrange
+      it('throws ACCOUNT_STATE_FAILED instead of placeholders when no DEX answers', async () => {
         mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(
           new Error('API unavailable'),
         );
 
-        // Act
-        const result = await provider.getAccountState({
-          standalone: true,
-          userAddress: mockUserAddress,
-        });
-
-        // Assert — all DEX queries failed, aggregateAccountStates([]) returns fallback.
-        // Spot and the abstraction mode still resolved, so spotCollateral is
-        // known: Unified with no spot balance gives 0.
-        expect(result).toEqual({
-          spendableBalance: '--',
-          withdrawableBalance: '--',
-          totalBalance: '--',
-          marginUsed: '--',
-          unrealizedPnl: '--',
-          returnOnEquity: '--',
-          spotCollateral: '0',
-        });
+        await expect(
+          provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
       });
     });
 
@@ -1454,6 +1441,71 @@ describe('HyperLiquidProvider', () => {
           null, // main DEX
           { name: 'xyz' },
         ]);
+      });
+
+      it('names the HIP-3 DEX that failed in an otherwise complete account read', async () => {
+        mockStandaloneInfoClient.clearinghouseState
+          .mockResolvedValueOnce({
+            assetPositions: [],
+            marginSummary: { totalMarginUsed: '0', accountValue: '100' },
+            withdrawable: '100',
+          })
+          .mockRejectedValueOnce(new Error('HIP-3 DEX timeout'));
+
+        const accountState = await hip3Provider.getAccountState({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        expect(accountState.totalBalance).toBe('100');
+        expect(accountState.unavailableSubAccounts).toStrictEqual(['xyz']);
+      });
+
+      it('carries the venue display margin on under-margined cross positions', async () => {
+        mockStandaloneInfoClient.clearinghouseState
+          .mockResolvedValueOnce({
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.5',
+                  entryPx: '45000',
+                  positionValue: '22500',
+                  unrealizedPnl: '-500',
+                  marginUsed: '2250',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '40000',
+                  maxLeverage: 50,
+                  returnOnEquity: '-0.22',
+                  cumFunding: {
+                    allTime: '0',
+                    sinceOpen: '0',
+                    sinceChange: '0',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+            marginSummary: { totalMarginUsed: '2250', accountValue: '1125' },
+            crossMarginSummary: {
+              accountValue: '1125',
+              totalMarginUsed: '2250',
+              totalNtlPos: '22500',
+              totalRawUsd: '0',
+            },
+          })
+          .mockResolvedValueOnce({
+            assetPositions: [],
+            marginSummary: { totalMarginUsed: '0', accountValue: '0' },
+          });
+
+        const [position] = await hip3Provider.getPositions({
+          standalone: true,
+          userAddress: mockUserAddress,
+        });
+
+        expect(position.marginUsed).toBe('2250');
+        expect(position.displayMarginUsed).toBe('1125');
       });
 
       it('returns positions from both main DEX and HIP-3 DEXs', async () => {

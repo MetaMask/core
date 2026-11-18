@@ -894,16 +894,26 @@ export type Position = {
   positionValue: string; // Total position value in USD
   unrealizedPnl: string; // Unrealized profit/loss
   marginUsed: string; // Margin currently used for this position
+  /**
+   * Margin the venue shows for a cross position. Hyperliquid scales cross
+   * margin by `accountValue / totalMarginUsed` when cross equity is below
+   * initial margin, so this is `marginUsed` times that ratio (capped at 1).
+   * `marginUsed` keeps the raw venue figure. Absent for isolated positions
+   * and when the provider does not report one.
+   */
+  displayMarginUsed?: string;
   leverage: {
     type: 'isolated' | 'cross'; // Margin type
-    value: number; // Leverage multiplier
+    value?: number; // Leverage multiplier. Undefined when the venue does not report it
     rawUsd?: string; // USD amount (for isolated margin)
   };
   liquidationPrice: string | null; // Liquidation price (null if no risk)
   maxLeverage: number; // Maximum allowed leverage for this asset
   returnOnEquity: string; // ROE percentage
-  cumulativeFunding: {
-    // Funding payments history
+  /**
+   * Funding payments history. Absent when the venue does not report it.
+   */
+  cumulativeFunding?: {
     allTime: string; // Total funding since account opening
     sinceOpen: string; // Funding since position opened
     sinceChange: string; // Funding since last size change
@@ -999,6 +1009,12 @@ export type AccountState = {
    * one for this read.
    */
   crossMarginSummary?: CrossMarginSummary;
+  /**
+   * Sub-accounts (same keys as `subAccountBreakdown`; `''` is the Hyperliquid
+   * main DEX) whose read failed. The totals exclude them, so the state is
+   * partial while this is present and non-empty.
+   */
+  unavailableSubAccounts?: string[];
   /**
    * Spot USDC this venue counts as cross collateral, as a decimal string.
    * Pass it to `calculateAccountSummary` as `spotCollateral`.
@@ -1769,9 +1785,10 @@ export type GetAccountStateParams = {
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
   /**
-   * Optional: throw instead of returning zero-valued state when the read
-   * fails. Lighter throws `ACCOUNT_STATE_FAILED` (with the cause attached);
-   * a wallet without a Lighter account still reads as empty.
+   * Optional: also throw when the Lighter cross-margin summary cannot be
+   * read, instead of omitting it. A failed account read always throws
+   * `ACCOUNT_STATE_FAILED` (with the cause attached); a wallet without a
+   * Lighter account still reads as empty.
    */
   throwOnUnavailable?: boolean;
 };
@@ -2183,7 +2200,9 @@ export type PositionModifyPreviewParams = {
   reduceOnly?: boolean;
   /**
    * Estimated trading fees in USD. Deducted from isolated margin on
-   * increases and flips. Omit or pass 0 when unknown.
+   * increases and flips. Omit when unknown: the resulting margin and
+   * liquidation price of an increase or flip are then unavailable. Pass 0
+   * only for a known zero fee.
    */
   feeAmountUsd?: number;
   /**

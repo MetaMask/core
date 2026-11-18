@@ -10261,6 +10261,24 @@ export class LighterProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Error for a failed read. A read the wallet's account switch cancelled is
+   * stale (`PROVIDER_LIFECYCLE_STALE`): its data belonged to the previous
+   * account. Any other failure gets `code`. The cause is attached.
+   *
+   * @param code - Error code for an ordinary read failure.
+   * @param cause - The caught error.
+   * @returns The error to throw.
+   */
+  #readFailure(code: string, cause: unknown): Error {
+    return new Error(
+      cause instanceof LighterSessionCancelledError
+        ? PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+        : code,
+      { cause },
+    );
+  }
+
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
     const throwOnUnavailable = params?.throwOnUnavailable === true;
     try {
@@ -10274,10 +10292,7 @@ export class LighterProvider implements PerpsProvider {
       this.#assertSession(generation);
       const account = response.accounts[0];
       if (!account) {
-        if (throwOnUnavailable) {
-          throw new Error(`Lighter account ${accountIndex} not returned`);
-        }
-        return EMPTY_ACCOUNT_STATE;
+        throw new Error(`Lighter account ${accountIndex} not returned`);
       }
       const accountState = adaptAccountStateFromLighter(account);
       const crossMarginSummary = await this.#readCrossMarginSummary(
@@ -10298,25 +10313,15 @@ export class LighterProvider implements PerpsProvider {
         // never degrade into empty state that can preserve stale views.
         throw caughtError;
       }
-      if (
-        throwOnUnavailable &&
-        !(caughtError instanceof LighterAccountNotFoundError)
-      ) {
-        // Opted-in callers must be able to tell a failed read from a real
-        // zero balance. A wallet without a Lighter account is a real zero.
-        throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED, {
-          cause: caughtError,
-        });
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        // A wallet without a Lighter account is a real zero.
+        return EMPTY_ACCOUNT_STATE;
       }
-      const wrappedError = ensureError(
+      // Callers must be able to tell a failed read from a real zero balance.
+      throw this.#readFailure(
+        PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
         caughtError,
-        'LighterProvider.getAccountState',
       );
-      this.#deps.debugLogger.log('[LighterProvider] getAccountState failed', {
-        error: String(wrappedError),
-        ...this.#getErrorContext('getAccountState'),
-      });
-      return EMPTY_ACCOUNT_STATE;
     }
   }
 
@@ -10454,15 +10459,8 @@ export class LighterProvider implements PerpsProvider {
         // Capability gates must surface, never degrade into empty state.
         throw caughtError;
       }
-      const wrappedError = ensureError(
-        caughtError,
-        'LighterProvider.getOpenOrders',
-      );
-      this.#deps.debugLogger.log('[LighterProvider] getOpenOrders failed', {
-        error: String(wrappedError),
-        ...this.#getErrorContext('getOpenOrders'),
-      });
-      return [];
+      // A failed read leaves the order list unknown, not empty.
+      throw this.#readFailure(PERPS_ERROR_CODES.ORDERS_FAILED, caughtError);
     }
   }
 
@@ -10491,8 +10489,7 @@ export class LighterProvider implements PerpsProvider {
       );
       // Full lifecycle: open orders first, then the historical states.
       const open = await this.getOpenOrders(params);
-      // getOpenOrders swallows its own cancellation into []; the merge must
-      // still refuse to pair A's history with B's session.
+      // The merge must refuse to pair A's history with B's session.
       this.#assertSession(generation);
       return [...open, ...historical];
     } catch (caughtError) {
@@ -10503,15 +10500,16 @@ export class LighterProvider implements PerpsProvider {
         // Capability gates must surface, never degrade into empty state.
         throw caughtError;
       }
-      const wrappedError = ensureError(
-        caughtError,
-        'LighterProvider.getOrders',
-      );
-      this.#deps.debugLogger.log('[LighterProvider] getOrders failed', {
-        error: String(wrappedError),
-        ...this.#getErrorContext('getOrders'),
-      });
-      return [];
+      if (
+        caughtError instanceof Error &&
+        (caughtError.message === PERPS_ERROR_CODES.ORDERS_FAILED ||
+          caughtError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+      ) {
+        // Already classified by the open-orders leg.
+        throw caughtError;
+      }
+      // A failed read leaves the order list unknown, not empty.
+      throw this.#readFailure(PERPS_ERROR_CODES.ORDERS_FAILED, caughtError);
     }
   }
 
@@ -17812,13 +17810,12 @@ export class LighterProvider implements PerpsProvider {
       );
     }
     const { entryPrice, leverage, direction } = params;
-    if (
-      !isFinite(entryPrice) ||
-      !isFinite(leverage) ||
-      entryPrice <= 0 ||
-      leverage <= 0
-    ) {
-      return '0.00';
+    // Invalid input has no liquidation price; never report one as '0.00'.
+    if (!isFinite(entryPrice) || entryPrice <= 0) {
+      throw new Error(PERPS_ERROR_CODES.PRICE_UNAVAILABLE);
+    }
+    if (!isFinite(leverage) || leverage <= 0) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
     }
     const maintenanceFraction = await this.calculateMaintenanceMargin({
       asset: params.asset ?? '',

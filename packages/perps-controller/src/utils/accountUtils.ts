@@ -6,7 +6,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import type {
   HyperLiquidAbstractionMode,
@@ -109,6 +109,12 @@ export function getSelectedEvmAccountFromMessenger(
 export type ReturnOnEquityInput = {
   unrealizedPnl: string | number;
   returnOnEquity: string | number;
+  /**
+   * Margin the account uses. When given, it is the account's weight, so an
+   * account with an RoE of 0 still counts. Without it the weight is derived
+   * from PnL / RoE, which an RoE of 0 cannot give.
+   */
+  marginUsed?: string | number;
 };
 
 export function calculateWeightedReturnOnEquity(
@@ -135,11 +141,18 @@ export function calculateWeightedReturnOnEquity(
       continue;
     }
 
-    if (returnOnEquity === 0) {
-      continue;
+    let marginUsed: number;
+    if (account.marginUsed === undefined) {
+      if (returnOnEquity === 0) {
+        continue;
+      }
+      marginUsed = (unrealizedPnl / returnOnEquity) * 100;
+    } else {
+      marginUsed =
+        typeof account.marginUsed === 'string'
+          ? Number.parseFloat(account.marginUsed)
+          : account.marginUsed;
     }
-
-    const marginUsed = (unrealizedPnl / returnOnEquity) * 100;
 
     if (Number.isNaN(marginUsed) || marginUsed <= 0) {
       continue;
@@ -620,45 +633,39 @@ export function calculateAccountSummary({
  *
  * @param states - The array of per-DEX account states to aggregate.
  * @returns The combined account state with summed balances and recalculated ROE.
+ * @throws `ACCOUNT_STATE_FAILED` when `states` is empty.
  */
 export function aggregateAccountStates(states: AccountState[]): AccountState {
-  const fallback: AccountState = {
-    spendableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    withdrawableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    totalBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    marginUsed: PERPS_CONSTANTS.FallbackDataDisplay,
-    unrealizedPnl: PERPS_CONSTANTS.FallbackDataDisplay,
-    returnOnEquity: PERPS_CONSTANTS.FallbackDataDisplay,
-  };
-
-  if (states.length === 0) {
-    return fallback;
+  const [first, ...rest] = states;
+  if (!first) {
+    // No account answered: the state is unknown. A '--' placeholder in
+    // numeric fields parses as NaN downstream.
+    throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
   }
 
-  const aggregated = states.reduce<AccountState>((acc, state, index) => {
-    if (index === 0) {
-      return { ...state };
-    }
-
-    return {
-      spendableBalance: addDecimalValues(
-        acc.spendableBalance,
-        state.spendableBalance,
-      ),
-      withdrawableBalance: addDecimalValues(
-        acc.withdrawableBalance,
-        state.withdrawableBalance,
-      ),
-      totalBalance: addDecimalValues(acc.totalBalance, state.totalBalance),
-      marginUsed: (
-        parseFloat(acc.marginUsed) + parseFloat(state.marginUsed)
-      ).toString(),
-      unrealizedPnl: (
-        parseFloat(acc.unrealizedPnl) + parseFloat(state.unrealizedPnl)
-      ).toString(),
-      returnOnEquity: '0',
-    };
-  }, fallback);
+  const aggregated = rest.reduce<AccountState>(
+    (acc, state) => {
+      return {
+        spendableBalance: addDecimalValues(
+          acc.spendableBalance,
+          state.spendableBalance,
+        ),
+        withdrawableBalance: addDecimalValues(
+          acc.withdrawableBalance,
+          state.withdrawableBalance,
+        ),
+        totalBalance: addDecimalValues(acc.totalBalance, state.totalBalance),
+        marginUsed: (
+          parseFloat(acc.marginUsed) + parseFloat(state.marginUsed)
+        ).toString(),
+        unrealizedPnl: (
+          parseFloat(acc.unrealizedPnl) + parseFloat(state.unrealizedPnl)
+        ).toString(),
+        returnOnEquity: '0',
+      };
+    },
+    { ...first },
+  );
 
   aggregated.spendableBalance = normalizeDecimalString(
     aggregated.spendableBalance,

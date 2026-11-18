@@ -611,16 +611,27 @@ export function adaptPositionFromLighter(
     );
   }
   const size = magnitude * position.sign;
-  const positionValue = parseFloat(position.positionValue);
-  const marginFraction = parseFloat(position.initialMarginFraction);
+  // Malformed values must not turn into NaN margin or RoE.
+  const positionValue = parseStrictAccountDecimal(
+    position.positionValue,
+    `REST position value for ${position.symbol}`,
+  );
+  const unrealizedPnl = parseStrictAccountDecimal(
+    position.unrealizedPnl,
+    `REST unrealized PnL for ${position.symbol}`,
+  );
+  const marginFraction =
+    parseLighterStrictDecimal(position.initialMarginFraction) ?? Number.NaN;
   // initialMarginFraction is a percentage (e.g. "20" => 5x leverage).
+  // Without a usable fraction the leverage is unknown, not 1x.
   const leverageValue =
-    marginFraction > 0 ? Math.round(100 / marginFraction) : 1;
+    Number.isFinite(marginFraction) && marginFraction > 0
+      ? Math.round(100 / marginFraction)
+      : undefined;
   const marginUsed = deriveLighterPositionMarginUsed(
     positionValue,
     marginFraction,
   );
-  const unrealizedPnl = parseFloat(position.unrealizedPnl);
   const liquidationPrice = parseFloat(position.liquidationPrice);
 
   return {
@@ -643,11 +654,8 @@ export function adaptPositionFromLighter(
     maxLeverage,
     // A fraction (0.1 = 10%), the unit Hyperliquid positions use.
     returnOnEquity: marginUsed > 0 ? String(unrealizedPnl / marginUsed) : '0',
-    cumulativeFunding: {
-      allTime: '0',
-      sinceOpen: '0',
-      sinceChange: '0',
-    },
+    // The account payload carries no funding, so cumulativeFunding is
+    // omitted (unknown) rather than reported as zero.
     takeProfitCount: 0,
     stopLossCount: 0,
     providerId: 'lighter',
@@ -675,7 +683,11 @@ export function adaptAccountStateFromLighter(
     account.availableBalance,
     'REST available balance',
   );
-  const positions = account.positions ?? [];
+  const { positions } = account;
+  if (!positions) {
+    // Without positions, unrealized PnL and the total balance are unknown.
+    throw new Error(`${LIGHTER_DATA_INTEGRITY_PREFIX} REST positions missing`);
+  }
   const unrealizedPnl = positions.reduce(
     (sum, position) =>
       sum +

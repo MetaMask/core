@@ -223,7 +223,7 @@ Agreed for every client ([TAT-4656](https://consensyssoftware.atlassian.net/brow
 
 ## Balance contract on AccountState
 
-Balance display must keep spendable balance, collateral and HyperLiquid account abstraction state apart. `AccountState` balance fields are USD decimal strings; `returnOnEquity` is a percentage. Any of them can be the `--` unavailable sentinel.
+Balance display must keep spendable balance, collateral and HyperLiquid account abstraction state apart. `AccountState` balance fields are USD decimal strings; `returnOnEquity` is a percentage. They never hold a `--` placeholder: a failed read throws `ACCOUNT_STATE_FAILED`, and a read that some sub-accounts did not answer lists them in `unavailableSubAccounts`.
 
 | Field                                           | Meaning                                                                                                                                                                             | HyperLiquid value                                                                                                                      |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -234,6 +234,7 @@ Balance display must keep spendable balance, collateral and HyperLiquid account 
 | `crossMarginSummary`                            | Optional `accountValue`, `maintenanceMargin`, `marginUsed`, `notional`                                                                                                              | Summed across DEXs                                                                                                                     |
 | `spotCollateral`                                | Optional spot USDC counted as cross collateral; pass it to `calculateAccountSummary`. Absent while spot state or abstraction mode is unknown, or when the USDC balance is malformed | `'0'` for Standard (`disabled`, `default`); free spot USDC, `max(0, total - hold)`, for Unified and portfolio margin; `'0'` on Lighter |
 | `subAccountBreakdown`                           | Optional per-sub-account balances                                                                                                                                                   | Main DEX and HIP-3 DEXs                                                                                                                |
+| `unavailableSubAccounts`                        | Optional sub-account keys (as in `subAccountBreakdown`) whose read failed; the totals exclude them                                                                                  | HIP-3 or main DEXs whose clearinghouse read failed                                                                                     |
 | `providerId`                                    | Venue, set by the aggregator                                                                                                                                                        |                                                                                                                                        |
 
 Clients read `withdrawableBalance` without branching on provider; no client-side spot to perps sweep happens. `hyperLiquidModeFoldsSpot` folds spot into collateral for `unifiedAccount` and `portfolioMargin` only. An unknown mode does not fold.
@@ -242,7 +243,7 @@ Code: `src/types/index.ts` `AccountState`, `CrossMarginSummary`; `src/utils/hype
 
 ## Errors
 
-- `PERPS_ERROR_CODES` holds 104 stable codes returned to clients for translation. `isPerpsErrorCode` checks a value. Adding a code is a minor change, so clients need a catch-all.
+- `PERPS_ERROR_CODES` holds 105 stable codes returned to clients for translation. `isPerpsErrorCode` checks a value. Adding a code is a minor change, so clients need a catch-all.
 - `PerpsControllerError` carries `errorCode` and optional `errorDetails`. `createPriceMovedError` and `createTpslLegReplaceUnsupportedError` build typed errors. The package entry exports only the detail types from this file.
 - The controller and services log through the injected `logger`.
 

@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Position.displayMarginUsed`, the margin Hyperliquid shows for a cross position: `marginUsed × accountValue / totalMarginUsed` when cross equity is below the cross initial margin, otherwise `marginUsed`. `marginUsed` keeps the raw venue figure. `adaptPositionFromSDK` takes the clearinghouse `crossMarginSummary` as an optional second argument to compute it
+- Add `AccountState.unavailableSubAccounts`, the sub-accounts (same keys as `subAccountBreakdown`, `''` for the Hyperliquid main DEX) whose read failed. Hyperliquid account reads set it when some DEXs fail, so clients can show the totals as partial
+- Add the `PERPS_ERROR_CODES.ORDERS_FAILED` error code
+- Add an optional `marginUsed` to `ReturnOnEquityInput`. `calculateWeightedReturnOnEquity` weighs each account by it when given
+
 ### Changed
 
+- **BREAKING:** `Position.cumulativeFunding` and `Position.leverage.value` are optional. Lighter positions omit `cumulativeFunding` instead of reporting `'0'`, and leave `leverage.value` undefined when the venue sends no usable initial margin fraction instead of reporting 1x
+- **BREAKING:** `queryStandaloneClearinghouseStates` returns `{ results, failedDexs }` (new `StandaloneClearinghouseStatesResult` type) instead of only the states that answered
+- **BREAKING:** `aggregateAccountStates([])` throws `ACCOUNT_STATE_FAILED` instead of returning `'--'` in every numeric field
+- **BREAKING:** Lighter `getAccountState` throws `ACCOUNT_STATE_FAILED` on a failed read or a missing account row, as it already did with `throwOnUnavailable`, instead of returning a zero balance. A wallet without a Lighter account still reads as empty. `throwOnUnavailable` now only controls whether a missing cross-margin summary is an error
+- **BREAKING:** Lighter `getOpenOrders` and `getOrders` throw `ORDERS_FAILED` (cause attached) when the read fails instead of returning `[]`
+- **BREAKING:** `previewPositionModify` and `previewHyperLiquidIsolatedPositionModify` treat an omitted, NaN or negative `feeAmountUsd` as unknown: the resulting margin and liquidation price of an increase or flip are unavailable instead of computed with a $0 fee. Pass `0` only for a known zero fee
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
 
@@ -23,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HIP-3 markets with `marginMode` `noCross` or `strictIsolated`, or `onlyIsolated`, still report `['isolated']` and refuse Cross with `ORDER_MARGIN_MODE_UNSUPPORTED`
   - With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position now transfers only the new order's margin instead of the whole position's
   - `adaptMarketFromSDK` and `getMarkets` no longer return `marginMode: 'normal'`, a value outside `MarketInfo.marginMode`; a market without a restriction now has no `marginMode`, and the Terminal global snapshot no longer fails schema validation when a market sends `normal`
+- Hyperliquid standalone `getAccountState` throws `ACCOUNT_STATE_FAILED` when no DEX answers, and sets `unavailableSubAccounts` when some fail, instead of returning `'--'` placeholders or totals that silently skip DEXs
+- The Hyperliquid account stream no longer publishes `'--'` placeholders while no DEX account state has arrived
+- `calculateWeightedReturnOnEquity` no longer drops accounts whose RoE is 0 when `marginUsed` is given; the Hyperliquid account stream passes it
+- Fee quotes with an unknown protocol fee rate leave `feeRate` and `feeAmount` undefined instead of reporting the MetaMask fee alone as the total
+- Lighter `calculateLiquidationPrice` throws `PRICE_UNAVAILABLE` or `ORDER_LEVERAGE_INVALID` for an invalid entry price or leverage instead of returning `'0.00'`
+- Lighter account reads reject a payload without `positions`, and position reads reject a malformed position value or unrealized PnL, instead of reporting zero PnL or `NaN` margin and RoE
 
 ## [24.1.0]
 

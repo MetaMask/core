@@ -758,7 +758,10 @@ export {
 } from './utils/index.js';
 export type { SortMarketsParams } from './utils/index.js';
 export { parseVolume, sortMarkets } from './utils/index.js';
-export type { StandaloneInfoClientOptions } from './utils/index.js';
+export type {
+  StandaloneClearinghouseStatesResult,
+  StandaloneInfoClientOptions,
+} from './utils/index.js';
 export {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,

@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { describe, expect, it } from 'vitest';
 
-import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { AccountState } from '../../../src/types/index.js';
 import type { CalculateAccountSummaryParams } from '../../../src/utils/accountUtils.js';
 import {
@@ -16,17 +16,10 @@ import {
 } from '../../../src/utils/accountUtils.js';
 
 describe('aggregateAccountStates', () => {
-  const fallback: AccountState = {
-    spendableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    withdrawableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    totalBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    marginUsed: PERPS_CONSTANTS.FallbackDataDisplay,
-    unrealizedPnl: PERPS_CONSTANTS.FallbackDataDisplay,
-    returnOnEquity: PERPS_CONSTANTS.FallbackDataDisplay,
-  };
-
-  it('returns fallback when given an empty array', () => {
-    expect(aggregateAccountStates([])).toEqual(fallback);
+  it('throws ACCOUNT_STATE_FAILED instead of returning placeholders when given an empty array', () => {
+    expect(() => aggregateAccountStates([])).toThrow(
+      PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
+    );
   });
 
   it('canonicalizes balances when given one state', () => {
@@ -875,6 +868,22 @@ describe('calculateWeightedReturnOnEquity', () => {
       { unrealizedPnl: '10', returnOnEquity: '20' },
     ]);
     expect(parseFloat(result)).toBeCloseTo(20, 5);
+  });
+
+  it('weighs an account with an RoE of 0 by its margin used', () => {
+    const result = calculateWeightedReturnOnEquity([
+      { unrealizedPnl: '10', returnOnEquity: '10', marginUsed: '100' },
+      { unrealizedPnl: 0, returnOnEquity: 0, marginUsed: 100 },
+    ]);
+    expect(parseFloat(result)).toBeCloseTo(5, 10);
+  });
+
+  it('still skips an RoE of 0 when margin used is not given', () => {
+    const result = calculateWeightedReturnOnEquity([
+      { unrealizedPnl: '10', returnOnEquity: '10' },
+      { unrealizedPnl: '0', returnOnEquity: '0' },
+    ]);
+    expect(parseFloat(result)).toBeCloseTo(10, 10);
   });
 });
 

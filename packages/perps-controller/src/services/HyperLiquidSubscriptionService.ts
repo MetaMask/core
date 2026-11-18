@@ -58,7 +58,10 @@ import {
   calculateWeightedReturnOnEquity,
   getCrossMarginSpotCollateral,
 } from '../utils/accountUtils.js';
-import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
+import type {
+  AddSpotBalanceOptions,
+  ReturnOnEquityInput,
+} from '../utils/accountUtils.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -1010,6 +1013,8 @@ export class HyperLiquidSubscriptionService {
           }:${pos.stopLossPrice ?? ''}:${pos.takeProfitCount}:${pos.stopLossCount}:${
             pos.unrealizedPnl
           }:${pos.returnOnEquity}:${pos.liquidationPrice ?? ''}:${pos.marginUsed || ''}:${
+            pos.displayMarginUsed ?? ''
+          }:${
             // Trigger arrays are part of the emitted shape, so a standalone or
             // partial trigger appearing/disappearing has to change the hash —
             // otherwise subscribers never receive the updated arrays.
@@ -1401,10 +1406,14 @@ export class HyperLiquidSubscriptionService {
    * Aggregate account states from all cached DEXs
    * Sums balances and creates per-DEX breakdown for multi-DEX portfolio view
    *
-   * @returns Aggregated account state with dexBreakdown field
+   * @returns Aggregated account state with dexBreakdown field, or undefined
+   * while no DEX account state is cached (unknown, not empty).
    * @private
    */
-  #aggregateAccountStates(): AccountState {
+  #aggregateAccountStates(): AccountState | undefined {
+    if (this.#dexAccountCache.size === 0) {
+      return undefined;
+    }
     const subAccountBreakdown: Record<
       string,
       {
@@ -1415,10 +1424,7 @@ export class HyperLiquidSubscriptionService {
     > = {};
 
     // Collect account states for weighted ROE calculation
-    const accountStatesForROE: {
-      unrealizedPnl: string;
-      returnOnEquity: string;
-    }[] = [];
+    const accountStatesForROE: ReturnOnEquityInput[] = [];
 
     // Aggregate all cached account states
     Array.from(this.#dexAccountCache.entries()).forEach(
@@ -1434,6 +1440,7 @@ export class HyperLiquidSubscriptionService {
         accountStatesForROE.push({
           unrealizedPnl: state.unrealizedPnl,
           returnOnEquity: state.returnOnEquity,
+          marginUsed: state.marginUsed,
         });
       },
     );
@@ -2368,7 +2375,12 @@ export class HyperLiquidSubscriptionService {
           // Process positions from clearinghouse state
           const positions = data.clearinghouseState.assetPositions
             .filter((assetPos) => assetPos.position.szi !== '0')
-            .map((assetPos) => adaptPositionFromSDK(assetPos));
+            .map((assetPos) =>
+              adaptPositionFromSDK(
+                assetPos,
+                data.clearinghouseState.crossMarginSummary,
+              ),
+            );
 
           // Get cached orders to preserve TP/SL data (prevents flickering)
           // Orders are cached by openOrders subscription
@@ -2623,7 +2635,10 @@ export class HyperLiquidSubscriptionService {
     // Check if aggregated data changed using fast hash comparison
     const positionsHash = this.#hashPositions(aggregatedPositions);
     const ordersHash = this.#hashOrders(aggregatedOrders);
-    const accountHash = this.#hashAccountState(aggregatedAccount);
+    // An unknown account is not published.
+    const accountHash = aggregatedAccount
+      ? this.#hashAccountState(aggregatedAccount)
+      : this.#cachedAccountHash;
 
     const positionsChanged = positionsHash !== this.#cachedPositionsHash;
     const ordersChanged = ordersHash !== this.#cachedOrdersHash;
@@ -2648,7 +2663,7 @@ export class HyperLiquidSubscriptionService {
       });
     }
 
-    if (accountChanged) {
+    if (aggregatedAccount && accountChanged) {
       this.#cachedAccount = aggregatedAccount;
       this.#cachedAccountHash = accountHash;
       this.#accountSubscribers.forEach((callback) => {

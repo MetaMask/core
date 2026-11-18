@@ -1119,6 +1119,7 @@ describe('HyperLiquidProvider', () => {
         size: '0.5',
         price: '2000',
         leverage: 10,
+        feeAmountUsd: 0,
       });
 
       expect(result.status).toBe('open');
@@ -1157,6 +1158,7 @@ describe('HyperLiquidProvider', () => {
         size: '0.5',
         price: '2000',
         leverage: 10,
+        feeAmountUsd: 0,
       });
 
       expect(result.status).toBe('open');

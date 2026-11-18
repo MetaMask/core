@@ -133,11 +133,11 @@ const available = (value: number): PositionPreviewValue => ({
 const parseFiniteNumber = (value: string | null | undefined): number =>
   Number.parseFloat(value ?? '');
 
-const isPositiveFinite = (value: number): boolean =>
-  Number.isFinite(value) && value > 0;
+const isPositiveFinite = (value: number | undefined): value is number =>
+  value !== undefined && Number.isFinite(value) && value > 0;
 
-const isNonNegativeFinite = (value: number): boolean =>
-  Number.isFinite(value) && value >= 0;
+const isNonNegativeFinite = (value: number | undefined): value is number =>
+  value !== undefined && Number.isFinite(value) && value >= 0;
 
 const currentFromPosition = (params: {
   currentMargin: number;
@@ -486,6 +486,7 @@ export function estimateIsolatedLeverageChange({
     leverage < 1 ||
     maxLeverage === undefined ||
     leverage > maxLeverage ||
+    currentLeverage === undefined ||
     !Number.isFinite(currentLeverage) ||
     currentLeverage < 1 ||
     !isPositiveFinite(size) ||
@@ -588,10 +589,11 @@ export function previewHyperLiquidIsolatedPositionModify(
   const selectedLeverage = params.leverage;
   const orderSize = parseFiniteNumber(params.size);
   const orderPrice = parseFiniteNumber(params.price);
-  const feeAmountUsd =
-    typeof params.feeAmountUsd === 'number' && params.feeAmountUsd > 0
-      ? params.feeAmountUsd
-      : 0;
+  // An omitted, NaN or negative fee is unknown, never $0: increases and
+  // flips then have no resulting margin.
+  const feeAmountUsd = isNonNegativeFinite(params.feeAmountUsd)
+    ? params.feeAmountUsd
+    : undefined;
 
   if (
     !isPositiveFinite(currentSize) ||
@@ -690,7 +692,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     const resultingEntryPrice =
       (currentSize * currentEntry + orderSize * fillPrice) / resultingSize;
     const newMargin =
-      existingMarginAfterLeverage === undefined
+      existingMarginAfterLeverage === undefined || feeAmountUsd === undefined
         ? undefined
         : Math.max(0, existingMarginAfterLeverage + orderMargin - feeAmountUsd);
 
@@ -734,7 +736,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     const orderMargin = (orderSize * fillPrice) / selectedLeverage;
     const leftoverRatio = leftover / orderSize;
     const leftoverMargin =
-      existingMarginAfterLeverage === undefined
+      existingMarginAfterLeverage === undefined || feeAmountUsd === undefined
         ? undefined
         : Math.max(0, (orderMargin - feeAmountUsd) * leftoverRatio);
 

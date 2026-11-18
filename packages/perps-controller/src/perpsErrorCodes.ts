@@ -20,6 +20,7 @@ export const PERPS_ERROR_CODES = {
   WITHDRAW_FAILED: 'WITHDRAW_FAILED',
   POSITIONS_FAILED: 'POSITIONS_FAILED',
   ACCOUNT_STATE_FAILED: 'ACCOUNT_STATE_FAILED',
+  ORDERS_FAILED: 'ORDERS_FAILED', // An orders read failed; the order list is unknown, not empty
   MARKETS_FAILED: 'MARKETS_FAILED',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
   // Provider-agnostic order errors

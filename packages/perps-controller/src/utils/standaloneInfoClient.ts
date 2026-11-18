@@ -34,19 +34,29 @@ export const createStandaloneInfoClient = (
 };
 
 /**
+ * Per-DEX outcome of {@link queryStandaloneClearinghouseStates}.
+ */
+export type StandaloneClearinghouseStatesResult = {
+  /** States from the DEXs that answered (`dex` null for the main DEX). */
+  results: { dex: string | null; data: ClearinghouseStateResponse }[];
+  /** DEXs whose query failed. Their state is unknown, not empty. */
+  failedDexs: { dex: string | null; error: unknown }[];
+};
+
+/**
  * Query clearinghouseState across multiple DEXs in parallel.
  * Used by standalone mode to aggregate positions/account state across HIP-3 DEXs.
  *
  * @param infoClient - The HyperLiquid InfoClient instance to use for queries.
  * @param userAddress - The user's wallet address to query state for.
  * @param dexs - The array of DEX identifiers to query (null for main DEX).
- * @returns A promise that resolves to an array of clearinghouse state responses.
+ * @returns The answered states and the DEXs that failed.
  */
 export const queryStandaloneClearinghouseStates = async (
   infoClient: InfoClient,
   userAddress: string,
   dexs: (string | null)[],
-): Promise<ClearinghouseStateResponse[]> => {
+): Promise<StandaloneClearinghouseStatesResult> => {
   const results = await Promise.allSettled(
     dexs.map(async (dex) => {
       const queryParams: { user: string; dex?: string } = {
@@ -59,12 +69,19 @@ export const queryStandaloneClearinghouseStates = async (
     }),
   );
 
-  return results
-    .filter(
-      (result): result is PromiseFulfilledResult<ClearinghouseStateResponse> =>
-        result.status === 'fulfilled',
-    )
-    .map((result) => result.value);
+  const outcome: StandaloneClearinghouseStatesResult = {
+    results: [],
+    failedDexs: [],
+  };
+  results.forEach((result, index) => {
+    const dex = dexs[index];
+    if (result.status === 'fulfilled') {
+      outcome.results.push({ dex, data: result.value });
+    } else {
+      outcome.failedDexs.push({ dex, error: result.reason });
+    }
+  });
+  return outcome;
 };
 
 /**
