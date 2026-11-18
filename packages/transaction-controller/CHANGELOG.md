@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `hooks.isResumable` option and `finalizeResumedTransaction` method to allow incomplete transactions to be resumed after restart ([#11449](https://github.com/MetaMask/core/pull/11449))
+- Add `isResumable` option and `finalizeResumedTransaction` method to allow incomplete transactions to be resumed after restart ([#11449](https://github.com/MetaMask/core/pull/11449))
 
 ### Changed
 

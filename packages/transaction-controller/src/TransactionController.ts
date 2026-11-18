@@ -385,6 +385,14 @@ export type TransactionControllerOptions = {
   /** Whether the first time interaction check is enabled. */
   isFirstTimeInteractionEnabled?: () => boolean;
 
+  /**
+   * Whether an incomplete (approved or signed) transaction found in state at
+   * startup should be left pending so another controller can resume it.
+   * Called synchronously during construction. Defaults to false, which fails
+   * the transaction.
+   */
+  isResumable?: (transactionMeta: TransactionMeta) => boolean;
+
   /** Whether new transactions will be automatically simulated. */
   isSimulationEnabled?: (transactionMeta?: TransactionMeta) => boolean;
 
@@ -429,14 +437,6 @@ export type TransactionControllerOptions = {
      * Additional logic to execute before signing a transaction.
      */
     beforeSign?: BeforeSignHook;
-
-    /**
-     * Called synchronously during construction for each incomplete
-     * (approved/signed) transaction found in persisted state.
-     * Return true to leave the transaction pending so another controller
-     * can finish it; return false (default) to fail it as today.
-     */
-    isResumable?: (transactionMeta: TransactionMeta) => boolean;
 
     /** Alternate logic to publish a transaction. */
     publish?: (
@@ -827,6 +827,7 @@ export class TransactionController extends BaseController<
       isAutomaticGasFeeUpdateEnabled,
       isEIP7702GasFeeTokensEnabled,
       isFirstTimeInteractionEnabled,
+      isResumable,
       isSimulationEnabled,
       isTransactionTrusted,
       isTimeoutEnabled,
@@ -875,7 +876,7 @@ export class TransactionController extends BaseController<
       ((): Promise<boolean> => Promise.resolve(false));
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? ((): boolean => true);
-    this.#isResumable = hooks?.isResumable ?? ((): boolean => false);
+    this.#isResumable = isResumable ?? ((): boolean => false);
     this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
     this.#isTransactionTrusted = isTransactionTrusted ?? ((): boolean => false);
     this.#isSwapsDisabled = disableSwaps ?? false;
@@ -2940,21 +2941,31 @@ export class TransactionController extends BaseController<
         ),
     );
 
+    const resumableTransactions = incompleteTransactions.filter(
+      (transactionMeta) => {
+        try {
+          return this.#isResumable(transactionMeta);
+        } catch (error) {
+          log('isResumable error', error);
+          return false;
+        }
+      },
+    );
+
+    const skippedTransactionIds = new Set(
+      resumableTransactions.flatMap((transactionMeta) => [
+        transactionMeta.id,
+        ...(transactionMeta.requiredTransactionIds ?? []),
+      ]),
+    );
+
     for (const transactionMeta of incompleteTransactions) {
-      const requiredTransactionIds =
-        transactionMeta.requiredTransactionIds ?? [];
-
-      let shouldResume = false;
-
-      try {
-        shouldResume = this.#isResumable(transactionMeta);
-      } catch (error) {
-        log('isResumable hook threw', error);
-      }
-
-      if (shouldResume) {
+      if (skippedTransactionIds.has(transactionMeta.id)) {
         continue;
       }
+
+      const requiredTransactionIds =
+        transactionMeta.requiredTransactionIds ?? [];
 
       const allRequiredConfirmed =
         requiredTransactionIds.length > 0 &&
@@ -2976,6 +2987,7 @@ export class TransactionController extends BaseController<
 
         if (
           !requiredTransactionMeta ||
+          skippedTransactionIds.has(requiredTransactionId) ||
           this.#isFinalState(requiredTransactionMeta.status)
         ) {
           continue;
