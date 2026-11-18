@@ -1538,23 +1538,31 @@ export class PerpsController extends BaseController<
     // must learn the new trading address after every account switch, and the
     // preload-scoped account handler is torn down on disconnect, so it cannot
     // carry this.
+    let selectedTradingAddress = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
     const forgetRegisteredTradingAddresses = (): void => {
       this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
-      // Balance entries belong to the selected account; another account's
-      // observations must not show as this one's.
-      this.update((draft) => {
-        draft.accountState = null;
-        draft.perpsBalances = {};
-      });
+      const switchedAccount = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      );
+      const nextAddress = switchedAccount?.address.toLowerCase();
+      // The account tree can re-emit its current selection on reinitialization.
+      // An unchanged wallet already has live balances, and the stream may dedupe
+      // its next update.
+      if (!nextAddress || nextAddress !== selectedTradingAddress) {
+        selectedTradingAddress = nextAddress;
+        this.update((draft) => {
+          draft.accountState = null;
+          draft.perpsBalances = {};
+        });
+      }
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
       // would otherwise be attributed to nothing, so the new address announces
       // itself here. Fire-and-forget: attribution plumbing must not block or
       // fail an account switch.
-      const switchedAccount = getSelectedEvmAccountFromMessenger(
-        this.messenger,
-      );
       if (switchedAccount) {
         this.#rewardsIntegrationService
           .registerTradingAddress(switchedAccount.address, {

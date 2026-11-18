@@ -713,17 +713,38 @@ describe('PerpsController', () => {
       });
     });
 
-    it('clears balances on selected account notifications', () => {
+    it('keeps live balances when the account tree re-emits the same selection', () => {
       setupAggregatedMode();
       controller.subscribeToAccount({ callback: vi.fn() });
       mockProvider.subscribeToAccount.mock.calls[0][0].callback(
         accountState('100'),
       );
+      const previous = controller.state;
+
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) =>
+            event === 'AccountTreeController:selectedAccountGroupChange',
+        )
+        .forEach(([, handler]) => handler('group-1', 'group-1'));
+
+      expect(controller.state.accountState).toBe(previous.accountState);
+      expect(controller.state.perpsBalances).toBe(previous.perpsBalances);
+    });
+
+    it('clears balances on an actual selected account change', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+        accountState('100'),
+      );
+      selectedEvmAddress = '0x00000000000000000000000000000000000000bb';
       (mockMessenger.subscribe as Mock).mock.calls
         .filter(
           ([event]) => event === 'AccountsController:selectedAccountChange',
         )
         .forEach(([, handler]) => handler());
+      expect(controller.state.accountState).toBeNull();
       expect(controller.state.perpsBalances).toStrictEqual({});
     });
 
