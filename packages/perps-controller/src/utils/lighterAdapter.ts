@@ -567,15 +567,15 @@ export function adaptFillFromLighterTrade(
  *
  * @param positionValue - Position value in USDC.
  * @param initialMarginFraction - Initial margin fraction, in percent.
- * @returns Margin used in USDC; the full value when no fraction is set.
+ * @returns Margin used in USDC, or undefined without a positive fraction.
  */
 function deriveLighterPositionMarginUsed(
   positionValue: number,
   initialMarginFraction: number,
-): number {
-  return initialMarginFraction > 0
+): number | undefined {
+  return Number.isFinite(initialMarginFraction) && initialMarginFraction > 0
     ? (positionValue * initialMarginFraction) / 100
-    : positionValue;
+    : undefined;
 }
 
 /**
@@ -623,15 +623,20 @@ export function adaptPositionFromLighter(
   const marginFraction =
     parseLighterStrictDecimal(position.initialMarginFraction) ?? Number.NaN;
   // initialMarginFraction is a percentage (e.g. "20" => 5x leverage).
-  // Without a usable fraction the leverage is unknown, not 1x.
-  const leverageValue =
-    Number.isFinite(marginFraction) && marginFraction > 0
-      ? Math.round(100 / marginFraction)
-      : undefined;
-  const marginUsed = deriveLighterPositionMarginUsed(
+  // Without a usable fraction leverage, margin and RoE are unknown, not 1x.
+  const derivedMargin = deriveLighterPositionMarginUsed(
     positionValue,
     marginFraction,
   );
+  if (derivedMargin === undefined && size !== 0) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} initial margin fraction '${String(position.initialMarginFraction)}' for open position ${position.symbol}`,
+    );
+  }
+  const leverageValue =
+    derivedMargin === undefined ? undefined : Math.round(100 / marginFraction);
+  // A flat row (filtered downstream) uses no margin.
+  const marginUsed = derivedMargin ?? 0;
   const liquidationPrice = parseFloat(position.liquidationPrice);
 
   return {
@@ -729,7 +734,8 @@ export function adaptAccountStateFromLighter(
  * @param getMaintenanceFraction - Maintenance margin fraction (0.024 = 2.4%)
  * for a market symbol, or undefined when the market has none.
  * @returns The cross-margin summary, or undefined when the payload omits
- * positions or an open cross position's market has no maintenance fraction.
+ * positions or an open cross position has no maintenance or initial margin
+ * fraction.
  */
 export function adaptCrossMarginSummaryFromLighter(
   account: LighterSubAccount,
@@ -772,11 +778,15 @@ export function adaptCrossMarginSummaryFromLighter(
     if (maintenanceFraction === undefined) {
       return undefined;
     }
-    notional += positionValue;
-    marginUsed += deriveLighterPositionMarginUsed(
+    const positionMargin = deriveLighterPositionMarginUsed(
       positionValue,
       initialMarginFraction,
     );
+    if (positionMargin === undefined) {
+      return undefined;
+    }
+    notional += positionValue;
+    marginUsed += positionMargin;
     maintenanceMargin += positionValue * maintenanceFraction;
   }
   return {

@@ -478,6 +478,36 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return successful;
   }
 
+  /**
+   * Values of an orders read across venues. A venue whose read failed leaves
+   * the merged list unknown, never shorter: the first failure is rethrown
+   * when it is already classified, else wrapped in `ORDERS_FAILED`.
+   *
+   * @param results - Results from Promise.allSettled
+   * @returns Every venue's orders
+   */
+  #requireAllOrderResults<TResult>(
+    results: PromiseSettledResult<TResult>[],
+  ): TResult[] {
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failure) {
+      const reason: unknown = failure.reason;
+      if (
+        reason instanceof Error &&
+        (reason.message === PERPS_ERROR_CODES.ORDERS_FAILED ||
+          reason.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+      ) {
+        throw reason;
+      }
+      throw new Error(PERPS_ERROR_CODES.ORDERS_FAILED, { cause: reason });
+    }
+    return results.flatMap((result) =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    );
+  }
+
   // ============================================================================
   // Asset Routes (Synchronous - delegate to default provider)
   // ============================================================================
@@ -746,7 +776,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       }),
     );
 
-    return this.#extractSuccessfulResults(results, 'getOrders').flat();
+    return this.#requireAllOrderResults(results).flat();
   }
 
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
@@ -757,7 +787,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       }),
     );
 
-    return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
+    return this.#requireAllOrderResults(results).flat();
   }
 
   async getFunding(

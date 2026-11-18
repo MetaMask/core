@@ -645,6 +645,105 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('marks the account partial until a DEX that only sent orders publishes its account state', async () => {
+      const accountCallbacks = new Map<string, (payload: unknown) => void>();
+      const orderCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          accountCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          orderCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      const accountCallback = vi.fn();
+      const unsubscribeAccount = hip3Service.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribeOrders = hip3Service.subscribeToOrders({
+        callback: vi.fn(),
+      });
+      await vi.runAllTimersAsync();
+      const clearinghouseState = {
+        assetPositions: [],
+        marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+        withdrawable: '100',
+      };
+
+      accountCallbacks.get('')?.({ dex: '', clearinghouseState });
+      orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+
+      accountCallbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      unsubscribeOrders();
+      unsubscribeAccount();
+    });
+
+    it('marks the account partial when a DEX account subscription fails', async () => {
+      const accountCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          if ((params.dex || '') === 'xyz') {
+            return Promise.reject(new Error('xyz account unavailable'));
+          }
+          accountCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      const accountCallback = vi.fn();
+      const unsubscribe = hip3Service.subscribeToAccount({
+        callback: accountCallback,
+      });
+      await vi.runAllTimersAsync();
+
+      accountCallbacks.get('')?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+          withdrawable: '100',
+        },
+      });
+      await vi.runAllTimersAsync();
+
+      expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+      unsubscribe();
+    });
+
     it('requires a newly enabled DEX before certifying a complete position snapshot', async () => {
       const callbacks = new Map<string, (payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(

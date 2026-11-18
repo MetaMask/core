@@ -817,6 +817,35 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
+  describe('Read Operations - order read failures', () => {
+    it('rejects getOpenOrders when one venue fails instead of returning the other venue alone', async () => {
+      const failure = new Error(PERPS_ERROR_CODES.ORDERS_FAILED);
+      mockHLProvider.getOpenOrders.mockResolvedValue([]);
+      mockLighterProvider.getOpenOrders.mockRejectedValue(failure);
+
+      await expect(aggregatedProvider.getOpenOrders()).rejects.toBe(failure);
+    });
+
+    it('wraps an unclassified venue failure in ORDERS_FAILED with the cause', async () => {
+      const cause = new Error('network down');
+      mockHLProvider.getOpenOrders.mockRejectedValue(cause);
+      mockLighterProvider.getOpenOrders.mockRejectedValue(cause);
+
+      const read = aggregatedProvider.getOpenOrders();
+      await expect(read).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+      await expect(read).rejects.toHaveProperty('cause', cause);
+    });
+
+    it('rejects getOrders when every venue fails instead of returning []', async () => {
+      mockHLProvider.getOrders.mockRejectedValue(new Error('down'));
+      mockLighterProvider.getOrders.mockRejectedValue(new Error('down'));
+
+      await expect(aggregatedProvider.getOrders()).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
+    });
+  });
+
   describe('Read Operations - getFunding', () => {
     it('aggregates funding data from all providers', async () => {
       mockHLProvider.getFunding.mockResolvedValue([

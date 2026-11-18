@@ -1010,9 +1010,9 @@ export type AccountState = {
    */
   crossMarginSummary?: CrossMarginSummary;
   /**
-   * Sub-accounts (same keys as `subAccountBreakdown`; `''` is the Hyperliquid
-   * main DEX) whose read failed. The totals exclude them, so the state is
-   * partial while this is present and non-empty.
+   * Sub-accounts (Hyperliquid DEX names; `''` is the main DEX) whose state is
+   * unavailable: the read failed, or on the live stream it has not arrived.
+   * The totals exclude them, so the state is partial while this is present.
    */
   unavailableSubAccounts?: string[];
   /**

@@ -162,6 +162,11 @@ export class HyperLiquidSubscriptionService {
   // Unlike #expectedDexs, subscription failures do not remove entries here.
   #positionSnapshotDexs: Set<string> = new Set();
 
+  // DEXs the current configuration subscribes for account state. Subscription
+  // failures do not remove entries, so a DEX that never published is reported
+  // as unavailable instead of silently left out of the totals.
+  #accountSnapshotDexs: Set<string> = new Set();
+
   #initializedDexs: Set<string> = new Set();
 
   // Subscriber collections
@@ -1045,7 +1050,9 @@ export class HyperLiquidSubscriptionService {
     // share the same balances, so leaving it out of the hash drops the
     // notification that turns an unset value into '0'.
     const spotCollateral = account.spotCollateral ?? '';
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}`;
+    // A slice arriving or failing changes completeness even when totals match.
+    const unavailable = account.unavailableSubAccounts?.join(',') ?? '';
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}:${unavailable}`;
   }
 
   // Cache hashes to avoid recomputation
@@ -1457,12 +1464,19 @@ export class HyperLiquidSubscriptionService {
     // Calculate weighted returnOnEquity across all DEXs
     const returnOnEquity = calculateWeightedReturnOnEquity(accountStatesForROE);
 
+    // Configured DEXs whose account state has not arrived (late, or the
+    // subscription failed): the totals exclude them, so say which.
+    const unavailableSubAccounts = Array.from(this.#accountSnapshotDexs).filter(
+      (dex) => !this.#dexAccountCache.has(dex),
+    );
+
     return addSpotBalanceToAccountState(
       {
         ...firstDexBase,
         ...aggregatedAccountState,
         subAccountBreakdown,
         returnOnEquity,
+        ...(unavailableSubAccounts.length > 0 && { unavailableSubAccounts }),
       },
       this.#cachedSpotState,
       this.#getSpotBalanceOptions(),
@@ -2142,6 +2156,7 @@ export class HyperLiquidSubscriptionService {
       // Track expected DEXs for synchronized notifications
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
+      this.#accountSnapshotDexs = new Set(dexsToSubscribe);
       this.#positionSnapshotDexs = dexDiscoveryComplete
         ? new Set(dexsToSubscribe)
         : new Set();
@@ -2790,6 +2805,7 @@ export class HyperLiquidSubscriptionService {
       // Clear DEX tracking for synchronized notifications
       this.#expectedDexs.clear();
       this.#positionSnapshotDexs.clear();
+      this.#accountSnapshotDexs.clear();
       this.#initializedDexs.clear();
       this.#dexPositionsEpoch.clear();
 
