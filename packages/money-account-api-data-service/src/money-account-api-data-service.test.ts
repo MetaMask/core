@@ -2012,6 +2012,26 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('accepts unknown fields on vaults responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_VAULTS_RESPONSE,
+        future_vaults_field: 'ok',
+        vaults: MOCK_VAULTS_RESPONSE.vaults.map((vault) => ({
+          ...vault,
+          future_vault_field: true,
+        })),
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get('/v1/vaults')
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchVaults();
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+
     it('accepts unknown fields on vault share valuations responses without stripping them', async () => {
       const { service } = createService(Env.DEV);
       const responseWithExtras = {
