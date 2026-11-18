@@ -322,6 +322,24 @@ describe('assertIdTokenMatchesUserId', () => {
       assertIdTokenMatchesUserId([], 'user-1');
     }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
+
+  it('should throw IdentityMismatch when userId is null', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-1' })],
+        null,
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when userId is undefined', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId(
+        [createMockIdToken({ sub: 'user-1' })],
+        undefined,
+      );
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
 });
 
 describe('assertIdentityUnchanged', () => {

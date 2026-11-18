@@ -2204,16 +2204,13 @@ export class SeedlessOnboardingController<
     // Fail fast if the refreshed idTokens do not belong to the identity in
     // state. This can happen when the identity changes while a token refresh
     // is in flight (there is no lock between the refresh and this call).
-    // `userId` is present: `#doRefreshAuthTokens` already asserted authentication.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    assertIdTokenMatchesUserId(idTokens, userId!);
+    assertIdTokenMatchesUserId(idTokens, userId);
 
     try {
       const authenticationResult = await this.toprfClient.authenticate({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         authConnectionId: authConnectionId!,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        userId: userId!,
+        userId,
         idTokens,
         groupedAuthConnectionId,
       });

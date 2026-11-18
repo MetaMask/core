@@ -169,19 +169,29 @@ export function assertIsValidVaultData(
  * locally first avoids a wasted network round-trip and surfaces a
  * distinguishable error instead of a generic authentication failure.
  *
- * A missing token, a token that cannot be decoded, or a token with no `sub`
- * claim is a hard failure. `sub` is required, and an undecodable token is
- * corrupted.
+ * A missing token, a token that cannot be decoded, a token with no `sub`
+ * claim, or a null/undefined userId is a hard failure. `sub` is required, and
+ * an undecodable token is corrupted.
  *
  * @param idTokens - The id tokens to check. Only the first token is validated.
  * @param userId - The user id the token should belong to.
- * @throws If the idToken is missing, cannot be decoded, has no `sub` claim, or
- * its `sub` claim does not match the provided userId.
+ * @throws If the user ID is null or undefined, if the idToken is missing,
+ * cannot be decoded, has no `sub` claim, or its `sub` claim does not match
+ * the provided userId.
  */
 export function assertIdTokenMatchesUserId(
   idTokens: string[],
-  userId: string,
-): void {
+  userId: string | null | undefined,
+): asserts userId is string {
+  if (userId === null || userId === undefined) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+      {
+        details: 'The user ID is missing.',
+      },
+    );
+  }
+
   const token = idTokens[0];
   if (!token) {
     throw new SeedlessOnboardingError(
