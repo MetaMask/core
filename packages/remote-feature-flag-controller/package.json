@@ -59,7 +59,7 @@
     "uuid": "^14.0.2"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^5.1.0",
+    "@lavamoat/allow-scripts": "^5.1.1",
     "@metamask/auto-changelog": "^7.1.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "nock": "^15.0.5",
