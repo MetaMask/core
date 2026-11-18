@@ -628,9 +628,6 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.objectContaining({ size: '0.1' }),
       ]);
 
-      onAccount({ dex: '', clearinghouseState: {} });
-      expect(account).toHaveBeenLastCalledWith(null);
-      expect(service.getFreshPositionsForAllDexs()).toBeNull();
       const order = {
         oid: 1,
         coin: 'BTC',
@@ -644,12 +641,50 @@ describe('HyperLiquidSubscriptionService', () => {
         triggerPx: '40000',
       };
       onOrders({ dex: '', orders: [order] });
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ stopLossCount: 1 }),
+      ]);
+
+      onAccount({ dex: '', clearinghouseState: {} });
+      expect(account).toHaveBeenLastCalledWith(null);
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
+      onOrders({ dex: '', orders: [order] });
       expect(hyperLiquidAdapterModule.adaptOrderFromSDK).toHaveBeenCalledWith(
         order,
         undefined,
       );
       expect(positions).toHaveBeenLastCalledWith([
         expect.objectContaining({ size: '0.1' }),
+      ]);
+
+      onOrders({ dex: '', orders: [] });
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          size: '0.1',
+          stopLossCount: 0,
+          stopLossOrders: [],
+        }),
+      ]);
+
+      onOrders({ dex: '', orders: [order] });
+      const actualAdapter = await vi.importActual<
+        typeof hyperLiquidAdapterModule
+      >('../../../src/utils/hyperLiquidAdapter.js');
+      vi.mocked(
+        hyperLiquidAdapterModule.adaptOrderFromSDK,
+      ).mockImplementationOnce(actualAdapter.adaptOrderFromSDK);
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [
+            { position: { ...validPositionBalances, szi: '0.25' } },
+          ],
+          marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+          withdrawable: '90',
+        },
+      });
+      expect(service.getOrdersCacheIfInitialized(true)).toMatchObject([
+        { orderId: '1', size: '0.25' },
       ]);
 
       unsubscribePositions();

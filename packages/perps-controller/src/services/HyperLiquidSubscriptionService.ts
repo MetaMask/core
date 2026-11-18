@@ -372,6 +372,8 @@ export class HyperLiquidSubscriptionService {
 
   readonly #dexOrdersCache = new Map<string, Order[]>(); // Per-DEX orders
 
+  readonly #dexRawOrdersCache = new Map<string, FrontendOpenOrdersResponse>();
+
   readonly #dexAccountCache = new Map<string, AccountState>(); // Per-DEX account state
 
   #cachedSpotState: SpotClearinghouseStateResponse | null = null;
@@ -949,6 +951,7 @@ export class HyperLiquidSubscriptionService {
           this.#dexAccountCache.delete(dex);
           this.#dexPositionsCache.delete(dex);
           this.#dexOrdersCache.delete(dex);
+          this.#dexRawOrdersCache.delete(dex);
           this.#dexPositionsEpoch.delete(dex);
           this.#dexOrdersEpoch.delete(dex);
           this.#expectedDexs.delete(dex);
@@ -1144,12 +1147,14 @@ export class HyperLiquidSubscriptionService {
    * @param orders - Raw SDK orders from WebSocket event
    * @param positions - Current positions for TP/SL matching
    * @param cachedProcessedOrders - Optional pre-processed orders (skips conversion if provided)
+   * @param positionSizesAreFresh - Whether the supplied positions can size orders.
    * @returns Maps for TP/SL prices and counts, plus processed Order array
    */
   #extractTPSLFromOrders(
     orders: FrontendOpenOrdersResponse,
     positions: Position[],
     cachedProcessedOrders?: Order[],
+    positionSizesAreFresh = true,
   ): {
     tpslMap: Map<string, { takeProfitPrice?: string; stopLossPrice?: string }>;
     tpslCountMap: Map<
@@ -1397,10 +1402,10 @@ export class HyperLiquidSubscriptionService {
       }
 
       // Convert ALL open orders to Order format
-      const convertedOrder = adaptOrderFromSDK(
-        order,
-        position ?? positionForCoin,
-      );
+      const positionForSize = positionSizesAreFresh
+        ? (position ?? positionForCoin)
+        : undefined;
+      const convertedOrder = adaptOrderFromSDK(order, positionForSize);
       const parentOrderId = parentIdByChildId.get(order.oid);
       if (parentOrderId !== undefined) {
         convertedOrder.parentOrderId = parentOrderId.toString();
@@ -1417,7 +1422,7 @@ export class HyperLiquidSubscriptionService {
           convertedOrder.symbol,
           buildPositionTriggerOrderFromOrder({
             order: convertedOrder,
-            positionSize: (position ?? positionForCoin)?.size ?? '0',
+            positionSize: positionForSize?.size ?? '0',
             entryPrice: (position ?? positionForCoin)?.entryPrice,
           }),
         );
@@ -2615,23 +2620,25 @@ export class HyperLiquidSubscriptionService {
               ),
             );
 
-          // Get cached orders to preserve TP/SL data (prevents flickering)
-          // Orders are cached by openOrders subscription
+          const epoch = this.#clientService.getConnectionEpoch();
+          const latestRawOrders =
+            this.#dexOrdersEpoch.get(cacheKey) === epoch
+              ? this.#dexRawOrdersCache.get(cacheKey)
+              : undefined;
           const cachedOrders = this.#dexOrdersCache.get(cacheKey) ?? [];
-
-          // Re-extract TP/SL from cached orders for the new positions
-          // This ensures TP/SL data persists across clearinghouseState updates
-          // Default the trigger arrays so "no triggers" and "not streamed yet"
-          // look the same to consumers as they do on the REST path.
           let positionsWithTPSL: Position[] = positions.map((position) => ({
             ...position,
             takeProfitOrders: position.takeProfitOrders ?? [],
             stopLossOrders: position.stopLossOrders ?? [],
           }));
-          if (cachedOrders.length > 0) {
-            const { tpslMap, tpslCountMap, triggerOrderMap } =
-              this.#extractTPSLFromOrders([], positions, cachedOrders);
-
+          if (latestRawOrders || cachedOrders.length > 0) {
+            const { tpslMap, tpslCountMap, triggerOrderMap, processedOrders } =
+              latestRawOrders
+                ? this.#extractTPSLFromOrders(latestRawOrders, positions)
+                : this.#extractTPSLFromOrders([], positions, cachedOrders);
+            if (latestRawOrders) {
+              this.#dexOrdersCache.set(cacheKey, processedOrders);
+            }
             positionsWithTPSL = this.#mergeTPSLIntoPositions(
               positions,
               tpslMap,
@@ -2661,7 +2668,8 @@ export class HyperLiquidSubscriptionService {
 
           if (
             this.#positionSubscriberCount > 0 ||
-            this.#accountSubscriberCount > 0
+            this.#accountSubscriberCount > 0 ||
+            (latestRawOrders && this.#orderSubscriberCount > 0)
           ) {
             // Aggregate only when a consumer needs positions/account updates.
             this.#aggregateAndNotifySubscribers();
@@ -2812,9 +2820,9 @@ export class HyperLiquidSubscriptionService {
             this.#orderSubscriberCount > 0 ||
             this.#positionSubscriberCount > 0
           ) {
-            // Get cached positions for TP/SL processing
-            const cachedPositions =
-              this.getCachedPositionsForDex(cacheKey) ?? [];
+            // Retained positions can display whether protection is still active
+            // but can only size new orders after a valid clearinghouse frame.
+            const cachedPositions = this.#dexPositionsCache.get(cacheKey) ?? [];
 
             // Extract TP/SL and process orders
             const {
@@ -2822,10 +2830,16 @@ export class HyperLiquidSubscriptionService {
               tpslCountMap,
               triggerOrderMap,
               processedOrders: orders,
-            } = this.#extractTPSLFromOrders(data.orders, cachedPositions);
+            } = this.#extractTPSLFromOrders(
+              data.orders,
+              cachedPositions,
+              undefined,
+              this.#isPositionDexFresh(cacheKey),
+            );
 
             // Update orders cache with processed orders
             this.#dexOrdersCache.set(cacheKey, orders);
+            this.#dexRawOrdersCache.set(cacheKey, data.orders);
             this.#dexOrdersEpoch.set(
               cacheKey,
               this.#clientService.getConnectionEpoch(),
@@ -3080,6 +3094,7 @@ export class HyperLiquidSubscriptionService {
       // Clear per-DEX caches
       this.#dexPositionsCache.clear();
       this.#dexOrdersCache.clear();
+      this.#dexRawOrdersCache.clear();
       this.#dexOrdersEpoch.clear();
       this.#dexAccountCache.clear();
 
@@ -5941,6 +5956,7 @@ export class HyperLiquidSubscriptionService {
 
     this.#dexPositionsCache.clear();
     this.#dexOrdersCache.clear();
+    this.#dexRawOrdersCache.clear();
     this.#dexOrdersEpoch.clear();
     this.#dexAccountCache.clear();
     this.#dexPositionsEpoch.clear();
