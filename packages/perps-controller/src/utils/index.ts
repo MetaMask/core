@@ -5,6 +5,8 @@
  * We use selective exports to avoid the name collision.
  */
 export * from './accountUtils.js';
+export * from './advancedOrderLists.js';
+export * from './advancedOrders.js';
 export { getBatchOperationStatus } from './batchOperationStatus.js';
 export {
   estimateCloseReceive,

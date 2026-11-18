@@ -315,6 +315,14 @@ export const PERPS_ERROR_COPY: Readonly<
     key: 'perps.errors.orderValidation.scaleNotionalTooSmall',
     defaultMessage: 'Each scale order is below the exchange minimum value',
   },
+  [PERPS_ERROR_CODES.ORDER_SCALE_SIZE_CONSERVATION_FAILED]: {
+    key: 'perps.errors.unknownError',
+    defaultMessage: 'Unknown error occurred',
+  },
+  [PERPS_ERROR_CODES.ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT]: {
+    key: 'perps.errors.unknownError',
+    defaultMessage: 'Unknown error occurred',
+  },
   [PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL]: {
     key: 'perps.errors.orderValidation.twapNotionalTooSmall',
     defaultMessage: 'TWAP order value is below the exchange minimum',

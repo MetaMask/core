@@ -3,6 +3,7 @@ import type { CaipAssetId, Hex } from '@metamask/utils';
 
 import {
   HYPERLIQUID_ASSET_CONFIGS,
+  HYPERLIQUID_ORDER_CAPABILITIES,
   BASIS_POINTS_DIVISOR,
   getSupportedAssets,
   TRADING_DEFAULTS,
@@ -10,7 +11,6 @@ import {
 import {
   CHASE_ORDER_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
-  HYPERLIQUID_TWAP_LIMITS,
 } from '../constants/perpsConfig.js';
 import { PerpsControllerError } from '../errors.js';
 import type { PerpsErrorResultFields } from '../errors.js';
@@ -20,13 +20,13 @@ import type {
   PerpsDebugLogger,
 } from '../types/index.js';
 import type { OrderType, TpslLinkage } from '../types/perps-types.js';
+import { validateScaleOrder, validateTwapOrder } from './advancedOrders.js';
 import { ensureError } from './errorUtils.js';
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
   isStrategyOrderType,
   isTriggerOrderType,
-  SCALE_ORDER_COUNT,
 } from './orderTypes.js';
 
 /**
@@ -578,28 +578,13 @@ function validateTwapParams(params: StrategyOrderValidationParams): {
   isValid: boolean;
   error?: string;
 } {
-  if (params.twapDuration === undefined) {
-    return {
-      isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_TWAP_DURATION_REQUIRED,
-    };
-  }
-
   // The venue validates `twap.m` as a safe integer within these bounds before
   // the request is signed, so checking it here turns an opaque SDK failure into
   // a typed rejection that costs no round trip.
-  if (
-    !Number.isInteger(params.twapDuration) ||
-    params.twapDuration < HYPERLIQUID_TWAP_LIMITS.MinDurationMinutes ||
-    params.twapDuration > HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes
-  ) {
-    return {
-      isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID,
-    };
-  }
-
-  return { isValid: true };
+  return validateTwapOrder({
+    rules: HYPERLIQUID_ORDER_CAPABILITIES.strategyRules?.twap,
+    durationMinutes: params.twapDuration,
+  });
 }
 
 /**
@@ -612,57 +597,22 @@ function validateScaleParams(params: StrategyOrderValidationParams): {
   isValid: boolean;
   error?: string;
 } {
-  if (
-    params.scaleMinPrice === undefined ||
-    params.scaleMaxPrice === undefined
-  ) {
-    return {
-      isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_SCALE_RANGE_REQUIRED,
-    };
-  }
-
-  const minPrice = parseFloat(params.scaleMinPrice);
-  const maxPrice = parseFloat(params.scaleMaxPrice);
-  if (
-    !Number.isFinite(minPrice) ||
-    !Number.isFinite(maxPrice) ||
-    minPrice <= 0 ||
-    maxPrice <= minPrice
-  ) {
-    return {
-      isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
-    };
-  }
-
-  if (
-    params.scaleNumOrders === undefined ||
-    !Number.isInteger(params.scaleNumOrders) ||
-    params.scaleNumOrders < SCALE_ORDER_COUNT.min ||
-    params.scaleNumOrders > SCALE_ORDER_COUNT.max
-  ) {
-    return {
-      isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID,
-    };
-  }
-
-  // Omitted is an even ladder, so only a supplied skew is checked. The value is
-  // taken exactly as the caller wrote it: clients coerce their input to two
-  // decimals, and rounding it again here would place a ladder weighted
-  // differently from the one the form previewed.
-  if (
-    params.scaleSkew !== undefined &&
-    (!Number.isFinite(params.scaleSkew) || params.scaleSkew <= 0)
-  ) {
-    return {
-      isValid: false,
-      error: PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
-    };
-  }
-
-  return { isValid: true };
+  // The skew is taken exactly as the caller wrote it: clients coerce their
+  // input to two decimals, and rounding it again here would place a ladder
+  // weighted differently from the one the form previewed.
+  return validateScaleOrder({
+    rules: HYPERLIQUID_ORDER_CAPABILITIES.strategyRules?.scale,
+    minPrice:
+      params.scaleMinPrice === undefined
+        ? undefined
+        : parseFloat(params.scaleMinPrice),
+    maxPrice:
+      params.scaleMaxPrice === undefined
+        ? undefined
+        : parseFloat(params.scaleMaxPrice),
+    count: params.scaleNumOrders,
+    skew: params.scaleSkew,
+  });
 }
 
 /**

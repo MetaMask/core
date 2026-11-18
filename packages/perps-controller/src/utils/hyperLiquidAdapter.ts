@@ -3,6 +3,7 @@ import { hasProperty, Hex, isHexString } from '@metamask/utils';
 import {
   BASIS_POINTS_DIVISOR,
   HIP3_ASSET_ID_CONFIG,
+  isUnrestrictedMarginMode,
 } from '../constants/hyperLiquidConfig.js';
 import {
   DECIMAL_PRECISION_CONFIG,
@@ -495,7 +496,9 @@ export function adaptMarketFromSDK(
     maxLeverage: sdkMarket.maxLeverage,
     marginTableId: sdkMarket.marginTableId,
     onlyIsolated: sdkMarket.onlyIsolated,
-    ...(venueMarginMode !== 'normal' && { marginMode: sdkMarket.marginMode }),
+    ...(!isUnrestrictedMarginMode(venueMarginMode) && {
+      marginMode: sdkMarket.marginMode,
+    }),
     isDelisted: sdkMarket.isDelisted,
   };
 }
