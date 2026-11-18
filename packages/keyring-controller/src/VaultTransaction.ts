@@ -21,7 +21,26 @@ export type TransactionScope = WalletTransactionScope | KeyringTransactionScope;
  */
 export type WalletTransactionScope = {
   type: 'wallet';
+  /**
+   * Decides, when the transaction commits, whether the vault is written —
+   * possibly preparing the write first (e.g. re-deriving the encryption
+   * key). The session-change status is given as a lazy check, so that
+   * policies that ignore it never pay for it.
+   */
+  persist: VaultPersistPolicy;
 };
+
+/**
+ * The wallet-scope persist policy: answers, when the transaction commits,
+ * whether the vault is written.
+ *
+ * The standard policy persists only when the session state changed since
+ * `begin()`; other flows force the write, decline it, or gate it on their
+ * own criterion.
+ */
+export type VaultPersistPolicy = (
+  hasChanged: () => Promise<boolean>,
+) => boolean | Promise<boolean>;
 
 /**
  * The keyring transaction scope: the transaction owns a single keyring
@@ -111,6 +130,10 @@ export type VaultOperations = {
    * @throws If the keyrings hold a duplicate account.
    */
   assertNoDuplicateAccounts(keyrings: EthKeyring[]): Promise<void>;
+  /**
+   * Update the vault with the current session state.
+   */
+  updateVault(): Promise<boolean>;
 };
 
 /**
@@ -142,16 +165,36 @@ type WalletSnapshot = {
  * before the mutation begins. The transaction states what it owns — its
  * scope — and tracks what the mutation did to what it owns: `begin()`
  * takes the snapshot that defines the restore point, `rollback()` restores
- * exactly what the scope owns, and `hasChanged()` answers whether the
- * scope changed. Everything outside the scope is untouched, even on
- * failure: instances, references, and all.
+ * exactly what the scope owns on failure, `hasChanged()` answers whether
+ * the scope changed, and `commit()` persists what it owns when its scope
+ * says so — the wallet scope's persist policy decides, the keyring scope
+ * persists iff the operated keyring changed.
  *
- * It is also the home of the data a transaction accumulates about itself,
- * which must not outlive it: the keyring instances it destroyed, including
- * partially destroyed ones — destruction releases resources that
- * `serialize()` does not capture (e.g. the bridge of a hardware keyring),
- * so a rollback must rebuild a destroyed instance even when its serialized
- * state still matches its snapshot.
+ * ## Contract
+ *
+ * 1. Every mutation runs inside a transaction. The transaction snapshots
+ *    exactly what it owns, before any mutation.
+ * 2. On failure, the transaction restores exactly what it owns.
+ *    Everything outside its scope is untouched — instances, references,
+ *    and all.
+ * 3. Mutations made outside a transaction (e.g. through instances handed
+ *    out by deprecated direct-access getters) are undefined behavior — a
+ *    bug in the caller, not an input the transaction defends against. The
+ *    transaction does not reconcile them, and must not amplify them.
+ * 4. On success, nothing is destroyed or rebuilt; instances survive in
+ *    place and references remain valid.
+ * 5. When a rebuild is necessary (failure path only), the stale instance
+ *    is always destroyed before its replacement is created, as it must
+ *    release the resources shared with the replacement (e.g. the SDK
+ *    singleton of hardware keyrings) before the replacement is
+ *    initialized.
+ *
+ * The transaction is also the home of the data it accumulates about
+ * itself, which must not outlive it: the keyring instances it destroyed,
+ * including partially destroyed ones — destruction releases resources
+ * that `serialize()` does not capture (e.g. the bridge of a hardware
+ * keyring), so a rollback must rebuild a destroyed instance even when its
+ * serialized state still matches its snapshot.
  */
 export class VaultTransaction {
   readonly #scope: TransactionScope;
@@ -224,20 +267,24 @@ export class VaultTransaction {
   }
 
   /**
-   * Check whether the keyring scope owned by the transaction has changed
-   * since `begin()`. The operated keyring is resolved by identity: another
-   * keyring sharing its id must not affect the decision.
+   * Check whether what the scope owns has changed since `begin()`.
    *
-   * @returns Whether the operated keyring has changed.
+   * For the keyring scope, the operated keyring is resolved by identity:
+   * another keyring sharing its id must not affect the decision. For the
+   * wallet scope, the whole session state — the serialized keyrings, the
+   * unsupported keyrings, and the encryption key — is compared against the
+   * state captured at `begin()`.
+   *
+   * @returns Whether the scope has changed.
    */
   async hasChanged(): Promise<boolean> {
-    if (this.#scope.type !== 'keyring') {
-      throw new Error(
-        'hasChanged is only supported for keyring-scoped transactions',
-      );
+    const scope = this.#scope;
+
+    if (scope.type === 'wallet') {
+      return this.#hasWalletChanged();
     }
 
-    const { entry, created } = this.#scope;
+    const { entry, created } = scope;
     const exists = this.#session.getKeyrings().includes(entry);
 
     // A keyring created by the transaction is a change — unless the
@@ -253,6 +300,29 @@ export class VaultTransaction {
     }
 
     return !(await this.#isUnchanged(entry, this.#requireKeyringSnapshot()));
+  }
+
+  /**
+   * Persist what the scope owns, iff it changed: the keyring scope
+   * persists the vault when the operated keyring changed, and the wallet
+   * scope when its persist policy says so.
+   *
+   * Must be called while the controller mutex is held, after `begin()` and
+   * a successful operation.
+   */
+  async commit(): Promise<void> {
+    const scope = this.#scope;
+
+    if (scope.type === 'keyring') {
+      if (await this.hasChanged()) {
+        await this.#operations.updateVault();
+      }
+      return;
+    }
+
+    if (await scope.persist(() => this.hasChanged())) {
+      await this.#operations.updateVault();
+    }
   }
 
   /**
@@ -318,6 +388,19 @@ export class VaultTransaction {
   }
 
   /**
+   * Remove the given keyring entry from the session keyrings, destroying
+   * its instances. A no-op for an entry that is not registered: a missing
+   * entry must never fall back to another position.
+   *
+   * @param entry - The keyring entry to remove.
+   */
+  async remove(entry: KeyringEntry): Promise<void> {
+    if (this.#session.removeKeyring(entry)) {
+      await this.destroy(entry);
+    }
+  }
+
+  /**
    * Take a snapshot of the given keyring entry, to roll back to.
    *
    * @param entry - The keyring entry.
@@ -354,10 +437,7 @@ export class VaultTransaction {
    * initialized.
    */
   async #rollbackWallet(): Promise<void> {
-    const snapshot = this.#walletSnapshot;
-    if (!snapshot) {
-      throw new Error('The wallet transaction was not begun');
-    }
+    const snapshot = this.#requireWalletSnapshot();
 
     // Keyrings and encryption credentials are restored to their previous
     // state.
@@ -570,6 +650,83 @@ export class VaultTransaction {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Check whether the wallet session state changed since the snapshot
+   * taken at `begin()`: the serialized keyrings, the unsupported keyrings,
+   * and the encryption key are compared, as a whole, against the state
+   * captured at `begin()`.
+   *
+   * @returns Whether the session state changed.
+   */
+  async #hasWalletChanged(): Promise<boolean> {
+    const snapshot = this.#requireWalletSnapshot();
+
+    // The session state at `begin()`, reconstructed from the snapshot.
+    const oldState = JSON.stringify(
+      this.#sessionStateOf(
+        snapshot.keyrings.map(({ type, data, metadata }) => ({
+          type,
+          data,
+          metadata,
+        })),
+        snapshot.unsupportedKeyrings,
+        snapshot.encryptionKey,
+      ),
+    );
+
+    // The session state now, serialized live.
+    const keyrings = this.#session.getKeyrings();
+    const serializedKeyrings = await Promise.all(
+      keyrings.map(async ({ keyring, metadata }) => ({
+        type: keyring.type,
+        data: await keyring.serialize(),
+        metadata,
+      })),
+    );
+
+    const newState = JSON.stringify(
+      this.#sessionStateOf(
+        serializedKeyrings,
+        this.#session.getUnsupportedKeyrings(),
+        this.#session.getEncryptionKey(),
+      ),
+    );
+
+    return oldState !== newState;
+  }
+
+  /**
+   * Assemble the session state from its parts, so that the two sides of a
+   * change comparison always take the same shape.
+   *
+   * @param keyrings - The serialized keyrings.
+   * @param unsupportedKeyrings - The unsupported keyrings.
+   * @param encryptionKey - The cached encryption key, if any.
+   * @returns The session state.
+   */
+  #sessionStateOf(
+    keyrings: SerializedKeyring[],
+    unsupportedKeyrings: SerializedKeyring[],
+    encryptionKey: CachedEncryptionKey | undefined,
+  ): { keyrings: SerializedKeyring[]; encryptionKey?: CachedEncryptionKey } {
+    return {
+      keyrings: [...keyrings, ...unsupportedKeyrings],
+      encryptionKey,
+    };
+  }
+
+  /**
+   * The snapshot of the wallet session, taken at `begin()`.
+   *
+   * @returns The wallet snapshot.
+   */
+  #requireWalletSnapshot(): WalletSnapshot {
+    if (!this.#walletSnapshot) {
+      throw new Error('The wallet transaction was not begun');
+    }
+    return this.#walletSnapshot;
   }
 
   /**
