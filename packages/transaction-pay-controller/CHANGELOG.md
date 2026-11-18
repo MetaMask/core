@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds ([#11566](https://github.com/MetaMask/core/pull/11566))
   - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
 - Skip the gas station in server strategy quotes when the account does not support EIP-7702, matching the Relay strategy ([#11615](https://github.com/MetaMask/core/pull/11615))
+- Refresh server strategy max amount quotes at the configured `maxBalanceRefreshInterval`, matching the Relay strategy ([#11614](https://github.com/MetaMask/core/pull/11614))
 
 ## [32.0.0]
 
