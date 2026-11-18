@@ -756,6 +756,77 @@ describe('HyperLiquidSubscriptionService', () => {
       },
     );
 
+    it('clears a partial main DEX when its zero account arrives last', async () => {
+      // Zero accounts on every DEX, so main arriving leaves the totals as
+      // they were and only completeness changes.
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
+        spendableBalance: '0',
+        withdrawableBalance: '0',
+        totalBalance: '0',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      }));
+      const accountCallbacks = new Map<string, (payload: unknown) => void>();
+      const orderCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          accountCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          orderCallbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      const accountCallback = vi.fn();
+      const unsubscribeAccount = hip3Service.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribeOrders = hip3Service.subscribeToOrders({
+        callback: vi.fn(),
+      });
+      await vi.runAllTimersAsync();
+      const emptyAccount = {
+        assetPositions: [],
+        marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+        withdrawable: '0',
+      };
+
+      orderCallbacks.get('')?.({ dex: '', orders: [] });
+      accountCallbacks.get('xyz')?.({
+        dex: 'xyz',
+        clearinghouseState: emptyAccount,
+      });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+        unavailableSubAccounts: [''],
+      });
+
+      // Main's account adds nothing to the totals; only completeness changes.
+      accountCallbacks.get('')?.({ dex: '', clearinghouseState: emptyAccount });
+      await vi.runAllTimersAsync();
+      expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
+
+      unsubscribeOrders();
+      unsubscribeAccount();
+    });
+
     it('marks the account partial when a DEX account subscription fails', async () => {
       const accountCallbacks = new Map<string, (payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(

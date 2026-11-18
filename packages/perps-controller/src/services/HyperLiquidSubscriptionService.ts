@@ -1064,7 +1064,8 @@ export class HyperLiquidSubscriptionService {
     // notification that turns an unset value into '0'.
     const spotCollateral = account.spotCollateral ?? '';
     // A slice arriving or failing changes completeness even when totals match.
-    const unavailable = account.unavailableSubAccounts?.join(',') ?? '';
+    // JSON keeps the main DEX ('') distinct from a complete account.
+    const unavailable = JSON.stringify(account.unavailableSubAccounts ?? null);
     return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}:${unavailable}`;
   }
 
