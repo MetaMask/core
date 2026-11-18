@@ -253,6 +253,40 @@ describe('errorUtils', () => {
       expect(result.cause).toBe(cause);
     });
 
+    it.each([
+      'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+      'Order was never placed',
+      'Order already canceled',
+      'Order already cancelled',
+      'Order not found',
+      'TWAP not found',
+      'CANCEL 0: ORDER WAS NEVER PLACED, ALREADY CANCELED, OR FILLED.',
+      'ORDER_NO_LONGER_OPEN',
+    ])('classifies an order no longer open: "%s"', (message) => {
+      const cause = new Error(message);
+
+      const result = normalizeHyperLiquidError(cause);
+
+      expect(result.message).toBe('ORDER_NO_LONGER_OPEN');
+      expect(result.errorCode).toBe('ORDER_NO_LONGER_OPEN');
+      expect(result.errorDetails).toStrictEqual({
+        code: 'ORDER_NO_LONGER_OPEN',
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(cause);
+    });
+
+    it.each([
+      'Order partially filled',
+      'Order could not be filled',
+      'Order cancellation failed',
+      'Unknown order state',
+    ])('does not infer an order is gone from "%s"', (message) => {
+      const result = normalizeHyperLiquidError(new Error(message));
+
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+    });
+
     it('preserves PRICE_MOVED and its local numeric payload', () => {
       const errorDetails = {
         code: PERPS_ERROR_CODES.PRICE_MOVED,

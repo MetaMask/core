@@ -24,6 +24,13 @@ const HYPERLIQUID_ERROR_MAPPINGS: readonly {
     code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
   },
   {
+    // Hyperliquid cannot distinguish never placed, already cancelled, and filled
+    // here. Share this classification with strategy cancels, and do not match
+    // "filled" alone: a partial fill can still leave an order resting.
+    pattern: /never placed|already cancel(?:ed|led)|(?:order|twap) not found/iu,
+    code: PERPS_ERROR_CODES.ORDER_NO_LONGER_OPEN,
+  },
+  {
     pattern:
       /isolated position does not have sufficient margin available to decrease leverage|cannot reduce.*leverage|leverage reduction/iu,
     code: PERPS_ERROR_CODES.ORDER_LEVERAGE_REDUCTION_FAILED,

@@ -2456,34 +2456,62 @@ describe('HyperLiquidProvider', () => {
         },
       );
 
-      it('hides an unmapped cancel status error string', async () => {
-        mockClientService.getExchangeClient = vi.fn().mockReturnValue(
-          createMockExchangeClient({
-            cancel: vi.fn().mockResolvedValue({
+      describe.each(['status', 'throw'])('%s rejections', (responseType) => {
+        it.each([
+          [
+            'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+            'ORDER_NO_LONGER_OPEN',
+          ],
+          ['Order was never placed', 'ORDER_NO_LONGER_OPEN'],
+          ['Order already canceled', 'ORDER_NO_LONGER_OPEN'],
+          ['Order already cancelled', 'ORDER_NO_LONGER_OPEN'],
+          ['Order not found', 'ORDER_NO_LONGER_OPEN'],
+          ['TWAP not found', 'ORDER_NO_LONGER_OPEN'],
+          [
+            'Unclassified cancel rejection asset=4',
+            PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          ],
+          ['Order partially filled', PERPS_ERROR_CODES.UNKNOWN_ERROR],
+          ['Network error', PERPS_ERROR_CODES.NETWORK_ERROR],
+          ['Rate limit exceeded', PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED],
+        ])('maps "%s" to %s', async (exchangeMessage, expectedCode) => {
+          const cause = new Error(exchangeMessage);
+          const cancel = vi.fn();
+          if (responseType === 'throw') {
+            cancel.mockRejectedValue(cause);
+          } else {
+            cancel.mockResolvedValue({
               status: 'ok',
               response: {
-                data: {
-                  statuses: [
-                    {
-                      error:
-                        'cancel 0: Order was never placed, already canceled, or filled. asset=4',
-                    },
-                  ],
-                },
+                data: { statuses: [{ error: exchangeMessage }] },
               },
-            }),
-          }),
-        );
+            });
+          }
+          mockClientService.getExchangeClient = vi
+            .fn()
+            .mockReturnValue(createMockExchangeClient({ cancel }));
 
-        const result = await provider.cancelOrder({
-          orderId: '123',
-          symbol: 'BTC',
-        });
+          const result = await provider.cancelOrder({
+            orderId: '123',
+            symbol: 'BTC',
+          });
 
-        expect(result.success).toBe(false);
-        expect(result).toMatchObject({
-          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
-          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          // Already gone is distinguishable, not a claim we cancelled it.
+          expect(result).toMatchObject({
+            success: false,
+            orderId: '123',
+            error: expectedCode,
+            errorCode: expectedCode,
+            errorDetails: { code: expectedCode, provider: 'hyperliquid' },
+          });
+          expect(JSON.stringify(result)).not.toContain(exchangeMessage);
+          const attachedError = getProviderErrorCause(result);
+          expect(attachedError?.cause).toMatchObject({
+            message: exchangeMessage,
+          });
+          if (responseType === 'throw') {
+            expect(attachedError?.cause).toBe(cause);
+          }
         });
       });
     });
