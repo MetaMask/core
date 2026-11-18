@@ -266,6 +266,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x89': 'eip155:137/slip44:966', // Polygon Mainnet - Native symbol: POL
   '0x8f': 'eip155:143/slip44:268435779', // Monad Mainnet - Native symbol: MON
   '0x92': 'eip155:146/slip44:10007', // Sonic Mainnet - Native symbol: S
+  '0xa6': 'eip155:166/slip44:11111166', // Nomina - Native symbol: NOM
   '0xc4': 'eip155:196/erc20:0x0000000000000000000000000000000000000000', // X Layer Mainnet - Native symbol: OKB
   '0xe8': 'eip155:232/erc20:0x0000000000000000000000000000000000000000', // Lens Mainnet - Native symbol: GHO
   '0xfa': 'eip155:250/slip44:1007', // Fantom Opera - Native symbol: FTM
@@ -275,6 +276,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x144': 'eip155:324/slip44:60', // zkSync Era Mainnet (Ethereum L2) - Native symbol: ETH
   '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
   '0x169': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
+  '0x2ba': 'eip155:698/slip44:714', // Matchain - Native symbol: BNB
   '0x2eb': 'eip155:747/slip44:539', // Flow evm - Native symbol: Flow
   '0x3dc': 'eip155:988/erc20:0x0000000000000000000000000000000000000000', // Stable - Native symbol: USDT0
   '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: HYPE
@@ -312,7 +314,6 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x10b3e': 'eip155:68414/erc20:0x0000000000000000000000000000000000000000', // MapleStory Universe - no slip44
   '0x11d9b': 'eip155:73115/erc20:0x0000000000000000000000000000000000000000', // ICB Network - Native symbol: ICBX,
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
-  '0x13e31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
   '0x15b38': 'eip155:88888/erc20:0x0000000000000000000000000000000000000000', // Chiliz Chain - Native symbol: CHZ
   '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // Pepe Unchained Mainnet - Native symbol: PEPU
   '0x18232': 'eip155:98866/erc20:0x0000000000000000000000000000000000000000', // Plume Mainnet - Narive symbol: Plume

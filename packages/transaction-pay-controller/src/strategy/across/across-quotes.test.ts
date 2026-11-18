@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -30,7 +31,12 @@ import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps.js';
 import * as acrossTransactions from './transactions.js';
 import type { AcrossSwapApprovalResponse } from './types.js';
 
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 vi.mock(import('../../utils/gas.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   calculateGasCost: vi.fn(),
@@ -62,11 +68,14 @@ const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
   nestedTransactions: [{ type: TransactionType.predictWithdraw }],
 } as TransactionMeta;
 
+const SOURCE_CHAIN_ID_MOCK = '0x1' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
+
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: FROM_MOCK,
+  sourceAccountId: `eip155:1:${FROM_MOCK}`,
+  sourceAssetId: 'eip155:1/erc20:0xabc',
   sourceBalanceRaw: '10000000000000000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
@@ -201,7 +210,7 @@ describe('Across Quotes', () => {
     rateWei: '0x1',
     recipient: FROM_MOCK,
     symbol: 'ETH',
-    tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+    tokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
   };
 
   beforeEach(() => {
@@ -375,6 +384,47 @@ describe('Across Quotes', () => {
       expect(params.get('refundAddress')).toBe(refundTo);
       expect(getRequestBody().actions).toStrictEqual([]);
     });
+
+    it.each([
+      ['no account override', undefined, FROM_MOCK],
+      [
+        'an account override',
+        '0xaa00000000000000000000000000000000000002',
+        '0xaa00000000000000000000000000000000000002',
+      ],
+    ])(
+      'quotes Predict Safe withdraws from the transaction account with %s',
+      async (_title, accountOverride, recipient) => {
+        const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as Response);
+
+        await getAcrossQuotes({
+          accountSupports7702: false,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              accountOverride: accountOverride as Hex | undefined,
+              isPostQuote: true,
+              refundTo,
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+        });
+
+        const [url] = successfulFetchMock.mock.calls[0];
+        const params = new URL(url as string).searchParams;
+
+        expect(params.get('depositor')).toBe(FROM_MOCK);
+        expect(params.get('recipient')).toBe(recipient);
+        expect(params.get('refundAddress')).toBe(refundTo);
+      },
+    );
 
     it('ignores invalid original transaction gas for post-quote predict withdraws', async () => {
       successfulFetchMock.mockResolvedValue({
@@ -648,7 +698,7 @@ describe('Across Quotes', () => {
           rateWei: '0x1',
           recipient: FROM_MOCK,
           symbol: 'ETH',
-          tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          tokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
         },
       ]);
 
@@ -1245,7 +1295,7 @@ describe('Across Quotes', () => {
 
       expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
       expect(estimateGasBatchMock).toHaveBeenCalledWith({
-        chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+        chainId: SOURCE_CHAIN_ID_MOCK,
         from: FROM_MOCK,
         transactions: expect.any(Array),
       });
@@ -1293,7 +1343,7 @@ describe('Across Quotes', () => {
           rateWei: '0x1',
           recipient: FROM_MOCK,
           symbol: 'ETH',
-          tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          tokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
         },
       ]);
 
@@ -1547,7 +1597,7 @@ describe('Across Quotes', () => {
       const [url] = successfulFetchMock.mock.calls[0];
       const params = new URL(url as string).searchParams;
 
-      expect(params.get('amount')).toBe('100000000');
+      expect(params.get('amount')).toBe('1000000');
       expect(params.get('destinationChainId')).toBe(
         String(parseInt(CHAIN_ID_HYPERCORE, 16)),
       );
@@ -1556,6 +1606,46 @@ describe('Across Quotes', () => {
       );
       expect(params.get('recipient')).toBe(FROM_MOCK);
       expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('throws if Across returns unexpected USDC-PERPS decimals for perps deposits', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          outputToken: {
+            ...QUOTE_MOCK.outputToken,
+            address: ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+            chainId: parseInt(CHAIN_ID_HYPERCORE, 16),
+            decimals: 8,
+          },
+        }),
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetAmountMinimum: '1000000',
+              targetChainId: CHAIN_ID_ARBITRUM,
+              targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: {
+              from: FROM_MOCK,
+              to: ARBITRUM_USDC_ADDRESS,
+              data: buildTransferData(HYPERLIQUID_BRIDGE_ADDRESS, 1),
+            },
+          },
+        }),
+      ).rejects.toThrow(
+        'Unexpected Across USDC-PERPS decimals - Expected: 6 | Received: 8',
+      );
     });
 
     it('uses transfer recipient for token transfer transactions', async () => {
@@ -2287,7 +2377,7 @@ describe('Across Quotes', () => {
       });
 
       expect(getGasFeeTokensMock).toHaveBeenCalledWith({
-        chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+        chainId: SOURCE_CHAIN_ID_MOCK,
         data: QUOTE_MOCK.swapTx.data,
         from: FROM_MOCK,
         to: QUOTE_MOCK.swapTx.to,
@@ -2343,7 +2433,7 @@ describe('Across Quotes', () => {
                 apiBase: 'https://test.across.to/api',
               },
             },
-            relayDisabledGasStationChains: [QUOTE_REQUEST_MOCK.sourceChainId],
+            relayDisabledGasStationChains: [SOURCE_CHAIN_ID_MOCK],
           },
         },
       });

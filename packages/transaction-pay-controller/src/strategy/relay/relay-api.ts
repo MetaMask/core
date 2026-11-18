@@ -1,3 +1,8 @@
+import { createModuleLogger } from '@metamask/utils';
+
+import { CLIENT_ID_HEADER } from '../../constants.js';
+import type { TransactionPayClientId } from '../../constants.js';
+import { projectLogger } from '../../logger.js';
 import type { TransactionPayControllerMessenger } from '../../types.js';
 import { getFeatureFlags } from '../../utils/feature-flags.js';
 import { RELAY_STATUS_URL } from './constants.js';
@@ -8,6 +13,8 @@ import type {
   RelayQuoteRequest,
   RelayStatusResponse,
 } from './types.js';
+
+const log = createModuleLogger(projectLogger, 'relay-api');
 
 /**
  * Fetch a quote from the Relay API.
@@ -24,7 +31,7 @@ export async function fetchRelayQuote(
 ): Promise<RelayQuote> {
   const { relayQuoteUrl } = getFeatureFlags(messenger);
 
-  const response = await relayFetch(relayQuoteUrl, {
+  const response = await relayFetch(messenger, relayQuoteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -50,7 +57,7 @@ export async function submitRelayExecute(
 ): Promise<RelayExecuteResponse> {
   const { relayExecuteUrl } = getFeatureFlags(messenger);
 
-  const response = await relayFetch(relayExecuteUrl, {
+  const response = await relayFetch(messenger, relayExecuteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -62,15 +69,17 @@ export async function submitRelayExecute(
 /**
  * Poll the Relay status endpoint for a given request ID.
  *
+ * @param messenger - Controller messenger.
  * @param requestId - The Relay request ID to check.
  * @returns The current status of the request.
  */
 export async function getRelayStatus(
+  messenger: TransactionPayControllerMessenger,
   requestId: string,
 ): Promise<RelayStatusResponse> {
   const url = `${RELAY_STATUS_URL}?requestId=${requestId}`;
 
-  const response = await relayFetch(url, { method: 'GET' });
+  const response = await relayFetch(messenger, url, { method: 'GET' });
 
   return (await response.json()) as RelayStatusResponse;
 }
@@ -81,12 +90,23 @@ export async function getRelayStatus(
  * Relay server's actual reason is preserved without leaking the request URL
  * via the default `successfulFetch` message.
  *
+ * @param messenger - Controller messenger.
  * @param url - The Relay endpoint to fetch.
  * @param init - Fetch init options.
  * @returns The successful response.
  */
-async function relayFetch(url: string, init?: RequestInit): Promise<Response> {
-  const response = await fetch(url, init);
+async function relayFetch(
+  messenger: TransactionPayControllerMessenger,
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const clientId = getClientId(messenger);
+
+  const headers = clientId
+    ? { ...init?.headers, [CLIENT_ID_HEADER]: clientId }
+    : init?.headers;
+
+  const response = await fetch(url, { ...init, ...(headers && { headers }) });
 
   if (!response.ok) {
     let detail: string | undefined;
@@ -105,4 +125,24 @@ async function relayFetch(url: string, init?: RequestInit): Promise<Response> {
   }
 
   return response;
+}
+
+/**
+ * Retrieve the client identifier from the controller.
+ *
+ * Returns `undefined` if the client did not configure one, so requests are
+ * still made without the header rather than failing.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The client identifier, if configured.
+ */
+function getClientId(
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayClientId | undefined {
+  try {
+    return messenger.call('TransactionPayController:getClientId');
+  } catch (error) {
+    log('Failed to retrieve client ID', error);
+    return undefined;
+  }
 }

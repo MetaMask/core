@@ -382,4 +382,35 @@ describe('TokenApiClient', () => {
       );
     });
   });
+
+  describe('fetchV2Assets', () => {
+    it('fetches v2 assets with launchpad and security flags', async () => {
+      const mockResponse = [
+        {
+          assetId: 'eip155:56/erc20:0xabc',
+          symbol: 'ABC',
+          name: 'Abc',
+          decimals: 18,
+          launchpad: 'flap',
+        },
+      ];
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.token.fetchV2Assets(
+        ['eip155:56/erc20:0xabc'],
+        { includeLaunchpadData: true, includeTokenSecurityData: true },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain('/v2/assets');
+      expect(url).toContain('includeLaunchpadData=true');
+      expect(url).toContain('includeTokenSecurityData=true');
+    });
+
+    it('returns an empty array without fetching when no asset IDs are given', async () => {
+      expect(await client.token.fetchV2Assets([])).toStrictEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
 });

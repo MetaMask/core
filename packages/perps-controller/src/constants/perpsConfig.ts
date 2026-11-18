@@ -142,6 +142,33 @@ export const CHASE_ORDER_CONFIG = {
    * the only thing that can enforce it.
    */
   MaxActiveSessions: 5,
+  /** How often a live chase list re-reads the provider's chase snapshots. */
+  RefreshIntervalMs: 1000,
+  /** Most ended chases a live chase list keeps in history, newest first. */
+  HistoryLimit: 50,
+  /**
+   * Reads a live chase list keeps a running chase that a read omits. An
+   * aggregated read drops a provider whose read failed, so one omission is not
+   * proof the chase is gone.
+   */
+  OmissionGraceReads: 1,
+} as const;
+
+/** Refresh cadence of a live TWAP list. */
+export const TWAP_ORDER_CONFIG = {
+  /**
+   * How often a live TWAP list re-reads while a schedule runs. The stream
+   * carries no slice fills, so only reads raise the execution totals.
+   */
+  RefreshIntervalMs: 5000,
+  /** Delay before re-reading when the stream lists a schedule no read has. */
+  StreamCatchUpIntervalMs: 1000,
+} as const;
+
+/** Thresholds for the price warnings shown on a resting order draft. */
+export const ORDER_PRICE_WARNING_CONFIG = {
+  /** Distance from the touch, as a fraction, past which a price is far from market. */
+  FarFromMarketRatio: 0.05,
 } as const;
 
 /** Public lifecycle states reported for an emulated Chase order. */
@@ -319,6 +346,8 @@ export const HYPERLIQUID_TWAP_LIMITS = {
   MinDurationMinutes: 5,
   MaxDurationMinutes: 1440,
   MinNotionalUsd: 100,
+  /** The venue sends one TWAP suborder every 30 seconds. */
+  SliceIntervalSeconds: 30,
 } as const;
 
 /**
@@ -385,6 +414,11 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
   // HyperLiquid enforces: transfer_margin_required = max(initial_margin_required, 0.1 * total_position_value)
   // See: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/margin-and-pnl
   MarginRemovalSafetyBuffer: 0.1,
+
+  // Share of notional kept back from a margin removal for the mark price
+  // moving before the venue processes it; the exact boundary is rejected on
+  // any adverse tick
+  MarginRemovalPriceMoveBuffer: 0.01,
 
   // Fallback max leverage when market data is unavailable
   // Conservative value to prevent over-removal of margin
@@ -503,6 +537,25 @@ export const DECIMAL_PRECISION_CONFIG = {
   // Using 6 as safe maximum to prevent crashes (covers most assets)
   // NOTE: This is NOT semantically correct - just a defensive measure
   FallbackSizeDecimals: 6,
+} as const;
+
+/**
+ * Decimal places kept by the shared TP/SL calculations.
+ *
+ * A calculated trigger price keeps the decimals of the first band whose
+ * `BelowPrice` it is under, else `TriggerPriceDefaultDecimals`, without
+ * trailing zeros: low-priced assets need more decimals. The provider rounds
+ * the price to the asset's submission precision when the order is sent.
+ */
+export const TP_SL_PRECISION_CONFIG = {
+  TriggerPriceBands: [
+    { BelowPrice: 0.01, Decimals: 8 },
+    { BelowPrice: 1, Decimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals },
+    { BelowPrice: 100, Decimals: 4 },
+  ],
+  TriggerPriceDefaultDecimals: 2,
+  // Decimal places of a calculated or displayed RoE or price-move percentage
+  PercentageDecimals: 2,
 } as const;
 
 /**
@@ -706,6 +759,60 @@ export const FUNDING_RATE_CONFIG = {
   ZeroDisplay: '0.0000%',
   // Multiplier to convert decimal funding rate to percentage
   PercentageMultiplier: 100,
+} as const;
+
+/**
+ * Decimal places shown for each displayed perps value, shared by Mobile,
+ * Extension and Terminal. Pass one as the `decimals` option of the display
+ * formatters (`formatPercentage`, `formatCrossMarginRatio`, `formatPnl`,
+ * `formatPerpsFiat`, `formatFundingRate`, `formatFeeBps`,
+ * `formatLiquidationDistance`, `formatPerpsCompact`,
+ * `formatPerpsUsdInput`). Prices follow `PRICE_RANGES_UNIVERSAL` instead.
+ */
+export const PERPS_DISPLAY_PRECISION = {
+  // Generic percentage, such as the 24h change: "+5.25%"
+  Percentage: 2,
+  // Cross margin account ratio and usage, from a 0..1 ratio: "17.4%", "63%"
+  CrossMarginRatioPercent: 1,
+  // Return on equity: "+10.3%"
+  RoePercent: 1,
+  // Profit and loss in USD: "+$12.34"
+  Pnl: 2,
+  // Fee amount in USD: "$1.50"
+  Fee: 2,
+  // Fee rate as a percentage: "0.045%"
+  FeeRatePercent: 3,
+  // Funding rate as a percentage: "0.0125%"
+  FundingRatePercent: FUNDING_RATE_CONFIG.Decimals,
+  // Estimated slippage of an order as a percentage: "0.0021%"
+  SlippageEstimatePercent: 4,
+  // Most decimals a displayed price may have (Hyperliquid limit)
+  MaxPriceDecimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals,
+  // Most decimals of a fee in basis points: "4.5 bps", "1.44 bps"
+  FeeBps: 2,
+  // Distance from the liquidation price as a percentage: "30.00%"
+  LiquidationDistancePercent: 2,
+  // Most decimals of TWAP progress as a percentage: "25%", "33.33%"
+  TwapProgressPercent: 2,
+  // Most decimals of a typed USD amount: "12.34"
+  UsdInput: 2,
+  // Most digits of a typed USD amount, integer and fraction together
+  UsdInputMaxDigits: 9,
+  // Volume and open interest from $1M up, and below $1K: "$1.23M", "$999.50"
+  VolumeCompact: 2,
+  // Volume and open interest in thousands: "$123K"
+  VolumeCompactThousands: 0,
+  // Order book size and total from 1K up: "$2.1K", "604.9K"
+  OrderBookCompact: 1,
+  // Most decimals of an abbreviated order book price: "$61.47K"
+  OrderBookAbbreviatedPriceMax: 3,
+  // Distance of an order book depth level from the mid price as a
+  // percentage: "+0.0125%"
+  OrderBookDepthRangePercent: 4,
+  // Most decimals of the depth chart zoom range as a percentage: "0.00125"
+  OrderBookDepthZoomRangePercentMax: 5,
+  // Most decimals of a TWAP sub-order's base-asset size: "0.00012"
+  TwapSuborderSize: 5,
 } as const;
 
 /**

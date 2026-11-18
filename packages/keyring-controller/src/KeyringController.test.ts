@@ -79,10 +79,10 @@ vi.mock(import('uuid'), async (importOriginal) => ({
 
 const input =
   '{"version":3,"id":"534e0199-53f6-41a9-a8fe-d504702ee5e8","address":"b97c80fab7a3793bbe746864db80d236f1345ea7",' +
-  '"crypto":{"ciphertext":"974fec42023c2d6340d9710863aa82a2961aa03b9d7e5dd19aa77ab4aab1f344",' +
+  '"crypto":{"ciphertext":"e3bb5c4f080d74af1afb9e9ceaf21791643651ce72482190c0ae60858795be2a",' +
   '"cipherparams":{"iv":"eba107752a238d2dd26e543860dccec4"},"cipher":"aes-128-ctr","kdf":"scrypt",' +
   '"kdfparams":{"dklen":32,"salt":"2a8894ff056db4cc1851e45390996dd26b075e5ceaf72c13ca4c202f94ca468a",' +
-  '"n":131072,"r":8,"p":1},"mac":"8bd084028ecb331275a76583d41fe0e1212825a6d155e904d1baf448d33e7150"}}';
+  '"n":1024,"r":8,"p":1},"mac":"17cefd075324e9d63407081f1f5a20294b1d0f936452b4ff6a7b2b729350092d"}}';
 const seedWords =
   'puzzle seed penalty soldier say clay field arctic metal hen cage runway';
 const uint8ArraySeed = new Uint8Array(
@@ -1230,7 +1230,7 @@ describe('KeyringController', () => {
               [privateKey],
             );
           const message = 'Hello, encrypted world!';
-          const encryptedMessage = encrypt({
+          const encryptedMessage = await encrypt({
             publicKey: await controller.getEncryptionPublicKey(
               importedAccountAddress,
             ),

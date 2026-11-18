@@ -31,6 +31,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "anvil": "node_modules/.bin/anvil",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
@@ -44,6 +45,7 @@
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "vitest",
     "test:clean": "vitest --clearCache",
+    "test:coverage": "vitest --coverage",
     "test:verbose": "vitest --reporter=verbose",
     "test:watch": "vitest --watch"
   },
@@ -63,8 +65,8 @@
     "rimraf": "^6.1.3",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
-    "typescript": "7.1.0-dev.20261103.1",
-    "vitest": "^5.0.0",
+    "typescript": "7.1.0-beta",
+    "vitest": "5.0.3",
     "yaml": "^2.9.1"
   },
   "engines": {

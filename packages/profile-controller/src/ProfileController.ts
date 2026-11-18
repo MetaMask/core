@@ -52,6 +52,8 @@ export type Profile = {
   tradingPrivacy: 'public' | 'private';
   /** Whether the profile is connected to X. */
   connectedToX: boolean;
+  /** Server-managed verification status. Defaults to false for legacy API responses and state. */
+  verified: boolean;
   /** The date and time the profile was created. */
   createdAt: string;
   /** The date and time the profile was updated. */
@@ -166,6 +168,7 @@ export function getDefaultProfileControllerState(): ProfileControllerState {
       avatarUrl: '',
       tradingPrivacy: 'public',
       connectedToX: false,
+      verified: false,
       createdAt: '',
       updatedAt: '',
     },
@@ -217,6 +220,11 @@ export class ProfileController extends BaseController<
       state: {
         ...getDefaultProfileControllerState(),
         ...state,
+        profile: {
+          ...getDefaultProfileControllerState().profile,
+          ...state?.profile,
+          verified: state?.profile?.verified ?? false,
+        },
       },
     });
 
@@ -265,6 +273,7 @@ export class ProfileController extends BaseController<
       avatarUrl: response.avatar_url,
       tradingPrivacy: response.trading_privacy,
       connectedToX: response.connected_to_x,
+      verified: response.verified ?? false,
       createdAt: response.created_at,
       updatedAt: response.updated_at,
     };

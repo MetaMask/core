@@ -19,6 +19,7 @@ export type {
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,
+  KycControllerDeleteEncryptedStorageAction,
   KycControllerEnsureLocalUserSecretAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
@@ -53,6 +54,9 @@ export type {
   CapabilityAuthorization,
   CreateVendorCustomerParams,
   CreateMoonpaySessionParams,
+  CompleteDeletionParams,
+  CreateDeletionParams,
+  CreateDeletionResponse,
   CreateUkycSessionParams,
   EncryptionSchema,
   FetchSessionDisclaimersByCountryParams,
@@ -76,6 +80,8 @@ export type {
 } from './KycService.js';
 export type {
   KycServiceCreateVendorCustomerAction,
+  KycServiceCompleteDeletionAction,
+  KycServiceCreateDeletionAction,
   KycServiceCreateJourneyAction,
   KycServiceCreateMoonpaySessionAction,
   KycServiceCreateUkycSessionAction,

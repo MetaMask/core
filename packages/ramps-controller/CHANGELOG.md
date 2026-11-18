@@ -7,14 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.1.0]
+
 ### Added
 
+- Add `selectProviderForAsset` (also the `RampsController:selectProviderForAsset` action). It selects the provider for a token in this order, each only if the provider offers the token: the user's own pick, then an `aheadOfHistory` list, then the provider of the most recent completed buy across all accounts (plus optional `extraHistory` the client keeps outside controller state), then API ranking. A `null` asset id treats every provider as a candidate and skips the `aheadOfHistory` list, for picks made before a token is chosen ([#11616](https://github.com/MetaMask/core/pull/11616))
+- Add `getPreviouslyUsedProviders`, which returns the providers the user has completed a buy with, most recent first, and the `RampsProviderHistoryEntry` and `SelectProviderForAssetOptions` types ([#11616](https://github.com/MetaMask/core/pull/11616))
+- Add the `userSelectedProviderId` state property (not persisted) and a `userSelected` option on `setSelectedProvider` that sets it. It is cleared by `setSelectedProvider(null)` and on region change ([#11616](https://github.com/MetaMask/core/pull/11616))
+
+### Fixed
+
+- Fix order polling republishing `RampsController:orderStatusChanged` on every poll for an order whose fetched `id` carries a different code than the stored one ([#11593](https://github.com/MetaMask/core/pull/11593))
+  - `getOrder` now keeps the stored order's `id` and `providerOrderId` when the order was requested by its stored code, so the fetched status is written to the stored order. Before, the write was skipped, the stored order stayed pending, and the same transition was published every poll cycle.
+  - Polling now publishes `orderStatusChanged` only when the new status is stored, so an order removed while its request was in flight no longer publishes.
+- `RampsService.getBuyWidgetUrl` now rejects a buy URL whose origin does not match the ramps API origin for the configured environment, before common params are added and before a bearer token is requested. This stops a malicious or compromised quotes response from sending the user's token to an arbitrary host. `baseUrlOverride` does not relax the check. ([#11551](https://github.com/MetaMask/core/pull/11551))
+- Order history now matches orders that store a `/providers/<id>` provider id or a text `createdAt`, and leaves out sell orders, in `setSelectedProviderForAsset` and in provider resolution for `getQuotes` and `getPaymentMethodsForContext` ([#11616](https://github.com/MetaMask/core/pull/11616))
+
+## [30.0.0]
+
+### Added
+
+- Add `TransakServiceInvalidateQueriesAction`, `TransakServiceCacheUpdatedEvent` and `TransakServiceGranularCacheUpdatedEvent` types, and include them in `TransakServiceActions` and `TransakServiceEvents` ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Add `RampsServiceInvalidateQueriesAction`, `RampsServiceCacheUpdatedEvent` and `RampsServiceGranularCacheUpdatedEvent`, also included in `RampsServiceActions` and `RampsServiceEvents` ([#11214](https://github.com/MetaMask/core/pull/11214))
 - Add `NeoBankServiceInvalidateQueriesAction`, `NeoBankServiceCacheUpdatedEvent` and `NeoBankServiceGranularCacheUpdatedEvent`, also included in `NeoBankServiceActions` and `NeoBankServiceEvents` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Added an optional `isNetworkAccessAllowed` constructor option to `RampsController`. Every method that can reach the network checks it before any state write or request, and throws an error carrying the new `RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED` code when it returns `false`. A denied call does not serve a non-expired request-cache entry either, so hosts render already-fetched data from controller state while access is denied. Omitting the option keeps the existing behavior. `addOrder`, `addPrecreatedOrder`, `removeOrder`, and `transakLogout` still apply their local change and skip only the remote call ([#11222](https://github.com/MetaMask/core/pull/11222))
+- Add `SepaDepositInstructions` and `extractSepaDepositInstructions`; `NeoBankService.getDepositInstructions` now returns `{ type: 'Sepa' }` for an EUR autoramp with a SEPA deposit rail, including `paymentReference` from the autoramp's `inbound_payment_reference` when MoonPay uses pay-by-reference and `isThirdParty` from its `is_third_party` when present ([#11397](https://github.com/MetaMask/core/pull/11397))
 
 ### Changed
 
+- **BREAKING:** `TransakService` now extends `BaseDataService` ([#11216](https://github.com/MetaMask/core/pull/11216))
+  - This is breaking because `TransakServiceMessenger` has new required actions and events, writes are no longer retried, and `verifyUserOtp` now shares the circuit breaker with every other request (see below).
+  - `TransakServiceActions` now includes `TransakService:invalidateQueries`, and `TransakServiceEvents` now includes the `TransakService:cacheUpdated` events. A host messenger built from `MessengerActions<TransakServiceMessenger>` and `MessengerEvents<TransakServiceMessenger>` picks these up automatically.
+- **BREAKING:** `RampsService` now extends `BaseDataService` from `@metamask/base-data-service` ([#11214](https://github.com/MetaMask/core/pull/11214))
+  - This is breaking because `RampsService` no longer has public `onRetry`, `onBreak` and `onDegraded` methods (see Removed), and `RampsServiceMessenger` has new required actions and events. Pass `policyOptions` to the constructor to configure retries and the circuit breaker.
+  - `RampsServiceMessenger` now includes the `RampsService:invalidateQueries` action and the `RampsService:cacheUpdated` events. Messengers built from `RampsServiceActions` and `RampsServiceEvents` pick these up automatically.
 - **BREAKING:** `NeoBankService` now extends `BaseDataService` from `@metamask/base-data-service`, so reads and writes share one circuit breaker (previously each had its own) and repeated read failures can now block writes ([#10882](https://github.com/MetaMask/core/pull/10882))
   - `NeoBankServiceMessenger` now includes the `NeoBankService:invalidateQueries` action and `NeoBankService:cacheUpdated` events. Messengers built from `NeoBankServiceActions` / `NeoBankServiceEvents` pick these up automatically.
+- **BREAKING:** `AutorampDepositInstructions` now includes a `Sepa` variant, so exhaustive switches on its `type` must handle it ([#11397](https://github.com/MetaMask/core/pull/11397))
+  - `NeoBankService.getDepositInstructions` returns `{ type: 'Sepa', iban, ... }` when the autoramp has a SEPA rail with an IBAN, after PIX and US bank rails. The result includes `paymentReference` when MoonPay returns an `inbound_payment_reference` for a pay-by-reference autoramp.
+- `getMusdAutorampDepositRailReadiness` now checks the `sepa` rail for EUR ([#11397](https://github.com/MetaMask/core/pull/11397))
+- Dropped `source_is_third_party` from `buildMusdAutorampRequest`; neobank-proxy now sets it on every market create, choosing first- or third-party per customer from the eligible rails ([#11397](https://github.com/MetaMask/core/pull/11397))
+- Concurrent identical `TransakService` reads are now deduplicated: while one request is in flight, identical calls reuse it instead of sending another. Reads still always hit the API ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Responses are now validated, and a malformed response throws `Query function for "TransakService:<method>" returned an unexpected response: ...` for reads or `Mutation function for "TransakService:<method>" returned an unexpected response: ...` for writes. Previously the response was returned unchecked ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Writes (every POST, PATCH and DELETE request) are no longer retried. Previously only `verifyUserOtp` was exempt from retries ([#11216](https://github.com/MetaMask/core/pull/11216))
+- `verifyUserOtp` now shares the circuit breaker with every other `TransakService` request. Previously it had its own, so repeated failures on other requests can now block it ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Concurrent identical `RampsService` calls are now deduplicated: while one request is in flight, calls with the same method and arguments reuse it instead of sending another. Sequential calls still always hit the API ([#11214](https://github.com/MetaMask/core/pull/11214))
+- Responses that do not match the expected shape now throw `Query function for "RampsService:<method>" returned an unexpected response: ...`, instead of `Malformed response received from <api name>` ([#11214](https://github.com/MetaMask/core/pull/11214))
 - `NeoBankService.getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`, `registerPixAddress` and `attachAutorampQuote` now return `Promise<Json>` instead of `Promise<unknown>` ([#10882](https://github.com/MetaMask/core/pull/10882))
 - Concurrent identical NeoBank reads (`getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `getCustomerAbilities`, `listAutorampTransactions`, `getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`) are now deduplicated: while one request is in flight, identical calls reuse it instead of sending another. Sequential reads still always hit the API ([#10882](https://github.com/MetaMask/core/pull/10882))
   - `getAutoramps` fetches each cursor page as its own query, so a failed page is retried on its own and concurrent calls with the same `customerId` reuse each in flight page request.
@@ -22,9 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `getCustomerAbilities`, `listAutorampTransactions` and `createAutoramp`.
 - Add dependency `@metamask/base-data-service` ([#10882](https://github.com/MetaMask/core/pull/10882))
 - Add dependency `@metamask/superstruct` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
 ### Removed
 
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `RampsService` ([#11214](https://github.com/MetaMask/core/pull/11214))
 - **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `NeoBankService` ([#10882](https://github.com/MetaMask/core/pull/10882))
 
 ## [29.0.0]
@@ -821,7 +862,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@30.0.0...@metamask/ramps-controller@30.1.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@29.0.0...@metamask/ramps-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...@metamask/ramps-controller@29.0.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.0.0...@metamask/ramps-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.2.0...@metamask/ramps-controller@28.0.0

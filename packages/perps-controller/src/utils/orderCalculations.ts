@@ -991,6 +991,7 @@ function formatTpslSize(params: {
  * never going to be accepted.
  *
  * @param params - Price and size parameters
+ * @param params.price - Limit price the order fills at, if any
  * @param params.triggerPrice - Trigger price for a trigger placement, if any
  * @param params.takeProfitPrice - Attached take profit price, if any
  * @param params.stopLossPrice - Attached stop loss price, if any
@@ -1000,6 +1001,7 @@ function formatTpslSize(params: {
  * @returns Validation result with isValid flag and optional error message
  */
 export function validateOrderPrecision(params: {
+  price?: string;
   triggerPrice?: string;
   takeProfitPrice?: string;
   stopLossPrice?: string;
@@ -1008,6 +1010,7 @@ export function validateOrderPrecision(params: {
   szDecimals: number;
 }): { isValid: boolean; error?: string } {
   const {
+    price: limitPrice,
     triggerPrice,
     takeProfitPrice,
     stopLossPrice,
@@ -1046,6 +1049,7 @@ export function validateOrderPrecision(params: {
   // formats to '0'. Every one of these becomes a `triggerPx` the exchange
   // rejects outright.
   const priceChecks: [string | undefined, string][] = [
+    [limitPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
     [triggerPrice, PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE],
     [takeProfitPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],
     [stopLossPrice, PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE],

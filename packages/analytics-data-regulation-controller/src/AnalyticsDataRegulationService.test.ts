@@ -420,6 +420,39 @@ describe('AnalyticsDataRegulationService', () => {
       );
     });
 
+    it('does not publish the analytics ID in events after createDataDeletionTask', async () => {
+      nock(segmentRegulationsEndpoint)
+        .post(createPath)
+        .reply(200, validCreateBody);
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await service.createDataDeletionTask('SECRET-ANALYTICS-ID');
+
+      expect(publishSpy).toHaveBeenCalled();
+      expect(JSON.stringify(publishSpy.mock.calls)).not.toContain(
+        'SECRET-ANALYTICS-ID',
+      );
+    });
+
+    it('sends a request for each concurrent createDataDeletionTask call', async () => {
+      const first = nock(segmentRegulationsEndpoint)
+        .post(createPath)
+        .reply(200, validCreateBody);
+      const second = nock(segmentRegulationsEndpoint)
+        .post(createPath)
+        .reply(200, validCreateBody);
+      const { service } = getService();
+
+      await Promise.all([
+        service.createDataDeletionTask('analytics-id-1'),
+        service.createDataDeletionTask('analytics-id-1'),
+      ]);
+
+      expect(first.isDone()).toBe(true);
+      expect(second.isDone()).toBe(true);
+    });
+
     it('deduplicates concurrent checkDataDeleteStatus calls', async () => {
       nock(segmentRegulationsEndpoint)
         .get('/regulations/reg-1')

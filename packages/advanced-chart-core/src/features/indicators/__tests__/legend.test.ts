@@ -287,6 +287,38 @@ describe('legend', () => {
       expect(style?.textContent).toContain('display:none!important');
     });
 
+    it('hides the price scale mode buttons', () => {
+      installContainer();
+      setupLegendOverlay({ enabled: true });
+
+      // Real markup from library v30.1.0. TradingView treats these class
+      // names as internal and subject to change, so the rule matches a
+      // substring rather than the whole thing.
+      const wrapper = document.createElement('div');
+      wrapper.className = 'priceScaleModeButtons__buttonWrapper-PEm49B2T';
+      const button = document.createElement('div');
+      button.className =
+        'priceScaleModeButton-okRV4Kjm priceScaleModeButtons__button-PEm49B2T apply-common-tooltip';
+      wrapper.appendChild(button);
+      document.body.appendChild(wrapper);
+
+      const style = document.getElementById('mm-hide-legend-buttons');
+      expect(style).not.toBeNull();
+
+      const selectors = String((style as HTMLStyleElement).textContent).replace(
+        /\{[^}]*\}/gu,
+        '',
+      );
+      const hidden = [...document.querySelectorAll(selectors)];
+
+      // Asserting what the selectors match, not that the text says
+      // `display:none`: a selector matching nothing reads identically in the
+      // stylesheet, which is how a stale `.chart-controls-bar` clause sat
+      // here undetected while the buttons stayed visible.
+      expect(hidden).toContain(wrapper);
+      expect(hidden).toContain(button);
+    });
+
     it('does not duplicate the CSS style on second setup call', () => {
       installContainer();
       setupLegendOverlay({ enabled: true });

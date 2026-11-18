@@ -1164,6 +1164,14 @@ describe('HyperLiquidSubscriptionService', () => {
       });
       await vi.runAllTimersAsync();
 
+      // Spot is known, but the abstraction mode is still in flight. The
+      // collateral amount stays unset so the ratio is hidden rather than
+      // computed as if this were a Standard account.
+      expect(accountCallback).toHaveBeenCalled();
+      expect(
+        accountCallback.mock.calls.at(-1)?.[0]?.spotCollateral,
+      ).toBeUndefined();
+
       // Resolve the REST userAbstraction. The refresh path must record the
       // mode (it's user-keyed, independent of spot generation) and trigger
       // a re-aggregation so the active subscriber sees folded balance —
@@ -1184,6 +1192,7 @@ describe('HyperLiquidSubscriptionService', () => {
         1123.45,
         2,
       );
+      expect(recoveredCall?.spotCollateral).toBe('123.45');
 
       // A subsequent subscribe must take the fast path — the cache is now
       // sealed for this user, so no redundant userAbstraction REST round-trip.
@@ -1375,6 +1384,64 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(userAbstraction).toHaveBeenLastCalledWith({ user });
     });
 
+    it.each(['disabled', 'default'] as const)(
+      'republishes spotCollateral when a delayed abstraction resolve is %s',
+      async (resolvedMode) => {
+        // The subscribe-time userAbstraction fails, so the mode stays
+        // unknown and spotCollateral is unset. A later spot tick resolves
+        // it to Standard. Unknown and Standard both skip the spot fold, so
+        // the stream must still notify: clients are waiting on '0'.
+        const userAbstraction = vi
+          .fn()
+          .mockRejectedValueOnce(new Error('abstraction unavailable'))
+          .mockResolvedValueOnce(resolvedMode);
+        mockClientService.getInfoClient = vi.fn(() => ({
+          spotClearinghouseState: mockSpotClearinghouseState,
+          userAbstraction,
+        })) as never;
+
+        const accountCallback = vi.fn();
+        const unsubscribe = service.subscribeToAccount({
+          callback: accountCallback,
+        });
+        await vi.runAllTimersAsync();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(1);
+        expect(accountCallback).toHaveBeenCalled();
+        expect(
+          accountCallback.mock.calls.at(-1)?.[0]?.spotCollateral,
+        ).toBeUndefined();
+
+        accountCallback.mockClear();
+        const spotListener =
+          mockSubscriptionClient.spotState.mock.calls.at(-1)?.[1];
+        spotListener({
+          user: '0x123',
+          spotState: {
+            balances: [
+              {
+                coin: 'USDC',
+                token: 0,
+                hold: '0',
+                total: '100.76531791',
+                entryNtl: '100.76531791',
+              },
+            ],
+          },
+        });
+        await vi.runAllTimersAsync();
+
+        expect(userAbstraction).toHaveBeenCalledTimes(2);
+        expect(accountCallback).toHaveBeenCalled();
+        const published = accountCallback.mock.calls.at(-1)?.[0];
+        // Spot is present, but Standard does not count it as collateral.
+        expect(published?.spotCollateral).toBe('0');
+        expect(parseFloat(published?.spendableBalance)).toBe(1000);
+
+        unsubscribe();
+      },
+    );
+
     it('unsubscribes spotState when the last account subscriber leaves', async () => {
       const unsubSpot = vi.fn().mockResolvedValue(undefined);
       mockSubscriptionClient.spotState.mockResolvedValueOnce({
@@ -1564,9 +1631,10 @@ describe('HyperLiquidSubscriptionService', () => {
       // withdrawable (all three carry the same value when perps balances
       // are zero). Per-DEX subAccountBreakdown entries stay perps-only —
       // the fold is applied once at the aggregation level, not per DEX.
-      expect(accountState.totalBalance).toBe('100.76531791');
-      expect(accountState.spendableBalance).toBe('100.76531791');
-      expect(accountState.withdrawableBalance).toBe('100.76531791');
+      // Emitted USDC balances are canonicalized down to six decimals.
+      expect(accountState.totalBalance).toBe('100.765317');
+      expect(accountState.spendableBalance).toBe('100.765317');
+      expect(accountState.withdrawableBalance).toBe('100.765317');
       expect(accountState.subAccountBreakdown).toEqual({
         main: {
           spendableBalance: '0',
@@ -1793,9 +1861,9 @@ describe('HyperLiquidSubscriptionService', () => {
       //   total       = perps.accountValue (200) + spot (100.77) = 300.77
       //   spendable   = perps.withdrawable (50)  + spot (100.77) = 150.77
       //   withdrawable = perps.withdrawable (50) + spot (100.77) = 150.77
-      expect(firstUpdate.totalBalance).toBe('300.76531791');
-      expect(firstUpdate.spendableBalance).toBe('150.76531791');
-      expect(firstUpdate.withdrawableBalance).toBe('150.76531791');
+      expect(firstUpdate.totalBalance).toBe('300.765317');
+      expect(firstUpdate.spendableBalance).toBe('150.765317');
+      expect(firstUpdate.withdrawableBalance).toBe('150.765317');
 
       // Simulate a second WebSocket tick — should still include spot balance,
       // not revert to perps-only 200.
@@ -1808,7 +1876,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       if (mockCallback.mock.calls.length > 0) {
         const secondUpdate = mockCallback.mock.calls.at(-1)?.[0];
-        expect(secondUpdate.totalBalance).toBe('300.76531791');
+        expect(secondUpdate.totalBalance).toBe('300.765317');
       }
 
       unsubscribe();

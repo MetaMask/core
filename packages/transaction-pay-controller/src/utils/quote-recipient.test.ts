@@ -16,9 +16,9 @@ const TRANSACTION_MOCK = {
 } as TransactionMeta;
 const REQUEST_MOCK: QuoteRequest = {
   from: PAYER_MOCK,
+  sourceAccountId: `eip155:1:${PAYER_MOCK}`,
+  sourceAssetId: 'eip155:1/erc20:0x5555555555555555555555555555555555555555',
   sourceBalanceRaw: '2000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0x5555555555555555555555555555555555555555',
   sourceTokenAmount: '1500000',
   targetAmountMinimum: '1500000',
   targetChainId: '0xa',
@@ -71,6 +71,20 @@ describe('resolveQuoteRecipient', () => {
       expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
     },
   );
+
+  it('pays the account override for ordinary withdrawals', async () => {
+    expect(
+      await resolveQuoteRecipient({
+        messenger,
+        request: {
+          ...REQUEST_MOCK,
+          accountOverride: PAYOUT_RECIPIENT_MOCK,
+          isPostQuote: true,
+        },
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).toBe(PAYOUT_RECIPIENT_MOCK);
+  });
 
   it.each([false, true])(
     'preserves an explicit atomic recipient when isPostQuote is %s',

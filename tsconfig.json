@@ -159,6 +159,9 @@
       "path": "./packages/json-rpc-middleware-stream"
     },
     {
+      "path": "./packages/key-tree"
+    },
+    {
       "path": "./packages/keyring-controller"
     },
     {
@@ -171,7 +174,7 @@
       "path": "./packages/logging-controller"
     },
     {
-      "path": "./packages/marketing-consent-controller"
+      "path": "./packages/marketing-consent-sync-service"
     },
     {
       "path": "./packages/message-manager"
@@ -349,6 +352,9 @@
     },
     {
       "path": "./packages/watch-only-account-service"
+    },
+    {
+      "path": "./packages/eth-sig-util"
     }
   ],
   "files": [],

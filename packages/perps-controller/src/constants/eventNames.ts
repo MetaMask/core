@@ -100,6 +100,7 @@ export const PERPS_EVENT_PROPERTY = {
   AMOUNT_FILLED: 'amount_filled',
   REMAINING_AMOUNT: 'remaining_amount',
   NUMBER_POSITIONS_CLOSED: 'number_positions_closed',
+  NUMBER_ORDERS_CANCELED: 'number_orders_canceled',
 
   // Tutorial carousel navigation properties
   PREVIOUS_SCREEN: 'previous_screen',
@@ -122,12 +123,6 @@ export const PERPS_EVENT_PROPERTY = {
   // VIP rewards properties
   VIP_TIER: 'vip_tier',
   VIP_DISCOUNT: 'vip_discount',
-
-  // A/B testing properties (flat per test for multiple concurrent tests)
-  // Only include AB test properties when test is enabled (event not sent when disabled)
-  // Button color test
-  AB_TEST_BUTTON_COLOR: 'ab_test_button_color',
-  // Future tests: add as AB_TEST_{TEST_NAME} (no _ENABLED property needed)
 
   // Entry point tracking properties
   BUTTON_CLICKED: 'button_clicked',
@@ -646,14 +641,6 @@ export const PERPS_EVENT_VALUE = {
   /** Value for mm_pay_token_selected when user pays with Perps balance (not a token) */
   MM_PAY_TOKEN: {
     PERPS_BALANCE: 'Perps Balance',
-  },
-  // A/B testing values
-  AB_TEST: {
-    // Test IDs
-    BUTTON_COLOR_TEST: 'button_color_test',
-    // Button color test variants
-    CONTROL: 'control',
-    MONOCHROME: 'monochrome',
   },
   BUTTON_CLICKED: {
     DEPOSIT: 'deposit',

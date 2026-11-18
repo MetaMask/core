@@ -52,6 +52,8 @@ export type {
   V5TransactionFee,
   V5TransactionLog,
   V5TransactionRecord,
+  V5TransactionByIdResponse,
+  V5TransactionByIdQueryOptions,
   V5MultiAccountTransactionsResponse,
   V5MultiAccountTransactionsQueryOptions,
   ValueTransfer,
@@ -90,6 +92,8 @@ export type {
   TopGainersSortOption,
   TrendingSortOption,
   V1SuggestedOccurrenceFloorsResponse,
+  V2AssetResponse,
+  V2AssetsQueryOptions,
 } from './token/index.js';
 
 // Tokens API

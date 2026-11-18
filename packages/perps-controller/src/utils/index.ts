@@ -5,6 +5,17 @@
  * We use selective exports to avoid the name collision.
  */
 export * from './accountUtils.js';
+export * from './advancedOrderLists.js';
+export * from './advancedOrders.js';
+export {
+  estimateCloseReceive,
+  calculateNetClosedPnl,
+} from './closeCalculations.js';
+export type {
+  CloseReceiveEstimateParams,
+  CloseReceiveEstimate,
+  NetClosedPnlParams,
+} from './closeCalculations.js';
 export * from './errorUtils.js';
 // hyperLiquidAdapter: selective export to avoid calculatePositionSize clash with orderCalculations
 export {
@@ -26,6 +37,14 @@ export {
 export * from './hyperLiquidOrderBookProcessor.js';
 export * from './hyperLiquidPositionPreview.js';
 export * from './hyperLiquidValidation.js';
+export {
+  calculateMaxRemovableMargin,
+  estimateLiquidationPriceAfterMarginChange,
+} from './marginAdjustment.js';
+export type {
+  MaxRemovableMarginParams,
+  LiquidationPriceAfterMarginChangeParams,
+} from './marginAdjustment.js';
 export * from './idUtils.js';
 export * from './marketDataTransform.js';
 export * from './marketSearch.js';
@@ -39,6 +58,7 @@ export * from './sortMarkets.js';
 export * from './standaloneInfoClient.js';
 export * from './stringParseUtils.js';
 export * from './subscriptionFeeWaiver.js';
+export * from './tpslCalculations.js';
 export * from './transferData.js';
 export * from './wait.js';
 

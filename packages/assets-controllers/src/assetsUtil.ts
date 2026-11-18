@@ -1,11 +1,15 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
+  timeoutFetch,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import {
+  base64ToBytes,
+  bytesToString,
   hexToNumber,
+  isObject,
   KnownCaipNamespace,
   remove0x,
   toCaipChainId,
@@ -273,6 +277,92 @@ export function addUrlProtocolPrefix(urlString: string): string {
     return `https://${urlString}`;
   }
   return urlString;
+}
+
+/**
+ * Checks whether a URI is a `data:` URL.
+ *
+ * @param uri - The URI to check.
+ * @returns True if the URI uses the `data:` scheme.
+ */
+export function isDataUri(uri: string): boolean {
+  return uri.trimStart().toLowerCase().startsWith('data:');
+}
+
+/**
+ * Decodes JSON NFT metadata embedded in a `data:` URL, such as
+ * `data:application/json;base64,eyJuYW1lIjoiLi4uIn0=` or
+ * `data:application/json;charset=utf-8,%7B%22name%22%3A%22...%22%7D`.
+ *
+ * @param uri - The `data:` URL to decode.
+ * @returns The decoded JSON object, or `null` if the URL does not contain a
+ * JSON object.
+ */
+export function parseJsonDataUri(uri: string): Record<string, unknown> | null {
+  // `data:application/json[;charset=utf-8][;base64],<payload>`. The payload
+  // itself may contain commas, so everything after the first one is rejoined.
+  const [header, ...payloadParts] = uri.split(',');
+  const [mediaType, ...params] = header.trim().toLowerCase().split(';');
+  if (mediaType !== 'data:application/json' || payloadParts.length === 0) {
+    return null;
+  }
+  const payload = payloadParts.join(',');
+
+  try {
+    const json = params.includes('base64')
+      ? bytesToString(base64ToBytes(payload))
+      : decodeURIComponent(payload);
+    const metadata: unknown = JSON.parse(json);
+    return isObject(metadata) ? metadata : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves the JSON metadata a token URI points to. `data:` URLs are decoded
+ * inline and never passed to `fetch`, since not every client's `fetch` can
+ * decode them (e.g. it crashes MetaMask Mobile).
+ *
+ * @param tokenURI - The token URI (an HTTP(S) URL or a `data:` URL).
+ * @returns The JSON metadata, or `null` for a `data:` URL that is not JSON.
+ * @throws If fetching or parsing a non-`data:` token URI fails.
+ */
+export async function getTokenUriJson(
+  tokenURI: string,
+): Promise<Record<string, unknown> | null> {
+  if (isDataUri(tokenURI)) {
+    return parseJsonDataUri(tokenURI);
+  }
+  const response = await timeoutFetch(tokenURI);
+  const json: unknown = await response.json();
+  return isObject(json) ? json : null;
+}
+
+/**
+ * Resolves the image of the NFT metadata a token URI points to, converting
+ * `ipfs://` images to gateway URLs. Never throws.
+ *
+ * @param tokenURI - The token URI (an HTTP(S) URL or a `data:` URL).
+ * @param ipfsGateway - The IPFS gateway to use for `ipfs://` images.
+ * @returns The image URL, or `undefined` if it cannot be resolved.
+ */
+export async function getTokenUriImage(
+  tokenURI: string,
+  ipfsGateway: string,
+): Promise<string | undefined> {
+  try {
+    const metadata = await getTokenUriJson(tokenURI);
+    const image = metadata?.image;
+    if (typeof image !== 'string') {
+      return undefined;
+    }
+    return image.startsWith('ipfs://')
+      ? await getFormattedIpfsUrl(ipfsGateway, image, true)
+      : image;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

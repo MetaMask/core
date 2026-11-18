@@ -2,7 +2,7 @@
  * OHLCV Service for real-time candlestick data streaming via WebSocket.
  *
  * Wraps {@link BackendWebSocketService} through the messenger pattern to
- * provide subscribe/unsubscribe semantics for OHLCV market-data channels.
+ * provide subscribe/unsubscribe semantics for OHLCV channels.
  * The per-channel subscription lifecycle (reference counting, grace-period
  * unsubscribe, unsubscribe retry, resubscribe on reconnect) is delegated to a
  * shared {@link ChannelSubscriptionManager} by composition; this service keeps
@@ -43,16 +43,14 @@ const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
 const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
-const SUBSCRIPTION_NAMESPACE = 'market-data.v1';
-
-const SYSTEM_NOTIFICATIONS_CHANNEL = `system-notifications.v1.${SUBSCRIPTION_NAMESPACE}`;
+const DEFAULT_SUBSCRIPTION_NAMESPACE = 'ohlcv.v1';
 
 // =============================================================================
 // Types — System Notifications
 // =============================================================================
 
 /**
- * System notification data for chain status updates on market-data channels.
+ * System notification data for chain status updates on OHLCV channels.
  */
 export type OHLCVSystemNotificationData = {
   chainIds: string[];
@@ -68,6 +66,11 @@ export type OHLCVSystemNotificationData = {
  * Configuration options for the OHLCV service.
  */
 export type OHLCVServiceOptions = {
+  /**
+   * Channel namespace (default: 'ohlcv.v1').
+   * Pass 'market-data.v1' to feature-flag the previous stream.
+   */
+  subscriptionNamespace?: string;
   /** Optional callback to trace performance of OHLCV operations (default: no-op) */
   traceFn?: TraceCallback;
 };
@@ -142,6 +145,8 @@ export class OHLCVService {
 
   readonly #messenger: OHLCVServiceMessenger;
 
+  readonly #subscriptionNamespace: string;
+
   readonly #trace: TraceCallback;
 
   readonly #manager: ChannelSubscriptionManager;
@@ -156,6 +161,8 @@ export class OHLCVService {
     options: OHLCVServiceOptions & { messenger: OHLCVServiceMessenger },
   ) {
     this.#messenger = options.messenger;
+    this.#subscriptionNamespace =
+      options.subscriptionNamespace ?? DEFAULT_SUBSCRIPTION_NAMESPACE;
 
     this.#trace =
       options.traceFn ??
@@ -166,7 +173,7 @@ export class OHLCVService {
 
     this.#manager = new ChannelSubscriptionManager({
       messenger: this.#messenger,
-      channelType: SUBSCRIPTION_NAMESPACE,
+      channelType: this.#subscriptionNamespace,
       logPrefix: 'OHLCV-WS',
       onMessage: (channel, notification): void =>
         this.#handleBarUpdate(channel, notification),
@@ -176,7 +183,7 @@ export class OHLCVService {
           error,
           operation,
         }),
-      systemNotificationsChannel: SYSTEM_NOTIFICATIONS_CHANNEL,
+      systemNotificationsChannel: `system-notifications.v1.${this.#subscriptionNamespace}`,
       onSystemNotification: (notification): void =>
         this.#handleSystemNotification(notification),
       onConnectionStateChange: (connectionInfo): void =>
@@ -308,7 +315,7 @@ export class OHLCVService {
   // =============================================================================
 
   #buildChannel(options: OHLCVSubscriptionOptions): string {
-    return `${SUBSCRIPTION_NAMESPACE}.${options.assetId}.${options.interval}.${options.currency}`;
+    return `${this.#subscriptionNamespace}.${options.assetId}.${options.interval}.${options.currency}`;
   }
 
   // =============================================================================

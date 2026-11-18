@@ -12,6 +12,8 @@ export const PERPS_ERROR_CODES = {
   CLIENT_REINITIALIZING: 'CLIENT_REINITIALIZING',
   PROVIDER_NOT_AVAILABLE: 'PROVIDER_NOT_AVAILABLE',
   PROVIDER_NOT_FOUND: 'PROVIDER_NOT_FOUND',
+  // With multiple registered venues a write must name the venue it is for
+  PROVIDER_ROUTE_REQUIRED: 'PROVIDER_ROUTE_REQUIRED',
   PROVIDER_LIFECYCLE_STALE: 'PROVIDER_LIFECYCLE_STALE',
   TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
   BRIDGE_CONTRACT_NOT_FOUND: 'BRIDGE_CONTRACT_NOT_FOUND',
@@ -82,6 +84,8 @@ export const PERPS_ERROR_CODES = {
   ORDER_SCALE_COUNT_INVALID: 'ORDER_SCALE_COUNT_INVALID', // scaleNumOrders missing, non-integer, or outside the supported ladder size
   ORDER_SCALE_SIZE_TOO_SMALL: 'ORDER_SCALE_SIZE_TOO_SMALL', // Total size cannot give every ladder rung a non-zero slice
   ORDER_SCALE_NOTIONAL_TOO_SMALL: 'ORDER_SCALE_NOTIONAL_TOO_SMALL', // Ladder notional split across the rungs leaves each below the venue's per-order minimum
+  ORDER_SCALE_SIZE_CONSERVATION_FAILED: 'ORDER_SCALE_SIZE_CONSERVATION_FAILED', // Internal: a ladder split lost a grid unit or left the size grid; not caused by input
+  ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT: 'ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT', // Internal: a sized ladder exceeds the requested size or USD amount; not caused by input
   ORDER_TWAP_NOTIONAL_TOO_SMALL: 'ORDER_TWAP_NOTIONAL_TOO_SMALL', // TWAP total below the venue's documented minimum TWAP order size
   ORDER_CHASE_INTERVAL_INVALID: 'ORDER_CHASE_INTERVAL_INVALID', // chaseIntervalMs below the minimum poll interval
   ORDER_CHASE_DURATION_INVALID: 'ORDER_CHASE_DURATION_INVALID', // chaseMaxDurationMs shorter than one poll interval, or chaseMaxRepricings non-positive
@@ -127,6 +131,7 @@ export const PERPS_ERROR_CODES = {
   MARGIN_ADJUSTMENT_FAILED: 'MARGIN_ADJUSTMENT_FAILED',
   TPSL_UPDATE_FAILED: 'TPSL_UPDATE_FAILED',
   TPSL_PROTECTION_LOST: 'TPSL_PROTECTION_LOST',
+  TPSL_LEG_REPLACE_UNSUPPORTED: 'TPSL_LEG_REPLACE_UNSUPPORTED', // The provider cannot replace one position TP/SL leg on its own
   // Order execution errors
   ORDER_REJECTED: 'ORDER_REJECTED',
   SLIPPAGE_EXCEEDED: 'SLIPPAGE_EXCEEDED',

@@ -96,95 +96,120 @@ describe('OrdersService', () => {
     });
 
     it.each([
-      'not an object',
-      { missing: 'orders' },
-      { orders: 'not an array' },
-      { orders: ['not an object'] },
+      { response: 'not an object', description: 'is not an object' },
+      { response: { missing: 'orders' }, description: "is missing 'orders'" },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            createdTime: 'not a timestamp',
-          },
-        ],
+        response: { orders: 'not an array' },
+        description: "where 'orders' is not an array",
       },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            createdTime: 2 ** 53 - 1,
-          },
-        ],
+        response: { orders: ['not an object'] },
+        description: "where 'orders' is not an array of objects",
       },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            details: 'not an object',
-          },
-        ],
-      },
-      {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            from: 'not a CAIP account ID',
-          },
-        ],
-      },
-      {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            orderId: {
-              not: 'a string',
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              createdTime: 'not a number',
             },
-          },
-        ],
+          ],
+        },
+        description: "where an order's createdTime is not a number",
       },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            status: 'not a valid status',
-          },
-        ],
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              details: 'not an object',
+            },
+          ],
+        },
+        description: "where an order's details is not a object",
       },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            to: 'not a CAIP account ID',
-          },
-        ],
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              from: 'not a CAIP account ID',
+            },
+          ],
+        },
+        description: "where an order's 'from' is not a CAIP account ID",
       },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            updatedTime: 'not a timestamp',
-          },
-        ],
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              orderId: {
+                not: 'a string',
+              },
+            },
+          ],
+        },
+        description: "where an order's ID is not a string",
       },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            objectId: 'not a CAIP asset type',
-          },
-        ],
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              status: 'not a valid status',
+            },
+          ],
+        },
+        description: "where an order's status is not a valid status",
       },
       {
-        orders: [
-          {
-            ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
-            type: 'not a valid type',
-          },
-        ],
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              to: 'not a CAIP account ID',
+            },
+          ],
+        },
+        description: "where an order's 'to' is not a CAIP account ID",
+      },
+      {
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              updatedTime: 'not a number',
+            },
+          ],
+        },
+        description: "where an order's updatedTime is not a number",
+      },
+      {
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              objectId: 'not a CAIP asset type',
+            },
+          ],
+        },
+        description: "where an order's objectId is not a CAIP asset type",
+      },
+      {
+        response: {
+          orders: [
+            {
+              ...MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
+              type: 'not a valid type',
+            },
+          ],
+        },
+        description: "where an order's type is not a valid type",
       },
     ])(
-      'throws if the API returns a malformed response %o',
-      async (response) => {
+      'throws if the API returns a response which $description',
+      async ({ response }) => {
         nock('https://api.example.com')
           .get('/v1/orders')
           .query({ sortField: 'createdTime', sortOrder: 'asc' })
@@ -240,75 +265,102 @@ describe('OrdersService', () => {
     });
 
     it.each([
-      'not an object',
-      { missing: 'order' },
-      { order: 'not an array' },
-      { order: ['not an object'] },
+      { response: 'not an object', description: 'is not an object' },
+      { response: { missing: 'order' }, description: "is missing 'order'" },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          createdTime: 'not a timestamp',
-        },
+        response: { order: 'not an array' },
+        description: "where 'order' is not an array",
       },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          createdTime: 2 ** 53 - 1,
-        },
+        response: { order: ['not an object'] },
+        description: "where 'order' is not an array of objects",
       },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          details: 'not an object',
-        },
-      },
-      {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          from: 'not a CAIP account ID',
-        },
-      },
-      {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          orderId: {
-            not: 'a string',
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            createdTime: 'not a timestamp',
           },
         },
+        description: "where 'order' is not an array of objects",
       },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          status: 'not a valid status',
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            details: 'not an object',
+          },
         },
+        description: "where the order's details is not a object",
       },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          to: 'not a CAIP account ID',
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            from: 'not a CAIP account ID',
+          },
         },
+        description: "where the order's 'from' is not a CAIP account ID",
       },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          updatedTime: 'not a timestamp',
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            orderId: {
+              not: 'a string',
+            },
+          },
         },
+        description: "where the order's orderId is not a string",
       },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          objectId: 'not a CAIP asset type',
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            status: 'not a valid status',
+          },
         },
+        description: "where the order's status is not a valid status",
       },
       {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          type: 'not a valid type',
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            to: 'not a CAIP account ID',
+          },
         },
+        description: "where the order's 'to' is not a CAIP account ID",
+      },
+      {
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            updatedTime: 'not a timestamp',
+          },
+        },
+        description: "where the order's updatedTime is not a number",
+      },
+      {
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            objectId: 'not a CAIP asset type',
+          },
+        },
+        description: "where the order's objectId is not a CAIP asset type",
+      },
+      {
+        response: {
+          order: {
+            ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+            type: 'not a valid type',
+          },
+        },
+        description: "where the order's type is not a valid type",
       },
     ])(
-      'throws if the API returns a malformed response %o',
-      async (response) => {
+      'throws if the API returns a response which $description',
+      async ({ response }) => {
         nock('https://api.example.com')
           .get('/v1/orders/AAAA-BBBB-CCCC-DDDD')
           .reply(200, JSON.stringify(response));

@@ -18,7 +18,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { accountSupports7702 } from '../../utils/7702.js';
+import { accountSupports7702 } from '../../utils/account.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -37,7 +37,8 @@ import {
 import { getNetworkClientId } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
-  getLiveTokenBalance,
+  getEvmQuoteSource,
+  getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token.js';
@@ -375,7 +376,7 @@ function getSettlementHash({
   }
 
   const isSameChain =
-    quote.request.sourceChainId === quote.request.targetChainId;
+    getEvmQuoteSource(quote.request).chainId === quote.request.targetChainId;
 
   if (isSameChain && submittedSourceHash !== FALLBACK_HASH) {
     return submittedSourceHash;
@@ -440,7 +441,7 @@ async function waitForRelayCompletion(
     let status: RelayStatusResponse | undefined;
 
     try {
-      status = await getRelayStatus(requestId);
+      status = await getRelayStatus(messenger, requestId);
     } catch (error) {
       log('Polling network error', error);
     }
@@ -522,6 +523,10 @@ function normalizeParams(
  * required source amount to prevent submitting transactions that will revert
  * on-chain due to insufficient balance.
  *
+ * This is a fast-fail optimisation, not a safety net: if the balance cannot be
+ * read the check is skipped and submission proceeds, since the Relay and the
+ * chain still reject an underfunded transaction.
+ *
  * @param quote - Relay quote containing the required source amount.
  * @param messenger - Controller messenger.
  */
@@ -529,7 +534,9 @@ async function validateSourceBalance(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
@@ -537,19 +544,22 @@ async function validateSourceBalance(
     TokenAddressTarget.MetaMask,
   );
 
-  let currentBalance: string;
+  const currentBalance = await getLiveTokenBalanceOrUndefined(
+    messenger,
+    from,
+    sourceChainId,
+    normalizedSourceTokenAddress,
+  );
 
-  try {
-    currentBalance = await getLiveTokenBalance(
-      messenger,
+  // An unreadable balance is unknown, not insufficient. Submit anyway and let
+  // the Relay and the chain reject a genuinely underfunded transaction.
+  if (currentBalance === undefined) {
+    log('Skipping source balance check: live balance unavailable', {
       from,
       sourceChainId,
-      normalizedSourceTokenAddress,
-    );
-  } catch (error) {
-    throw new Error(
-      `Cannot validate payment token balance - ${(error as Error).message}`,
-    );
+      sourceTokenAddress,
+    });
+    return;
   }
 
   const requiredAmount = new BigNumber(quote.sourceAmount.raw);
@@ -790,8 +800,9 @@ async function submitViaTransactionController(
   allParams: TransactionParams[],
 ): Promise<Hex> {
   const transactionIds: string[] = [];
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
-  const { isPostQuote } = quote.request;
+  const { from, isPostQuote } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
@@ -974,7 +985,8 @@ function buildRelayTransactionBatchRequest({
   quote: TransactionPayQuote<RelayQuote>;
   transaction: TransactionMeta;
 }): TransactionBatchRequest {
-  const { from, sourceChainId } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const { metamask } = quote.original;
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
   const gasLimit7702 = getGasLimit7702(quote);

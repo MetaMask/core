@@ -105,6 +105,9 @@ export type V3AssetsMock = {
  * @param options.status - HTTP status to answer with. Defaults to 200.
  * @param options.times - How many requests to intercept. Defaults to 1.
  * @param options.casing - The casing to answer with. Defaults to 'lowercase'.
+ * @param options.launchpadAssetIds - Asset IDs that the Token API `GET
+ * /v2/assets` lookup (used to exempt launchpad tokens) reports as launchpad
+ * tokens. That lookup is registered as optional, so it need not be consumed.
  * @returns The nock scope alongside the asset IDs each request asked about.
  */
 export function mockV3Assets({
@@ -113,13 +116,29 @@ export function mockV3Assets({
   status = 200,
   times = 1,
   casing = 'lowercase',
+  launchpadAssetIds = [],
 }: {
   occurrences?: Record<string, number | undefined>;
   omit?: string[];
   status?: number;
   times?: number;
   casing?: 'lowercase' | 'checksum';
+  launchpadAssetIds?: string[];
 } = {}): V3AssetsMock {
+  const launchpadLowerIds = new Set(
+    launchpadAssetIds.map((assetId) => assetId.toLowerCase()),
+  );
+  nock(API_URLS.TOKEN)
+    .persist()
+    .get('/v2/assets')
+    .query(true)
+    .optionally()
+    .reply(200, (request: Request) =>
+      readAssetIds(request)
+        .filter((assetId) => launchpadLowerIds.has(assetId.toLowerCase()))
+        .map((assetId) => ({ assetId, launchpad: 'flap' })),
+    );
+
   const requestedBatches: string[][] = [];
   const omitted = new Set(omit.map((assetId) => assetId.toLowerCase()));
 

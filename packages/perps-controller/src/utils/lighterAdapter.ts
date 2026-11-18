@@ -29,6 +29,7 @@ import type {
   PerpsMarketData,
   Position,
   PriceUpdate,
+  PublicTrade,
   TriggerOrderType,
 } from '../types/index.js';
 import type {
@@ -42,6 +43,10 @@ import type {
   LighterWsMarketStat,
   LighterWsUserStats,
 } from '../types/lighter-types.js';
+import {
+  buildPublicTrade,
+  sortPublicTradesNewestFirst,
+} from './publicTrades.js';
 
 /**
  * Parse an account-state number at the untrusted venue boundary. Account
@@ -245,6 +250,10 @@ export function adaptAccountStateFromLighterUserStats(
     totalBalance: String(portfolioValue),
     spendableBalance: String(available),
     withdrawableBalance: String(available),
+    // Lighter collateral is already the account value. There is no separate
+    // spot USDC to add, and this read is a known account, so the amount is 0
+    // rather than unknown.
+    spotCollateral: '0',
     marginUsed: String(Math.max(collateral - available, 0)),
     unrealizedPnl: String(portfolioValue - collateral),
     returnOnEquity:
@@ -352,6 +361,58 @@ function parseLighterTradeFee(
     );
   }
   return parsed;
+}
+
+/**
+ * Adapt Lighter public trades (REST `recentTrades` or the `trade/{market_id}`
+ * channel, camelized) to {@link PublicTrade}, newest first. Trades for
+ * another market and malformed trades are dropped. A maker ask means the
+ * taker (aggressor) bought.
+ *
+ * @param trades - Camelized venue trades.
+ * @param marketId - Requested market; other markets are dropped.
+ * @param symbol - Symbol to stamp on each trade.
+ * @returns The trades for the market, newest first.
+ */
+export function adaptPublicTradesFromLighter(
+  trades: readonly unknown[],
+  marketId: number,
+  symbol: string,
+): PublicTrade[] {
+  const adapted: PublicTrade[] = [];
+  for (const raw of trades) {
+    if (raw === null || typeof raw !== 'object') {
+      continue;
+    }
+    const trade = raw as Partial<Record<string, unknown>>;
+    if (trade.marketId !== marketId || typeof trade.isMakerAsk !== 'boolean') {
+      continue;
+    }
+    let id: string | undefined;
+    if (typeof trade.tradeIdStr === 'string') {
+      id = trade.tradeIdStr;
+    } else if (
+      typeof trade.tradeId === 'number' &&
+      Number.isSafeInteger(trade.tradeId) &&
+      trade.tradeId >= 0
+    ) {
+      id = String(trade.tradeId);
+    }
+    const publicTrade = buildPublicTrade({
+      id,
+      symbol,
+      price: trade.price,
+      size: trade.size,
+      side: trade.isMakerAsk ? 'buy' : 'sell',
+      timestamp: trade.timestamp,
+      txHash: typeof trade.txHash === 'string' ? trade.txHash : undefined,
+      providerId: 'lighter',
+    });
+    if (publicTrade) {
+      adapted.push(publicTrade);
+    }
+  }
+  return sortPublicTradesNewestFirst(adapted);
 }
 
 export function adaptFillFromLighterTrade(
@@ -631,6 +692,10 @@ export function adaptAccountStateFromLighter(
     totalBalance: String(totalBalance),
     spendableBalance: String(available),
     withdrawableBalance: String(available),
+    // Lighter collateral is already the account value. There is no separate
+    // spot USDC to add, and this read is a known account, so the amount is 0
+    // rather than unknown.
+    spotCollateral: '0',
     marginUsed: String(marginUsed),
     unrealizedPnl: String(unrealizedPnl),
     returnOnEquity:

@@ -1,5 +1,6 @@
 import { BaseDataService } from '@metamask/base-data-service';
 import { handleWhen, HttpError } from '@metamask/controller-utils';
+import type { TraceContext } from '@metamask/controller-utils';
 import { validate } from '@metamask/superstruct';
 import type { Hex, Json } from '@metamask/utils';
 
@@ -25,14 +26,27 @@ import {
 import { projectLogger, createModuleLogger } from './logger.js';
 import {
   SentinelSmartTransactionResponseStruct,
+  SentinelBatchStatusResponseStruct,
   SentinelNetworkRegistryStruct,
   SentinelNetworkStruct,
+  SentinelCancelResponseStruct,
+  SentinelGetFeesResponseStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
+  SentinelSubmitTransactionsResponseStruct,
 } from './structs.js';
 import type {
   SentinelApiServiceMessenger,
   SentinelApiServiceOptions,
+  SentinelApiServiceTraceCallback,
+  SentinelApiServiceTraceOptions,
+  SentinelApiServiceTraceRequest,
+  SentinelBatchStatusRequest,
+  SentinelBatchStatusResponse,
+  SentinelCancelRequest,
+  SentinelCancelResponse,
+  SentinelGetFeesRequest,
+  SentinelGetFeesResponse,
   SentinelNetwork,
   SentinelNetworkRegistry,
   SentinelRelaySubmitRequest,
@@ -41,15 +55,23 @@ import type {
   SentinelSimulationResponse,
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
+  SentinelSubmitTransactionsRequest,
+  SentinelSubmitTransactionsResponse,
 } from './types.js';
+import { TRACES } from './types.js';
 
 const log = createModuleLogger(projectLogger, serviceName);
+const traceLogger = createModuleLogger(projectLogger, 'trace');
 
 const MESSENGER_EXPOSED_METHODS = [
+  'cancel',
+  'getBatchStatus',
+  'getFees',
   'getNetwork',
   'getNetworks',
   'simulateTransactions',
   'submitRelayTransaction',
+  'submitTransactions',
   'getSmartTransaction',
 ] as const;
 
@@ -59,7 +81,7 @@ const MESSENGER_EXPOSED_METHODS = [
  *
  * It exposes one method per Sentinel endpoint:
  * - {@link SentinelApiService.getNetwork} — the configuration of a single
- * network (`/network`), cached since it is stable.
+ * network (`/network`). Not cached since it is the sentinel live capabilities endpoint.
  * - {@link SentinelApiService.getNetworks} — the supported-network registry
  * (`/networks`), cached since it is stable and identical across subdomains.
  * - {@link SentinelApiService.simulateTransactions} — transaction simulation
@@ -69,6 +91,14 @@ const MESSENGER_EXPOSED_METHODS = [
  * submission (`eth_sendRelayTransaction`), used by the extension and mobile.
  * - {@link SentinelApiService.getSmartTransaction} — smart-transaction status
  * lookup (`/smart-transactions/{uuid}`).
+ * - {@link SentinelApiService.getFees} — smart-transaction fee quotes
+ * (`POST /v1/networks/{chainId}/getFees`). Not cached.
+ * - {@link SentinelApiService.submitTransactions} — signed smart-transaction
+ * submission (`POST /v1/networks/{chainId}/submitTransactions`). Not cached.
+ * - {@link SentinelApiService.cancel} — smart-transaction cancellation
+ * (`POST /v1/networks/{chainId}/cancel`). Not cached.
+ * - {@link SentinelApiService.getBatchStatus} — smart-transaction status lookup
+ * for several UUIDs (`GET /v1/networks/{chainId}/batchStatus`). Not cached.
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
@@ -84,6 +114,8 @@ export class SentinelApiService extends BaseDataService<
   readonly #clientVersion?: string;
 
   readonly #environmentDomain: string;
+
+  readonly #trace: SentinelApiServiceTraceCallback;
 
   /**
    * Constructs a new SentinelApiService.
@@ -105,6 +137,8 @@ export class SentinelApiService extends BaseDataService<
    * Retries are disabled by default (`maxRetries: 0`) to preserve the
    * single-attempt behaviour of the clients this service replaces; pass
    * `maxRetries` here to opt in.
+   * @param options.trace - Optional callback to trace network requests.
+   * Tracing is best-effort and does not affect the request result if it fails.
    */
   constructor({
     messenger,
@@ -114,6 +148,7 @@ export class SentinelApiService extends BaseDataService<
     clientVersion,
     queryClientConfig = {},
     policyOptions = {},
+    trace,
   }: SentinelApiServiceOptions) {
     super({
       name: serviceName,
@@ -138,6 +173,7 @@ export class SentinelApiService extends BaseDataService<
     this.#environmentDomain = ENVIRONMENT_DOMAIN[environment];
     this.#clientId = clientId;
     this.#clientVersion = clientVersion;
+    this.#trace = trace ?? noopTrace;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -150,8 +186,7 @@ export class SentinelApiService extends BaseDataService<
   /**
    * Fetches the configuration of a single network from the `/network`
    * endpoint of that network's subdomain. The subdomain is resolved from the
-   * supported-network registry. The result is cached, as the configuration is
-   * stable.
+   * supported-network registry. Not cached as it is the sentinel live capabilities endpoint.
    *
    * @param chainId - The chain ID of the network.
    * @returns The network configuration.
@@ -245,6 +280,55 @@ export class SentinelApiService extends BaseDataService<
   }
 
   /**
+   * Runs a request and emits a best-effort backdated trace.
+   *
+   * @param request - Trace metadata for the request.
+   * @param fn - Request to execute.
+   * @returns The request result.
+   */
+  async #traceRequest<ReturnType>(
+    request: SentinelApiServiceTraceRequest,
+    fn: () => Promise<ReturnType>,
+  ): Promise<ReturnType> {
+    const startTime = Date.now();
+    let success = false;
+    let errorName: string | undefined;
+
+    try {
+      const result = await fn();
+      success = true;
+      return result;
+    } catch (error) {
+      errorName = error instanceof Error ? error.name : typeof error;
+      throw error;
+    } finally {
+      const traceRequest = {
+        ...request,
+        startTime,
+        data: {
+          ...request.data,
+          success,
+          ...(errorName ? { errorName } : {}),
+        },
+      };
+      const onTraceError = (traceError: unknown): void => {
+        traceLogger('Failed to emit trace', {
+          traceName: request.name,
+          traceError,
+        });
+      };
+
+      try {
+        Promise.resolve(this.#trace(traceRequest, () => undefined)).catch(
+          onTraceError,
+        );
+      } catch (traceError) {
+        onTraceError(traceError);
+      }
+    }
+  }
+
+  /**
    * Simulates transactions against the Sentinel API via
    * `infura_simulateTransactions`. Not cached, since each request body is
    * unique and stale simulations must not be reused.
@@ -256,12 +340,17 @@ export class SentinelApiService extends BaseDataService<
    * Sentinel URL resolved for the chain and returns the URL to use instead.
    * Lets consumers rewrite the request URL (for example to route through the
    * MetaMask Shield proxy) without the service knowing about those concerns.
+   * @param options.traceContext - Optional trace context to nest the
+   * simulation trace under. Without it, clients that do not infer a parent
+   * from the active span record the trace as a root span.
    * @returns The simulation response.
    */
   async simulateTransactions(
     chainId: Hex,
     request: SentinelSimulationRequest,
-    options: { getUrl?: (defaultUrl: string) => string | Promise<string> } = {},
+    options: {
+      getUrl?: (defaultUrl: string) => string | Promise<string>;
+    } & SentinelApiServiceTraceOptions = {},
   ): Promise<SentinelSimulationResponse> {
     const defaultUrl = await this.#resolveUrl(chainId, 'confirmations');
     const url = options.getUrl ? await options.getUrl(defaultUrl) : defaultUrl;
@@ -269,24 +358,38 @@ export class SentinelApiService extends BaseDataService<
     const result = await this.fetchQuery({
       queryKey: [`${this.name}:simulateTransactions`, chainId, request, url],
       staleTime: 0,
-      queryFn: async (): Promise<Json> => {
-        log('simulateTransactions', 'Request', url, request);
+      queryFn: () =>
+        this.#traceRequest(
+          {
+            name: TRACES.SIMULATE_TRANSACTIONS,
+            parentContext: options.traceContext,
+            data: {
+              chainId,
+              transactionCount: request.transactions.length,
+            },
+          },
+          async (): Promise<Json> => {
+            log('simulateTransactions', 'Request', url, request);
 
-        const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SIMULATE, [
-          request,
-        ]);
+            const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SIMULATE, [
+              request,
+            ]);
 
-        const [error] = validate(rpcResult, SentinelSimulationResponseStruct);
-        if (error) {
-          throw new SentinelApiResponseValidationError(
-            `Sentinel API: Malformed response from simulation endpoint: ${error.message}`,
-          );
-        }
+            const [error] = validate(
+              rpcResult,
+              SentinelSimulationResponseStruct,
+            );
+            if (error) {
+              throw new SentinelApiResponseValidationError(
+                `Sentinel API: Malformed response from simulation endpoint: ${error.message}`,
+              );
+            }
 
-        log('simulateTransactions', 'Response', rpcResult);
+            log('simulateTransactions', 'Response', rpcResult);
 
-        return rpcResult;
-      },
+            return rpcResult;
+          },
+        ),
     });
 
     return result as unknown as SentinelSimulationResponse;
@@ -379,6 +482,258 @@ export class SentinelApiService extends BaseDataService<
     });
 
     return result as unknown as SentinelSmartTransactionResponse;
+  }
+
+  /**
+   * Quotes gas fees for unsigned smart transactions via
+   * `POST /v1/networks/{chainId}/getFees`. Not cached, since a quote goes
+   * stale immediately.
+   *
+   * @param request - The fee quote request.
+   * @returns The fee quote response. One entry in `txs` per transaction, in
+   * request order.
+   */
+  async getFees(
+    request: SentinelGetFeesRequest,
+  ): Promise<SentinelGetFeesResponse> {
+    const { chainId, transactions } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/getFees`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:getFees`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('getFees', 'Request', url, request);
+
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ txs: transactions }),
+        });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: getFees request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(json, SentinelGetFeesResponseStruct);
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from /getFees endpoint: ${error.message}`,
+          );
+        }
+
+        log('getFees', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelGetFeesResponse;
+  }
+
+  /**
+   * Submits signed smart transactions via
+   * `POST /v1/networks/{chainId}/submitTransactions`. Not cached.
+   *
+   * @param request - The submit request.
+   * @returns The UUID assigned to the submitted batch.
+   */
+  async submitTransactions(
+    request: SentinelSubmitTransactionsRequest,
+  ): Promise<SentinelSubmitTransactionsResponse> {
+    const { chainId, rawTxs, rawCancelTxs, rawTxsWithMetadata } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/submitTransactions`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:submitTransactions`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('submitTransactions', 'Request', url, request);
+
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            rawTxs,
+            ...(rawCancelTxs === undefined ? {} : { rawCancelTxs }),
+            ...(rawTxsWithMetadata === undefined ? {} : { rawTxsWithMetadata }),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: submitTransactions request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(
+          json,
+          SentinelSubmitTransactionsResponseStruct,
+        );
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from /submitTransactions endpoint: ${error.message}`,
+          );
+        }
+
+        log('submitTransactions', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelSubmitTransactionsResponse;
+  }
+
+  /**
+   * Cancels a smart transaction via `POST /v1/networks/{chainId}/cancel`.
+   * Not cached.
+   *
+   * @param request - The cancel request.
+   * @returns The cancel result. `cancelled` is `true` on success.
+   */
+  async cancel(
+    request: SentinelCancelRequest,
+  ): Promise<SentinelCancelResponse> {
+    const { chainId, uuid } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/cancel`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:cancel`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('cancel', 'Request', url, request);
+
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ uuid }),
+        });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: Cancel request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(json, SentinelCancelResponseStruct);
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from /cancel endpoint: ${error.message}`,
+          );
+        }
+
+        log('cancel', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelCancelResponse;
+  }
+
+  /**
+   * Looks up the statuses of several smart transactions via
+   * `GET /v1/networks/{chainId}/batchStatus`. Not cached, since statuses change
+   * while transactions are pending.
+   *
+   * @param request - The batch status request.
+   * @returns The status of each requested transaction, keyed by UUID.
+   */
+  async getBatchStatus(
+    request: SentinelBatchStatusRequest,
+  ): Promise<SentinelBatchStatusResponse> {
+    const { chainId, uuids } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'confirmations');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const query = new URLSearchParams({ uuids: uuids.join(',') });
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/batchStatus?${query.toString()}`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:getBatchStatus`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('getBatchStatus', 'Request', url, request);
+
+        const response = await this.#fetch(url, { headers });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: Batch status request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(json, SentinelBatchStatusResponseStruct);
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from /batchStatus endpoint: ${error.message}`,
+          );
+        }
+
+        log('getBatchStatus', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelBatchStatusResponse;
   }
 
   /**
@@ -518,4 +873,34 @@ export class SentinelApiService extends BaseDataService<
       this.#environmentDomain,
     );
   }
+}
+
+/**
+ * Reads a response body as JSON. Returns undefined when the body is empty or
+ * not JSON, so a failed request can still surface its HTTP status.
+ *
+ * @param response - The response to read.
+ * @returns The parsed JSON body, or undefined.
+ */
+async function readJsonBody(response: Response): Promise<Json | undefined> {
+  try {
+    return (await response.json()) as Json;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Default trace callback used when the client does not pass one. Records
+ * nothing and runs `fn` so the callback contract still holds.
+ *
+ * @param _request - The trace request, ignored.
+ * @param fn - Optional work to run.
+ * @returns The value returned by `fn`.
+ */
+async function noopTrace<ReturnType>(
+  _request: SentinelApiServiceTraceRequest,
+  fn?: (context?: TraceContext) => ReturnType,
+): Promise<ReturnType> {
+  return await Promise.resolve(fn?.() as ReturnType);
 }

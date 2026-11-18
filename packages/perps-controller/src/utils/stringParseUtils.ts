@@ -15,6 +15,17 @@ export const parseCommaSeparatedString = (value: string): string[] =>
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
 
+/**
+ * Parse a price that may carry `$` or `,` formatting, such as typed input or
+ * a formatted display value. Surrounding whitespace is ignored.
+ *
+ * @param value - The price text.
+ * @returns The price, or NaN when the text does not start with a number.
+ */
+export function parseFormattedPrice(value: string): number {
+  return Number.parseFloat(value.replace(/[$,]/gu, ''));
+}
+
 const NON_NEGATIVE_DECIMAL_PATTERN = /^\d+(?:\.\d+)?$/u;
 const DECIMAL_PATTERN = /^-?\d+(?:\.\d+)?$/u;
 

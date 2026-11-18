@@ -7,6 +7,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Persist `accountOverride` (the `InternalAccount` ID) in `TransactionMeta.metamaskPay` when syncing transaction quotes so clients retain the override account ID after controller state cleanup ([#11588](https://github.com/MetaMask/core/pull/11588))
+
+### Changed
+
+- Use `ServerStrategy` instead of Relay for the crypto leg of `FiatStrategy` ([#11503](https://github.com/MetaMask/core/pull/11503))
+  - Rate drift and fee reserve checks use the normalized quote amounts.
+  - `ServerStrategy` no longer declines direct mUSD Money Account requests.
+- Send CAIP-19 `sourceAsset` and `targetAsset` in `ServerStrategy` quote requests ([#11578](https://github.com/MetaMask/core/pull/11578))
+  - Replaces the `source` and `target` chain ID and token address objects.
+  - Native tokens use `slip44` asset IDs, and the Hyperliquid perps margin account uses `hyperliq:mainnet/perps:usdc` instead of the HyperCore placeholder address.
+- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/ramps-controller` from `^30.0.0` to `^30.1.0` ([#11619](https://github.com/MetaMask/core/pull/11619))
+
+### Fixed
+
+- Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds ([#11566](https://github.com/MetaMask/core/pull/11566))
+  - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
+- Skip the gas station in server strategy quotes when the account does not support EIP-7702, matching the Relay strategy ([#11615](https://github.com/MetaMask/core/pull/11615))
+- Refresh server strategy max amount quotes at the configured `maxBalanceRefreshInterval`, matching the Relay strategy ([#11614](https://github.com/MetaMask/core/pull/11614))
+- Include EIP-7702 authorizations when submitting same-chain server strategy quotes with embedded calls through `TransactionController`, matching the Relay strategy ([#11617](https://github.com/MetaMask/core/pull/11617))
+  - A single transaction includes the authorization address so `TransactionController` signs it, and a batch with an account override includes the pre-signed authorizations.
+
+## [32.0.0]
+
+### Added
+
+- Support non-EVM payment tokens, such as Solana SOL and SPL tokens ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - `updatePaymentToken` accepts a non-EVM `assetId`, reading its metadata, balance, and price from `AssetsController` state.
+  - The non-EVM source account defaults to the account in the same account group as the transaction account that supports the asset chain, or is selected explicitly by `accountOverride`.
+
+### Changed
+
+- **BREAKING:** `TransactionPaymentToken` is identified by its CAIP-19 `assetId` for every chain ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Remove `address` and `chainId`; derive them from `assetId` where needed.
+- **BREAKING:** `UpdatePaymentTokenRequest` takes `{ transactionId, assetId }` instead of `{ transactionId, tokenAddress, chainId }` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** `accountOverride` in `TransactionConfig` and `TransactionData` is now the ID of an `InternalAccount` instead of an address ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - An EVM account overrides the EVM account as before. The account holding a non-EVM payment token is the override account when it supports the payment token chain, otherwise the account in the same account group as the override account, or as the transaction account, that supports that chain.
+  - Fiat payments throw if the account override is not an EVM account.
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getAccountContext` and `AccountTreeController:getAccountGroupObject` actions ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** The `request` of a `TransactionPayQuote` identifies its source by CAIP identifiers for every protocol ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Remove `sourceChainId` and `sourceTokenAddress`. Add the CAIP-19 `sourceAssetId` and the CAIP-10 `sourceAccountId` of the account holding the source token, and derive an EVM chain ID and token address from `sourceAssetId` where needed.
+  - Quote requests are built the same way for every payment token. Post-quote flows with a non-EVM destination token produce no quote requests.
+  - `AcrossStrategy`, `RelayStrategy`, `ServerStrategy` and `FiatStrategy` only support requests with an `eip155` source asset.
+  - `PayStrategyGetRefreshIntervalRequest.chainId` is the CAIP-2 chain ID of the source asset.
+- Add dependency on `@metamask/account-tree-controller` `^11.2.0` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Always request non-atomic quotes for an MFA signing keyring, for every quote request ([#11476](https://github.com/MetaMask/core/pull/11476))
+  - Cleared once when quotes are dispatched, so Relay, Server, Across, and Fiat all receive non-atomic requests.
+  - Relay applies the same rule to requests built later, such as fiat estimation.
+  - The signing account is `transaction.txParams.from`, the account that signs the embedded delegation.
+- Skip Relay and Server quote simulation for a Money Account payment when the signing account is an MFA keyring ([#11476](https://github.com/MetaMask/core/pull/11476))
+  - Checks both `transaction.txParams.from` and `request.refundTo`. For Perps and Predict deposits, the Money Account is on `refundTo` and signs the delegation inside the payment-override callback.
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.3.0` ([#11546](https://github.com/MetaMask/core/pull/11546), [#11590](https://github.com/MetaMask/core/pull/11590))
+
+## [31.3.0]
+
+### Added
+
+- Support max-amount quotes in `ServerStrategy`, using the same max flow as `RelayStrategy` ([#11418](https://github.com/MetaMask/core/pull/11418))
+  - Re-quote with a reduced source amount so origin gas can be paid from the source token when the user lacks native balance.
+  - Quote subsidized routes atomically when `payStrategies.relay.atomicMaxEnabled` is enabled, embedding the transaction's calls re-encoded for the max amount.
+
+### Changed
+
+- Reserve the HyperLiquid activation fee in `ServerStrategy` for Perps withdrawals from HyperCore accounts that are not yet activated ([#11475](https://github.com/MetaMask/core/pull/11475))
+  - Previously the full withdrawable balance was quoted, so HyperLiquid's `sendAsset` failed for insufficient balance.
+  - The reserved fee is added to the provider fee, matching `RelayStrategy`.
+- Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/ramps-controller` from `^29.0.0` to `^30.0.0` ([#11543](https://github.com/MetaMask/core/pull/11543))
+
+## [31.2.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^20.4.0` to `^20.4.1` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [31.2.0]
+
+### Added
+
+- Add `confirmations_pay_extended.payStrategies.server.gaslessEnabled` feature flag to disable gasless quotes in `ServerStrategy`, enabled by default ([#11432](https://github.com/MetaMask/core/pull/11432))
+
+### Changed
+
+- Skip Relay and Server quote simulation when the payer is an MPC Money account ([#11408](https://github.com/MetaMask/core/pull/11408))
+  - Perps and Predict deposits funded by a Money Account set `paymentOverride` to `moneyAccount` and put that account on `refundTo`. Simulation rebuilds the submit calls, which signs a delegation and prompts for MFA. Submit still signs once.
+- Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
+  - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
+  - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
+  - Resolved when building quote requests, so it applies to every strategy and to both the max and non-max quote paths.
+- Make the max-amount gas station in `RelayStrategy` tolerate small gas cost changes between the probe and adjusted quotes ([#11434](https://github.com/MetaMask/core/pull/11434))
+  - Reserve a buffer on top of the probe's gas cost when reducing the source amount, configurable with the `confirmations_pay_extended.gasStationCostBuffer` feature flag (defaults to `1.0`, no buffer).
+  - Remove the gas limit checks on the adjusted quote, since the affordability check already covers any gas cost change.
+- Bump `@metamask/assets-controller` from `^20.3.1` to `^20.4.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+
+## [31.1.0]
+
+### Added
+
+- Add quote simulation to `ServerStrategy`, gated by the `confirmations_pay_extended.payStrategies.server.validationEnabled` feature flag ([#11198](https://github.com/MetaMask/core/pull/11198))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^20.2.2` to `^20.3.1` ([#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/gas-fee-controller` from `^27.1.0` to `^27.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Request and submit post-quote quotes from the transaction's own `from`, so `accountOverride` only receives the output and never signs ([#10992](https://github.com/MetaMask/core/pull/10992))
+  - Previously `accountOverride` also sent post-quote quotes, so an account that cannot sign, such as a hardware wallet, could not receive a withdrawal.
+  - Clients must keep the post-quote source funds on the transaction's `from`. For example, a Money Account withdrawal that needs a quote must no longer transfer the withdrawn mUSD to `accountOverride` in its nested calls.
+
+## [30.4.3]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^20.2.1` to `^20.2.2` ([#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `@metamask/transaction-controller` from `^73.1.0` to `^73.1.1` ([#11300](https://github.com/MetaMask/core/pull/11300))
+
+### Fixed
+
+- Re-derive source amounts, using the `getBalance` callback if provided, before each periodic requote ([#10911](https://github.com/MetaMask/core/pull/10911))
+- Requote max-amount transactions using a per-transaction-type interval from the `maxBalanceRefreshInterval` feature flag ([#10911](https://github.com/MetaMask/core/pull/10911))
+
+## [30.4.2]
+
+### Changed
+
+- Treat an unreadable live payment token balance as unknown rather than insufficient, so a failing RPC no longer blocks the transaction ([#11284](https://github.com/MetaMask/core/pull/11284))
+  - The live balance check is a fast-fail optimisation; when the RPC request fails the check is now skipped, and quote simulation plus on-chain execution still reject a genuinely underfunded transaction.
+  - Affects quote validation (`Unable to verify balance`) and both the Relay and server submit paths (`Cannot validate payment token balance`).
+  - The `balance-unavailable` `QuoteErrorReason` is no longer emitted and is deprecated. It is kept in the union so existing consumers and historical analytics still type-check.
+- Bump `@metamask/assets-controller` from `^20.2.0` to `^20.2.1` ([#11285](https://github.com/MetaMask/core/pull/11285))
+- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
+
+### Fixed
+
+- Quote Across perps deposits in the 6 decimals Across uses for HyperCore USDC-PERPS, instead of requesting 100 times the deposit amount ([#11270](https://github.com/MetaMask/core/pull/11270))
+  - Reject Across perps deposit quotes whose USDC-PERPS decimals differ from those used to scale the request, so the next strategy is tried instead of showing a mispriced quote.
+
+## [30.4.1]
+
+### Added
+
+- Support fiat payments for `membershipSubscription` transactions ([#11256](https://github.com/MetaMask/core/pull/11256))
+  - Add `membershipSubscription` to the default fiat-enabled transaction types and fiat asset map.
+  - Treat `membershipSubscription` as a Money Account deposit, so it uses the direct mUSD on-ramp when `directMoneyMusdEnabled` is set, and CHOMP vault recovery on the second leg.
+- Send the `X-Client-Id` header on Relay API requests (`/quote`, `/execute` and `/status`), matching the behaviour already in place for the server intents API ([#11282](https://github.com/MetaMask/core/pull/11282))
+  - The header is omitted when `clientId` is not provided, so existing consumers are unaffected.
+  - `getRelayStatus` now takes the controller messenger as its first argument so it can resolve the configured client ID. This function is internal and not exported from the package, so there is no impact on consumers.
+
+## [30.4.0]
+
+### Added
+
+- Add optional `clientId` constructor option to `TransactionPayController`, sent as the `X-Client-Id` header on all intents API requests so the server can distinguish Mobile from Extension traffic ([#11259](https://github.com/MetaMask/core/pull/11259))
+  - Add `TransactionPayClientId` enum with `Extension` and `Mobile` members.
+  - Add `TransactionPayController:getClientId` messenger action and the corresponding `TransactionPayControllerGetClientIdAction` type.
+  - The header is omitted when `clientId` is not provided, so existing consumers are unaffected.
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^20.1.0` to `^20.2.0` ([#11255](https://github.com/MetaMask/core/pull/11255))
@@ -1778,7 +1949,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...@metamask/transaction-pay-controller@32.0.0
+[31.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.1...@metamask/transaction-pay-controller@31.3.0
+[31.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.0...@metamask/transaction-pay-controller@31.2.1
+[31.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.1.0...@metamask/transaction-pay-controller@31.2.0
+[31.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.0.0...@metamask/transaction-pay-controller@31.1.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.3...@metamask/transaction-pay-controller@31.0.0
+[30.4.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.2...@metamask/transaction-pay-controller@30.4.3
+[30.4.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.1...@metamask/transaction-pay-controller@30.4.2
+[30.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.0...@metamask/transaction-pay-controller@30.4.1
+[30.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.3...@metamask/transaction-pay-controller@30.4.0
 [30.3.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.2...@metamask/transaction-pay-controller@30.3.3
 [30.3.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.1...@metamask/transaction-pay-controller@30.3.2
 [30.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.0...@metamask/transaction-pay-controller@30.3.1

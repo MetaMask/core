@@ -29,6 +29,16 @@ import {
 import type { StorageOptions } from './user-storage.js';
 import { STORAGE_URL, UserStorage } from './user-storage.js';
 
+// Lower the scrypt cost used for encryption, which is very slow when running
+// with coverage enabled.
+vi.mock(
+  import('../shared/encryption/constants.js'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    SCRYPT_N: 2 ** 10,
+  }),
+);
+
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
@@ -105,7 +115,7 @@ describe('User Storage', () => {
     // Encrypted with a random salt
     const mockResponse = {
       HashedKey: 'entry1',
-      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8hz88YLqetRfhR2YnkpWUB3aTjRrm1FBtEwv+fa87/XyEHQ==","o":{"N":1024,"r":8,"p":1,"dkLen":16},"saltLen":16}',
     };
 
     const mockGet = await handleMockUserStorageGet({
@@ -393,7 +403,7 @@ describe('User Storage', () => {
     // Entry encrypted with a random salt — triggers re-encryption re-upload
     const randomSaltEntry = {
       HashedKey: 'entry1',
-      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8hz88YLqetRfhR2YnkpWUB3aTjRrm1FBtEwv+fa87/XyEHQ==","o":{"N":1024,"r":8,"p":1,"dkLen":16},"saltLen":16}',
     };
 
     nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
@@ -422,11 +432,11 @@ describe('User Storage', () => {
     const mockResponse = [
       {
         HashedKey: 'entry1',
-        Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+        Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8hz88YLqetRfhR2YnkpWUB3aTjRrm1FBtEwv+fa87/XyEHQ==","o":{"N":1024,"r":8,"p":1,"dkLen":16},"saltLen":16}',
       },
       {
         HashedKey: 'entry2',
-        Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOlnfa4ysuUNeLYTTmJ+qrq7gwI6hURH3ooUcBldJkHtvuQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+        Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOubeM+fUA+U1aPiUAPJ6QXU3d7gzm6UhK0kycfq3H8YwFg==","o":{"N":1024,"r":8,"p":1,"dkLen":16},"saltLen":16}',
       },
       await MOCK_STORAGE_RESPONSE('data3'),
     ];

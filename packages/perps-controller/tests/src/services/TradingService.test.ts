@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
-import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
+import {
+  PERPS_EVENT_PROPERTY,
+  PERPS_EVENT_VALUE,
+} from '../../../src/constants/eventNames.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import { TradingService } from '../../../src/services/TradingService.js';
@@ -773,7 +776,11 @@ describe('TradingService', () => {
         reportOrderToDataLake: mockReportOrderToDataLake,
       });
 
-      expect(mockSaveTradeConfiguration).toHaveBeenCalledWith('BTC', 10);
+      expect(mockSaveTradeConfiguration).toHaveBeenCalledWith(
+        'BTC',
+        10,
+        undefined,
+      );
     });
 
     it('tracks analytics event when order succeeds', async () => {
@@ -2144,6 +2151,35 @@ describe('TradingService', () => {
       },
     ];
 
+    it.each([
+      { successCount: 2, failureCount: 0 },
+      { successCount: 1, failureCount: 1 },
+      { successCount: 0, failureCount: 2 },
+    ])(
+      'reports $successCount canceled orders in the batch summary',
+      async ({ successCount, failureCount }) => {
+        mockGetOpenOrders.mockResolvedValue(mockOrders);
+        (mockProvider.cancelOrders as Mock).mockResolvedValue({
+          success: successCount > 0,
+          successCount,
+          failureCount,
+          results: [],
+        });
+
+        await tradingService.cancelOrders({
+          provider: mockProvider,
+          params: { cancelAll: true },
+          context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+          withStreamPause: mockWithStreamPause,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.OrderCancelTransaction,
+          expect.objectContaining({ number_orders_canceled: successCount }),
+        );
+      },
+    );
+
     it('cancels all orders excluding TP/SL when cancelAll is true', async () => {
       const params: CancelOrdersParams = {
         cancelAll: true,
@@ -2235,6 +2271,10 @@ describe('TradingService', () => {
       expect(result.success).toBe(false);
       expect(result.results).toEqual([]);
       expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({ number_orders_canceled: 0 }),
+      );
     });
 
     it('handles partial failures gracefully', async () => {
@@ -2305,6 +2345,10 @@ describe('TradingService', () => {
         }),
       ).rejects.toThrow('Cancel failed');
 
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({ number_orders_canceled: 0 }),
+      );
       expect(mockWithStreamPause).toHaveBeenCalled();
     });
 
@@ -2326,6 +2370,10 @@ describe('TradingService', () => {
 
       expect(result.results).toHaveLength(2);
       expect(mockProvider.cancelOrder).toHaveBeenCalledTimes(2);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenLastCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({ number_orders_canceled: 2 }),
+      );
     });
 
     it('logs batch error when provider.cancelOrders returns partial/full failure', async () => {
@@ -3804,6 +3852,148 @@ describe('TradingService', () => {
     });
   });
 
+  describe('replacePositionTPSLLeg', () => {
+    const legPosition: Position = {
+      symbol: 'BTC',
+      size: '0.5',
+      entryPrice: '50000',
+      liquidationPrice: '45000',
+      leverage: { type: 'cross', value: 10 },
+      marginUsed: '2500',
+      maxLeverage: 20,
+      positionValue: '25000',
+      returnOnEquity: '0.2',
+      unrealizedPnl: '5000',
+      cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+      takeProfitCount: 1,
+      stopLossCount: 1,
+    };
+
+    it.each([
+      {
+        leg: 'tp' as const,
+        triggerPrice: '60000',
+        action: PERPS_EVENT_VALUE.ACTION.TP,
+        priceProperty: { take_profit_price: 60000 },
+      },
+      {
+        leg: 'sl' as const,
+        triggerPrice: '45000',
+        action: PERPS_EVENT_VALUE.ACTION.SL,
+        priceProperty: { stop_loss_price: 45000 },
+      },
+    ])(
+      'replaces the $leg leg, records state and reports only that leg',
+      async ({ leg, triggerPrice, action, priceProperty }) => {
+        const replacePositionTPSLLeg = vi
+          .fn()
+          .mockResolvedValue({ success: true });
+        mockProvider.replacePositionTPSLLeg = replacePositionTPSLLeg;
+        mockGetPositions.mockResolvedValue([legPosition]);
+        const params = { symbol: 'BTC', leg, triggerPrice, limitPrice: '1' };
+
+        const result = await tradingService.replacePositionTPSLLeg({
+          provider: mockProvider,
+          params,
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(result).toStrictEqual({ success: true });
+        expect(replacePositionTPSLLeg).toHaveBeenCalledWith(params);
+        expect(mockProvider.updatePositionTPSL).not.toHaveBeenCalled();
+        expect(mockContext.stateManager?.update).toHaveBeenCalled();
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenLastCalledWith(
+          PerpsAnalyticsEvent.RiskManagement,
+          expect.objectContaining({
+            status: 'executed',
+            asset: 'BTC',
+            has_take_profit: leg === 'tp',
+            has_stop_loss: leg === 'sl',
+            action,
+            ...priceProperty,
+          }),
+        );
+      },
+    );
+
+    it('prices the fee from the replaced trigger over the whole position', async () => {
+      mockProvider.replacePositionTPSLLeg = vi
+        .fn()
+        .mockResolvedValue({ success: true });
+      mockGetPositions.mockResolvedValue([legPosition]);
+
+      await tradingService.replacePositionTPSLLeg({
+        provider: mockProvider,
+        params: { symbol: 'BTC', leg: 'tp', triggerPrice: '60000' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      // 0.5 BTC at the 60000 trigger.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        30000,
+        hyperliquidMainnetScope,
+      );
+    });
+
+    it('prices a limit leg at its fill price, not its trigger', async () => {
+      mockProvider.replacePositionTPSLLeg = vi
+        .fn()
+        .mockResolvedValue({ success: true });
+      mockGetPositions.mockResolvedValue([legPosition]);
+
+      await tradingService.replacePositionTPSLLeg({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          leg: 'tp',
+          triggerPrice: '60000',
+          limitPrice: '62000',
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      // 0.5 BTC fills at 62000: 31000, past a 30000 allowance that the
+      // trigger alone would fully cover.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        31000,
+        hyperliquidMainnetScope,
+      );
+    });
+
+    it('rejects with the typed unsupported error when the provider cannot replace a leg', async () => {
+      mockProvider.replacePositionTPSLLeg = undefined;
+      mockGetPositions.mockResolvedValue([legPosition]);
+
+      await expect(
+        tradingService.replacePositionTPSLLeg({
+          provider: mockProvider,
+          params: { symbol: 'BTC', leg: 'sl', triggerPrice: '45000' },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        }),
+      ).rejects.toMatchObject({
+        errorCode: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+      });
+
+      expect(mockProvider.updatePositionTPSL).not.toHaveBeenCalled();
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'replacePositionTPSLLeg',
+            }),
+          }),
+        }),
+      );
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenLastCalledWith(
+        PerpsAnalyticsEvent.RiskManagement,
+        expect.objectContaining({ status: 'failed', has_stop_loss: true }),
+      );
+    });
+  });
+
   describe('updateMargin', () => {
     it('updates margin successfully when adding margin', async () => {
       const mockResult = { success: true };
@@ -3964,6 +4154,67 @@ describe('TradingService', () => {
       expect(riskCalls[0][1]).toEqual(
         expect.objectContaining({ status: 'failed' }),
       );
+    });
+
+    it('emits the exact Risk Management payload on success, failure and throw', async () => {
+      mockProvider.updateMargin = vi
+        .fn()
+        .mockResolvedValueOnce({ success: true })
+        .mockResolvedValueOnce({
+          success: false,
+          error: 'Insufficient balance',
+        })
+        .mockRejectedValueOnce(new Error('Network error'));
+
+      await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'BTC',
+        amount: '-25.5',
+        context: mockContext,
+      });
+      await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'ETH',
+        amount: '100',
+        context: mockContext,
+      });
+      await expect(
+        tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'SOL',
+          amount: '7',
+          context: mockContext,
+        }),
+      ).rejects.toThrow('Network error');
+
+      const riskPayloads = (mockDeps.metrics.trackPerpsEvent as Mock).mock.calls
+        .filter(([event]) => event === PerpsAnalyticsEvent.RiskManagement)
+        .map(([, properties]) => properties);
+      expect(riskPayloads).toStrictEqual([
+        {
+          status: 'executed',
+          asset: 'BTC',
+          action: 'remove_margin',
+          margin_used: 25.5,
+          completion_duration: expect.any(Number),
+        },
+        {
+          status: 'failed',
+          asset: 'ETH',
+          action: 'add_margin',
+          margin_used: 100,
+          completion_duration: expect.any(Number),
+          error_message: 'Insufficient balance',
+        },
+        {
+          status: 'failed',
+          asset: 'SOL',
+          action: 'add_margin',
+          margin_used: 7,
+          completion_duration: expect.any(Number),
+          error_message: 'Network error',
+        },
+      ]);
     });
 
     it('emits the Risk Management event exactly once on success', async () => {
@@ -5338,6 +5589,141 @@ describe('TradingService', () => {
           perp_discovery_source: 'top_movers',
         }),
       );
+    });
+  });
+
+  describe('analytics consistency', () => {
+    it('reads add_margin from PERPS_EVENT_VALUE.ACTION at emit time', async () => {
+      mockProvider.updateMargin = vi.fn().mockResolvedValue({ success: true });
+      const original = PERPS_EVENT_VALUE.ACTION.ADD_MARGIN;
+      Reflect.set(
+        PERPS_EVENT_VALUE.ACTION,
+        'ADD_MARGIN',
+        'sentinel_add_margin',
+      );
+
+      try {
+        await tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'BTC',
+          amount: '100',
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.RiskManagement,
+          expect.objectContaining({ action: 'sentinel_add_margin' }),
+        );
+      } finally {
+        Reflect.set(PERPS_EVENT_VALUE.ACTION, 'ADD_MARGIN', original);
+      }
+    });
+
+    it('reads remove_margin from PERPS_EVENT_VALUE.ACTION at emit time', async () => {
+      mockProvider.updateMargin = vi.fn().mockResolvedValue({ success: true });
+      const original = PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN;
+      Reflect.set(
+        PERPS_EVENT_VALUE.ACTION,
+        'REMOVE_MARGIN',
+        'sentinel_remove_margin',
+      );
+
+      try {
+        await tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'BTC',
+          amount: '-100',
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.RiskManagement,
+          expect.objectContaining({ action: 'sentinel_remove_margin' }),
+        );
+      } finally {
+        Reflect.set(PERPS_EVENT_VALUE.ACTION, 'REMOVE_MARGIN', original);
+      }
+    });
+
+    it('reports the trade fee under the fees key', async () => {
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-1',
+        filledSize: '0.1',
+        averagePrice: '50000',
+      });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          trackingData: { totalFee: 5, marketPrice: 50000 },
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const executed = (
+        mockDeps.metrics.trackPerpsEvent as Mock
+      ).mock.calls.find(
+        ([event, props]) =>
+          event === PerpsAnalyticsEvent.TradeTransaction &&
+          props.status === PERPS_EVENT_VALUE.STATUS.EXECUTED,
+      )?.[1];
+      expect(executed).toEqual(
+        expect.objectContaining({ [PERPS_EVENT_PROPERTY.FEES]: 5 }),
+      );
+      expect(executed).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEE);
+    });
+
+    it('reports the close fee under the fee key', async () => {
+      const position: Position = {
+        symbol: 'BTC',
+        size: '0.5',
+        entryPrice: '50000',
+        liquidationPrice: '45000',
+        leverage: { type: 'cross', value: 10 },
+        marginUsed: '2500',
+        maxLeverage: 20,
+        positionValue: '25000',
+        returnOnEquity: '0.2',
+        unrealizedPnl: '5000',
+        cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        takeProfitCount: 0,
+        stopLossCount: 0,
+      };
+      mockGetPositions.mockResolvedValue([position]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+        filledSize: '0.5',
+        averagePrice: '55000',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          trackingData: { totalFee: 7, marketPrice: 50000 },
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const executed = (
+        mockDeps.metrics.trackPerpsEvent as Mock
+      ).mock.calls.find(
+        ([event, props]) =>
+          event === PerpsAnalyticsEvent.PositionCloseTransaction &&
+          props.status === PERPS_EVENT_VALUE.STATUS.EXECUTED,
+      )?.[1];
+      expect(executed).toEqual(
+        expect.objectContaining({ [PERPS_EVENT_PROPERTY.FEE]: 7 }),
+      );
+      expect(executed).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEES);
     });
   });
 });

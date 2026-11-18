@@ -10,7 +10,9 @@ import {
   USDC_DECIMALS,
 } from '../constants.js';
 import type { QuoteRequest } from '../types.js';
+import { getCaipAccountId } from './account.js';
 import { extractErc20TransferRecipient } from './polymarket/calldata.js';
+import { buildCaipAssetType } from './token.js';
 
 const HYPERLIQUID_BRIDGE_ADDRESS_LOWER =
   '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
@@ -80,19 +82,24 @@ export function isPerpsDepositRequest(
  * deposit.
  *
  * Transaction pay starts from the parent on-chain asset (Arbitrum USDC,
- * 6 decimals), while HyperCore expects an 8-decimal amount, so the target
- * amount is shifted accordingly.
+ * 6 decimals), so the target amount is shifted to the decimals the strategy's
+ * quote API uses for the HyperCore token. This defaults to the 8 decimals of
+ * HyperCore USDC, but providers may represent it differently (e.g. Across
+ * quotes USDC-PERPS in 6 decimals).
  *
  * @param request - Quote request from the transaction-pay controller.
  * @param transaction - Parent transaction whose calls are inspected.
  * @param hypercoreUsdcAddress - Strategy-specific HyperCore USDC address to
  * set as the target token.
+ * @param targetDecimals - Decimals of the HyperCore token in the strategy's
+ * quote API.
  * @returns Normalized request, or the original request if not a perps deposit.
  */
 export function normalizePerpsDepositRequest(
   request: QuoteRequest,
   transaction: PerpsTransaction | undefined,
   hypercoreUsdcAddress: Hex,
+  targetDecimals: number = HYPERCORE_USDC_DECIMALS,
 ): QuoteRequest {
   if (!isPerpsDepositRequest(request, transaction)) {
     return request;
@@ -100,7 +107,9 @@ export function normalizePerpsDepositRequest(
 
   return {
     ...request,
-    targetAmountMinimum: toHypercoreAmount(request.targetAmountMinimum),
+    targetAmountMinimum: new BigNumber(request.targetAmountMinimum)
+      .shiftedBy(targetDecimals - USDC_DECIMALS)
+      .toFixed(0),
     targetChainId: CHAIN_ID_HYPERCORE,
     targetTokenAddress: hypercoreUsdcAddress,
   };
@@ -126,10 +135,15 @@ export function normalizePerpsWithdrawRequest(
     return request;
   }
 
+  const sourceAssetId = buildCaipAssetType(
+    CHAIN_ID_HYPERCORE,
+    hypercoreUsdcAddress,
+  );
+
   return {
     ...request,
-    sourceChainId: CHAIN_ID_HYPERCORE,
-    sourceTokenAddress: hypercoreUsdcAddress,
+    sourceAccountId: getCaipAccountId(sourceAssetId, request.from),
+    sourceAssetId,
     sourceTokenAmount: request.sourceTokenAmount
       ? toHypercoreAmount(request.sourceTokenAmount)
       : request.sourceTokenAmount,

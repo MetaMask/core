@@ -215,6 +215,49 @@ export type KycServiceSetAuthorizationsAction = {
 };
 
 /**
+ * Prepares deletion of the caller's encrypted KYC blobs
+ * (`POST /deletions`).
+ *
+ * The client registers a fresh X25519 public key. The response carries the
+ * deletion id and the `ukycCapabilityToken` encryption schema used to wrap
+ * a `delete`-scoped capability token and submit it via
+ * {@link KycService.completeDeletion}.
+ *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
+ * @param params - The deletion parameters.
+ * @param params.sessionClientPublicKey - Per-request X25519 public key
+ * (unpadded base64url).
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
+ * @returns The deletion id and the capability-token encryption schema.
+ */
+export type KycServiceCreateDeletionAction = {
+  type: `KycService:createDeletion`;
+  handler: KycService['createDeletion'];
+};
+
+/**
+ * Completes a prepared deletion (`DELETE /deletions/{deletionId}`) by
+ * forwarding the wrapped `delete`-scoped uKYC capability token. Relay
+ * redacts the encrypted blobs for the user named by that token.
+ *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
+ * @param params - The wrapped deletion.
+ * @param params.deletionId - Deletion id from {@link KycService.createDeletion}.
+ * @param params.wrappedUkycCapabilityToken - Sealed `delete`-scoped token.
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
+ */
+export type KycServiceCompleteDeletionAction = {
+  type: `KycService:completeDeletion`;
+  handler: KycService['completeDeletion'];
+};
+
+/**
  * Creates (or refreshes) the SumSub verification journey for a UKYC session,
  * returning the applicant access token used to launch the SDK.
  *
@@ -285,6 +328,8 @@ export type KycServiceMethodActions =
   | KycServiceCreateUkycSessionAction
   | KycServiceResetWrappingKeysAction
   | KycServiceSetAuthorizationsAction
+  | KycServiceCreateDeletionAction
+  | KycServiceCompleteDeletionAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction
   | KycServiceGetSessionStatusForVendorAction

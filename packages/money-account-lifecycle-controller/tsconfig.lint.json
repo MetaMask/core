@@ -28,6 +28,9 @@
     },
     {
       "path": "../money-account-upgrade-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../subscription-controller/tsconfig.lint.json"
     }
   ]
 }

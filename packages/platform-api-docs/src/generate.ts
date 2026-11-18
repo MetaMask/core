@@ -421,18 +421,19 @@ function replaceDuplicateInGroup(
 ): void {
   const namespace = replacement.typeString.split(':')[0];
   const group = byNamespace.get(namespace);
-  // istanbul ignore next: `previous` and `replacement` have the same
-  // typeString, so they share a namespace, and we always insert the
-  // namespace into `byNamespace` before recording the original entry.
+  // `previous` and `replacement` have the same typeString, so they share a
+  // namespace, and we always insert the namespace into `byNamespace` before
+  // recording the original entry.
+  // istanbul ignore next
   if (!group) {
     return;
   }
   const previousList =
     previous.kind === 'action' ? group.actions : group.events;
   const index = previousList.indexOf(previous);
-  // istanbul ignore next: `previous` was added to its kind's list by
-  // `groupByNamespace` before being recorded in `seen`, so it is always
-  // present when we look it up here.
+  // `previous` was added to its kind's list by `groupByNamespace` before being
+  // recorded in `seen`, so it is always present when we look it up here.
+  // istanbul ignore next
   if (index === -1) {
     return;
   }

@@ -289,7 +289,7 @@ export class AnalyticsDataRegulationService extends BaseDataService<
     const url = `${this.#segmentRegulationsEndpoint}/regulations/sources/${this.#segmentSourceId}`;
 
     const jsonResponse = await this.executeMutation({
-      mutationKey: [`${this.name}:createDataDeletionTask`, analyticsId],
+      mutationKey: [`${this.name}:createDataDeletionTask`],
       gcTime: 0,
       responseStruct: CreateRegulationResponseStruct,
       mutationFn: async () => {

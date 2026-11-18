@@ -339,6 +339,8 @@ export class SubscriptionDelegationService {
         // delegation start date was derived from the original trial state.
         // This local guard is removed before the backend request.
         assertTrialEligibility: true,
+        // Omit when unset so existing callers keep the previous request shape.
+        ...(request.useTestClock ? { useTestClock: true } : {}),
       },
     );
   }

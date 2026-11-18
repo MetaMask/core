@@ -1,3 +1,7 @@
+import type {
+  AccountTreeControllerGetAccountContextAction,
+  AccountTreeControllerGetAccountGroupObjectAction,
+} from '@metamask/account-tree-controller';
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import { getDefaultAssetsControllerState } from '@metamask/assets-controller';
 import type { AssetsControllerGetStateAction } from '@metamask/assets-controller';
@@ -27,6 +31,7 @@ import type { MockedFunction } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../src/index.js';
 import type {
+  TransactionPayControllerGetClientIdAction,
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetPaymentOverrideDataAction,
@@ -95,6 +100,14 @@ export function getMessengerMock({
     internalAccounts: { accounts: {}, selectedAccount: '' },
   });
 
+  const getAccountContextMock: MockedFunction<
+    AccountTreeControllerGetAccountContextAction['handler']
+  > = vi.fn();
+
+  const getAccountGroupObjectMock: MockedFunction<
+    AccountTreeControllerGetAccountGroupObjectAction['handler']
+  > = vi.fn();
+
   const getAssetsControllerStateMock: MockedFunction<
     AssetsControllerGetStateAction['handler']
   > = vi.fn().mockReturnValue(getDefaultAssetsControllerState());
@@ -111,6 +124,10 @@ export function getMessengerMock({
 
   const getDelegationTransactionMock: MockedFunction<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = vi.fn();
+
+  const getClientIdMock: MockedFunction<
+    TransactionPayControllerGetClientIdAction['handler']
   > = vi.fn();
 
   const getFiatOptionsMock: MockedFunction<
@@ -214,6 +231,16 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'AccountTreeController:getAccountContext',
+      getAccountContextMock,
+    );
+
+    messenger.registerActionHandler(
+      'AccountTreeController:getAccountGroupObject',
+      getAccountGroupObjectMock,
+    );
+
+    messenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientByIdMock,
     );
@@ -226,6 +253,11 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       getDelegationTransactionMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getClientId',
+      getClientIdMock,
     );
 
     messenger.registerActionHandler(
@@ -283,12 +315,15 @@ export function getMessengerMock({
 
   return {
     addTransactionMock,
+    getAccountContextMock,
+    getAccountGroupObjectMock,
     getAccountsControllerStateMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
+    getClientIdMock,
     getControllerStateMock,
     getDelegationTransactionMock,
     getFiatOptionsMock,

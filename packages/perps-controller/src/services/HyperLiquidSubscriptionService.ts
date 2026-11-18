@@ -8,6 +8,7 @@ import type {
   UserTwapHistoryWsEvent,
   TwapHistoryResponse,
   ActiveAssetCtxWsEvent,
+  ActiveAssetDataWsEvent,
   ActiveSpotAssetCtxWsEvent,
   BboWsEvent,
   L2BookResponse,
@@ -53,8 +54,9 @@ import type {
 } from '../types/index.js';
 import {
   addSpotBalanceToAccountState,
+  aggregateAccountStates,
   calculateWeightedReturnOnEquity,
-  sumCrossMarginSummaries,
+  getCrossMarginSpotCollateral,
 } from '../utils/accountUtils.js';
 import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
 import {
@@ -221,6 +223,14 @@ export class HyperLiquidSubscriptionService {
   readonly #fastAssetCtxsCoins = new Set<string>();
 
   readonly #globalActiveAssetSubscriptions = new Map<string, ISubscription>();
+
+  // Per-caller activeAssetData streams (available to trade). The service owns
+  // them so restoreSubscriptions() can reopen them on a replacement transport
+  // and clearAll() can retire pending and open ones.
+  readonly #activeAssetDataStreams = new Set<{
+    reopen: () => void;
+    retire: () => void;
+  }>();
 
   // Track in-progress activeAssetCtx subscription promises to prevent leaks
   // when cleanup fires before the async subscription resolves (#28141)
@@ -1026,7 +1036,11 @@ export class HyperLiquidSubscriptionService {
     const summaryHash = summary
       ? `${summary.accountValue}:${summary.maintenanceMargin}:${summary.marginUsed}:${summary.notional}`
       : 'none';
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${summaryHash}`;
+    // spotCollateral is part of the published account. Unknown and Standard
+    // share the same balances, so leaving it out of the hash drops the
+    // notification that turns an unset value into '0'.
+    const spotCollateral = account.spotCollateral ?? '';
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}`;
   }
 
   // Cache hashes to avoid recomputation
@@ -1399,11 +1413,6 @@ export class HyperLiquidSubscriptionService {
         totalBalance: string;
       }
     > = {};
-    let totalSpendableBalance = 0;
-    let totalWithdrawableBalance = 0;
-    let totalBalance = 0;
-    let totalMarginUsed = 0;
-    let totalUnrealizedPnl = 0;
 
     // Collect account states for weighted ROE calculation
     const accountStatesForROE: {
@@ -1420,11 +1429,6 @@ export class HyperLiquidSubscriptionService {
           withdrawableBalance: state.withdrawableBalance,
           totalBalance: state.totalBalance,
         };
-        totalSpendableBalance += parseFloat(state.spendableBalance);
-        totalWithdrawableBalance += parseFloat(state.withdrawableBalance);
-        totalBalance += parseFloat(state.totalBalance);
-        totalMarginUsed += parseFloat(state.marginUsed);
-        totalUnrealizedPnl += parseFloat(state.unrealizedPnl);
 
         // Collect data for weighted ROE calculation
         accountStatesForROE.push({
@@ -1439,7 +1443,7 @@ export class HyperLiquidSubscriptionService {
       this.#dexAccountCache.values().next().value ?? ({} as AccountState);
     const { crossMarginSummary: _firstDexSummary, ...firstDexBase } =
       firstDexAccount;
-    const crossMarginSummary = sumCrossMarginSummaries(
+    const aggregatedAccountState = aggregateAccountStates(
       Array.from(this.#dexAccountCache.values()),
     );
 
@@ -1449,12 +1453,7 @@ export class HyperLiquidSubscriptionService {
     return addSpotBalanceToAccountState(
       {
         ...firstDexBase,
-        ...(crossMarginSummary ? { crossMarginSummary } : {}),
-        spendableBalance: totalSpendableBalance.toString(),
-        withdrawableBalance: totalWithdrawableBalance.toString(),
-        totalBalance: totalBalance.toString(),
-        marginUsed: totalMarginUsed.toString(),
-        unrealizedPnl: totalUnrealizedPnl.toString(),
+        ...aggregatedAccountState,
         subAccountBreakdown,
         returnOnEquity,
       },
@@ -1483,10 +1482,12 @@ export class HyperLiquidSubscriptionService {
   }
 
   #getSpotBalanceOptions(): AddSpotBalanceOptions {
+    const abstractionMode = this.#getAbstractionModeForUser(
+      this.#cachedSpotStateUserAddress,
+    );
     return {
-      foldIntoCollateral: hyperLiquidModeFoldsSpot(
-        this.#getAbstractionModeForUser(this.#cachedSpotStateUserAddress),
-      ),
+      foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode),
+      abstractionMode,
     };
   }
 
@@ -1564,15 +1565,25 @@ export class HyperLiquidSubscriptionService {
           Date.now(),
         );
 
-        // If the fold semantics actually changed for this user, trigger a
-        // re-aggregation so balance-dependent UI (withdraw cap, order-entry
-        // validation) picks up the new mode immediately — otherwise a
-        // Unified→Standard flip can stay folded with old semantics until the
-        // next spot/account event happens to arrive.
+        // Re-aggregate when the published account changes. The fold covers
+        // spendable and withdrawable. Spot collateral also changes when an
+        // unknown mode resolves to Standard: both fail closed to no-fold, so
+        // a fold comparison never fires, and subscribers would keep an unset
+        // spotCollateral until the next balance tick.
+        const spotIsForUser =
+          this.#cachedSpotState !== null &&
+          this.#cachedSpotStateUserAddress === normalizedUser;
+        const collateralChanged =
+          spotIsForUser &&
+          getCrossMarginSpotCollateral(this.#cachedSpotState, previousMode) !==
+            getCrossMarginSpotCollateral(this.#cachedSpotState, mode);
         const foldChanged =
           hyperLiquidModeFoldsSpot(previousMode) !==
           hyperLiquidModeFoldsSpot(mode);
-        if (foldChanged && this.#dexAccountCache.size > 0) {
+        if (
+          (foldChanged || collateralChanged) &&
+          this.#dexAccountCache.size > 0
+        ) {
           this.#aggregateAndNotifySubscribers();
         }
       } catch (error) {
@@ -4875,6 +4886,179 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Stream the venue's `activeAssetData` for one account and market. Each
+   * caller gets its own venue subscription, which restoreSubscriptions()
+   * reopens on a replacement transport and clearAll() retires. The venue
+   * pushes a new frame when the market's position, leverage or mark price
+   * changes.
+   *
+   * @param params - Subscription parameters.
+   * @param params.symbol - Market symbol, including any DEX prefix.
+   * @param params.accountId - Optional CAIP account ID; defaults to the selected account.
+   * @param params.callback - Receives each frame for this account and market.
+   * @param params.onError - Receives a failure to open the subscription, or
+   * one that stops it after it opened, once transient failures have been
+   * retried on the same transport.
+   * @returns Cleanup function to unsubscribe.
+   */
+  public subscribeToActiveAssetData(params: {
+    symbol: string;
+    accountId?: CaipAccountId;
+    callback: (data: ActiveAssetDataWsEvent) => void;
+    onError?: (error: Error) => void;
+  }): () => void {
+    const { symbol, accountId, callback, onError } = params;
+    const maxAttempts = 3;
+    let subscription: ISubscription | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let retired = false;
+    // Bumped on every open, failure and retirement: a subscription, frame or
+    // error that an older attempt delivers afterwards is dropped.
+    let generation = 0;
+    // Consecutive failures, at open or after it, since the last frame. One
+    // budget for both paths, so a venue that accepts the subscribe and then
+    // fails it cannot retry forever.
+    let failures = 0;
+
+    const unsubscribe = (sub: ISubscription): void => {
+      sub.unsubscribe().catch((error: unknown) => {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+          ),
+          this.#getErrorContext('subscribeToActiveAssetData.unsubscribe', {
+            symbol,
+          }),
+        );
+      });
+    };
+
+    // Cancel a pending retry and release a live subscription, which may sit
+    // on the current transport (a retry can open there before restore runs).
+    const release = (): void => {
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+      if (subscription) {
+        unsubscribe(subscription);
+        subscription = undefined;
+      }
+    };
+
+    const open = (): void => {
+      release();
+      generation += 1;
+      const thisGeneration = generation;
+      const isCurrent = (): boolean =>
+        !retired && thisGeneration === generation;
+
+      // A transient SDK failure retries on the same transport with the
+      // assetCtxs subscribeWithRetry backoff (attempt * 500 ms). The third
+      // consecutive failure, or any non-transient one, reaches onError once;
+      // the stream then waits for restoreSubscriptions() or a new subscribe.
+      const fail = (error: unknown): void => {
+        if (!isCurrent()) {
+          return;
+        }
+        generation += 1;
+        // Never opened, or already dropped by the SDK.
+        subscription = undefined;
+        failures += 1;
+        const safeError = ensureError(
+          error,
+          'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+        );
+        if (failures < maxAttempts && this.#isTransientSdkError(safeError)) {
+          const retryDelayMs = failures * 500;
+          this.#deps.debugLogger.log(
+            'Transient activeAssetData subscription failure, retrying',
+            {
+              symbol,
+              attempt: failures,
+              retryDelayMs,
+              error: safeError.message,
+            },
+          );
+          const retryGeneration = generation;
+          retryTimer = setTimeout(() => {
+            retryTimer = undefined;
+            if (!retired && retryGeneration === generation) {
+              open();
+            }
+          }, retryDelayMs);
+          return;
+        }
+        this.#logErrorUnlessClearing(
+          safeError,
+          this.#getErrorContext('subscribeToActiveAssetData', { symbol }),
+        );
+        onError?.(safeError);
+      };
+
+      (async (): Promise<void> => {
+        await this.#clientService.ensureSubscriptionClient(
+          this.#walletService.createWalletAdapter(),
+        );
+        if (!isCurrent()) {
+          return;
+        }
+        const subscriptionClient = this.#clientService.getSubscriptionClient();
+        if (!subscriptionClient) {
+          throw new Error('Subscription client not available');
+        }
+        const user =
+          await this.#walletService.getUserAddressWithDefault(accountId);
+        if (!isCurrent()) {
+          return;
+        }
+        const sub = await subscriptionClient.activeAssetData(
+          { user, coin: symbol },
+          (data: ActiveAssetDataWsEvent) => {
+            if (
+              !isCurrent() ||
+              data.coin !== symbol ||
+              data.user.toLowerCase() !== user.toLowerCase()
+            ) {
+              return;
+            }
+            failures = 0;
+            callback(data);
+          },
+          {
+            // A failure after the open (a rejected resubscription, a
+            // terminated connection): the SDK has already dropped the
+            // subscription.
+            onError: fail,
+          },
+        );
+        if (!isCurrent()) {
+          unsubscribe(sub);
+          return;
+        }
+        subscription = sub;
+      })().catch(fail);
+    };
+
+    const stream = {
+      reopen: (): void => {
+        // A replacement transport starts a fresh retry budget.
+        failures = 0;
+        open();
+      },
+      retire: (): void => {
+        retired = true;
+        generation += 1;
+        this.#activeAssetDataStreams.delete(stream);
+        release();
+      },
+    };
+
+    this.#activeAssetDataStreams.add(stream);
+    open();
+    return stream.retire;
+  }
+
+  /**
    * Process raw L2Book data into OrderBookData format
    * Calculates cumulative totals, notional values, and spread metrics
    *
@@ -5140,6 +5324,10 @@ export class HyperLiquidSubscriptionService {
       );
     }
 
+    // Reopen activeAssetData streams on the replacement transport. A failure
+    // reaches the caller's onError.
+    this.#activeAssetDataStreams.forEach((stream) => stream.reopen());
+
     // Re-establish user data subscriptions if there are user data subscribers
     if (
       this.#positionSubscribers.size > 0 ||
@@ -5330,6 +5518,10 @@ export class HyperLiquidSubscriptionService {
     this.#accountSubscribers.clear();
     this.#marketDataSubscribers.clear();
     this.#orderBookSubscribers.clear();
+
+    // Retire activeAssetData streams: pending opens drop their subscription
+    // and open ones stop delivering frames.
+    this.#activeAssetDataStreams.forEach((stream) => stream.retire());
 
     // Clear order fill subscriptions; generations were bumped above.
     this.#orderFillSubscriptions.forEach((subscription) => {

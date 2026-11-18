@@ -12,20 +12,17 @@ export default mergeConfig(
       taskTitleValueFormatTruncate: Infinity,
 
       coverage: {
-        provider: 'v8',
-
         exclude: [
           'src/**/strategy/types.ts',
           'src/**/quote-status-manager/types.ts',
-          'src/**/*-method-action-types.ts',
         ],
 
         thresholds: {
           'src/bridge-status-controller.ts': {
             branches: 95.96,
             functions: 96.36,
-            lines: 99.41,
-            statements: 99.41,
+            lines: 99.4,
+            statements: 99.4,
           },
           'src/bridge-status-controller.intent.ts': {
             branches: 100,

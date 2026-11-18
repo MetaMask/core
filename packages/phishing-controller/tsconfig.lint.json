@@ -19,6 +19,9 @@
     },
     {
       "path": "../transaction-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../eth-sig-util/tsconfig.lint.json"
     }
   ]
 }

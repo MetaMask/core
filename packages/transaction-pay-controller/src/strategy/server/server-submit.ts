@@ -5,22 +5,24 @@ import {
 } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type {
+  AuthorizationList,
   BatchTransactionParams,
   TransactionMeta,
   TransactionParams,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
 import type {
+  GetDelegationTransactionCallback,
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { accountSupports7702 } from '../../utils/7702.js';
+import { accountSupports7702 } from '../../utils/account.js';
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
@@ -38,7 +40,8 @@ import {
 import { getNetworkClientId } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
-  getLiveTokenBalance,
+  getEvmQuoteSource,
+  getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token.js';
@@ -52,6 +55,7 @@ import { RELAY_DEPOSIT_TYPES } from '../relay/constants.js';
 import { getServerDepositData } from './deposit-step.js';
 import { getServerStatus, submitServerIntent } from './server-api.js';
 import type {
+  ServerAuthorization,
   ServerQuote,
   ServerSignatureStep,
   ServerTransactionStep,
@@ -131,6 +135,102 @@ export async function submitServerQuotes(
   }
 
   return { transactionHash };
+}
+
+/**
+ * Build the transactions a server quote submits on-chain, including any
+ * post-quote or payment-override prepends.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @returns Ordered transaction params for submission.
+ */
+export async function getServerSubmitParams(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): Promise<TransactionParams[]> {
+  const stepTransactions = await buildStepTransactions(
+    quote,
+    quote.original.steps.filter(isTransactionStep),
+    transaction,
+    messenger,
+  );
+
+  return stepTransactions.map(({ params }) => params);
+}
+
+/**
+ * Resolve how the source network gas for a server quote is paid.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @returns The gas payment.
+ */
+export function getServerGasPayment(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): GasPayment {
+  return resolveGasPayment({
+    isDelegated: quote.original.gasless,
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress: getEvmQuoteSource(quote.request).tokenAddress,
+    sponsorship: {
+      accountSupports7702: accountSupports7702(messenger, quote.request.from),
+      request: quote.request,
+      transaction,
+    },
+  });
+}
+
+/**
+ * Build the delegation that redeems the source calls of a gasless server
+ * quote.
+ *
+ * @param quote - Server quote.
+ * @param params - Transactions to redeem.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @returns The delegation transaction.
+ */
+export async function getServerExecuteDelegation(
+  quote: TransactionPayQuote<ServerQuote>,
+  params: TransactionParams[],
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): ReturnType<GetDelegationTransactionCallback> {
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
+
+  const nestedTransactions = params.map((param) => ({
+    data: (param.data ?? '0x') as Hex,
+    to: param.to as Hex,
+    value: (param.value ?? '0x0') as Hex,
+  }));
+
+  const sourceCallTransaction = {
+    ...transaction,
+    chainId: sourceChainId,
+    networkClientId,
+    nestedTransactions,
+    txParams: {
+      ...transaction.txParams,
+      from,
+    },
+  } as TransactionMeta;
+
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction: sourceCallTransaction },
+  );
+
+  log('Delegation result for server source calls', delegation);
+
+  return delegation;
 }
 
 async function executeSingleServerQuote(
@@ -388,16 +488,7 @@ async function submitTransactionSteps(
     messenger,
   );
 
-  const gasPayment = resolveGasPayment({
-    isDelegated: quote.original.gasless,
-    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
-    sourceTokenAddress: quote.request.sourceTokenAddress,
-    sponsorship: {
-      accountSupports7702: accountSupports7702(messenger, quote.request.from),
-      request: quote.request,
-      transaction,
-    },
-  });
+  const gasPayment = getServerGasPayment(quote, messenger, transaction);
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
     await submitViaServerExecute(
@@ -763,6 +854,10 @@ async function buildDelegatedOriginalParams(
  * any concurrent spends. Throws fast with a clear error instead of letting
  * the on-chain transaction revert.
  *
+ * This is a fast-fail optimisation, not a safety net: if the balance cannot be
+ * read the check is skipped and submission proceeds, since the server and the
+ * chain still reject an underfunded transaction.
+ *
  * @param quote - Server quote containing the required source amount.
  * @param messenger - Controller messenger.
  */
@@ -770,7 +865,9 @@ async function validateSourceBalance(
   quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
@@ -778,19 +875,22 @@ async function validateSourceBalance(
     TokenAddressTarget.MetaMask,
   );
 
-  let currentBalance: string;
+  const currentBalance = await getLiveTokenBalanceOrUndefined(
+    messenger,
+    from,
+    sourceChainId,
+    normalizedSourceTokenAddress,
+  );
 
-  try {
-    currentBalance = await getLiveTokenBalance(
-      messenger,
+  // An unreadable balance is unknown, not insufficient. Submit anyway and let
+  // the server and the chain reject a genuinely underfunded transaction.
+  if (currentBalance === undefined) {
+    log('Skipping source balance check: live balance unavailable', {
       from,
       sourceChainId,
-      normalizedSourceTokenAddress,
-    );
-  } catch (error) {
-    throw new Error(
-      `Cannot validate payment token balance - ${(error as Error).message}`,
-    );
+      sourceTokenAddress,
+    });
+    return;
   }
 
   const requiredAmount = new BigNumber(quote.sourceAmount.raw);
@@ -819,32 +919,14 @@ async function submitViaServerExecute(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<void> {
-  const { from, sourceChainId } = quote.request;
-  const networkClientId = getNetworkClientId(messenger, sourceChainId);
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
 
-  const nestedTransactions = stepTransactions.map(({ params }) => ({
-    data: (params.data ?? '0x') as Hex,
-    to: params.to as Hex,
-    value: (params.value ?? '0x0') as Hex,
-  }));
-
-  const sourceCallTransaction = {
-    ...transaction,
-    chainId: sourceChainId,
-    networkClientId,
-    nestedTransactions,
-    txParams: {
-      ...transaction.txParams,
-      from,
-    },
-  } as TransactionMeta;
-
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
+  const delegation = await getServerExecuteDelegation(
+    quote,
+    stepTransactions.map(({ params }) => params),
+    messenger,
+    transaction,
   );
-
-  log('Delegation result for server source calls', delegation);
 
   const submitBody: ServerSubmitRequest = {
     provider: quote.original.provider,
@@ -883,11 +965,15 @@ async function submitViaTransactionController(
   transaction: TransactionMeta,
   gasPayment: GasPayment,
 ): Promise<void> {
-  const { from, sourceChainId } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const { gasLimits, is7702 } = quote.original.client;
   const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
+
+  const { authorizationsToSign, preSignedAuthorizations } =
+    getUpgradeAuthorizations(quote, transaction);
 
   log('Submitting via TransactionController', {
     from,
@@ -941,7 +1027,12 @@ async function submitViaTransactionController(
 
       await messenger.call(
         'TransactionController:addTransaction',
-        params,
+        {
+          ...params,
+          ...(authorizationsToSign
+            ? { authorizationList: authorizationsToSign }
+            : {}),
+        },
         addTransactionOptions,
       );
     } else {
@@ -974,6 +1065,9 @@ async function submitViaTransactionController(
 
       const addTransactionBatchOptions = {
         from,
+        ...(preSignedAuthorizations
+          ? { authorizationList: preSignedAuthorizations }
+          : {}),
         ...(gasLimit7702 === undefined
           ? { disable7702: true }
           : {
@@ -1035,6 +1129,77 @@ async function submitViaTransactionController(
       },
     );
   }
+}
+
+/**
+ * EIP-7702 authorizations that upgrade the account when submitting a
+ * same-chain quote with embedded calls through TransactionController.
+ *
+ * The provider runs the calls through the account's delegation, so the account
+ * must have smart-account code by the time they execute, even when the quote is
+ * a single transaction.
+ *
+ * `authorizationsToSign` only hold the address and chain ID, as
+ * TransactionController signs them as `from` with the correct nonce. It is
+ * needed by `addTransaction`, which does not upgrade the account itself.
+ *
+ * `preSignedAuthorizations` are only returned with an account override, as the
+ * account that owns the calls signed them rather than the sender, so
+ * TransactionController cannot sign them. Without an override,
+ * `addTransactionBatch` upgrades the sender itself.
+ *
+ * @param quote - Server quote.
+ * @param transaction - Original transaction meta.
+ * @returns Authorizations for TransactionController to sign, and pre-signed
+ * authorizations from the account override.
+ */
+function getUpgradeAuthorizations(
+  quote: TransactionPayQuote<ServerQuote>,
+  transaction: TransactionMeta,
+): {
+  authorizationsToSign?: AuthorizationList;
+  preSignedAuthorizations?: AuthorizationList;
+} {
+  const { authorizationList, input, output } = quote.original;
+
+  const isSameChain =
+    parseCaipAssetType(input.asset).chainId ===
+    parseCaipAssetType(output.asset).chainId;
+
+  if (!authorizationList?.length || !isSameChain) {
+    return {};
+  }
+
+  const hasAccountOverride =
+    quote.request.from.toLowerCase() !==
+    (transaction.txParams.from as Hex).toLowerCase();
+
+  return {
+    authorizationsToSign: authorizationList.map(({ address, chainId }) => ({
+      address,
+      chainId: toHex(chainId),
+    })),
+    ...(hasAccountOverride
+      ? {
+          preSignedAuthorizations: authorizationList.map(
+            mapSignedAuthorization,
+          ),
+        }
+      : {}),
+  };
+}
+
+function mapSignedAuthorization(
+  authorization: ServerAuthorization,
+): AuthorizationList[number] {
+  return {
+    address: authorization.address,
+    chainId: toHex(authorization.chainId),
+    nonce: toHex(authorization.nonce),
+    r: authorization.r,
+    s: authorization.s,
+    yParity: toHex(authorization.yParity),
+  };
 }
 
 async function submitSignatureStep(

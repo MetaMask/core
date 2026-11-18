@@ -53,6 +53,15 @@ export function mockV3Assets({
 } = {}): { scope: nock.Scope; requestedBatches: string[][] } {
   const requestedBatches: string[][] = [];
 
+  // The sweep also asks `/v2/assets` which below-floor tokens are launchpad
+  // tokens; none of the captured wallet's tokens are.
+  nock(API_URLS.TOKEN)
+    .persist()
+    .get('/v2/assets')
+    .query(true)
+    .optionally()
+    .reply(200, []);
+
   const scope = nock(API_URLS.TOKENS)
     .get('/v3/assets')
     .query(true)

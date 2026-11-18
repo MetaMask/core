@@ -89,7 +89,20 @@ export function applyScaleLayout(_type?: ChartType): void {
 
 function syncMainSeriesToRightScale(widget: TVChartingLibraryWidget): void {
   try {
-    widget.activeChart().getSeries().detachToRight();
+    const chart = widget.activeChart();
+    // `detachToRight()` ALWAYS creates a *new* right price scale. If the main
+    // series is already on a right scale, re-running it mints a second scale
+    // and — when an overlay (e.g. a moving-average study) already occupies the
+    // first one — orphans that overlay onto its own scale. That produces the
+    // "two price scales" + offset-overlay bug when a chart-type switch re-runs
+    // this after a study was added. So only detach when the series isn't
+    // already on a right scale.
+    const pane0 = chart.getPanes?.()?.[0];
+    const rightCount = pane0?.getRightPriceScales?.()?.length ?? 0;
+    if (rightCount >= 1) {
+      return;
+    }
+    chart.getSeries().detachToRight();
   } catch {
     // detachToRight can fail mid-teardown; safe to ignore.
   }
