@@ -15,6 +15,7 @@ import {
   formatLiquidationDistance,
   formatPercentage,
   formatPerpsCompact,
+  formatPerpsDuration,
   formatPerpsFiat,
   formatPerpsOrderBookPrice,
   formatPerpsUsdInput,
@@ -1716,6 +1717,57 @@ describe('TAT-4574 display formatters', () => {
       expect(constructor).not.toHaveBeenCalled();
     });
   });
+});
+
+describe('formatPerpsDuration', () => {
+  it.each([
+    [90 * 60_000, '1 hr 30 min'],
+    [1440 * 60_000, '1 day'],
+    [30_000, '30 sec'],
+    [(86_400 + 3_600 + 61) * 1000, '1 day 1 hr 1 min 1 sec'],
+    [1499, '1 sec'],
+    [0, '0 sec'],
+    ['300000', '5 min'],
+  ])('formats %s ms as %s', (durationMs, expected) => {
+    expect(formatPerpsDuration(durationMs)).toBe(expected);
+  });
+
+  it('renders the long and narrow unit styles', () => {
+    expect(formatPerpsDuration(5 * 60_000, { unitDisplay: 'long' })).toBe(
+      '5 minutes',
+    );
+    expect(formatPerpsDuration(90 * 60_000, { unitDisplay: 'narrow' })).toBe(
+      '1h 30m',
+    );
+  });
+
+  it("uses the client's locale formatters", () => {
+    const formatNumber = vi.fn(
+      (value: number, options?: Intl.NumberFormatOptions) =>
+        new Intl.NumberFormat('de', options).format(value),
+    );
+
+    expect(
+      formatPerpsDuration(2 * 3_600_000, {
+        formatters: { formatNumber, formatCurrency: vi.fn() },
+        unitDisplay: 'long',
+      }),
+    ).toBe('2 Stunden');
+    expect(formatNumber).toHaveBeenCalledWith(2, {
+      style: 'unit',
+      unit: 'hour',
+      unitDisplay: 'long',
+    });
+  });
+
+  it.each([undefined, null, '', 'abc', -1, Number.NaN])(
+    'shows the fallback for %s',
+    (durationMs) => {
+      expect(formatPerpsDuration(durationMs)).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+    },
+  );
 });
 
 describe('funding formatters, depth and TWAP precision, pasted USD input', () => {

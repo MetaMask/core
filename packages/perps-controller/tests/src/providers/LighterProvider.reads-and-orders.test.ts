@@ -1499,6 +1499,7 @@ describe('LighterProvider', () => {
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: ['scale'],
+        strategyRules: { scale: { minOrders: 2, maxOrders: 20 } },
         supportedMarginModes: ['cross', 'isolated'],
         attachedTpsl: {
           submission: 'native-oto-otoco',

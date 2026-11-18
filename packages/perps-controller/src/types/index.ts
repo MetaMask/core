@@ -771,6 +771,56 @@ export type ChaseOrder = {
   providerId?: PerpsProviderType;
 };
 
+/** How a TWAP is cut into suborders on the venue's cadence. */
+export type TwapSlicePreview = {
+  /** Suborders over the whole running time. */
+  sliceCount: number;
+  /** Seconds between two suborders. */
+  sliceIntervalSeconds: number;
+  /** Size of one suborder, floored to the venue's size grid. */
+  sizePerSlice: string;
+  /** Size precision `sizePerSlice` is expressed in; pass it to `formatPositionSize`. */
+  sizeDecimals: number;
+  /** Smallest size the grid can express. */
+  minimumSize: string;
+  /** True when one suborder floors below `minimumSize`. */
+  isBelowMinimumSize: boolean;
+  /** Value of one suborder at the reference price, when one was given. */
+  notionalPerSlice?: string;
+};
+
+/** Chase snapshots split for display, newest first. */
+export type ChaseOrderLists = {
+  /** Chases still chasing or waiting for a cancel to settle. */
+  running: ChaseOrder[];
+  /** Ended chases, bounded to `CHASE_ORDER_CONFIG.HistoryLimit`. */
+  history: ChaseOrder[];
+};
+
+/** Whether another chase fits under the venue's cap. */
+export type ChasePlacementCheck = {
+  canPlace: boolean;
+  /** Chases currently chasing, the ones the cap counts. */
+  activeCount: number;
+  /** Venue cap; omitted when the venue has none. */
+  maxActiveSessions?: number;
+  /** `PERPS_ERROR_CODES` reason when `canPlace` is false. */
+  error?: string;
+};
+
+/** Rung sizes of a scale ladder sized by `sizeScaleLadder`. */
+export type ScaleLadderSizing = {
+  sizes: string[];
+  totalSize: string;
+  /** Sum of rung price times rung size, in USD. */
+  totalNotional: string;
+};
+
+/** A warning about where a scale ladder rests relative to the market. */
+export type ScalePriceWarning =
+  | { code: 'crosses_market' | 'partially_crosses_market' }
+  | { code: 'far_from_market'; distancePercent: number };
+
 /** Original durable Chase owner. Observation never grants current cleanup authority. */
 export type PerpsChaseOrderOwner = {
   providerId: PerpsProviderType;
@@ -1408,6 +1458,13 @@ export type CancelOrderResult = {
   orderId?: string;
   error?: string;
   providerId?: PerpsProviderType; // Multi-provider: source provider identifier
+  /**
+   * For a chase cancel whose ending the provider knows, the chase's final
+   * snapshot (canceled, filled, or the ending it had already stopped with).
+   * Absent when the ending is unknown, for example a child the venue reports
+   * gone whose status could not be read.
+   */
+  chaseOrder?: ChaseOrder;
 };
 
 export type BatchCancelOrdersParams = {
@@ -1944,6 +2001,26 @@ export type SubscribeTwapOrdersParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
 };
 
+/** Subscription to the merged live TWAP list. */
+export type SubscribeLiveTwapOrdersParams = {
+  /**
+   * Receives every known schedule, newest first, whenever the list changes.
+   * Reads and stream pushes are merged here, with execution totals raised
+   * from slice fills; split the list with `partitionTwapOrders`.
+   */
+  callback: (twapOrders: TwapOrder[]) => void;
+  /** Called when a read fails; the list keeps its last state. */
+  onError?: (error: Error) => void;
+};
+
+/** Subscription to the live chase lists. */
+export type SubscribeChaseOrderListsParams = {
+  /** Receives running and history chase lists whenever they change. */
+  callback: (lists: ChaseOrderLists) => void;
+  /** Called when a read fails; the lists keep their last state. */
+  onError?: (error: Error) => void;
+};
+
 /**
  * USD amount the venue lets the account commit to a new order on one market,
  * per side. It is the venue's own figure (Hyperliquid: `activeAssetData`
@@ -2356,10 +2433,44 @@ export type OrderCapabilitiesUnavailableReason =
   | DirectProviderOrderCapabilitiesUnavailableReason
   | RoutedOrderCapabilitiesUnavailableReason;
 
+/**
+ * Venue rules for the strategies a market supports, in venue-neutral units.
+ * Read them with `getStrategyRules`; a strategy absent from
+ * `supportedStrategies` has no rules and is unsupported on that market.
+ */
+export type PerpsStrategyRules = Readonly<{
+  twap?: Readonly<{
+    /** Shortest running time the venue accepts, in whole minutes. */
+    minDurationMinutes: number;
+    /** Longest running time the venue accepts, in whole minutes. */
+    maxDurationMinutes: number;
+    /** Smallest total TWAP value the venue accepts, in USD. */
+    minNotionalUsd: number;
+    /** Seconds between two suborders. */
+    sliceIntervalSeconds: number;
+  }>;
+  chase?: Readonly<{
+    /** Most chases that may run at once; omitted means no venue cap. */
+    maxActiveSessions?: number;
+    /** Poll interval used when the caller sets none, in milliseconds. */
+    defaultIntervalMs: number;
+    /** Shortest poll interval accepted, in milliseconds. */
+    minIntervalMs: number;
+  }>;
+  scale?: Readonly<{
+    /** Fewest rungs a ladder may have. */
+    minOrders: number;
+    /** Most rungs a ladder may have. */
+    maxOrders: number;
+  }>;
+}>;
+
 type ReadyPerpsOrderCapabilities = Readonly<{
   status: 'ready';
   providerId: PerpsProviderType;
   supportedStrategies: readonly StrategyOrderType[];
+  /** Venue rules for the supported strategies; omitted means unreported. */
+  strategyRules?: PerpsStrategyRules;
   /**
    * Standalone stop/take-profit placements this market's provider executes.
    * Omitted means support is not reported; clients must not infer support
