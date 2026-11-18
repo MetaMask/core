@@ -35,6 +35,18 @@ export type MfaRecoveryControllerTrustIdentifierAction = {
 };
 
 /**
+ * Returns whether writes accept the identifier: a user device saw it, or it
+ * is SIWE. Use it to pick from the identifiers Auth returns.
+ *
+ * @param identifier - An identifier from Auth.
+ * @returns Whether the identifier is trusted.
+ */
+export type MfaRecoveryControllerIsTrustedAction = {
+  type: `MfaRecoveryController:isTrusted`;
+  handler: MfaRecoveryController['isTrusted'];
+};
+
+/**
  * Stops trusting a passkey, so a later approval cannot add it back. Call it
  * before removing the passkey from Auth.
  *
@@ -167,6 +179,7 @@ export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerAcquireLockAction
   | MfaRecoveryControllerReleaseLockAction
   | MfaRecoveryControllerTrustIdentifierAction
+  | MfaRecoveryControllerIsTrustedAction
   | MfaRecoveryControllerUntrustPasskeyAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction

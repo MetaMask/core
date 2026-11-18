@@ -98,6 +98,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'releaseLock',
   'trustIdentifier',
   'untrustPasskey',
+  'isTrusted',
   'register',
   'updateRecoverySecret',
   'updateIdentifiers',
@@ -359,6 +360,20 @@ export class MfaRecoveryController extends BaseController<
    */
   async trustIdentifier(witness: IdentifierWitness): Promise<void> {
     await this.#trustedIdentifierStore.add(toTrustedIdentifier(witness));
+  }
+
+  /**
+   * Returns whether writes accept the identifier: a user device saw it, or it
+   * is SIWE. Use it to pick from the identifiers Auth returns.
+   *
+   * @param identifier - An identifier from Auth.
+   * @returns Whether the identifier is trusted.
+   */
+  async isTrusted(identifier: Identifier): Promise<boolean> {
+    return (
+      identifier.type === 'siwe' ||
+      isTrustedIdentifier(identifier, await this.#trustedIdentifierStore.get())
+    );
   }
 
   /**

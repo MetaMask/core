@@ -84,6 +84,9 @@ cannot add its own or swap a passkey's public key. Record identifiers with
 Before removing a passkey from Auth, call `untrustPasskey(credentialId)` so a
 later approval cannot add it back.
 
+Auth may also return identifiers another client never recorded. Pick from
+Auth's identifiers with `isTrusted(identifier)`.
+
 `UserStorageTrustedIdentifierStore` keeps one entry per identifier in user
 storage encrypted from the seed phrase, so Auth can delete entries but not
 write them. Its messenger needs

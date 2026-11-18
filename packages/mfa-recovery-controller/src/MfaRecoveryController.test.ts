@@ -383,6 +383,23 @@ describe('MfaRecoveryController', () => {
     });
   });
 
+  describe('isTrusted', () => {
+    it('accepts device-seen identifiers and SIWE only', async () => {
+      await withController(async ({ controller }) => {
+        expect(await controller.isTrusted(PASSKEY)).toBe(true);
+        expect(
+          await controller.isTrusted({
+            type: 'siwe',
+            namespace: 'eip155',
+            value: '0xabc',
+          }),
+        ).toBe(true);
+        await controller.untrustPasskey('AQ');
+        expect(await controller.isTrusted(PASSKEY)).toBe(false);
+      });
+    });
+  });
+
   describe('untrustPasskey', () => {
     it('stops register from accepting the passkey', async () => {
       await withController(async ({ controller }) => {
