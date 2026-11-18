@@ -48,7 +48,7 @@ import {
   WITHDRAWAL_CONSTANTS,
 } from '../constants/perpsConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
-import { PerpsControllerError } from '../errors.js';
+import { OrderDiscoveryError, PerpsControllerError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
 import {
@@ -197,6 +197,7 @@ import {
   supersedesTwapOrder,
 } from '../utils/advancedOrders.js';
 import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
+import { resolveCloseSelection } from '../utils/closePositions.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -11496,12 +11497,26 @@ export class HyperLiquidProvider implements PerpsProvider {
       // snapshot so a missed DEX cannot be reported as "nothing to close".
       // Per-DEX loads are independent: a requested xyz outage must not
       // abort a BTC close in the same symbols list.
-      const requestedSymbols =
-        params.closeAll === true ||
-        params.symbols === undefined ||
-        params.symbols.length === 0
-          ? undefined
-          : params.symbols;
+      //
+      // Tagged targets name exactly the positions to close and win over both
+      // `symbols` and `closeAll`. An empty list, or an empty match (every
+      // target names another venue), closes nothing: a missing symbol list is
+      // close-all, and a target list must not be read that way.
+      const selection = resolveCloseSelection(params);
+      let requestedSymbols: string[] | undefined;
+      if (selection.kind === 'none') {
+        requestedSymbols = [];
+      } else if (selection.kind === 'targets') {
+        requestedSymbols = selection.targets
+          .filter(
+            (target) =>
+              target.providerId === undefined ||
+              target.providerId === this.protocolId,
+          )
+          .map((target) => target.symbol);
+      } else if (selection.kind === 'symbols') {
+        requestedSymbols = selection.symbols;
+      }
       let positions: Position[];
       if (requestedSymbols === undefined) {
         positions = await this.#getPositionsForOperation();
@@ -13870,6 +13885,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           standaloneInfoClient,
           userAddress,
           dexs,
+          params.throwOnUnavailable,
         );
 
         // Combine and filter positions from all DEXs
@@ -13930,6 +13946,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       const { results: orderResults, failedDexs: failedOrderDexs } =
         orderResponse;
 
+      if (params?.throwOnUnavailable && failedStateDexs.length > 0) {
+        throw new Error(
+          `Position discovery failed: ${failedStateDexs.map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`).join('; ')}`,
+        );
+      }
       if (failedStateDexs.length > 0 || failedOrderDexs.length > 0) {
         this.#deps.debugLogger.log(
           'Partial multi-DEX position fetch completed with failures',
@@ -14111,6 +14132,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return allPositions;
     } catch (error) {
+      if (params?.throwOnUnavailable) {
+        throw error;
+      }
       this.#deps.debugLogger.log('Error getting positions:', error);
       return [];
     }
@@ -14367,6 +14391,33 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Adapt raw open orders with their position context and restore Scale groups.
+   *
+   * Position-bound TP/SL orders report size 0 for "the whole position"; the
+   * matching position supplies the real size. Both the complete and the
+   * partial strict-discovery paths use this, so a partial read never reports
+   * a size the complete read would have resolved.
+   *
+   * @param rawOrders - Orders from every DEX that answered.
+   * @returns The adapted orders.
+   */
+  async #adaptOpenOrdersWithPositions(
+    rawOrders: FrontendOrder[],
+  ): Promise<Order[]> {
+    // Positions are already multi-DEX aware. Raw orders use `coin`, adapted
+    // positions use `symbol`.
+    const positions = await this.getPositions();
+    const orders = rawOrders.map((order) =>
+      adaptOrderFromSDK(
+        order,
+        positions.find((position) => position.symbol === order.coin),
+      ),
+    );
+    this.#restoreScaleOrderGroups(orders);
+    return orders;
+  }
+
+  /**
    * Get currently open orders (real-time status)
    * Uses frontendOpenOrders API to get only currently active orders
    * Aggregates orders from all enabled DEXs (main + HIP-3)
@@ -14394,6 +14445,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           standaloneInfoClient,
           userAddress,
           dexs,
+          params.throwOnUnavailable,
         );
 
         // Combine all orders from all DEXs and adapt (without position context in standalone mode)
@@ -14449,6 +14501,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
 
       if (failedDexs.length > 0) {
+        if (params?.throwOnUnavailable) {
+          // Strict discovery must preserve the orders it did fetch: an
+          // unrelated HIP-3 DEX outage must not block cancels on the main
+          // DEX (or other reachable DEXs).
+          const partialOrders = await this.#adaptOpenOrdersWithPositions(
+            orderResults.flatMap((result) => result.data),
+          );
+          throw new OrderDiscoveryError({
+            orders: partialOrders,
+            failures: [
+              {
+                providerId: this.protocolId,
+                error: failedDexs
+                  .map(({ dex, error }) => `${dex ?? 'main'}: ${error.message}`)
+                  .join('; '),
+              },
+            ],
+          });
+        }
         this.#deps.debugLogger.log(
           'Partial multi-DEX open order fetch completed with failures',
           {
@@ -14462,23 +14533,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Combine all orders from all DEXs
       const rawOrders = orderResults.flatMap((result) => result.data);
 
-      // Get positions for order context (already multi-DEX aware)
-      const positions = await this.getPositions();
-
       this.#deps.debugLogger.log('Currently open orders received (all DEXs):', {
         count: rawOrders.length,
       });
 
-      // Transform HyperLiquid open orders to abstract Order type using adapter
-      // Raw SDK orders use 'coin', adapted positions use 'symbol'
-      const orders: Order[] = (rawOrders || []).map((order) => {
-        const position = positions.find((pos) => pos.symbol === order.coin);
-        return adaptOrderFromSDK(order, position);
-      });
-
-      this.#restoreScaleOrderGroups(orders);
-      return orders;
+      return await this.#adaptOpenOrdersWithPositions(rawOrders);
     } catch (error) {
+      if (params?.throwOnUnavailable) {
+        throw error;
+      }
       this.#deps.debugLogger.log('Error getting currently open orders:', error);
       return [];
     }
@@ -14823,6 +14886,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           isTestnet: this.#clientService.isTestnetMode(),
         });
         const dexs = await this.#getStandaloneValidatedDexs();
+        const strictAccountRead = params.throwOnUnavailable === true;
         const [
           standaloneSpotStateResult,
           standalonePerpsResults,
@@ -14831,6 +14895,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           standaloneInfoClient
             .spotClearinghouseState({ user: userAddress })
             .catch((error: unknown) => {
+              if (strictAccountRead) {
+                throw error;
+              }
               this.#deps.debugLogger.log(
                 'Standalone spot state fetch failed — falling back to perps-only totals',
                 {
@@ -14846,6 +14913,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             standaloneInfoClient,
             userAddress,
             dexs,
+            strictAccountRead,
           ),
           standaloneInfoClient
             .userAbstraction({ user: userAddress })
@@ -14910,7 +14978,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Get Spot balance, Perps states across DEXs, and the HL abstraction
       // mode (Unified / Standard / Portfolio / DEX-abstraction). Mode decides
       // whether spot USDC is perps collateral — see addSpotBalanceToAccountState.
-      // One transient DEX failure should not blank the entire account state.
+      // Lenient callers keep a partial total when one DEX or the spot read
+      // fails. `throwOnUnavailable` rejects that snapshot so aggregated mode
+      // can mark the venue unavailable instead of complete.
       const [spotStateResult, perpsStateResult, abstractionResult] =
         await Promise.allSettled([
           infoClient.spotClearinghouseState({ user: userAddress }),
@@ -14954,7 +15024,25 @@ export class HyperLiquidProvider implements PerpsProvider {
       const perpsStateResults = perpsResponse.results;
       const failedPerpsDexs = perpsResponse.failedDexs;
 
-      if (spotStateResult.status === 'rejected') {
+      const strictAccountRead = params?.throwOnUnavailable === true;
+      const spotReadFailed = spotStateResult.status === 'rejected';
+      const perpsReadIncomplete =
+        perpsStateResults.length === 0 ||
+        (strictAccountRead && failedPerpsDexs.length > 0);
+      if (perpsReadIncomplete || (strictAccountRead && spotReadFailed)) {
+        const failedDexNames = failedPerpsDexs.map(({ dex }) => dex ?? 'main');
+        const spotErrorMessage = spotReadFailed
+          ? ensureError(
+              spotStateResult.reason,
+              'HyperLiquidProvider.getAccountState.spot',
+            ).message
+          : undefined;
+        throw new Error(
+          `Failed to fetch account state (failedDexs=[${failedDexNames.join(',')}], spotError=${spotErrorMessage ?? 'none'})`,
+        );
+      }
+
+      if (spotReadFailed) {
         this.#deps.debugLogger.log(
           'Spot state fetch failed during account state aggregation',
           {
@@ -14974,20 +15062,6 @@ export class HyperLiquidProvider implements PerpsProvider {
               ({ dex, error }) => `${dex ?? 'main'}:${error.message}`,
             ),
           },
-        );
-      }
-
-      if (perpsStateResults.length === 0) {
-        const failedDexNames = failedPerpsDexs.map(({ dex }) => dex ?? 'main');
-        const spotErrorMessage =
-          spotStateResult.status === 'rejected'
-            ? ensureError(
-                spotStateResult.reason,
-                'HyperLiquidProvider.getAccountState.spot',
-              ).message
-            : undefined;
-        throw new Error(
-          `Failed to fetch account state (failedDexs=[${failedDexNames.join(',')}], spotError=${spotErrorMessage ?? 'none'})`,
         );
       }
 

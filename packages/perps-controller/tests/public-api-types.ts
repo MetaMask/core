@@ -75,6 +75,14 @@ import type {
   ToggleTestnetResult,
   TransferBetweenDexsResult,
   WithdrawResult,
+  AccountState,
+  AccountAggregateMetadata,
+  PerpsProviderAccountStateEntry,
+  ClosePositionsParams,
+  ClosePositionsTarget,
+  CancelOrdersParams,
+  SubscribeAccountParams,
+  PerpsProviderType,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -958,4 +966,103 @@ export type NormalizedResultErrorFieldsConsumerContracts = [
   AssertTrue<HasNormalizedErrorFields<ToggleTestnetResult>>,
   AssertTrue<HasNormalizedErrorFields<ClosePositionsResult>>,
   AssertTrue<HasNormalizedErrorFields<ClosePositionsResult['results'][number]>>,
+];
+
+// Aggregated account reads/streams and tagged close targets, imported through
+// the package entrypoint the way a client imports them, so a dropped or
+// renamed export fails here instead of only in internal `src/types` tests.
+export type AggregatedAccountConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Extract<PerpsProviderAccountStateEntry, { status: 'available' }>,
+      {
+        status: 'available';
+        state: AccountState;
+        providerId: PerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsProviderAccountStateEntry,
+      | {
+          status: 'available';
+          state: AccountState;
+          providerId: PerpsProviderType;
+        }
+      | {
+          status: 'unavailable';
+          error?: string;
+          providerId: PerpsProviderType;
+        }
+      | {
+          status: 'pending';
+          providerId: PerpsProviderType;
+        }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsProviderAccountStateEntry, { status: 'pending' }>,
+      {
+        status: 'pending';
+        providerId: PerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<PerpsProviderAccountStateEntry, { status: 'unavailable' }>,
+      {
+        status: 'unavailable';
+        error?: string;
+        providerId: PerpsProviderType;
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountAggregateMetadata,
+      {
+        status: 'complete' | 'partial';
+        availableProviders: PerpsProviderType[];
+        unavailableProviders: PerpsProviderType[];
+        pendingProviders?: PerpsProviderType[];
+      }
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      AccountState['providerStates'],
+      | Partial<Record<PerpsProviderType, PerpsProviderAccountStateEntry>>
+      | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<AccountState['aggregate'], AccountAggregateMetadata | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<SubscribeAccountParams['callback']>,
+      [account: AccountState | null, aggregate?: AccountAggregateMetadata]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      CancelOrdersParams['orders'],
+      { orderId: string; providerId: PerpsProviderType }[] | undefined
+    >
+  >,
+  AssertTrue<
+    IsExact<AccountState['providerId'], PerpsProviderType | undefined>
+  >,
+  AssertTrue<
+    IsExact<
+      ClosePositionsTarget,
+      { symbol: string; providerId: PerpsProviderType }
+    >
+  >,
+  AssertTrue<
+    IsExact<ClosePositionsParams['targets'], ClosePositionsTarget[] | undefined>
+  >,
 ];

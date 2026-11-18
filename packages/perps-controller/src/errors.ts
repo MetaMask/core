@@ -1,5 +1,6 @@
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import type { PerpsErrorCode } from './perpsErrorCodes.js';
+import type { Order, PerpsProviderType } from './types/index.js';
 
 /**
  * Details for a local price movement rejection.
@@ -112,4 +113,25 @@ export function createTpslLegReplaceUnsupportedError(): PerpsControllerError {
     PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
     PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
   );
+}
+
+/** A strict aggregated read failed on some venues; successful orders remain usable. */
+export class OrderDiscoveryError extends Error {
+  readonly orders: Order[];
+
+  readonly failures: { providerId: PerpsProviderType; error: string }[];
+
+  constructor(options: {
+    orders: Order[];
+    failures: { providerId: PerpsProviderType; error: string }[];
+  }) {
+    super(
+      options.failures
+        .map(({ providerId, error }) => `${providerId}: ${error}`)
+        .join('; '),
+    );
+    this.name = 'OrderDiscoveryError';
+    this.orders = options.orders;
+    this.failures = options.failures;
+  }
 }
