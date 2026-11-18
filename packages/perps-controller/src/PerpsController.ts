@@ -2761,7 +2761,7 @@ export class PerpsController extends BaseController<
 
         // If not the last attempt, wait before retrying (exponential backoff)
         if (attempt < maxAttempts) {
-          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s
           this.#debugLog(
             `PerpsController: Retrying initialization in ${delay}ms`,
             {

@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
+
+### Removed
+
+- **BREAKING:** Remove the unused `PERPS_EVENT_PROPERTY.AB_TEST_BUTTON_COLOR` property, the `PERPS_EVENT_VALUE.AB_TEST` values, the `perps.screen.*` and `perps.ui.*` members of `PerpsMeasurementName`, and the `PerpsTraceOperations.MarketData` operation. No Core code imports them, and no checked-in Mobile or Extension source imports them ([#11604](https://github.com/MetaMask/core/pull/11604))
+
 ### Fixed
 
+- Send the `add_margin` and `remove_margin` Risk Management actions through `PERPS_EVENT_VALUE` constants instead of string literals ([#11608](https://github.com/MetaMask/core/pull/11608))
 - HyperLiquid now allows Cross margin on HIP-3 markets whose venue `marginMode` is `normal` or absent: `getOrderCapabilities` reports `supportedMarginModes` `['isolated', 'cross']` for them and Cross orders are accepted ([#11610](https://github.com/MetaMask/core/pull/11610))
   - HIP-3 markets with `marginMode` `noCross` or `strictIsolated`, or `onlyIsolated`, still report `['isolated']` and refuse Cross with `ORDER_MARGIN_MODE_UNSUPPORTED`
   - With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position now transfers only the new order's margin instead of the whole position's

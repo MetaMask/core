@@ -355,8 +355,7 @@ export const SPOT_ASSET_ID_OFFSET = 10000;
 /**
  * HIP-3 asset market type classifications (PRODUCTION DEFAULT)
  *
- * This is the production default configuration, can be overridden via feature flag
- * (remoteFeatureFlags.perpsAssetMarketTypes) for dynamic control.
+ * This is the production default configuration.
  *
  * Maps asset symbols (e.g., "xyz:TSLA") to their market type for badge display.
  *
