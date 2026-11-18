@@ -538,6 +538,111 @@ describe('VendorOnboardingController', () => {
     });
   });
 
+  describe('vendors that do not sign requests', () => {
+    it('rejects Kalshi when the controller has no request signers', async () => {
+      await withController(
+        { options: { vendorRequestSigners: undefined } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.startSession({
+              vendor: 'kalshi',
+              aal2Token: AAL2_TOKEN,
+              email: KALSHI_EMAIL,
+            }),
+          ).rejects.toThrow('no request signer for kalshi');
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('opens an iron session without signed requests', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep.mockResolvedValue({
+          step: 'identity_provider',
+          status: 'none',
+        });
+
+        const step = await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(step).toBe('identity_provider');
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params.vendor).toBe('iron');
+        expect(params).not.toHaveProperty('signedVendorRequests');
+      });
+    });
+
+    it('verifies an iron email code without signed requests', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                iron: {
+                  step: 'identity_email_code',
+                  status: 'none',
+                  sessionId: 'sid-iron',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({
+            step: 'identity_provider',
+            status: 'none',
+          });
+
+          await controller.submitEmailCode({ vendor: 'iron', code: '123456' });
+
+          expect(handlers.postOnboardingStep).toHaveBeenCalledWith({
+            sessionId: 'sid-iron',
+            step: 'email/verify-otp',
+            body: { otp: '123456' },
+          });
+        },
+      );
+    });
+
+    it('resends an iron email code with no body', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                iron: {
+                  step: 'identity_email_code',
+                  status: 'none',
+                  sessionId: 'sid-iron',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({
+            step: 'identity_email_code',
+            status: 'none',
+          });
+
+          await controller.resendEmailCode({ vendor: 'iron' });
+
+          const [request] = handlers.postOnboardingStep.mock.calls[0] as [
+            Record<string, unknown>,
+          ];
+          expect(request).toStrictEqual({
+            sessionId: 'sid-iron',
+            step: 'email/resend-otp',
+          });
+        },
+      );
+    });
+  });
+
   describe('onboarding steps', () => {
     it.each([
       [
