@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix order polling republishing `RampsController:orderStatusChanged` on every poll for an order whose fetched `id` carries a different code than the stored one ([#11593](https://github.com/MetaMask/core/pull/11593))
+  - `getOrder` now keeps the stored order's `id` and `providerOrderId` when the order was requested by its stored code, so the fetched status is written to the stored order. Before, the write was skipped, the stored order stayed pending, and the same transition was published every poll cycle.
+  - Polling now publishes `orderStatusChanged` only when the new status is stored, so an order removed while its request was in flight no longer publishes.
 - `RampsService.getBuyWidgetUrl` now rejects a buy URL whose origin does not match the ramps API origin for the configured environment, before common params are added and before a bearer token is requested. This stops a malicious or compromised quotes response from sending the user's token to an arbitrary host. `baseUrlOverride` does not relax the check. ([#11551](https://github.com/MetaMask/core/pull/11551))
 
 ## [30.0.0]
