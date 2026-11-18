@@ -206,6 +206,7 @@ import {
 import { buildAggregatedAccountState } from './utils/accountAggregation.js';
 import {
   getCaipAccountAddress,
+  getEvmAccountFromAccountGroup,
   getSelectedEvmAccountFromMessenger,
 } from './utils/accountUtils.js';
 import {
@@ -1547,15 +1548,40 @@ export class PerpsController extends BaseController<
       : getSelectedEvmAccountFromMessenger(
           this.messenger,
         )?.address.toLowerCase();
-    const updateSelectedTradingAccount = (deselected = false): void => {
+    const getSelectedGroupTradingAccount = (): ReturnType<
+      typeof getSelectedEvmAccountFromMessenger
+    > | null => {
+      let accounts;
+      try {
+        accounts = this.messenger.call(
+          'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        );
+      } catch {
+        // Some clients only expose the legacy AccountsController action.
+      }
+      const legacyAccount = getSelectedEvmAccountFromMessenger(this.messenger);
+      if (!Array.isArray(accounts)) {
+        return legacyAccount;
+      }
+      return legacyAccount &&
+        accounts.some(
+          ({ address }) =>
+            address.toLowerCase() === legacyAccount.address.toLowerCase(),
+        )
+        ? legacyAccount
+        : (getEvmAccountFromAccountGroup(accounts) ?? null);
+    };
+    const updateSelectedTradingAccount = (
+      switchedAccount: ReturnType<
+        typeof getSelectedEvmAccountFromMessenger
+      > | null,
+    ): void => {
       this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
-      const switchedAccount = deselected
-        ? undefined
-        : getSelectedEvmAccountFromMessenger(this.messenger);
-      const nextAddress = deselected
-        ? null
-        : switchedAccount?.address.toLowerCase();
+      const nextAddress =
+        switchedAccount === null
+          ? null
+          : switchedAccount?.address.toLowerCase();
       // The account tree can re-emit its current selection on reinitialization.
       // An unchanged wallet already has live balances, and the stream may dedupe
       // its next update.
@@ -1581,12 +1607,22 @@ export class PerpsController extends BaseController<
           });
       }
     };
-    this.messenger.subscribe('AccountsController:selectedAccountChange', () =>
-      updateSelectedTradingAccount(),
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      (account) =>
+        updateSelectedTradingAccount(
+          account
+            ? (getEvmAccountFromAccountGroup([account]) ??
+                getSelectedGroupTradingAccount())
+            : getSelectedEvmAccountFromMessenger(this.messenger),
+        ),
     );
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      (groupId) => updateSelectedTradingAccount(groupId === ''),
+      (groupId) =>
+        updateSelectedTradingAccount(
+          groupId === '' ? null : getSelectedGroupTradingAccount(),
+        ),
     );
 
     this.providers = new Map();
@@ -7787,8 +7823,9 @@ export class PerpsController extends BaseController<
             callback: (account, aggregate) => {
               const ownsState =
                 this.activeProviderInstance === nextProvider &&
-                this.#selectedTradingAddress !== null &&
                 streamAddress !== undefined &&
+                (this.#selectedTradingAddress === undefined ||
+                  this.#selectedTradingAddress === streamAddress) &&
                 streamAddress ===
                   getSelectedEvmAccountFromMessenger(
                     this.messenger,

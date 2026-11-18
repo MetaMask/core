@@ -758,6 +758,53 @@ describe('PerpsController', () => {
       );
     });
 
+    it('clears balances when a selected group has no EVM wallet', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const callback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      callback(accountState('100'));
+      const solanaAccount = {
+        address: 'solana-address',
+        type: 'solana:data-account',
+      };
+      const previousEvmAccount = {
+        address: selectedEvmAddress,
+        type: 'eip155:eoa',
+      };
+      (mockMessenger.call as Mock).mockImplementation((action) => {
+        if (action === 'AccountsController:getSelectedAccount') {
+          return previousEvmAccount;
+        }
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          return [solanaAccount];
+        }
+        return undefined;
+      });
+
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) =>
+            event === 'AccountTreeController:selectedAccountGroupChange',
+        )
+        .forEach(([, handler]) =>
+          handler('solana-group', 'previous-evm-group'),
+        );
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual({});
+
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .forEach(([, handler]) => handler(solanaAccount));
+      callback(accountState('200'));
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual({});
+    });
+
     it.each(['no update', 'null', 'snapshot', 'REST snapshot'])(
       'reconciles restored balances when %s precedes the first selection event',
       async (liveUpdate) => {
