@@ -5,7 +5,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { describe, expect, it, vi } from 'vitest';
-import type { MockedFunction } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
@@ -1020,11 +1020,11 @@ describe('VendorOnboardingController', () => {
       VendorOnboardingControllerOptions['sumsubLauncher']
     >;
     const getLauncher = (
-      launch: ReturnType<typeof vi.fn> = vi
+      launch: Mock = vi
         .fn()
         .mockResolvedValue({ status: 'Pending' }),
       isAvailable = true,
-    ): Launcher & { launch: ReturnType<typeof vi.fn> } => ({
+    ): Launcher & { launch: Mock } => ({
       isAvailable: () => isAvailable,
       launch,
     });
@@ -1407,7 +1407,7 @@ describe('VendorOnboardingController', () => {
   describe('reset', () => {
     const state = {
       vendors: {
-        iron: { step: 'done', sessionId: 'sid-iron' },
+        iron: { step: 'done', status: 'none', sessionId: 'sid-iron' },
         kalshi: {
           step: 'done',
           status: 'none',
@@ -1457,23 +1457,23 @@ describe('VendorOnboardingController', () => {
 });
 
 type ServiceHandlers = {
-  getStep: ReturnType<typeof vi.fn>;
-  acceptVendorTerms: ReturnType<typeof vi.fn>;
-  postOnboardingStep: ReturnType<typeof vi.fn>;
-  getSessionStatusForVendor: ReturnType<typeof vi.fn>;
-  createJourney: ReturnType<typeof vi.fn>;
-  fetchSessionDisclaimersBySessionId: ReturnType<typeof vi.fn>;
-  submitSessionDisclaimers: ReturnType<typeof vi.fn>;
-  getGeoCountry: ReturnType<typeof vi.fn>;
-  createUkycSession: ReturnType<typeof vi.fn>;
-  resetWrappingKeys: ReturnType<typeof vi.fn>;
-  setAuthorizations: ReturnType<typeof vi.fn>;
-  fetchIdosEnclaveJwks: ReturnType<typeof vi.fn>;
-  fetchIdosRelayJwks: ReturnType<typeof vi.fn>;
-  performGetStorage: ReturnType<typeof vi.fn>;
-  performSetStorage: ReturnType<typeof vi.fn>;
-  putIdentitySharingConsent: ReturnType<typeof vi.fn>;
-  getPartnerIdentityToken: ReturnType<typeof vi.fn>;
+  getStep: Mock;
+  acceptVendorTerms: Mock;
+  postOnboardingStep: Mock;
+  getSessionStatusForVendor: Mock;
+  createJourney: Mock;
+  fetchSessionDisclaimersBySessionId: Mock;
+  submitSessionDisclaimers: Mock;
+  getGeoCountry: Mock;
+  createUkycSession: Mock;
+  resetWrappingKeys: Mock;
+  setAuthorizations: Mock;
+  fetchIdosEnclaveJwks: Mock;
+  fetchIdosRelayJwks: Mock;
+  performGetStorage: Mock;
+  performSetStorage: Mock;
+  putIdentitySharingConsent: Mock;
+  getPartnerIdentityToken: Mock;
 };
 
 type WithControllerOptions = {
@@ -1641,8 +1641,8 @@ function withController<ReturnValue>(
  * @returns The adapter, with mock functions.
  */
 function getAdapter(): {
-  startLink: ReturnType<typeof vi.fn>;
-  verifyLink: ReturnType<typeof vi.fn>;
+  startLink: Mock;
+  verifyLink: Mock;
 } & KycAccountLinkAdapter {
   return {
     startLink: vi.fn().mockResolvedValue(undefined),
