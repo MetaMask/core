@@ -49,8 +49,8 @@ function getVenueMarketKey(
  * Group rows that share a backend market key and explicitly have unit scale.
  * The first venue supplies the display data and retains its execution symbol.
  *
- * @param markets - Venue market rows. Untagged direct rows belong to the default venue.
- * @param defaultProvider - The venue whose data should be first when present.
+ * @param markets - Venue market rows whose source provider IDs are preserved.
+ * @param defaultProvider - Preferred venue for ordering and fallback display keys.
  * @returns Display rows in first-seen market order, with the original venue rows.
  */
 export function groupMarketsByMarketKey(

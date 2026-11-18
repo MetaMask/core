@@ -697,6 +697,7 @@ export class TerminalMarketService {
     return {
       marketData: {
         id: market.id,
+        providerId: provider,
         symbol: market.symbol,
         name: market.name ?? market.symbol,
         ...(market.description !== null && {

@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
 
 import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig.js';
+import { groupMarketsByMarketKey } from '../../../src/index.js';
 import { MarketDataService } from '../../../src/services/MarketDataService.js';
 import { TerminalMarketService } from '../../../src/services/TerminalMarketService.js';
 import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import { getPerpsWatchlistReferences } from '../../../src/utils/marketUtils.js';
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
@@ -1446,9 +1448,15 @@ describe('TerminalMarketService', () => {
     });
 
     it('serves getMarkets and market data from one snapshot request', async () => {
-      const fetchSpy = vi
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(okJsonResponse(createGlobalSnapshot()));
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [
+              createSnapshotMarket({ marketKey: 'BTC-USD', priceScale: 1 }),
+            ],
+          }),
+        ),
+      );
       const marketData = new MarketDataService({
         ...mockDeps,
         terminalMarketService: service,
@@ -1487,9 +1495,25 @@ describe('TerminalMarketService', () => {
       });
 
       expect(markets).toStrictEqual([
-        { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        {
+          name: 'BTC',
+          szDecimals: 5,
+          maxLeverage: 50,
+          marginTableId: 0,
+          marketKey: 'BTC-USD',
+          priceScale: 1,
+        },
       ]);
       expect(prices.map((market) => market.symbol)).toStrictEqual(['BTC']);
+      const [group] = groupMarketsByMarketKey(prices, 'hyperliquid');
+      expect(group.providerId).toBe('hyperliquid');
+      expect(
+        getPerpsWatchlistReferences(
+          group.symbol,
+          group.marketKey,
+          group.venues,
+        ),
+      ).toStrictEqual(['market-key:BTC-USD', 'BTC']);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const urls = fetchSpy.mock.calls.map((call): string => {
         const input = call[0];
@@ -1563,6 +1587,7 @@ describe('TerminalMarketService', () => {
         );
         expect(result.markets[0]).toMatchObject({
           symbol: 'BTC',
+          providerId: 'lighter',
           name: 'Bitcoin',
           iconUrl: 'https://example.com/btc.png',
           marketKey: 'BTC-USD',

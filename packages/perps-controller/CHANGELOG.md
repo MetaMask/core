@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `TerminalMarketService.fetchGlobalSnapshot` accepts `provider: 'lighter'` with `enabledDexes: ['main']`, and `PerpsGlobalSnapshotRequest.provider` is now `'hyperliquid' | 'lighter'`
   - A Lighter row's `category` sets its `marketType`. Lighter lists stocks, FX and commodities on its one DEX, so `main` does not mean crypto there as it does for HyperLiquid
   - A missing or invalid Lighter snapshot leaves the Lighter rows as the provider returned them
-- Add optional `marketKey` and `priceScale` to `PerpsMarketData` and `MarketInfo`, and `iconUrl` to `PerpsMarketData`, mapped from either provider's global snapshot
+- Add optional `marketKey` and `priceScale` to `PerpsMarketData` and `MarketInfo`, and `iconUrl` to `PerpsMarketData`, mapped from either provider's global snapshot. Rows served directly from a v4 snapshot also carry its validated `providerId`
 - Export `groupMarketsByMarketKey` to group rows with an explicit backend key and `priceScale: 1`. Each row has a stable `rowId` and carries its original venue data, default venue first. Rows with absent keys or absent or different scales remain separate
 - Watchlist and recently viewed actions accept an optional market key. `resolveSavedPerpsMarkets` opens legacy symbols only on their original venue and resolves explicit keys among unit-scale rows. Grouped watchlist actions accept the venue rows and can remove a legacy favorite when the group contains the matching unit-scale HyperLiquid row
 - Accept optional `marketKey`, `priceScale` and `venueMarketId` on global snapshot markets. A malformed value rejects that provider's snapshot, so that provider falls back

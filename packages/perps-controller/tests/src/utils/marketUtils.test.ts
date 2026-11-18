@@ -7,6 +7,7 @@ import {
 import type { PerpsMarketData } from '../../../src/types/index.js';
 import {
   getMarketTypeFilter,
+  getPerpsWatchlistReferences,
   isHip3Market,
   matchesCategory,
 } from '../../../src/utils/marketUtils.js';
@@ -150,6 +151,17 @@ describe('groupMarketsByMarketKey', () => {
     expect(
       resolveSavedPerpsMarkets(['BTC'], [lighterBtc], 'lighter', 'hyperliquid'),
     ).toStrictEqual([]);
+  });
+
+  it('requires actual HyperLiquid provenance for a legacy alias even with HyperLiquid preferred', () => {
+    const [group] = groupMarketsByMarketKey(
+      [{ ...lighter, providerId: undefined }],
+      'hyperliquid',
+    );
+    expect(group.venues[0].providerId).toBeUndefined();
+    expect(
+      getPerpsWatchlistReferences(group.symbol, group.marketKey, group.venues),
+    ).toStrictEqual(['market-key:xyz:TSLA']);
   });
 
   it('does not interpret a legacy symbol as an unrelated backend key', () => {
