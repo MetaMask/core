@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `SubscriptionDelegationService` now retries a stuck Money Account Plus charge once the Money Account covers it ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - A subscription is stuck when it is `paused`, or `past_due` or `active` (with a crypto payment error) with its last invoice `FAILED` for `insufficient_balance`
+  - The service re-checks after a confirmed `moneyAccountDeposit` or `membershipSubscription` transaction, on `KeyringController:unlock`, when the cached Plus subscription changes, and every 5 minutes while the balance stays short and the wallet is unlocked
+  - When the balance covers the charge, it calls `SubscriptionController:updatePaymentMethod` with no `delegationHash` or `rawTransaction`, so the Subscription API reuses the stored delegation
+- Add `SubscriptionDelegationService.destroy`, which stops the periodic charge re-check ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Changed
+
+- **BREAKING:** `SubscriptionDelegationServiceMessenger` requires new actions and events ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Delegate the `KeyringController:getState`, `AuthenticationController:isSignedIn` and `SubscriptionController:updatePaymentMethod` actions
+  - Delegate the `KeyringController:unlock`, `SubscriptionController:stateChange` and `TransactionController:transactionConfirmed` events
+- Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#0000](https://github.com/MetaMask/core/pull/0000))
 
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
