@@ -1,4 +1,4 @@
-import { hexToBN } from '@metamask/controller-utils';
+import { fractionBN, hexToBN } from '@metamask/controller-utils';
 import { add0x } from '@metamask/utils';
 import BN from 'bn.js';
 
@@ -16,6 +16,9 @@ const log = createModuleLogger(projectLogger, 'gas');
  * A multiplier to apply to all gas estimate values returned from the bundler.
  */
 const GAS_ESTIMATE_MULTIPLIER = 1.5;
+
+// Express fractional multipliers in hundredths.
+const GAS_ESTIMATE_MULTIPLIER_PRECISION = 100;
 
 /**
  * Populates the gas properties for a user operation.
@@ -87,7 +90,11 @@ function normalizeGasEstimate(rawValue: string | number): string {
   const value =
     typeof rawValue === 'string' ? hexToBN(rawValue) : new BN(rawValue);
 
-  const bufferedValue = value.muln(GAS_ESTIMATE_MULTIPLIER);
+  const bufferedValue = fractionBN(
+    value,
+    Math.round(GAS_ESTIMATE_MULTIPLIER * GAS_ESTIMATE_MULTIPLIER_PRECISION),
+    GAS_ESTIMATE_MULTIPLIER_PRECISION,
+  );
 
   return add0x(bufferedValue.toString(16));
 }

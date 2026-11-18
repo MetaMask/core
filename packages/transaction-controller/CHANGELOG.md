@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/sentinel-api-service` from `^2.2.0` to `^2.3.0` ([#11590](https://github.com/MetaMask/core/pull/11590))
 
+### Fixed
+
+- Fix underestimated Linea medium and high gas fees when applying fractional multipliers ([#10045](https://github.com/MetaMask/core/pull/10045))
+
 ## [74.1.0]
 
 ### Changed

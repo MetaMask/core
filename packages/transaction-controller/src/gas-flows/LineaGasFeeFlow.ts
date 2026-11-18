@@ -1,4 +1,9 @@
-import { ChainId, hexToBN, toHex } from '@metamask/controller-utils';
+import {
+  ChainId,
+  fractionBN,
+  hexToBN,
+  toHex,
+} from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -27,6 +32,9 @@ type FeesByLevel = {
 };
 
 const log = createModuleLogger(projectLogger, 'linea-gas-fee-flow');
+
+// Express fractional multipliers in hundredths.
+const MULTIPLIER_PRECISION = 100;
 
 const LINEA_CHAIN_IDS: Hex[] = [
   ChainId['linea-mainnet'],
@@ -150,15 +158,30 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     multipliers: { low: number; medium: number; high: number },
   ): FeesByLevel {
     const base = hexToBN(value);
-    const low = base.muln(multipliers.low);
-    const medium = base.muln(multipliers.medium);
-    const high = base.muln(multipliers.high);
+    const low = this.#applyMultiplier(base, multipliers.low);
+    const medium = this.#applyMultiplier(base, multipliers.medium);
+    const high = this.#applyMultiplier(base, multipliers.high);
 
     return {
       low,
       medium,
       high,
     };
+  }
+
+  /**
+   * Applies a fractional multiplier using integer arithmetic.
+   *
+   * @param value - Value to multiply.
+   * @param multiplier - Multiplier expressed to at most two decimal places.
+   * @returns Product truncated to an integer.
+   */
+  #applyMultiplier(value: BN, multiplier: number): BN {
+    return fractionBN(
+      value,
+      Math.round(multiplier * MULTIPLIER_PRECISION),
+      MULTIPLIER_PRECISION,
+    );
   }
 
   #getMaxFees(

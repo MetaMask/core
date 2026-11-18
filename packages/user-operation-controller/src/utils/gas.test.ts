@@ -86,6 +86,8 @@ describe('gas', () => {
       expect(metadata.userOperation.callGasLimit).toBe('0x1');
       expect(metadata.userOperation.preVerificationGas).toBe('0x2');
       expect(metadata.userOperation.verificationGasLimit).toBe('0x3');
+      expect(bundlerConstructorMck).not.toHaveBeenCalled();
+      expect(bundlerMock.estimateUserOperationGas).not.toHaveBeenCalled();
     });
 
     describe('estimates gas', () => {
@@ -142,6 +144,53 @@ describe('gas', () => {
             verificationGasLimit: '0x49f',
           }),
         );
+      });
+
+      it.each([
+        0,
+        1,
+        100_000_000,
+        2 ** 26 - 1,
+        2 ** 26,
+        2 ** 26 + 1,
+        2 ** 27,
+        2 ** 52 - 1,
+        2 ** 52,
+        2 ** 52 + 1,
+        '0x20000000000001',
+        '0x1010000000000003',
+      ])(
+        'buffers all gas estimates without losing precision for %s',
+        async (rawValue) => {
+          bundlerMock.estimateUserOperationGas.mockResolvedValue({
+            callGasLimit: rawValue,
+            preVerificationGas: rawValue,
+            verificationGasLimit: rawValue,
+          });
+
+          await callUpdateGas();
+
+          const expected = (BigInt(rawValue) * 3n) / 2n;
+          expect(BigInt(metadata.userOperation.callGasLimit)).toBe(expected);
+          expect(BigInt(metadata.userOperation.preVerificationGas)).toBe(
+            expected,
+          );
+          expect(BigInt(metadata.userOperation.verificationGasLimit)).toBe(
+            expected,
+          );
+        },
+      );
+
+      it('preserves a zero verificationGasLimit instead of using verificationGas', async () => {
+        bundlerMock.estimateUserOperationGas.mockResolvedValue({
+          ...ESTIMATE_RESPONSE_DECIMAL_MOCK,
+          verificationGasLimit: 0,
+          verificationGas: 100_000_000,
+        });
+
+        await callUpdateGas();
+
+        expect(metadata.userOperation.verificationGasLimit).toBe('0x0');
       });
 
       it('using verificationGas if verificationGasLimit is undefined', async () => {
