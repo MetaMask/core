@@ -79,11 +79,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -352,6 +348,10 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -492,11 +492,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -1348,8 +1344,16 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.disconnect();
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Disconnect failed');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('Disconnect failed');
     });
 
     describe('ping() health check', () => {
@@ -1479,7 +1483,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid order parameters');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles validation errors in withdrawals', async () => {
@@ -1497,8 +1501,12 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.withdraw(withdrawParams);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid withdrawal parameters');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(result.error).not.toContain('Invalid withdrawal parameters');
     });
 
     it('handles unknown errors gracefully', async () => {
@@ -1603,7 +1611,7 @@ describe('HyperLiquidProvider', () => {
         expect(result.error).toBe('ORDER_LEVERAGE_REDUCTION_FAILED');
       });
 
-      it('preserves original error message for unmapped errors', async () => {
+      it('hides the original error message for unmapped errors', async () => {
         // Mock with an unmapped error
         const originalError = new Error('Some other HyperLiquid API error');
         mockClientService.getExchangeClient = vi.fn().mockReturnValue({
@@ -1625,7 +1633,7 @@ describe('HyperLiquidProvider', () => {
         const result = await provider.placeOrder(orderParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toBe('Some other HyperLiquid API error');
+        expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
       });
     });
   });
@@ -1647,7 +1655,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Asset UNKNOWN not found');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing price data', async () => {
@@ -1668,7 +1676,7 @@ describe('HyperLiquidProvider', () => {
       // allMids returns {} so #getOrFetchPrice parses price as 0, which is
       // invalid. The error surfaces from #getAssetInfo before validation runs.
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid price for BTC: 0');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing position in close operation', async () => {

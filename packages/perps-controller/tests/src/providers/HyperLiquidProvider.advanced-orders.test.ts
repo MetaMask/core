@@ -60,11 +60,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -506,11 +502,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -2882,6 +2874,55 @@ describe('HyperLiquidProvider', () => {
       expect(request.orders).toHaveLength(1);
       expect(request.orders[0].t.trigger.isMarket).toBe(false);
     });
+
+    it('attributes a thrown leg-replace failure to replacePositionTPSLLeg in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'tp',
+        triggerPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'replacePositionTPSLLeg' }),
+          }),
+        }),
+      );
+    });
+
+    it('attributes a thrown whole-position failure to updatePositionTPSL in the error log', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+      (
+        mockClientService.getInfoClient().frontendOpenOrders as Mock
+      ).mockRejectedValue(new Error('orders offline'));
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '61000',
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: 'orders offline' }),
+        }),
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({ method: 'updatePositionTPSL' }),
+          }),
+        }),
+      );
+    });
   });
 
   describe('updatePositionTPSL with partial sizes', () => {
@@ -3252,6 +3293,11 @@ describe('HyperLiquidProvider', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+            provider: 'hyperliquid',
+          },
         });
         expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
           useHttp: true,
@@ -3333,6 +3379,11 @@ describe('HyperLiquidProvider', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+            provider: 'hyperliquid',
+          },
         });
         expect(
           mockClientService.getExchangeClient().order,

@@ -44,6 +44,7 @@ import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_OPERATION,
   createPerpsErrorContext,
+  getProviderErrorCause,
   wasProviderErrorReported,
 } from '../utils/errorContext.js';
 import type {
@@ -1920,7 +1921,8 @@ export class TradingService {
 
         if (!isSignerUnavailable(result.error)) {
           this.#deps.logger.error(
-            ensureError(result.error, 'TradingService.cancelOrder'),
+            getProviderErrorCause(result) ??
+              ensureError(result.error, 'TradingService.cancelOrder'),
             this.#getErrorContext(
               context,
               'cancelOrder',
@@ -2327,7 +2329,8 @@ export class TradingService {
 
         if (!isSignerUnavailable(result.error)) {
           this.#deps.logger.error(
-            ensureError(result.error, 'TradingService.closePosition'),
+            getProviderErrorCause(result) ??
+              ensureError(result.error, 'TradingService.closePosition'),
             this.#getErrorContext(
               context,
               'closePosition',
@@ -2550,11 +2553,24 @@ export class TradingService {
             (result) => `${result.symbol}: ${result.error ?? 'Unknown error'}`,
           )
           .join('; ');
+        const batchError = new Error(
+          `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
+        );
+        const reportedCauses = reportedFailures.flatMap((result) => {
+          const cause = getProviderErrorCause(result);
+          return cause ? [cause] : [];
+        });
+        if (reportedCauses.length === 1) {
+          batchError.cause = reportedCauses[0];
+        } else if (reportedCauses.length > 1) {
+          batchError.cause = new AggregateError(
+            reportedCauses,
+            'closePositions per-position failures',
+          );
+        }
 
         this.#deps.logger.error(
-          new Error(
-            `closePositions batch failure: ${operationResult.failureCount}/${operationResult.results.length} failed (${reportedFailures.length} reported) - ${failureSummary}`,
-          ),
+          batchError,
           this.#getErrorContext(
             context,
             'closePositions',
@@ -3246,7 +3262,8 @@ export class TradingService {
           !wasProviderErrorReported(result)
         ) {
           this.#deps.logger.error(
-            ensureError(result.error, 'TradingService.flipPosition'),
+            getProviderErrorCause(result) ??
+              ensureError(result.error, 'TradingService.flipPosition'),
             this.#getErrorContext(
               context,
               'flipPosition',
