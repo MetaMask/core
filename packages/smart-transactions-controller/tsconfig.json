@@ -27,10 +27,10 @@
       "path": "../polling-controller"
     },
     {
-      "path": "../profile-sync-controller"
+      "path": "../remote-feature-flag-controller"
     },
     {
-      "path": "../remote-feature-flag-controller"
+      "path": "../sentinel-api-service"
     },
     {
       "path": "../transaction-controller"
