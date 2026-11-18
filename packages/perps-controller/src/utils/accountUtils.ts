@@ -91,31 +91,43 @@ function isAccountLike(
 export function getSelectedEvmAccountDetailsFromMessenger(
   messenger: SelectedEvmAccountMessenger,
 ): InternalAccount | PerpsInternalAccount | undefined {
+  let legacyEvmAccount: InternalAccount | PerpsInternalAccount | undefined;
   try {
     const selectedAccount = messenger.call(
       'AccountsController:getSelectedAccount',
     );
     if (isAccountLike(selectedAccount)) {
-      const evmAccount = findEvmAccount([selectedAccount]);
-      if (evmAccount) {
-        return evmAccount;
-      }
+      legacyEvmAccount = findEvmAccount([selectedAccount]) ?? undefined;
     }
   } catch {
-    // Fall back to the selected account group if the direct lookup is unavailable.
+    // Some clients expose only the account tree action.
   }
 
   try {
     const selectedAccountGroup = messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
-    return Array.isArray(selectedAccountGroup)
-      ? (findEvmAccount(selectedAccountGroup.filter(isAccountLike)) ??
-          undefined)
-      : undefined;
+    if (Array.isArray(selectedAccountGroup)) {
+      const groupAccounts = selectedAccountGroup.filter(isAccountLike);
+      if (groupAccounts.length > 0) {
+        // The legacy action can return the last EVM wallet when a different
+        // account group is selected. Keep it only if it belongs to this group.
+        const legacyAddress = legacyEvmAccount?.address.toLowerCase();
+        if (
+          legacyAddress &&
+          groupAccounts.some(
+            ({ address }) => address.toLowerCase() === legacyAddress,
+          )
+        ) {
+          return legacyEvmAccount;
+        }
+        return findEvmAccount(groupAccounts) ?? undefined;
+      }
+    }
   } catch {
-    return undefined;
+    // Older clients and startup can use the legacy selection.
   }
+  return legacyEvmAccount;
 }
 
 export function getSelectedEvmAccountFromMessenger(

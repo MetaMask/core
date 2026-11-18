@@ -1548,29 +1548,6 @@ export class PerpsController extends BaseController<
       : getSelectedEvmAccountFromMessenger(
           this.messenger,
         )?.address.toLowerCase();
-    const getSelectedGroupTradingAccount = (): ReturnType<
-      typeof getSelectedEvmAccountFromMessenger
-    > | null => {
-      let accounts;
-      try {
-        accounts = this.messenger.call(
-          'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        );
-      } catch {
-        // Some clients only expose the legacy AccountsController action.
-      }
-      const legacyAccount = getSelectedEvmAccountFromMessenger(this.messenger);
-      if (!Array.isArray(accounts)) {
-        return legacyAccount;
-      }
-      return legacyAccount &&
-        accounts.some(
-          ({ address }) =>
-            address.toLowerCase() === legacyAccount.address.toLowerCase(),
-        )
-        ? legacyAccount
-        : (getEvmAccountFromAccountGroup(accounts) ?? null);
-    };
     const updateSelectedTradingAccount = (
       switchedAccount: ReturnType<
         typeof getSelectedEvmAccountFromMessenger
@@ -1613,7 +1590,8 @@ export class PerpsController extends BaseController<
         updateSelectedTradingAccount(
           account
             ? (getEvmAccountFromAccountGroup([account]) ??
-                getSelectedGroupTradingAccount())
+                getSelectedEvmAccountFromMessenger(this.messenger) ??
+                null)
             : getSelectedEvmAccountFromMessenger(this.messenger),
         ),
     );
@@ -1621,7 +1599,9 @@ export class PerpsController extends BaseController<
       'AccountTreeController:selectedAccountGroupChange',
       (groupId) =>
         updateSelectedTradingAccount(
-          groupId === '' ? null : getSelectedGroupTradingAccount(),
+          groupId === ''
+            ? null
+            : (getSelectedEvmAccountFromMessenger(this.messenger) ?? null),
         ),
     );
 
@@ -5477,23 +5457,26 @@ export class PerpsController extends BaseController<
     }
 
     const provider = this.getActiveProvider();
-    if (this.#selectedTradingAddress === undefined) {
-      const selectedAddress = getSelectedEvmAccountFromMessenger(
-        this.messenger,
-      )?.address.toLowerCase();
-      if (
-        selectedAddress &&
-        (params?.accountId === undefined ||
-          getCaipAccountAddress(params.accountId) === selectedAddress)
-      ) {
-        // Establish the wallet before the first selected-wallet refresh so a
-        // later startup selection event can keep the fresh account snapshot.
-        this.#selectedTradingAddress = selectedAddress;
-        this.update((state) => {
-          state.accountState = null;
-          state.perpsBalances = {};
-        });
-      }
+    const selectedAddress = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
+    const requestAddress =
+      params?.accountId === undefined
+        ? selectedAddress
+        : getCaipAccountAddress(params.accountId);
+    const selectedAccountGeneration = this.#selectedAccountGeneration;
+    if (
+      this.#selectedTradingAddress === undefined &&
+      selectedAddress &&
+      requestAddress === selectedAddress
+    ) {
+      // Establish the wallet before the first selected-wallet refresh so a
+      // later startup selection event can keep the fresh account snapshot.
+      this.#selectedTradingAddress = selectedAddress;
+      this.update((state) => {
+        state.accountState = null;
+        state.perpsBalances = {};
+      });
     }
     return this.#marketDataService.getAccountState({
       provider,
@@ -5511,6 +5494,17 @@ export class PerpsController extends BaseController<
           // matched against the active venue, so a response from a previous
           // venue is dropped when the route changed while it was in flight.
           isCurrent: (accountState) => {
+            if (
+              this.#selectedTradingAddress === null ||
+              requestAddress === undefined ||
+              this.#selectedAccountGeneration !== selectedAccountGeneration ||
+              requestAddress !==
+                getSelectedEvmAccountFromMessenger(
+                  this.messenger,
+                )?.address.toLowerCase()
+            ) {
+              return false;
+            }
             const active = this.activeProviderInstance;
             if (active instanceof AggregatedPerpsProvider) {
               const venueCount = active.getProviderIds().length;

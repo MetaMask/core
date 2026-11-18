@@ -805,6 +805,99 @@ describe('PerpsController', () => {
       expect(controller.state.perpsBalances).toStrictEqual({});
     });
 
+    it('uses the selected group EVM wallet when the selected account is on Solana', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const oldCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      oldCallback(accountState('100'));
+
+      const groupWallet = '0x00000000000000000000000000000000000000bb';
+      const solanaAccount = {
+        address: 'solana-address',
+        type: 'solana:data-account',
+      };
+      (mockMessenger.call as Mock).mockImplementation((action) => {
+        if (action === 'AccountsController:getSelectedAccount') {
+          return { address: selectedEvmAddress, type: 'eip155:eoa' };
+        }
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          return [solanaAccount, { address: groupWallet, type: 'eip155:eoa' }];
+        }
+        return undefined;
+      });
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) =>
+            event === 'AccountTreeController:selectedAccountGroupChange',
+        )
+        .forEach(([, handler]) => handler('mixed-group', 'previous-evm-group'));
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .forEach(([, handler]) => handler(solanaAccount));
+
+      oldCallback(accountState('150'));
+      expect(controller.state.accountState).toBeNull();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      mockProvider.subscribeToAccount.mock.calls[1][0].callback(
+        accountState('200'),
+      );
+      expect(controller.state.accountState?.totalBalance).toBe('200');
+    });
+
+    const useRealAccountRead = async (): Promise<void> => {
+      const { MarketDataService } = await vi.importActual<
+        typeof marketDataServiceModule
+      >('../../src/services/MarketDataService.js');
+      const service = new MarketDataService(mockInfrastructure);
+      mockMarketDataServiceInstance.getAccountState.mockImplementation(
+        service.getAccountState.bind(service),
+      );
+    };
+
+    it('keeps a REST response for the previous wallet out of selected state', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      await useRealAccountRead();
+      let resolveAccount!: (state: AccountState) => void;
+      mockProvider.getAccountState.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveAccount = resolve;
+        }),
+      );
+      const previousRead = controller.getAccountState();
+      selectedEvmAddress = '0x00000000000000000000000000000000000000bb';
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .forEach(([, handler]) => handler());
+      const previousAccount = accountState('100');
+      resolveAccount(previousAccount);
+
+      await expect(previousRead).resolves.toStrictEqual(previousAccount);
+      expect(controller.state.accountState).toBeNull();
+    });
+
+    it('returns an explicit REST query for another wallet without adopting it', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      await useRealAccountRead();
+      const otherAccount = accountState('100');
+      mockProvider.getAccountState.mockResolvedValueOnce(otherAccount);
+      const accountId = 'eip155:1:0x00000000000000000000000000000000000000bb';
+
+      await expect(
+        controller.getAccountState({ accountId }),
+      ).resolves.toStrictEqual(otherAccount);
+      expect(mockProvider.getAccountState).toHaveBeenCalledWith({ accountId });
+      expect(controller.state.accountState).toBeNull();
+    });
+
     it.each(['no update', 'null', 'snapshot', 'REST snapshot'])(
       'reconciles restored balances when %s precedes the first selection event',
       async (liveUpdate) => {
@@ -829,13 +922,7 @@ describe('PerpsController', () => {
           mockProvider.getAccountState.mockResolvedValueOnce(
             accountState('200'),
           );
-          const { MarketDataService } = await vi.importActual<
-            typeof marketDataServiceModule
-          >('../../src/services/MarketDataService.js');
-          const service = new MarketDataService(mockInfrastructure);
-          mockMarketDataServiceInstance.getAccountState.mockImplementationOnce(
-            service.getAccountState.bind(service),
-          );
+          await useRealAccountRead();
           await controller.getAccountState();
         } else {
           setupAggregatedMode();
