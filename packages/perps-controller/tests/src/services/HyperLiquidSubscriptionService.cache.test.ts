@@ -646,6 +646,11 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.objectContaining({ stopLossCount: 1 }),
       ]);
 
+      const replay = vi.fn();
+      let unsubscribeReplay: (() => void) | undefined;
+      account.mockImplementationOnce(() => {
+        unsubscribeReplay = service.subscribeToPositions({ callback: replay });
+      });
       const callbackFailure = new Error('position listener failed');
       positions.mockImplementationOnce(() => {
         throw callbackFailure;
@@ -654,6 +659,15 @@ describe('HyperLiquidSubscriptionService', () => {
         callbackFailure,
       );
       expect(account).toHaveBeenLastCalledWith(null);
+      expect(replay).toHaveBeenCalledOnce();
+      expect(replay).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          stopLossOrders: [
+            expect.objectContaining({ coverageUnavailable: true }),
+          ],
+        }),
+      ]);
+      unsubscribeReplay?.();
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
       expect(positions).toHaveBeenLastCalledWith([
         expect.objectContaining({

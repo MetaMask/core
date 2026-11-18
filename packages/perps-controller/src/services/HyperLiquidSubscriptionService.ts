@@ -2608,10 +2608,12 @@ export class HyperLiquidSubscriptionService {
           if (!Array.isArray(data.clearinghouseState?.assetPositions)) {
             this.#dexAccountCache.delete(cacheKey);
             this.#dexPositionsEpoch.delete(cacheKey);
+            const notifyPositions =
+              this.#invalidateDexProtectionCoverage(cacheKey);
             try {
               this.#notifyAccountSubscribers();
             } finally {
-              this.#invalidateDexProtectionCoverage(cacheKey);
+              notifyPositions?.();
             }
             return;
           }
@@ -2948,7 +2950,7 @@ export class HyperLiquidSubscriptionService {
 
     const ordersHash = this.#hashOrders(aggregatedOrders);
     const ordersChanged = ordersHash !== this.#cachedOrdersHash;
-    this.#notifyPositionsIfChanged(aggregatedPositions);
+    this.#updatePublishedPositions(aggregatedPositions)?.();
 
     if (ordersChanged) {
       this.#cachedOrders = aggregatedOrders;
@@ -2960,7 +2962,7 @@ export class HyperLiquidSubscriptionService {
     }
   }
 
-  #invalidateDexProtectionCoverage(dex: string): void {
+  #invalidateDexProtectionCoverage(dex: string): (() => void) | undefined {
     const markOrders = (
       orders?: PositionTriggerOrder[],
     ): PositionTriggerOrder[] | undefined =>
@@ -2978,25 +2980,36 @@ export class HyperLiquidSubscriptionService {
 
     // During reconnect the snapshot gate is closed. Change only previously
     // published positions on this DEX, leaving unverified orders untouched.
-    if (this.#cachedPositions) {
-      this.#notifyPositionsIfChanged(
-        this.#cachedPositions.map((position) =>
-          (parseAssetName(position.symbol).dex ?? '') === dex
-            ? markPosition(position)
-            : position,
-        ),
-      );
+    if (!this.#cachedPositions) {
+      return undefined;
     }
+    return this.#updatePublishedPositions(
+      this.#cachedPositions.map((position) =>
+        (parseAssetName(position.symbol).dex ?? '') === dex
+          ? markPosition(position)
+          : position,
+      ),
+    );
   }
 
-  #notifyPositionsIfChanged(positions: Position[]): void {
+  #updatePublishedPositions(positions: Position[]): (() => void) | undefined {
     const hash = this.#hashPositions(positions);
-    if (hash !== this.#cachedPositionsHash) {
-      this.#cachedPositions = positions;
-      this.#cachedPositionsHash = hash;
-      this.#positionsCacheInitialized = true;
-      this.#positionSubscribers.forEach((callback) => callback(positions));
+    if (hash === this.#cachedPositionsHash) {
+      return undefined;
     }
+    this.#cachedPositions = positions;
+    this.#cachedPositionsHash = hash;
+    this.#positionsCacheInitialized = true;
+    const subscribers = [...this.#positionSubscribers];
+    return () => {
+      if (this.#cachedPositions === positions) {
+        for (const callback of subscribers) {
+          if (this.#positionSubscribers.has(callback)) {
+            callback(positions);
+          }
+        }
+      }
+    };
   }
 
   #notifyAccountSubscribers(): void {
