@@ -2204,7 +2204,9 @@ export class SeedlessOnboardingController<
     // Fail fast if the refreshed idTokens do not belong to the identity in
     // state. This can happen when the identity changes while a token refresh
     // is in flight (there is no lock between the refresh and this call).
-    assertIdTokenMatchesUserId(idTokens, userId ?? '');
+    // `userId` is present: `#doRefreshAuthTokens` already asserted authentication.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    assertIdTokenMatchesUserId(idTokens, userId!);
 
     try {
       const authenticationResult = await this.toprfClient.authenticate({
@@ -2297,7 +2299,7 @@ export class SeedlessOnboardingController<
     // Fail before renewing the vault revoke token. A mismatched, missing, or
     // corrupted id token must not refresh another identity's credentials.
     if (idTokens) {
-      assertIdTokenMatchesUserId(idTokens, userId ?? '');
+      assertIdTokenMatchesUserId(idTokens, userId);
     }
 
     const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
