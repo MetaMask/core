@@ -61,7 +61,10 @@ import {
 } from '../../utils/polymarket/withdraw.js';
 import { processPostQuotePaymentOverride } from '../../utils/post-quote-payment-override.js';
 import { reservePostQuoteGas } from '../../utils/post-quote.js';
-import { estimateSourceGas } from '../../utils/quote-gas.js';
+import {
+  estimateSourceGas,
+  getSourceTransactions,
+} from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
@@ -795,8 +798,8 @@ async function calculateSourceNetworkCost(
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
-  const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
-    relayParams[0];
+  const { chainId, maxFeePerGas, maxPriorityFeePerGas } = relayParams[0];
+  const quoteTransactions = relayParams.map(toQuoteGasTransaction);
 
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.
@@ -818,7 +821,7 @@ async function calculateSourceNetworkCost(
       messenger,
       request,
       transaction,
-      transactions: relayParams.map(toQuoteGasTransaction),
+      transactions: quoteTransactions,
     });
 
   log('Gas limit', {
@@ -862,11 +865,6 @@ async function calculateSourceNetworkCost(
   const gasStationCost = await resolveGasStationCost({
     accountSupports7702,
     feeTokenAccount: proxyFeeTokenAccount,
-    firstStepData: {
-      data,
-      to,
-      value,
-    },
     messenger,
     nativeGasCostRaw: max.raw,
     request: {
@@ -875,9 +873,13 @@ async function calculateSourceNetworkCost(
       sourceTokenAddress,
     },
     totalGasEstimate,
-    totalItemCount: proxyFeeTokenAccount
-      ? relayParams.length + 1
-      : Math.max(relayParams.length, gasLimits.length),
+    transactions: proxyFeeTokenAccount
+      ? quoteTransactions
+      : getSourceTransactions({
+          request,
+          transaction,
+          transactions: quoteTransactions,
+        }),
   });
 
   if (!gasStationCost.amount) {
@@ -981,21 +983,15 @@ function isStablecoin(
 function getRelayMaxQuoteDetails({
   original,
 }: TransactionPayQuote<RelayQuote>): MaxQuoteDetails {
-  const firstTransactionStep = original.steps.find(
-    (step): step is RelayTransactionStep => step.kind === 'transaction',
-  );
-  const firstStepData = firstTransactionStep?.items[0]?.data;
+  const gasStationTransactions = original.steps
+    .filter((step): step is RelayTransactionStep => step.kind === 'transaction')
+    .flatMap((step) => step.items)
+    .map((item) => item.data);
 
   return {
     gasLimits: original.metamask.gasLimits,
-    gasStationTransactions: firstStepData
-      ? {
-          firstStepData,
-          totalItemCount: original.steps.reduce(
-            (count, step) => count + step.items.length,
-            0,
-          ),
-        }
+    gasStationTransactions: gasStationTransactions.length
+      ? gasStationTransactions
       : undefined,
     isGasless: original.metamask.isExecute === true,
     isSubsidized: isSubsidizedRelayQuote(original),
