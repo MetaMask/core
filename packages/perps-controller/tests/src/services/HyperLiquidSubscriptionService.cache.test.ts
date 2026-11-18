@@ -760,6 +760,50 @@ describe('HyperLiquidSubscriptionService', () => {
         unsubscribeLate();
       });
 
+      it('does not replay a pre-reconnect account as complete until every DEX republishes', async () => {
+        const { hip3Service, callbacks } = await createHip3Service();
+        const strict = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: strict,
+          requireCompleteAccount: true,
+        });
+        await vi.runAllTimersAsync();
+        publishAccount(callbacks, '', '10000');
+        publishAccount(callbacks, 'xyz', '500');
+        await vi.runAllTimersAsync();
+        expect(strict.mock.lastCall?.[0]).not.toBeNull();
+
+        // A reconnect retires the epoch; the per-DEX caches survive it.
+        mockClientService.getConnectionEpoch = vi.fn(() => 2);
+        const late = vi.fn();
+        const unsubscribeLate = hip3Service.subscribeToAccount({
+          callback: late,
+          requireCompleteAccount: true,
+        });
+        expect(late).toHaveBeenCalledWith(null);
+
+        // Only the main DEX has published on the new connection.
+        publishAccount(callbacks, '', '10001');
+        await vi.runAllTimersAsync();
+        expect(late.mock.calls.every(([account]) => account === null)).toBe(
+          true,
+        );
+
+        publishAccount(callbacks, 'xyz', '501');
+        await vi.runAllTimersAsync();
+        expect(late).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            subAccountBreakdown: expect.objectContaining({
+              main: expect.anything(),
+              xyz: expect.anything(),
+            }),
+          }),
+        );
+
+        unsubscribe();
+        unsubscribeLate();
+      });
+
       it('emits null until the spot balance loads, then the account', async () => {
         mockSpotClearinghouseState.mockRejectedValue(new Error('spot down'));
         const { hip3Service, callbacks } = await createHip3Service();

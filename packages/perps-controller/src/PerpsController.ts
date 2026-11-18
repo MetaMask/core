@@ -7719,8 +7719,9 @@ export class PerpsController extends BaseController<
     }
     try {
       const originalCallback = params.callback;
-      // perpsBalances belong to the selected account. A stream for another
-      // wallet must neither write nor drop those entries.
+      // accountState and perpsBalances belong to the selected account. A
+      // stream for another wallet only feeds its own consumer: it must neither
+      // write nor clear the selected account's snapshot or balances.
       const streamAddress = params.accountId?.split(':').at(-1)?.toLowerCase();
       const isSelectedAccountStream = (): boolean =>
         streamAddress === undefined ||
@@ -7734,15 +7735,12 @@ export class PerpsController extends BaseController<
           nextProvider.subscribeToAccount({
             ...params,
             callback: (account, aggregate) => {
-              const ownsBalances = isSelectedAccountStream();
-              if (account) {
+              const ownsState = isSelectedAccountStream();
+              if (ownsState && account) {
                 this.update((state) => {
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
                   state.lastError = null;
-                  if (!ownsBalances) {
-                    return;
-                  }
 
                   // One balance entry per venue with data, keyed by the venue
                   // that actually served it. Aggregated updates carry explicit
@@ -7802,13 +7800,10 @@ export class PerpsController extends BaseController<
                     }
                   }
                 });
-              } else {
+              } else if (ownsState) {
                 this.update((state) => {
                   state.accountState = null;
                   state.lastUpdateTimestamp = Date.now();
-                  if (!ownsBalances) {
-                    return;
-                  }
                   if (aggregate) {
                     // A null total may still contain pending venues. Only
                     // explicit unavailability invalidates their balances.

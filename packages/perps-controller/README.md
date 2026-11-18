@@ -176,8 +176,9 @@ A pending venue keeps its stored entry until it reports a snapshot, including
 when the first stream update is `null`. A `null` total clears `accountState`
 and removes only explicitly unavailable venues' entries. Every balance entry
 is cleared when the selected account changes or the network is toggled, and a
-stream for an explicit `accountId` other than the selected account neither
-writes nor removes entries.
+stream for an explicit `accountId` other than the selected account only
+reaches its own callback: it neither writes nor clears `accountState` or
+balance entries.
 Combined `spendableBalance` and `withdrawableBalance` span venues: neither is
 a limit any single venue will enforce on a new order or a withdrawal.
 

@@ -785,6 +785,34 @@ describe('PerpsController', () => {
         expect(controller.state.perpsBalances).toStrictEqual(persisted);
       });
 
+      it.each([
+        ['an account update', accountState('250')],
+        ['a null update', null],
+      ])(
+        'leaves the selected account snapshot alone on %s from another account',
+        (_label, update) => {
+          markControllerAsInitialized();
+          controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+          const selectedSnapshot = accountState('90');
+          controller.testUpdate((state) => {
+            state.accountState = selectedSnapshot;
+            state.lastUpdateTimestamp = 1;
+          });
+          const callback = vi.fn();
+          controller.subscribeToAccount({
+            callback,
+            accountId: otherAccountId,
+          });
+
+          mockProvider.subscribeToAccount.mock.calls[0][0].callback(update);
+
+          expect(controller.state.accountState).toStrictEqual(selectedSnapshot);
+          expect(controller.state.lastUpdateTimestamp).toBe(1);
+          // The stream's own consumer still receives the other account's data.
+          expect(callback).toHaveBeenCalledWith(update);
+        },
+      );
+
       it('writes balances when the explicit account is the selected one', () => {
         markControllerAsInitialized();
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

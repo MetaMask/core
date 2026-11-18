@@ -2583,9 +2583,11 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Whether the aggregated account covers the whole venue: every DEX the
-   * current configuration requires has published an account slice, and the
-   * spot balance has loaded. A failed DEX subscription or spot read leaves
-   * the account incomplete.
+   * current configuration requires has published an account slice on the
+   * live connection, and the spot balance has loaded. A failed DEX
+   * subscription or spot read leaves the account incomplete, and so does a
+   * reconnect: per-DEX slices survive it, but until each DEX republishes they
+   * describe the previous connection.
    *
    * @returns True when the aggregated account is the venue's full balance.
    */
@@ -2593,8 +2595,10 @@ export class HyperLiquidSubscriptionService {
     return (
       this.#cachedSpotState !== null &&
       this.#positionSnapshotDexs.size > 0 &&
-      Array.from(this.#positionSnapshotDexs).every((dexName) =>
-        this.#dexAccountCache.has(dexName),
+      Array.from(this.#positionSnapshotDexs).every(
+        (dexName) =>
+          this.#dexAccountCache.has(dexName) &&
+          this.#isPositionDexFresh(dexName),
       )
     );
   }
