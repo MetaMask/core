@@ -1,5 +1,0 @@
-{
-  "recommendation": "APPROVE",
-  "summary": "All three supplied P1 findings and the strict-read consistency follow-up are resolved in the reviewed Core fix snapshot. Client upgrade builds/runtime remain unverified.",
-  "comments": []
-}
