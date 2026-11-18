@@ -42,7 +42,6 @@ function createRecord(seq: number): ControlRecord {
       verifierId: 'user',
       authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
       keyIndex: seq,
-      enabled: true,
     },
     migratedAt: 1,
   };

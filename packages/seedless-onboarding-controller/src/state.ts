@@ -172,6 +172,38 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
   };
 
 /**
+ * The envelope-related flags derived from the controller state.
+ */
+export type SeedlessOnboardingEnvelopeStatus = {
+  /** Whether the vault is envelope-managed (`envelope` state is set). */
+  isEnvelopeManaged: boolean;
+  /** Whether an envelope migration checkpoint is pending. */
+  isMigrationPending: boolean;
+  /** Whether the vault password is local to this device. */
+  isLocalPassword: boolean;
+};
+
+/**
+ * Derive the envelope-related flags from the controller state.
+ *
+ * Reads only the existing state fields and persists nothing. The flags are
+ * independent, so a state with both an envelope and a pending migration is
+ * represented exactly.
+ *
+ * @param state - The controller state.
+ * @returns The envelope-related flags.
+ */
+export function getEnvelopeStatus(
+  state: SeedlessOnboardingControllerState,
+): SeedlessOnboardingEnvelopeStatus {
+  return {
+    isEnvelopeManaged: Boolean(state.envelope),
+    isMigrationPending: Boolean(state.pendingEnvelopeMigration),
+    isLocalPassword: state.isLocalPassword === true,
+  };
+}
+
+/**
  * Get the initial state for the Seedless Onboarding Controller with defaults.
  *
  * @param overrides - The overrides for the initial state.

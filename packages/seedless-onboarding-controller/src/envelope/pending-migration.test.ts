@@ -58,7 +58,6 @@ async function createSealedPending(): Promise<SealedPending> {
         verifierId: 'user',
         authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
         keyIndex: 1,
-        enabled: true,
       },
       migratedAt: 1,
     },

@@ -82,6 +82,7 @@ import type {
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController-types.js';
 import {
+  getEnvelopeStatus,
   getInitialSeedlessOnboardingControllerStateWithDefaults,
   seedlessOnboardingMetadata,
 } from './state.js';
@@ -573,7 +574,7 @@ export class SeedlessOnboardingController<
       const performBackup = async (): Promise<void> => {
         // a local password is outdated by design until it is reset, so the
         // vault keys it unlocks are the source of truth for the new data
-        if (!this.state.isLocalPassword) {
+        if (!getEnvelopeStatus(this.state).isLocalPassword) {
           await this.#assertPasswordInSync({
             skipCache: true,
             skipLock: true, // skip lock since we already have the lock
@@ -882,7 +883,7 @@ export class SeedlessOnboardingController<
             newPassword,
           });
         } else {
-          if (this.state.envelope) {
+          if (getEnvelopeStatus(this.state).isEnvelopeManaged) {
             throw new SeedlessOnboardingError(
               SeedlessOnboardingControllerErrorMessage.EnvelopeControlRecordNotFound,
             );
@@ -984,7 +985,6 @@ export class SeedlessOnboardingController<
         ...currentRecord.passwordNamespace,
         authSk: bigIntToHex(authKeyPair.sk),
         keyIndex: latestKeyIndex + 1,
-        enabled: true,
       },
     };
 
@@ -2725,7 +2725,10 @@ export class SeedlessOnboardingController<
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsUnlocked();
         const { envelope, pendingEnvelopeMigration } = this.state;
-        if (envelope && !pendingEnvelopeMigration) {
+        const { isEnvelopeManaged, isMigrationPending } = getEnvelopeStatus(
+          this.state,
+        );
+        if (isEnvelopeManaged && !isMigrationPending) {
           return;
         }
         if (
@@ -2951,7 +2954,8 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsUnlocked();
-        if (!this.state.envelope || !this.state.isLocalPassword) {
+        const status = getEnvelopeStatus(this.state);
+        if (!status.isEnvelopeManaged || !status.isLocalPassword) {
           throw new SeedlessOnboardingError(
             SeedlessOnboardingControllerErrorMessage.PasswordResetRequiresRecovery,
           );
@@ -3100,7 +3104,6 @@ export class SeedlessOnboardingController<
           verifierId: userId,
           authSk: bigIntToHex(vaultKeySet.authKeyPair.sk),
           keyIndex,
-          enabled: true,
         },
         migratedAt: Date.now(),
       },

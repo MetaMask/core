@@ -54,7 +54,6 @@ function createRecord(seq: number, sk: bigint): ControlRecord {
       verifierId: 'user',
       authSk: bigIntToHex(sk),
       keyIndex: seq,
-      enabled: true,
     },
     migratedAt: 1,
   };
@@ -277,7 +276,6 @@ describe('envelope keys', () => {
       ['a negative keyIndex', { keyIndex: -1 }],
       ['a fractional keyIndex', { keyIndex: 1.5 }],
       ['an unsafe keyIndex', { keyIndex: 2 ** 53 }],
-      ['a non-boolean enabled', { enabled: 'true' }],
       ['an empty verifier', { verifier: '' }],
       ['a numeric verifier', { verifier: 1 }],
       ['an empty verifierId', { verifierId: '' }],
@@ -292,6 +290,19 @@ describe('envelope keys', () => {
       expect(() => parseControlRecord(stringToBytes(data))).toThrow(
         INVALID_ENVELOPE,
       );
+    });
+
+    it('drops a leftover enabled field from a stored record', () => {
+      const record = createRecord(1, 11n);
+      const stored = {
+        ...record,
+        passwordNamespace: { ...record.passwordNamespace, enabled: true },
+      };
+
+      const parsed = parseControlRecord(stringToBytes(JSON.stringify(stored)));
+
+      expect(parsed).toStrictEqual(record);
+      expect(parsed.passwordNamespace).not.toHaveProperty('enabled');
     });
 
     it('checks values with toControlRecord without throwing', () => {

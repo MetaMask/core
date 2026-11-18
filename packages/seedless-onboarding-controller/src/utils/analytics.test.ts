@@ -170,7 +170,6 @@ describe('identifyIncompleteMetadataBackup', () => {
         verifierId: 'user',
         authSk: bigIntToHex(1n),
         keyIndex: 1,
-        enabled: true,
       },
       migratedAt: 1,
     };

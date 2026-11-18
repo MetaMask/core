@@ -1,6 +1,5 @@
 import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import {
-  boolean,
   enums,
   is,
   literal,
@@ -66,8 +65,6 @@ export type ControlRecord = {
     /** Hex encoded auth private key registered with the password OPRF key. */
     authSk: string;
     keyIndex: number;
-    /** `false` once the password OPRF key is a discarded random key. */
-    enabled: boolean;
   };
   migratedAt: number;
 };
@@ -315,7 +312,6 @@ const ControlRecordStruct = type({
     verifierId: nonempty(string()),
     authSk: refine(string(), 'hex encoded secp256k1 private key', isAuthSk),
     keyIndex: SafeNonNegativeIntegerStruct,
-    enabled: boolean(),
   }),
   migratedAt: SafeNonNegativeIntegerStruct,
 });
@@ -340,7 +336,6 @@ export function toControlRecord(value: unknown): ControlRecord | undefined {
       verifierId: ns.verifierId,
       authSk: ns.authSk,
       keyIndex: ns.keyIndex,
-      enabled: ns.enabled,
     },
     migratedAt: value.migratedAt,
   };

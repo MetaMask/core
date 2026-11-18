@@ -56,7 +56,6 @@ function createRecord(seq: number): ControlRecord {
       verifierId: 'user',
       authSk: bigIntToHex(11n),
       keyIndex: seq,
-      enabled: true,
     },
     migratedAt: 1,
   };

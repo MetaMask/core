@@ -446,7 +446,6 @@ describe('SeedlessOnboardingController', () => {
           verifierId: MOCK_USER_ID,
           authSk: bigIntToHex(keysFor(password).authKeyPair.sk),
           keyIndex: 1,
-          enabled: true,
         },
         migratedAt: 1,
       };
@@ -951,7 +950,6 @@ describe('SeedlessOnboardingController', () => {
             verifierId: MOCK_USER_ID,
             authSk: bigIntToHex(vaultKeySetFor().authKeyPair.sk),
             keyIndex,
-            enabled: true,
           },
           migratedAt: expect.any(Number),
         };
