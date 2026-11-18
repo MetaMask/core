@@ -1006,7 +1006,17 @@ describe('PerpsController', () => {
       expect(mockProvider.cancelOrders).toHaveBeenCalledWith([order]);
     });
 
-    it.each([{ orders: null }, { orderIds: null }, { symbols: 'BTC' }])(
+    it.each([
+      { orders: null },
+      { orderIds: null },
+      { symbols: 'BTC' },
+      {
+        orders: [
+          { ...order, providerId: 'hyperliquid' },
+          { ...order, orderId: '456' },
+        ],
+      },
+    ])(
       'rejects malformed selections before discovering orders: %j',
       async (params) => {
         markControllerAsInitialized();

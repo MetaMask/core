@@ -2151,7 +2151,26 @@ describe('TradingService', () => {
       },
     ];
 
-    it.each([{ orders: null }, { orderIds: {} }, { symbols: null }])(
+    const validSelection = {
+      providerId: 'hyperliquid',
+      symbol: 'BTC',
+      orderId: 'order-1',
+    };
+
+    it.each([
+      { orders: null },
+      { orderIds: {} },
+      { symbols: null },
+      { orders: [validSelection, null] },
+      {
+        orders: [
+          validSelection,
+          { ...validSelection, providerId: 'aggregated' },
+        ],
+      },
+      { orders: [validSelection, { ...validSelection, symbol: ' ' }] },
+      { orders: [validSelection, { ...validSelection, orderId: 123 }] },
+    ])(
       'rejects an invalid batch filter before reading orders: %j',
       async (params) => {
         const getOpenOrders = vi.fn().mockResolvedValue(mockOrders);

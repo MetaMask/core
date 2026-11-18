@@ -1,4 +1,5 @@
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import type {
   CancelOrdersParams,
   Order,
@@ -368,6 +369,28 @@ export function assertCancelOrderFilters(params: CancelOrdersParams): void {
     if (params[key] !== undefined && !Array.isArray(params[key])) {
       throw new Error(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED, {
         cause: new TypeError(`${key} must be an array`),
+      });
+    }
+  }
+
+  const selection: readonly unknown[] = params.orders ?? [];
+  for (const order of selection) {
+    if (
+      typeof order !== 'object' ||
+      order === null ||
+      !('providerId' in order) ||
+      !isPerpsProviderType(order.providerId) ||
+      !('symbol' in order) ||
+      typeof order.symbol !== 'string' ||
+      !order.symbol.trim() ||
+      !('orderId' in order) ||
+      typeof order.orderId !== 'string' ||
+      !order.orderId.trim()
+    ) {
+      throw new Error(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED, {
+        cause: new TypeError(
+          'Each qualified order requires a venue, symbol and ID',
+        ),
       });
     }
   }
