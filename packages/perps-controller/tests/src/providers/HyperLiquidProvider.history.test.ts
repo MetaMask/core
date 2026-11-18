@@ -1608,6 +1608,31 @@ describe('HyperLiquidProvider', () => {
       ).rejects.toThrow('main: state transport down');
     });
 
+    it('preserves the stale lifecycle error when DEX discovery crosses a disconnect', async () => {
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const started = createDeferred<void>();
+      const response = createDeferred<[null, { name: string }]>();
+      const info = createMockInfoClient();
+      info.perpDexs.mockImplementation(() => {
+        started.resolve();
+        return response.promise;
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(info);
+
+      const read = provider.getPositions({ skipCache: true });
+      const rejected = expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await started.promise;
+      await provider.disconnect();
+      response.resolve([null, { name: 'xyz' }]);
+      await rejected;
+      expect(info.clearinghouseState).not.toHaveBeenCalled();
+    });
+
     it('rejects strict discovery when the transport fails instead of reporting an empty venue', async () => {
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
         frontendOpenOrders: vi.fn().mockRejectedValue(new Error('API Error')),

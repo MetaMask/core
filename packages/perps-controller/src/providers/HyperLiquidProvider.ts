@@ -14150,7 +14150,11 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return allPositions;
     } catch (error) {
-      if (params?.throwOnUnavailable) {
+      if (
+        params?.throwOnUnavailable ||
+        (error instanceof Error &&
+          error.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
+      ) {
         throw error;
       }
       this.#deps.debugLogger.log('Error getting positions:', error);
