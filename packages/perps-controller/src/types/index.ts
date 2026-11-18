@@ -1009,6 +1009,12 @@ export type PositionTriggerOrder = {
   triggerPrice: string; // Price at which the order activates
   size: string; // Quantity this trigger closes (resolved to position size when the protocol encodes "whole position")
   isPartial: boolean; // true when `size` is smaller than the position size
+  /**
+   * Position coverage cannot be resolved yet. Use the trigger price and order
+   * ID normally, but do not present the size as resolved or use the partial
+   * flag until a fresh position arrives.
+   */
+  coverageUnavailable?: true;
   reduceOnly: boolean; // Whether the trigger can only reduce the position
 };
 

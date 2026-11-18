@@ -260,6 +260,7 @@ export function buildPositionTriggerOrderFromOrder(params: {
       absolutePositionSize !== undefined &&
       absolutePositionSize > 0 &&
       rawSize < absolutePositionSize,
+    ...(!positionSizeIsFresh && { coverageUnavailable: true }),
     reduceOnly: Boolean(order.reduceOnly),
   };
 }
@@ -360,7 +361,7 @@ export function hashTriggerOrders(orders?: PositionTriggerOrder[]): string {
   return orders
     .map(
       (order) =>
-        `${order.orderId}:${order.direction}:${order.orderType ?? '?'}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}`,
+        `${order.orderId}:${order.direction}:${order.orderType ?? '?'}@${order.triggerPrice}x${order.size}${order.isPartial ? 'p' : ''}${order.coverageUnavailable ? '?' : ''}`,
     )
     .join(',');
 }

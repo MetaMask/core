@@ -663,7 +663,11 @@ describe('HyperLiquidSubscriptionService', () => {
           stopLossCount: 1,
           takeProfitCount: 0,
           stopLossOrders: [
-            expect.objectContaining({ size: '0', isPartial: false }),
+            expect.objectContaining({
+              size: '0',
+              isPartial: false,
+              coverageUnavailable: true,
+            }),
           ],
         }),
       ]);
@@ -710,6 +714,11 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(service.getOrdersCacheIfInitialized(true)).toMatchObject([
         { orderId: '1', size: '0.25' },
       ]);
+
+      const recoveredProtection =
+        positions.mock.lastCall?.[0][0].stopLossOrders[0];
+      expect(recoveredProtection).toMatchObject({ size: '0.25' });
+      expect(recoveredProtection).not.toHaveProperty('coverageUnavailable');
 
       unsubscribePositions();
       unsubscribeAccount();
