@@ -21,29 +21,32 @@ A **session** is one signed-in period. A new session starts whenever the signed-
 
 ## Pending change
 
-The controller's only state is `pendingMarketingConsent`: the consent value waiting to be saved to AUS. It is persisted, so it survives restarts.
+The controller holds no state. Whether a local change is waiting to be saved to AUS is the `marketingConsentSyncPending` flag of `AnalyticsController`; the value waiting is local consent (`optedInToMarketing`). The flag is persisted with consent, in the same state update, so the two cannot disagree after a restart.
 
-| Value   | Meaning                        |
-| ------- | ------------------------------ |
-| `null`  | nothing waiting                |
-| `true`  | an opt-in waiting to be saved  |
-| `false` | an opt-out waiting to be saved |
+| `AnalyticsController` method                   | Consent   | `marketingConsentSyncPending`     |
+| ---------------------------------------------- | --------- | --------------------------------- |
+| `optInToMarketing` / `optOutOfMarketing`       | set       | `true`                            |
+| `applyRemoteMarketingConsent` (value from AUS) | set       | unchanged; does nothing if `true` |
+| `clearMarketingConsentSyncPending(value)`      | unchanged | `false` if consent equals `value` |
+| `resetMarketingConsentDecision`                | undecided | `false`                           |
 
-It is set by `setMarketingConsent`, and by consent changes other code makes in `AnalyticsController` (seen through `AnalyticsController:stateChanged`). `setMarketingConsent` queues its value even when local consent already matches, so an explicit choice wins over a different value in AUS. Values the controller applies from AUS are not queued.
+Every local choice is marked pending, whether it comes from `setMarketingConsent` or from other code calling `AnalyticsController` directly, even when it matches local consent, so an explicit choice wins over a different value in AUS. Values the controller applies from AUS are not marked pending, so they are never written back. A reset drops the pending change: an undecided client has nothing to write and reads AUS instead.
+
+The controller subscribes to `AnalyticsController:stateChanged` with a selector that only picks the pending value, so the many other updates `AnalyticsController` makes (for example to its event queue on every tracked event) don't start a sync.
 
 A pending change isn't tied to a profile: it is written to whichever profile signs in next.
 
 ```mermaid
 flowchart LR
-  nothing["Nothing waiting<br/>(null)"]
-  waiting["Change waiting<br/>(true = opt-in, false = opt-out)"]
-  nothing -- "consent changes" --> waiting
-  waiting -- "saved to AUS, or dropped<br/>by a failed setMarketingConsent" --> nothing
+  nothing["Nothing waiting<br/>(flag off)"]
+  waiting["Change waiting<br/>(flag on; local consent is the value)"]
+  nothing -- "local consent choice" --> waiting
+  waiting -- "saved to AUS, dropped by a failed<br/>setMarketingConsent, or reset" --> nothing
 ```
 
 While a change is waiting:
 
-- A newer change replaces it (`true` becomes `false` or the other way round). Only one value is ever waiting.
+- A newer choice replaces it. Only one value is ever waiting: local consent.
 - It stays put while the controller is not ready, or after a failed write. A failed write is retried on the next unlock, sign-in, consent change or `refresh()`, not straight away, so a run can't loop while AUS is down. There is no retry timer; individual AUS requests already retry with backoff through the service policy.
 
 ## Sync run
@@ -56,7 +59,7 @@ flowchart TD
   pending -- yes --> write[Write it to AUS]
   write --> newer{Changed again during the write?}
   newer -- yes --> write
-  newer -- no --> clear[Clear the pending change]
+  newer -- no --> clear[Clear the pending flag]
   pending -- no --> read[Read consent from AUS]
   read --> empty{AUS has a value?}
   empty -- no --> upload[Write the local value to AUS]
@@ -65,11 +68,13 @@ flowchart TD
   off -- yes --> notifications[Turn marketing notifications off]
 ```
 
-If a change is queued while the AUS read is in progress, the read result is ignored and the change is written instead.
+If a change is made while the AUS read is in progress, the read result is ignored and the change is written instead.
+
+After a write, the controller calls `clearMarketingConsentSyncPending` with the value it wrote. The flag is only cleared if local consent still equals that value, so a change made during the write stays pending and is written next.
 
 A write that has started is never cancelled; a newer change is written after it. Only the latest value is ever written next, so values the user moved past are skipped: if the user changes consent several times during a write, at most one more write follows, and none if they end up back on the value being written. Before sign-in, or while another run is still reading AUS, intermediate values are never sent at all.
 
-When a run ends, another starts if the session changed, a `refresh()` was requested during the run, or the run succeeded and a change was queued after its last write.
+When a run ends, another starts if the session changed, a `refresh()` was requested during the run, or the run succeeded and a change was made after its last write.
 
 See [MarketingConsentController.ts](/packages/marketing-consent-controller/src/MarketingConsentController.ts) (`#sync`, `#run`, `#reconcileWithAus`, `#flushPendingConsent`).
 
@@ -77,8 +82,8 @@ See [MarketingConsentController.ts](/packages/marketing-consent-controller/src/M
 
 `setMarketingConsent(enabled)`:
 
-1. Applies the choice locally through `AnalyticsController`.
-2. Queues it as the pending change and starts a sync, before awaiting anything, so an older call that resumes later cannot overwrite a newer one.
+1. Applies the choice locally through `AnalyticsController:optInToMarketing` or `optOutOfMarketing`, which mark it pending before awaiting anything, so an older call that resumes later cannot overwrite a newer one.
+2. Starts a sync.
 3. Resolves immediately if the controller is not ready. The change is saved once the wallet is unlocked and signed in.
 4. Otherwise waits until AUS confirms this exact value in the same session.
 
@@ -86,7 +91,7 @@ On failure:
 
 - If a newer choice was made while it waited (a newer `setMarketingConsent` call, or other code changing consent in `AnalyticsController`), it resolves; the newer choice is saved on its own.
 - If the wallet locked or the user was signed out during the save, the change stays pending and the call rejects.
-- Otherwise the change is dropped, consent is re-read from AUS and applied locally, and the call rejects.
+- Otherwise the change is dropped (`clearMarketingConsentSyncPending`), consent is re-read from AUS and applied locally, and the call rejects.
 
 ## Marketing notifications
 

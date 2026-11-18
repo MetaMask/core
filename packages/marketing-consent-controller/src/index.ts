@@ -1,16 +1,14 @@
-export type {
-  MarketingConsentControllerActions,
-  MarketingConsentControllerEvents,
-  MarketingConsentControllerGetStateAction,
-  MarketingConsentControllerMessenger,
-  MarketingConsentControllerState,
-  MarketingConsentControllerStateChangedEvent,
-} from './MarketingConsentController.js';
 export {
   MarketingConsentController,
-  getDefaultMarketingConsentControllerState,
+  controllerName,
 } from './MarketingConsentController.js';
 export type {
+  MarketingConsentControllerActions,
+  MarketingConsentControllerMessenger,
+  MarketingConsentControllerOptions,
+} from './MarketingConsentController.js';
+export type {
+  MarketingConsentControllerMethodActions,
   MarketingConsentControllerRefreshAction,
   MarketingConsentControllerSetMarketingConsentAction,
 } from './MarketingConsentController-method-action-types.js';
