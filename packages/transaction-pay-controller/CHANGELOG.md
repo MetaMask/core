@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `ServerStrategy` instead of Relay for the crypto leg of `FiatStrategy` ([#11503](https://github.com/MetaMask/core/pull/11503))
   - Rate drift and fee reserve checks use the normalized quote amounts.
   - `ServerStrategy` no longer declines direct mUSD Money Account requests.
+- Send CAIP-19 `sourceAsset` and `targetAsset` in `ServerStrategy` quote requests ([#11578](https://github.com/MetaMask/core/pull/11578))
+  - Replaces the `source` and `target` chain ID and token address objects.
+  - Native tokens use `slip44` asset IDs, and the Hyperliquid perps margin account uses `hyperliq:mainnet/perps:usdc` instead of the HyperCore placeholder address.
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
 
 ### Fixed
