@@ -3200,9 +3200,15 @@ export class HyperLiquidSubscriptionService {
     // Increment position subscriber count
     this.#positionSubscriberCount += 1;
 
-    // Immediately provide cached data if available
-    if (this.#cachedPositions) {
-      callback(this.#cachedPositions);
+    // Replay is synchronous. A failed callback has no cleanup handle yet.
+    try {
+      if (this.#cachedPositions) {
+        callback(this.#cachedPositions);
+      }
+    } catch (error) {
+      unsubscribe();
+      this.#positionSubscriberCount -= 1;
+      throw error;
     }
 
     // Ensure shared subscription is active

@@ -786,6 +786,54 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribeAccount();
     });
 
+    it('removes a position registration if the cached replay throws', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const livePositions = vi.fn();
+      const survivor = vi.fn();
+      const cleanup = service.subscribeToPositions({ callback: livePositions });
+      const cleanupSurvivor = service.subscribeToPositions({
+        callback: survivor,
+      });
+      const onAccount = await accountFrames.promise;
+      const emit = (size: string) => {
+        onAccount({
+          dex: '',
+          clearinghouseState: {
+            assetPositions: [
+              { position: { ...validPositionBalances, szi: size } },
+            ],
+            marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+            withdrawable: '90',
+          },
+        });
+      };
+      emit('0.1');
+      expect(livePositions).toHaveBeenCalledOnce();
+
+      const callbackFailure = new Error('cached positions callback failed');
+      livePositions.mockImplementationOnce(() => {
+        throw callbackFailure;
+      });
+      expect(() =>
+        service.subscribeToPositions({ callback: livePositions }),
+      ).toThrow(callbackFailure);
+      cleanup();
+      emit('0.25');
+      expect(livePositions).toHaveBeenCalledTimes(2);
+      expect(survivor).toHaveBeenLastCalledWith([
+        expect.objectContaining({ size: '0.25' }),
+      ]);
+      cleanupSurvivor();
+    });
+
     it('does not initialize the order stream from a malformed clearinghouse frame', async () => {
       const frames = createDeferred<(payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(
