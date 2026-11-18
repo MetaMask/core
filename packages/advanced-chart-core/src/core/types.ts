@@ -139,6 +139,28 @@ export type TVTimeRange = {
   to: number;
 };
 
+/**
+ * A "period-back" time frame, e.g. `{ type: 'period-back', value: '3M' }`.
+ * TradingView only accepts day/month/year units for `value` (`\d+(y|m|d)`).
+ */
+export type TVPeriodBack = {
+  type: 'period-back';
+  value: string;
+};
+
+/** A time frame value accepted by {@link TVChartingLibraryWidget.setTimeFrame}. */
+export type TVTimeFrameValue = TVTimeRange | TVPeriodBack;
+
+/**
+ * Argument shape for {@link TVChartingLibraryWidget.setTimeFrame} — mirrors
+ * TradingView's `RangeOptions`: a time frame plus the resolution to apply with
+ * it, atomically.
+ */
+export type TVSetTimeFrameOptions = {
+  val: TVTimeFrameValue;
+  res: TVResolution;
+};
+
 export type TVWidgetEvent = 'mouse_down' | 'mouse_up' | 'panes_height_changed';
 
 export type TVChartingLibraryWidget = {
@@ -149,6 +171,11 @@ export type TVChartingLibraryWidget = {
   resize(): void;
   remove(): void;
   resetCache?(): void;
+  /**
+   * Set the visible time frame and resolution atomically. Present in the
+   * runtime charting library; optional here so callers guard before use.
+   */
+  setTimeFrame?(timeFrame: TVSetTimeFrameOptions): void;
 };
 
 export type TVSubscription<TArgs extends unknown[] = []> = {

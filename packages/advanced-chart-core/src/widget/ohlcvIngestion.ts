@@ -131,20 +131,53 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
         applyVisibleRange(chart);
         emitLayoutSettled();
       } else {
-        // Different resolution — let setResolution handle the transition
-        // naturally. TV calls getBars internally, the datafeed returns the
-        // new bars (already stored via setOhlcvData above), and TV renders
-        // them smoothly without a blank frame. No resetData needed.
+        // Different resolution. Apply the target window AND the new resolution
+        // atomically via `setTimeFrame` rather than `setResolution` alone.
+        //
+        // ASSETS-4400: on a resolution change TradingView keeps the previous
+        // interval's visible TIME range and sizes the first `getBars`
+        // `countBack` to fill that range at the new resolution. Switching
+        // between a coarse and a fine interval therefore derives an enormous
+        // `countBack` from the inherited (mismatched) range — e.g. a multi-month
+        // daily view becomes tens of thousands of 5-minute bars — which triggers
+        // a deep backward pagination storm. This `getBars` fires synchronously
+        // inside `setResolution`, before any `setVisibleRange` can narrow the
+        // view, so pre-narrowing asynchronously does not help and widening on a
+        // fine→coarse switch storms the other way. Setting the window and
+        // resolution in a single `setTimeFrame` call means `countBack` is always
+        // computed from the target window at the new resolution, eliminating the
+        // storm in both directions. History/pagination is untouched (no
+        // `noData`), so scroll-back still lazily loads older bars.
         claimLegendSettleOwnership();
         const seq = bumpHotReloadSeq();
-        chart.setResolution(newResolution, () => {
+        const fromMs = getVisibleFromMs();
+
+        const finishResolutionSwitch = (): void => {
           if (getHotReloadSeq() !== seq) {
             return;
           }
           resetMainPriceScaleAutoScale(chart);
           applyVisibleRange(chart, { dataAlreadyLoaded: true });
           emitLayoutSettled();
-        });
+        };
+
+        if (fromMs === null || typeof widget.setTimeFrame !== 'function') {
+          // No target window (auto-fit), or the running charting library does
+          // not expose `setTimeFrame` — fall back to a plain resolution switch.
+          chart.setResolution(newResolution, finishResolutionSwitch);
+        } else {
+          const range = computeClampedVisibleRangeSec(fromMs);
+          try {
+            widget.setTimeFrame({
+              val: { type: 'time-range', from: range.from, to: range.to },
+              res: newResolution,
+            });
+            finishResolutionSwitch();
+          } catch (error) {
+            reportErrorToRN(error);
+            chart.setResolution(newResolution, finishResolutionSwitch);
+          }
+        }
       }
     } catch (error) {
       reportErrorToRN(error);
@@ -183,6 +216,35 @@ export function handleRealtimeUpdate(
   });
 }
 
+/**
+ * Compute the visible range (in whole seconds) for a requested start time,
+ * pinned to the loaded data: the start is clamped so it never predates the
+ * oldest loaded bar, and the end is the last loaded bar plus a 2-bar right pad.
+ *
+ * Clamping the start (ASSETS-4400) keeps the range inside already-loaded bars
+ * so framing never asks TradingView to fill an interval older than what is in
+ * memory (which would trigger network pagination). Falls back to `Date.now()`
+ * for the end when no bars are loaded.
+ *
+ * @param fromMs - Requested visible-range start, in milliseconds.
+ * @returns The clamped `{ from, to }` range in whole seconds.
+ */
+function computeClampedVisibleRangeSec(fromMs: number): {
+  from: number;
+  to: number;
+} {
+  const data = getOhlcvData();
+  const lastBar = data.at(-1);
+  const oldestBarMs = data[0]?.time;
+  const clampedFromMs =
+    oldestBarMs === undefined ? fromMs : Math.max(fromMs, oldestBarMs);
+  const toSec = lastBar
+    ? Math.ceil(lastBar.time / 1000)
+    : Math.ceil(Date.now() / 1000);
+  const barPadSec = getApproxBarDurationSec(data) * 2;
+  return { from: Math.floor(clampedFromMs / 1000), to: toSec + barPadSec };
+}
+
 function applyVisibleRange(
   chart: TVActiveChart,
   options?: { dataAlreadyLoaded?: boolean },
@@ -205,9 +267,10 @@ function applyVisibleRange(
     return;
   }
 
-  // Strategy A / B: anchor the visible range from `visibleFromMs` to the
-  // last bar + 2-bar padding. This one-sided framing works because Token
-  // Details and Perps always want the right edge near the latest candle.
+  // Strategy A / B: anchor the visible range from `visibleFromMs` (clamped to
+  // the oldest loaded bar) to the last bar + 2-bar padding. This one-sided
+  // framing works because Token Details and Perps always want the right edge
+  // near the latest candle.
   const capturedGeneration = getOhlcvGeneration();
   const subscription = chart.onDataLoaded();
   const onLoaded = (): void => {
@@ -215,17 +278,12 @@ function applyVisibleRange(
     if (capturedGeneration !== getOhlcvGeneration()) {
       return;
     }
-    const data = getOhlcvData();
-    const lastBar = data.at(-1);
-    const toSec = lastBar
-      ? Math.ceil(lastBar.time / 1000)
-      : Math.ceil(Date.now() / 1000);
-    const barPadSec = getApproxBarDurationSec(data) * 2;
+    // Clamp the start to the oldest loaded bar (ASSETS-4400) so the pin never
+    // frames an interval older than the bars in memory.
     try {
-      chart.setVisibleRange(
-        { from: Math.floor(fromMs / 1000), to: toSec + barPadSec },
-        { percentRightMargin: 0 },
-      );
+      chart.setVisibleRange(computeClampedVisibleRangeSec(fromMs), {
+        percentRightMargin: 0,
+      });
     } catch (error) {
       reportErrorToRN(error);
     }
