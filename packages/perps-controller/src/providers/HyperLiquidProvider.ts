@@ -2044,7 +2044,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return result;
     }
     const supportedMarginModes: readonly MarginMode[] = Object.freeze(
-      this.#isCrossMarginSupported(params.symbol, result.market)
+      this.#isCrossMarginSupported(result.market)
         ? ['isolated', 'cross']
         : ['isolated'],
     );
@@ -2055,25 +2055,24 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Whether the venue accepts Cross margin for a market. Both SDK
-   * `marginMode` values (strictIsolated and noCross) prohibit Cross, and any
-   * future restriction value is treated as unsupported until handled
-   * explicitly. HIP-3 collateral transfers still assume isolated margin, so
-   * Cross stays unavailable there until that account-mode-aware path is
-   * supported.
+   * Whether the venue accepts Cross margin for a market, main DEX or HIP-3.
+   * An absent `marginMode` or `normal` allows Cross; strictIsolated, noCross
+   * and any future restriction value prohibit it, as does the deprecated
+   * `onlyIsolated` flag.
    *
-   * @param symbol - Market symbol, including its DEX route when applicable.
    * @param asset - Venue margin metadata for the market.
    * @param asset.onlyIsolated - Whether the market only allows isolated margin.
    * @param asset.marginMode - Venue margin-mode restriction, if any.
    * @returns True when Cross margin orders are accepted.
    */
-  #isCrossMarginSupported(
-    symbol: string,
-    asset: { onlyIsolated?: boolean; marginMode?: string },
-  ): boolean {
-    const { dex } = parseAssetName(symbol);
-    return !asset.onlyIsolated && !asset.marginMode && dex === null;
+  #isCrossMarginSupported(asset: {
+    onlyIsolated?: boolean;
+    marginMode?: string;
+  }): boolean {
+    return (
+      !asset.onlyIsolated &&
+      (asset.marginMode === undefined || asset.marginMode === 'normal')
+    );
   }
 
   /**
@@ -6172,7 +6171,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Calculate required margin for HIP-3 order based on existing position
    * Handles three scenarios:
-   * 1. Increasing existing position - requires TOTAL margin (temporary over-funding)
+   * 1. Increasing an isolated position - requires TOTAL margin (temporary over-funding)
    * 2. Reducing/flipping position - requires margin for new order only
    * 3. New position - requires margin for new order only
    *
@@ -6205,12 +6204,17 @@ export class HyperLiquidProvider implements PerpsProvider {
     let requiredMarginWithBuffer: number;
 
     // HyperLiquid validates isolated margin by checking if available balance >= TOTAL position margin
-    // When increasing a position, we need to ensure enough funds are available for the TOTAL combined size
+    // When increasing a position, we need to ensure enough funds are available for the TOTAL combined size.
+    // A Cross position's margin already sits in the DEX's cross balance, so
+    // increasing it needs only the new order's margin.
     if (existingPosition) {
       const existingIsLong = parseFloat(existingPosition.size) > 0;
       const orderIsLong = isBuy;
 
-      if (existingIsLong === orderIsLong) {
+      if (
+        existingIsLong === orderIsLong &&
+        existingPosition.leverage.type !== 'cross'
+      ) {
         // Increasing position - HyperLiquid validates spendableBalance >= totalRequiredMargin
         // BEFORE reallocating existing locked margin. Must transfer TOTAL margin temporarily.
         const existingSize = Math.abs(parseFloat(existingPosition.size));
@@ -6240,17 +6244,18 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         );
       } else {
-        // Reducing or flipping position - just need margin for new order
+        // Reducing or flipping position, or adding to a Cross position - just need margin for new order
         const notionalValue = positionSize * orderPrice;
         const requiredMargin = notionalValue / leverage;
         requiredMarginWithBuffer =
           requiredMargin * HIP3_MARGIN_CONFIG.BufferMultiplier;
 
         this.#deps.debugLogger.log(
-          'HyperLiquidProvider: HIP-3 margin calculation (reducing position)',
+          'HyperLiquidProvider: HIP-3 margin calculation (new order margin only)',
           {
             symbol,
             dex: dexName,
+            marginMode: existingPosition.leverage.type,
             notionalValue: notionalValue.toFixed(2),
             leverage,
             requiredMargin: requiredMargin.toFixed(2),
@@ -6578,7 +6583,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
     if (
       params.marginMode === 'cross' &&
-      !this.#isCrossMarginSupported(params.symbol, assetInfo)
+      !this.#isCrossMarginSupported(assetInfo)
     ) {
       throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED);
     }

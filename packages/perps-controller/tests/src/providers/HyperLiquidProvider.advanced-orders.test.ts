@@ -645,39 +645,55 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
-    it('keeps HIP-3 Cross unavailable while its transfers assume isolated', async () => {
-      const info = createMockInfoClient({
-        meta: vi.fn().mockResolvedValue({
-          universe: [
-            {
-              name: 'xyz:XYZ100',
-              szDecimals: 3,
-              maxLeverage: 20,
-              marginTableId: 1,
-            } satisfies MetaResponse['universe'][number],
-          ],
-        }),
-      });
-      mockClientService.getInfoClient.mockReturnValue(
-        info as unknown as ReturnType<
-          HyperLiquidClientService['getInfoClient']
-        >,
-      );
+    it.each([
+      ['normal', { marginMode: 'normal' }, { isValid: true }],
+      ['unrestricted', {}, { isValid: true }],
+      [
+        'noCross',
+        { marginMode: 'noCross' },
+        {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ],
+      [
+        'strictIsolated',
+        { marginMode: 'strictIsolated' },
+        {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ],
+    ])(
+      'validates Cross on a %s HIP-3 market from its venue margin mode',
+      async (_, capability, expected) => {
+        const info = createMockInfoClient({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'xyz:XYZ100',
+                szDecimals: 3,
+                maxLeverage: 20,
+                marginTableId: 1,
+                ...capability,
+              },
+            ],
+          }),
+        });
+        mockClientService.getInfoClient.mockReturnValue(info as never);
 
-      const result = await provider.validateOrder({
-        ...order,
-        symbol: 'xyz:XYZ100',
-        marginMode: 'cross',
-      });
+        const result = await provider.validateOrder({
+          ...order,
+          symbol: 'xyz:XYZ100',
+          marginMode: 'cross',
+        });
 
-      expect(result).toEqual({
-        isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
-      });
-      expect(
-        mockClientService.getExchangeClient().updateLeverage,
-      ).not.toHaveBeenCalled();
-    });
+        expect(result).toEqual(expected);
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+      },
+    );
 
     it('rejects a mode change with an open position', async () => {
       const result = await provider.placeOrder({
