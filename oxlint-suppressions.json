@@ -528,17 +528,14 @@
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    },
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 1
     },
     "vitest/no-conditional-in-test": {
-      "count": 11
+      "count": 7
     }
   },
   "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
@@ -551,7 +548,7 @@
       "count": 4
     },
     "typescript/no-unsafe-member-access": {
-      "count": 15
+      "count": 14
     },
     "vitest/no-conditional-in-test": {
       "count": 4
@@ -640,22 +637,9 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/migrations/healAssetsInfoMetadata.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 2
-    }
-  },
-  "packages/assets-controller/src/pipeline/buildFastFetchSources.bsc-spam-token-filtering.integration.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 1
     }
   },
   "packages/assets-controller/src/pipeline/executeAssetsPipeline.ts": {
