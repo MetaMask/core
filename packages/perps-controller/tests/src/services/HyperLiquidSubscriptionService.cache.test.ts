@@ -870,6 +870,60 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(service.getCachedPositions()).toBeNull();
     });
 
+    it('does not republish a snapshot after a listener retires the stream', async () => {
+      const accountFrames = createDeferred<(payload: unknown) => void>();
+      const unsubscribeStream = vi.fn().mockResolvedValue(undefined);
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          accountFrames.resolve(callback);
+          return Promise.resolve({ unsubscribe: unsubscribeStream });
+        },
+      );
+      const account = vi.fn();
+      const unsubscribe = service.subscribeToAccount({ callback: account });
+      const onAccount = await accountFrames.promise;
+      await vi.runAllTimersAsync();
+      const emit = () => {
+        onAccount({
+          dex: '',
+          clearinghouseState: {
+            assetPositions: [
+              { position: { ...validPositionBalances, szi: '0.1' } },
+            ],
+            marginSummary: { accountValue: '100', totalMarginUsed: '10' },
+            withdrawable: '90',
+          },
+        });
+      };
+      emit();
+
+      const replayError = new Error('cached replay failed');
+      account.mockImplementationOnce(() => {
+        expect(() =>
+          service.subscribeToPositions({
+            callback: () => {
+              unsubscribe();
+              throw replayError;
+            },
+          }),
+        ).toThrow(replayError);
+      });
+      vi.mocked(adaptAccountStateFromSDK).mockReturnValueOnce({
+        spendableBalance: '1001.00',
+        withdrawableBalance: '1001.00',
+        marginUsed: '500.00',
+        unrealizedPnl: '100.00',
+        returnOnEquity: '20.0',
+        totalBalance: '10101.00',
+      });
+      emit();
+      expect(unsubscribeStream).toHaveBeenCalledOnce();
+      const next = vi.fn();
+      const unsubscribeNext = service.subscribeToPositions({ callback: next });
+      expect(next).not.toHaveBeenCalled();
+      unsubscribeNext();
+    });
+
     it('does not initialize the order stream from a malformed clearinghouse frame', async () => {
       const frames = createDeferred<(payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(

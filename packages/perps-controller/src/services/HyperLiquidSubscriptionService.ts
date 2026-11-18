@@ -2914,7 +2914,11 @@ export class HyperLiquidSubscriptionService {
    * Used by both webData3 callback and fallback subscription callbacks
    */
   #aggregateAndNotifySubscribers(): void {
+    const binding = this.#userDataBinding;
     this.#notifyAccountSubscribers();
+    if (binding !== this.#userDataBinding) {
+      return;
+    }
 
     // Wait for all expected DEXs to send initial data before notifying
     // This ensures positions from all DEXs appear simultaneously
@@ -2952,7 +2956,7 @@ export class HyperLiquidSubscriptionService {
     const ordersChanged = ordersHash !== this.#cachedOrdersHash;
     this.#updatePublishedPositions(aggregatedPositions)?.();
 
-    if (ordersChanged) {
+    if (ordersChanged && binding === this.#userDataBinding) {
       this.#cachedOrders = aggregatedOrders;
       this.#cachedOrdersHash = ordersHash;
       this.#ordersCacheInitialized = true; // Mark cache as initialized
