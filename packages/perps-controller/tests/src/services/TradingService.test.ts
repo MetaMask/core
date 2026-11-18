@@ -5,6 +5,7 @@ import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
 } from '../../../src/constants/eventNames.js';
+import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import { TradingService } from '../../../src/services/TradingService.js';
@@ -24,6 +25,11 @@ import type {
   PerpsPlatformDependencies,
   PerpsFeeResolution,
 } from '../../../src/types/index.js';
+import {
+  attachProviderErrorCause,
+  getProviderErrorCause,
+} from '../../../src/utils/errorContext.js';
+import { createErrorResult } from '../../../src/utils/hyperLiquidValidation.js';
 import { resolveSubscriptionWaiverRate } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
@@ -2059,6 +2065,53 @@ describe('TradingService', () => {
       );
     });
 
+    it('logs the provider-attached cause of a normalized cancel failure', async () => {
+      const venueError = new Error('Unexpected cancel status: venue detail');
+      const normalizedError = new PerpsControllerError(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        { code: PERPS_ERROR_CODES.UNKNOWN_ERROR, provider: 'hyperliquid' },
+        { cause: venueError },
+      );
+      const providerResult = attachProviderErrorCause(
+        {
+          success: false,
+          error: normalizedError.message,
+          errorCode: normalizedError.errorCode,
+          errorDetails: normalizedError.errorDetails,
+        },
+        normalizedError,
+      );
+      mockProvider.cancelOrder.mockResolvedValue(providerResult);
+
+      const result = await tradingService.cancelOrder({
+        provider: mockProvider,
+        params: { orderId: 'order-123', symbol: 'BTC' },
+        context: mockContext,
+      });
+
+      expect(result).toBe(providerResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(normalizedError);
+      expect(loggedError.cause).toBe(venueError);
+      expect(loggedOptions.context.data).toMatchObject({
+        method: 'cancelOrder',
+        symbol: 'BTC',
+        providerError: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(JSON.stringify(result)).not.toContain(venueError.message);
+      expect(JSON.stringify(loggedOptions)).not.toContain(venueError.message);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        }),
+      );
+    });
+
     it('does not log a cancel the signer could not sign', async () => {
       mockProvider.cancelOrder.mockResolvedValue({
         success: false,
@@ -2925,6 +2978,47 @@ describe('TradingService', () => {
       );
     });
 
+    it('logs the provider-attached cause of a normalized close failure without exposing raw text', async () => {
+      const rawSetupError = new Error('unexpected setup detail 0xdeadbeef');
+      const providerResult: OrderResult = createErrorResult(rawSetupError, {
+        success: false,
+      });
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.closePosition.mockResolvedValue(providerResult);
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain('0xdeadbeef');
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(getProviderErrorCause(providerResult));
+      expect(loggedError).toBeInstanceOf(PerpsControllerError);
+      expect(loggedError.message).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(loggedError.cause).toBe(rawSetupError);
+      expect(loggedOptions.context.data.providerError).toBe(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      );
+      expect(JSON.stringify(loggedOptions)).not.toContain('0xdeadbeef');
+    });
+
     it('does not log a close the signer could not sign', async () => {
       mockGetPositions.mockResolvedValue([mockPosition]);
       mockProvider.closePosition.mockResolvedValue({
@@ -3229,6 +3323,117 @@ describe('TradingService', () => {
 
       expect(result.results).toHaveLength(1);
       expect(mockProvider.closePosition).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs the attached cause of a mixed batch close without putting venue text on the result', async () => {
+      const venueError = new Error(
+        'post only order would have immediately matched',
+      );
+      const normalized = new Error(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      );
+      normalized.cause = venueError;
+      const failed = attachProviderErrorCause(
+        {
+          symbol: 'ETH',
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+          errorCode: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+        },
+        normalized,
+      );
+      (mockProvider.closePositions as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 1,
+        results: [{ symbol: 'BTC', success: true }, failed],
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await tradingService.closePositions({
+        provider: mockProvider,
+        params: { closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(result.results[1]).toMatchObject({
+        error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      });
+      expect(JSON.stringify(result.results[1])).not.toContain(
+        'immediately matched',
+      );
+      const [logged] = (mockDeps.logger.error as Mock).mock.calls[0] as [Error];
+      expect(logged.message).toBe(
+        `closePositions batch failure: 1/2 failed (1 reported) - ETH: ${PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS}`,
+      );
+      expect(logged.cause).toBe(normalized);
+      expect(getProviderErrorCause(result.results[1])).toBe(normalized);
+    });
+
+    it('logs every attached cause of a batch close with several failures', async () => {
+      const ethNormalized = new Error(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      );
+      ethNormalized.cause = new Error(
+        'post only order would have immediately matched',
+      );
+      const solNormalized = new Error(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      solNormalized.cause = new Error('unclassified venue rejection');
+      (mockProvider.closePositions as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 3,
+        results: [
+          { symbol: 'BTC', success: true },
+          attachProviderErrorCause(
+            {
+              symbol: 'ETH',
+              success: false,
+              error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+              errorCode: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+            },
+            ethNormalized,
+          ),
+          attachProviderErrorCause(
+            {
+              symbol: 'SOL',
+              success: false,
+              error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+              errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            },
+            solNormalized,
+          ),
+          {
+            symbol: 'DOGE',
+            success: false,
+            error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          },
+        ],
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.closePositions({
+        provider: mockProvider,
+        params: { closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [logged] = (mockDeps.logger.error as Mock).mock.calls[0] as [Error];
+      expect(logged.message).toBe(
+        `closePositions batch failure: 3/4 failed (3 reported) - ETH: ${PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS}; SOL: ${PERPS_ERROR_CODES.UNKNOWN_ERROR}; DOGE: ${PERPS_ERROR_CODES.UNKNOWN_ERROR}`,
+      );
+      expect(logged.cause).toBeInstanceOf(AggregateError);
+      const aggregate = logged.cause as AggregateError;
+      expect(aggregate.message).toBe('closePositions per-position failures');
+      expect(aggregate.errors).toStrictEqual([ethNormalized, solNormalized]);
+      expect(aggregate.errors[0]).toBe(ethNormalized);
+      expect(aggregate.errors[1]).toBe(solNormalized);
     });
 
     it('logs batch error when provider.closePositions returns partial/full failure', async () => {
@@ -4402,6 +4607,53 @@ describe('TradingService', () => {
       expect(mockProvider.placeOrder).not.toHaveBeenCalledWith(
         expect.objectContaining({
           currentPrice: expect.any(Number),
+        }),
+      );
+    });
+
+    it('logs the provider-attached cause of a normalized flip failure', async () => {
+      const venueError = new Error('Unexpected flip rejection: venue detail');
+      const normalizedError = new PerpsControllerError(
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        { code: PERPS_ERROR_CODES.UNKNOWN_ERROR, provider: 'hyperliquid' },
+        { cause: venueError },
+      );
+      const providerResult = attachProviderErrorCause(
+        {
+          success: false,
+          error: normalizedError.message,
+          errorCode: normalizedError.errorCode,
+          errorDetails: normalizedError.errorDetails,
+        },
+        normalizedError,
+      );
+      mockProvider.placeOrder.mockResolvedValue(providerResult);
+
+      const result = await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockPosition,
+        context: mockContext,
+      });
+
+      expect(result).toBe(providerResult);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [loggedError, loggedOptions] = (mockDeps.logger.error as Mock).mock
+        .calls[0];
+      expect(loggedError).toBe(normalizedError);
+      expect(loggedError.cause).toBe(venueError);
+      expect(loggedOptions.context.data).toMatchObject({
+        method: 'flipPosition',
+        symbol: 'BTC',
+        providerError: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(JSON.stringify(result)).not.toContain(venueError.message);
+      expect(JSON.stringify(loggedOptions)).not.toContain(venueError.message);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          error_message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         }),
       );
     });

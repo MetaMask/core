@@ -11,6 +11,7 @@ import {
   REFERRAL_CONFIG,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
+import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
@@ -25,7 +26,10 @@ import type {
   LiveDataConfig,
   OrderParams,
 } from '../../../src/types/index.js';
-import { wasProviderErrorReported } from '../../../src/utils/errorContext.js';
+import {
+  getProviderErrorCause,
+  wasProviderErrorReported,
+} from '../../../src/utils/errorContext.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
@@ -80,11 +84,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -361,6 +361,10 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -503,11 +507,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -550,7 +550,8 @@ describe('HyperLiquidProvider', () => {
 
         await expect(provider.placeOrder(orderParams)).resolves.toMatchObject({
           success: false,
-          error: 'Initialization failed',
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         });
         await expect(provider.placeOrder(orderParams)).resolves.toMatchObject({
           success: true,
@@ -588,7 +589,10 @@ describe('HyperLiquidProvider', () => {
         const result = await freshProvider.placeOrder(orderParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain('Network timeout');
+        expect(result).toMatchObject({
+          error: PERPS_ERROR_CODES.CONNECTION_TIMEOUT,
+          errorCode: PERPS_ERROR_CODES.CONNECTION_TIMEOUT,
+        });
       });
 
       it('handles string response from meta endpoint', async () => {
@@ -609,12 +613,17 @@ describe('HyperLiquidProvider', () => {
 
         const result = await provider.updatePositionTPSL(updateParams);
 
-        expect(result.success).toBe(false);
-        // With no valid meta from metaAndAssetCtxs, asset mapping is empty so we fail with asset not found
-        expect(
-          result.error?.includes('Asset ID not found') ||
-            result.error?.includes('Invalid meta response'),
-        ).toBe(true);
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(result.error).not.toContain('Asset ID not found');
+        expect(result.error).not.toContain('Invalid meta response');
       });
 
       it('handles meta response without universe property', async () => {
@@ -633,12 +642,17 @@ describe('HyperLiquidProvider', () => {
 
         const result = await provider.updatePositionTPSL(updateParams);
 
-        expect(result.success).toBe(false);
-        // With no valid meta from metaAndAssetCtxs, asset mapping is empty so we fail with asset not found
-        expect(
-          result.error?.includes('Asset ID not found') ||
-            result.error?.includes('Invalid meta response'),
-        ).toBe(true);
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(result.error).not.toContain('Asset ID not found');
+        expect(result.error).not.toContain('Invalid meta response');
       });
     });
 
@@ -665,7 +679,10 @@ describe('HyperLiquidProvider', () => {
         const result = await provider.placeOrder(orderParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain('Failed to update leverage');
+        expect(result).toMatchObject({
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        });
       });
 
       // TAT-3343: wallets with no Hyperliquid account (accounts are created
@@ -780,17 +797,11 @@ describe('HyperLiquidProvider', () => {
         expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
       });
 
-      // Boundary guard: `isHyperLiquidUserNotFoundError` is substring-based and
-      // now gates both error mapping and Sentry suppression on the order path.
-      // A message that merely contains "does not exist" must NOT be swallowed.
-      it('does not swallow near-miss "does not exist" order errors', async () => {
+      it('returns a generic result for an unknown venue error while reporting its raw cause', async () => {
+        const rawError = new Error('Asset BTC does not exist on this DEX');
         mockClientService.getExchangeClient = vi.fn().mockReturnValue(
           createMockExchangeClient({
-            order: vi
-              .fn()
-              .mockRejectedValue(
-                new Error('Asset BTC does not exist on this DEX'),
-              ),
+            order: vi.fn().mockRejectedValue(rawError),
           }),
         );
 
@@ -803,37 +814,56 @@ describe('HyperLiquidProvider', () => {
         });
 
         expect(result.success).toBe(false);
-        expect(result.error).not.toBe(
-          PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
-        );
-        expect(result.error).toContain('Asset BTC does not exist');
-        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledTimes(1);
-      });
-
-      it('still reports unrelated order failures to Sentry', async () => {
-        mockClientService.getExchangeClient = vi.fn().mockReturnValue(
-          createMockExchangeClient({
-            order: vi
-              .fn()
-              .mockRejectedValue(
-                new Error('Insufficient margin to place order'),
-              ),
-          }),
-        );
-
-        const result = await provider.placeOrder({
-          symbol: 'BTC',
-          isBuy: true,
-          size: '0.1',
-          orderType: 'market',
-          currentPrice: 50000,
+        expect(result).toMatchObject({
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            provider: 'hyperliquid',
+          },
         });
-
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('Insufficient margin');
+        expect(result.error).not.toContain(rawError.message);
         expect(mockPlatformDependencies.logger.error).toHaveBeenCalledTimes(1);
         expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
-          expect.any(Error),
+          expect.objectContaining({
+            message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            cause: rawError,
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('normalizes known order failures and retains their raw telemetry cause', async () => {
+        const rawError = new Error('Insufficient margin to place order');
+        mockClientService.getExchangeClient = vi.fn().mockReturnValue(
+          createMockExchangeClient({
+            order: vi.fn().mockRejectedValue(rawError),
+          }),
+        );
+
+        const result = await provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result).toMatchObject({
+          error: PERPS_ERROR_CODES.INSUFFICIENT_MARGIN,
+          errorCode: PERPS_ERROR_CODES.INSUFFICIENT_MARGIN,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.INSUFFICIENT_MARGIN,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledTimes(1);
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: PERPS_ERROR_CODES.INSUFFICIENT_MARGIN,
+            cause: rawError,
+          }),
           expect.objectContaining({
             tags: expect.objectContaining({
               operation: 'order_management',
@@ -864,7 +894,8 @@ describe('HyperLiquidProvider', () => {
 
         expect(result).toMatchObject({
           success: false,
-          error: 'Flip venue unavailable',
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         });
         expect(wasProviderErrorReported(result)).toBe(false);
         expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
@@ -915,7 +946,8 @@ describe('HyperLiquidProvider', () => {
 
         expect(result).toMatchObject({
           success: false,
-          error: 'Close venue unavailable',
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         });
         expect(wasProviderErrorReported(result)).toBe(false);
         expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
@@ -2094,35 +2126,61 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('handles withdrawal API error', async () => {
-        mockClientService.getExchangeClient = vi.fn().mockReturnValue({
-          withdraw3: vi.fn().mockResolvedValue({
-            status: 'insufficient_funds',
-            message: 'Not enough balance',
-          }),
-        });
+      it.each([
+        ['Not enough balance', PERPS_ERROR_CODES.INSUFFICIENT_BALANCE],
+        [
+          'Must deposit before performing actions',
+          PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        ],
+        ['Unclassified venue rejection', PERPS_ERROR_CODES.UNKNOWN_ERROR],
+      ])(
+        'keeps withdrawal status rejection "%s" debug-only',
+        async (message, code) => {
+          const response = { status: 'err', message };
+          mockClientService.getExchangeClient = vi.fn().mockReturnValue({
+            withdraw3: vi.fn().mockResolvedValue(response),
+          });
 
-        // Mock account state for balance validation
-        Object.defineProperty(provider, 'getAccountState', {
-          value: vi.fn().mockResolvedValue({
-            spendableBalance: '5000',
-            withdrawableBalance: '5000',
-          }),
-          writable: true,
-        });
+          // Mock account state for balance validation
+          Object.defineProperty(provider, 'getAccountState', {
+            value: vi.fn().mockResolvedValue({
+              spendableBalance: '5000',
+              withdrawableBalance: '5000',
+            }),
+            writable: true,
+          });
 
-        const withdrawParams = {
-          amount: '1000',
-          destination: '0x1234567890123456789012345678901234567890' as Hex,
-          assetId:
-            'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831/default' as CaipAssetId,
-        };
+          const withdrawParams = {
+            amount: '1000',
+            destination: '0x1234567890123456789012345678901234567890' as Hex,
+            assetId:
+              'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831/default' as CaipAssetId,
+          };
 
-        const result = await provider.withdraw(withdrawParams);
+          const result = await provider.withdraw(withdrawParams);
 
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('Withdrawal failed: insufficient_funds');
-      });
+          expect(result).toStrictEqual({
+            success: false,
+            error: code,
+            errorCode: code,
+            errorDetails: { code, provider: 'hyperliquid' },
+          });
+          const rejectionMessage = `Withdrawal failed: ${JSON.stringify(response)}`;
+          expect(getProviderErrorCause(result)?.cause).toEqual(
+            new Error(rejectionMessage),
+          );
+          expect(mockPlatformDependencies.debugLogger.log).toHaveBeenCalledWith(
+            'HyperLiquidProvider: WITHDRAWAL FAILED',
+            {
+              error: rejectionMessage,
+              status: response.status,
+              response,
+              params: withdrawParams,
+            },
+          );
+          expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();
+        },
+      );
     });
 
     describe('liquidation price edge cases', () => {
@@ -2222,18 +2280,62 @@ describe('HyperLiquidProvider', () => {
         expect(result.walletConnected).toBe(false);
       });
 
-      it('handles general error in readiness check', async () => {
+      it.each([
+        ['Client error', PERPS_ERROR_CODES.UNKNOWN_ERROR],
+        ['Request timed out', PERPS_ERROR_CODES.CONNECTION_TIMEOUT],
+        [PERPS_ERROR_CODES.KEYRING_LOCKED, PERPS_ERROR_CODES.KEYRING_LOCKED],
+      ])('normalizes readiness failure "%s" to %s', async (message, code) => {
         mockClientService.getExchangeClient.mockImplementation(() => {
-          throw new Error('Client error');
+          throw new Error(message);
         });
 
         const result = await provider.isReadyToTrade();
 
-        expect(result.ready).toBe(false);
-        expect(result.walletConnected).toBe(false);
-        expect(result.networkSupported).toBe(false);
-        expect(result.error).toContain('Client error');
+        expect(result).toStrictEqual({
+          ready: false,
+          walletConnected: false,
+          networkSupported: false,
+          error: code,
+          errorCode: code,
+          errorDetails: {
+            code,
+            provider: 'hyperliquid',
+          },
+        });
       });
+
+      it.each([true, false])(
+        'preserves PRICE_MOVED in readiness failures with details: %s',
+        async (withDetails) => {
+          const errorDetails = withDetails
+            ? {
+                code: PERPS_ERROR_CODES.PRICE_MOVED,
+                priceDeltaBps: 150,
+                maxSlippageBps: 100,
+                expectedPrice: 100,
+                currentPrice: 101.5,
+              }
+            : undefined;
+          mockClientService.getExchangeClient.mockImplementation(() => {
+            throw new PerpsControllerError(
+              PERPS_ERROR_CODES.PRICE_MOVED,
+              PERPS_ERROR_CODES.PRICE_MOVED,
+              errorDetails,
+            );
+          });
+
+          const result = await provider.isReadyToTrade();
+
+          expect(result).toStrictEqual({
+            ready: false,
+            walletConnected: false,
+            networkSupported: false,
+            error: PERPS_ERROR_CODES.PRICE_MOVED,
+            errorCode: PERPS_ERROR_CODES.PRICE_MOVED,
+            ...(errorDetails === undefined ? {} : { errorDetails }),
+          });
+        },
+      );
     });
 
     describe('editOrder error scenarios', () => {
@@ -2279,7 +2381,10 @@ describe('HyperLiquidProvider', () => {
         const result = await provider.cancelOrder(cancelParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toBe('Order cancellation failed');
+        expect(result).toMatchObject({
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        });
       });
 
       it.each([
@@ -2351,34 +2456,63 @@ describe('HyperLiquidProvider', () => {
         },
       );
 
-      it('preserves an unmapped cancel status error string', async () => {
-        mockClientService.getExchangeClient = vi.fn().mockReturnValue(
-          createMockExchangeClient({
-            cancel: vi.fn().mockResolvedValue({
+      describe.each(['status', 'throw'])('%s rejections', (responseType) => {
+        it.each([
+          [
+            'cancel 0: Order was never placed, already canceled, or filled. asset=4',
+            'ORDER_NO_LONGER_OPEN',
+          ],
+          ['Order was never placed', 'ORDER_NO_LONGER_OPEN'],
+          ['Order already canceled', 'ORDER_NO_LONGER_OPEN'],
+          ['Order already cancelled', 'ORDER_NO_LONGER_OPEN'],
+          ['Order not found', 'ORDER_NO_LONGER_OPEN'],
+          ['TWAP not found', 'ORDER_NO_LONGER_OPEN'],
+          [
+            'Unclassified cancel rejection asset=4',
+            PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          ],
+          ['Order partially filled', PERPS_ERROR_CODES.UNKNOWN_ERROR],
+          ['Network error', PERPS_ERROR_CODES.NETWORK_ERROR],
+          ['Rate limit exceeded', PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED],
+        ])('maps "%s" to %s', async (exchangeMessage, expectedCode) => {
+          const cause = new Error(exchangeMessage);
+          const cancel = vi.fn();
+          if (responseType === 'throw') {
+            cancel.mockRejectedValue(cause);
+          } else {
+            cancel.mockResolvedValue({
               status: 'ok',
               response: {
-                data: {
-                  statuses: [
-                    {
-                      error:
-                        'cancel 0: Order was never placed, already canceled, or filled. asset=4',
-                    },
-                  ],
-                },
+                data: { statuses: [{ error: exchangeMessage }] },
               },
-            }),
-          }),
-        );
+            });
+          }
+          mockClientService.getExchangeClient = vi
+            .fn()
+            .mockReturnValue(createMockExchangeClient({ cancel }));
 
-        const result = await provider.cancelOrder({
-          orderId: '123',
-          symbol: 'BTC',
+          const result = await provider.cancelOrder({
+            orderId: '123',
+            symbol: 'BTC',
+          });
+
+          // Already gone is distinguishable, not a claim we cancelled it.
+          expect(result).toMatchObject({
+            success: false,
+            orderId: '123',
+            error: expectedCode,
+            errorCode: expectedCode,
+            errorDetails: { code: expectedCode, provider: 'hyperliquid' },
+          });
+          expect(JSON.stringify(result)).not.toContain(exchangeMessage);
+          const attachedError = getProviderErrorCause(result);
+          expect(attachedError?.cause).toMatchObject({
+            message: exchangeMessage,
+          });
+          if (responseType === 'throw') {
+            expect(attachedError?.cause).toBe(cause);
+          }
         });
-
-        expect(result.success).toBe(false);
-        expect(result.error).toBe(
-          'cancel 0: Order was never placed, already canceled, or filled. asset=4',
-        );
       });
     });
 
