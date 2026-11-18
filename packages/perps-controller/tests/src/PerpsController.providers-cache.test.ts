@@ -1847,23 +1847,25 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshot?.request).toStrictEqual({
+      expect(call.context.globalSnapshots?.hyperliquid?.request).toStrictEqual({
         provider: 'hyperliquid',
         network: 'mainnet',
         enabledDexes: ['main', 'xyz'],
       });
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:GOLD')).toBe(
-        true,
-      );
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
-        false,
-      );
-      expect(call.context.globalSnapshot?.isCurrent()).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:GOLD'),
+      ).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:TSLA'),
+      ).toBe(false);
+      expect(call.context.globalSnapshots?.hyperliquid?.isCurrent()).toBe(true);
 
       controller.testUpdate((state) => {
         state.hip3ConfigVersion += 1;
       });
-      expect(call.context.globalSnapshot?.isCurrent()).toBe(false);
+      expect(call.context.globalSnapshots?.hyperliquid?.isCurrent()).toBe(
+        false,
+      );
 
       const liveUpdate = {
         symbol: 'BTC',
@@ -1882,6 +1884,116 @@ describe('PerpsController', () => {
       });
       expect(mockProvider.subscribeToPrices).toHaveBeenCalledTimes(1);
       expect(priceCallback).toHaveBeenCalledWith([liveUpdate]);
+    });
+
+    it('passes one snapshot identity per venue in aggregated mode, each with its own guard', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshots;
+      expect(snapshots?.hyperliquid?.request).toStrictEqual({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+      expect(snapshots?.lighter?.request).toStrictEqual({
+        provider: 'lighter',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+      expect(snapshots?.lighter?.isMarketAllowed('NVDA')).toBe(true);
+
+      controller.testUpdate((state) => {
+        state.hip3ConfigVersion += 1;
+      });
+      expect(snapshots?.hyperliquid?.isCurrent()).toBe(false);
+      expect(snapshots?.lighter?.isCurrent()).toBe(true);
+
+      controller.testUpdate((state) => {
+        state.activeProvider = 'lighter';
+      });
+      expect(snapshots?.lighter?.isCurrent()).toBe(false);
+    });
+
+    it('passes only the Lighter identity in direct Lighter mode', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'lighter',
+          isTestnet: true,
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
+      controller.testMarkInitialized();
+
+      await controller.getMarkets({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarkets.mock.calls[0]?.[0].context
+          .globalSnapshots;
+      expect(snapshots?.hyperliquid).toBeUndefined();
+      expect(snapshots?.lighter?.request).toStrictEqual({
+        provider: 'lighter',
+        network: 'testnet',
+        enabledDexes: ['main'],
+      });
+    });
+
+    it('leaves Lighter out of aggregated snapshots when Lighter is not registered', async () => {
+      mockInfrastructure.terminalApi = {
+        ...mockInfrastructure.terminalApi,
+        globalSnapshotUrl: 'https://terminal.test/v4/perpetuals',
+      };
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: {
+          ...getDefaultPerpsControllerState(),
+          activeProvider: 'aggregated',
+        },
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testMarkInitialized();
+
+      await controller.getMarketDataWithPrices({ standalone: true });
+
+      const snapshots =
+        mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
+          .context.globalSnapshots;
+      expect(snapshots?.hyperliquid).toBeDefined();
+      expect(snapshots?.lighter).toBeUndefined();
     });
 
     it('treats a bare allowlist entry as a DEX shorthand', async () => {
@@ -1909,7 +2021,7 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot?.request.enabledDexes,
+          .context.globalSnapshots?.hyperliquid?.request.enabledDexes,
       ).toStrictEqual(['main', 'xyz']);
     });
 
@@ -1933,7 +2045,7 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot?.request.enabledDexes,
+          .context.globalSnapshots?.hyperliquid?.request.enabledDexes,
       ).toEqual(['main', 'flx', 'xyz']);
     });
 
@@ -1956,7 +2068,7 @@ describe('PerpsController', () => {
 
       expect(
         mockMarketDataServiceInstance.getMarketDataWithPrices.mock.calls[0]?.[0]
-          .context.globalSnapshot,
+          .context.globalSnapshots,
       ).toBeUndefined();
     });
 
@@ -1984,15 +2096,17 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshot?.request).toStrictEqual({
+      expect(call.context.globalSnapshots?.hyperliquid?.request).toStrictEqual({
         provider: 'hyperliquid',
         network: 'mainnet',
         enabledDexes: ['main', 'xyz'],
       });
-      expect(call.context.globalSnapshot?.isMarketAllowed('xyz:TSLA')).toBe(
-        false,
-      );
-      expect(call.context.globalSnapshot?.isMarketAllowed('BTC')).toBe(true);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('xyz:TSLA'),
+      ).toBe(false);
+      expect(
+        call.context.globalSnapshots?.hyperliquid?.isMarketAllowed('BTC'),
+      ).toBe(true);
     });
 
     it('leaves getMarkets on the legacy path when no snapshot URL is configured', async () => {
@@ -2011,7 +2125,7 @@ describe('PerpsController', () => {
         .calls[0]?.[0] as {
         context: ServiceContext;
       };
-      expect(call.context.globalSnapshot).toBeUndefined();
+      expect(call.context.globalSnapshots).toBeUndefined();
     });
 
     it('uses existing provider for standalone queries when available', async () => {
@@ -4713,6 +4827,53 @@ describe('PerpsController', () => {
         controller.state.cachedMarketDataByProvider['aggregated:mainnet'];
       expect(sentinel?.data).toHaveLength(0);
       expect(sentinel?.timestamp).toBeGreaterThan(0);
+    });
+
+    it('caches an aggregated HyperLiquid snapshot slice until its snapshot expires', async () => {
+      const sourceExpiresAt = Date.now() + 20_000;
+      const base = {
+        maxLeverage: '50x',
+        change24h: '+1',
+        change24hPercent: '+0.1%',
+        volume: '$1M',
+      };
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([
+        {
+          ...base,
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '50000',
+          providerId: 'hyperliquid',
+          dataSource: 'terminal-global-snapshot-mark',
+          sourceExpiresAt,
+        },
+        {
+          ...base,
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          price: '50010',
+          providerId: 'lighter',
+          categories: ['crypto'],
+        },
+      ]);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const hlEntry =
+        controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
+      expect(hlEntry?.sourceExpiresAt).toBe(sourceExpiresAt);
+      expect(hlEntry?.hip3ConfigVersion).toBe(0);
+      expect(hlEntry?.dexes).toStrictEqual(['main']);
+      const lighterEntry =
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'];
+      expect(lighterEntry?.sourceExpiresAt).toBeUndefined();
+      expect(lighterEntry?.data[0]?.categories).toStrictEqual(['crypto']);
     });
 
     it('assigns items without providerId to hyperliquid fallback', async () => {

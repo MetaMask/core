@@ -9,6 +9,13 @@ import type {
   Position,
 } from '../types/index.js';
 
+/** Identity and race guards for adopting one provider's global snapshot. */
+export type GlobalSnapshotContext = {
+  request: PerpsGlobalSnapshotRequest;
+  isCurrent: () => boolean;
+  isMarketAllowed: (symbol: string) => boolean;
+};
+
 /**
  * ServiceContext
  *
@@ -68,15 +75,17 @@ export type ServiceContext = {
   getOpenOrders?: () => Promise<Order[]>;
   getPositions?: () => Promise<Position[]>;
 
+  /** @deprecated Supply the venue's context in `globalSnapshots`. */
+  globalSnapshot?: GlobalSnapshotContext;
+
   /**
-   * Exact per-call identity and guards for adopting a global market snapshot.
-   * Omitted when the active provider or DEX configuration is not static.
+   * Exact per-call identity and guards for adopting a global market snapshot,
+   * one per provider: aggregated mode carries one for each venue. A provider
+   * is omitted when its DEX configuration is not static.
    */
-  globalSnapshot?: {
-    request: PerpsGlobalSnapshotRequest;
-    isCurrent: () => boolean;
-    isMarketAllowed: (symbol: string) => boolean;
-  };
+  globalSnapshots?: Partial<
+    Record<PerpsGlobalSnapshotRequest['provider'], GlobalSnapshotContext>
+  >;
 
   /**
    * Guards a REST account-state write against the venue that currently backs

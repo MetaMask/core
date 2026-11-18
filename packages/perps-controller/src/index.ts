@@ -278,6 +278,7 @@ export type {
   DisconnectResult,
   MarketInfo,
   PerpsMarketData,
+  GroupedPerpsMarket,
   ToggleTestnetResult,
   AssetRoute,
   SwitchProviderResult,
@@ -737,6 +738,10 @@ export {
   getMarketMatchRank,
 } from './utils/index.js';
 export { MarketMatchRank } from './utils/index.js';
+export {
+  groupMarketsByMarketKey,
+  resolveSavedPerpsMarkets,
+} from './utils/marketUtils.js';
 export type {
   MarketPatternMatcher,
   CompiledMarketPattern,
@@ -901,7 +906,10 @@ export {
 
 // Services (only externally consumed items)
 export { TradingReadinessCache } from './services/TradingReadinessCache.js';
-export type { ServiceContext } from './services/ServiceContext.js';
+export type {
+  GlobalSnapshotContext,
+  ServiceContext,
+} from './services/ServiceContext.js';
 export {
   AggregatedOrderBookConnection,
   processAggregatedOrderBook,

@@ -120,11 +120,17 @@ The controller creates `TradingService`, `MarketDataService`, `AccountService`, 
 | `providerNetwork.ts`              | Whether a provider runs on testnet                                                                                                                                                                                 |
 | `RewardsIntegrationService`       | Unified fee resolver; lowest of `default`, `rewards`, `grant` and `subscription`                                                                                                                                   |
 | `ServiceContext.ts`               | Per-call context type (tracing, error context, state callbacks)                                                                                                                                                    |
-| `TerminalMarketService`           | Market metadata from the MetaMask Terminal API, cached for `TERMINAL_API_CONFIG.CacheTtlMs`, and the schema-v4 global snapshot, cached until `receivedAt` plus the smaller of its `maxAgeMs` and 30 s              |
+| `TerminalMarketService`           | Market metadata from the MetaMask Terminal API, cached for `TERMINAL_API_CONFIG.CacheTtlMs`, and one schema-v4 global snapshot per provider, cached until `receivedAt` plus the smaller of its `maxAgeMs` and 30 s |
 | `TradingReadinessCache.ts`        | Global signing cache (unified account, builder fee, referral) that survives provider recreation so hardware wallets are not prompted again                                                                         |
 | `TradingService`                  | Orders, cancels and positions with fee discounts; signals `cacheInvalidator` after changes                                                                                                                         |
 
 Code: `src/services/`; `src/PerpsController.ts` constructor.
+
+## Market lists and saved markets
+
+Aggregated reads return the original venue rows. Clients can call `groupMarketsByMarketKey(rows, defaultProvider)` for display. It groups rows only when the backend supplies a shared key and each row uses the canonical price scale. Each group puts the default venue first when present. Use the selected venue row's `providerId` and `symbol` for charts and trading. Unmapped and scaled rows remain separate, with a venue-local display key based on the HyperLiquid symbol or `lighter:<SYMBOL>`.
+
+`toggleWatchlistMarket`, `isWatchlistMarket` and `recordMarketViewed` take an optional second argument for a grouped market key. Only pass it for a backend-confirmed market at the canonical scale. Symbol-only callers keep the existing stored format. When opening a saved item, pass the watchlist or recently viewed strings and the ungrouped rows to `resolveSavedPerpsMarkets`. This resolves older symbols on the original venue when available, using HyperLiquid by default for legacy entries. Pass the prior venue if the entries were saved on Lighter. New keyed entries resolve to the configured default venue when it lists the market.
 
 ## Platform dependencies
 

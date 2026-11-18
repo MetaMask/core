@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  groupMarketsByMarketKey,
+  resolveSavedPerpsMarkets,
+} from '../../../src/index.js';
 import type { PerpsMarketData } from '../../../src/types/index.js';
 import {
   getMarketTypeFilter,
@@ -18,6 +22,69 @@ const market = (overrides: Partial<PerpsMarketData>): PerpsMarketData =>
     fundingRate: 0,
     ...overrides,
   }) as PerpsMarketData;
+
+describe('groupMarketsByMarketKey', () => {
+  const hyperliquid = market({
+    symbol: 'xyz:TSLA',
+    providerId: 'hyperliquid',
+    marketKey: 'xyz:TSLA',
+    priceScale: 1,
+  });
+  const lighter = market({
+    symbol: 'TSLA',
+    providerId: 'lighter',
+    marketKey: 'xyz:TSLA',
+    priceScale: 1,
+    price: '510',
+  });
+
+  it('keeps the default venue’s data first and retains both venue symbols', () => {
+    expect(
+      groupMarketsByMarketKey([hyperliquid, lighter], 'lighter'),
+    ).toStrictEqual([{ ...lighter, venues: [lighter, hyperliquid] }]);
+  });
+
+  it('keeps missing keys and scaled prices separate even when keys would match', () => {
+    const unmapped = market({ symbol: 'xyz:TSLA', providerId: 'hyperliquid' });
+    const scaled = market({
+      ...hyperliquid,
+      symbol: '1000TSLA',
+      priceScale: 1000,
+    });
+    const lighterFallback = market({ symbol: 'TSLA', providerId: 'lighter' });
+    expect(
+      groupMarketsByMarketKey(
+        [unmapped, scaled, lighter, lighterFallback],
+        'lighter',
+      ),
+    ).toStrictEqual([
+      { ...unmapped, marketKey: 'xyz:TSLA', venues: [unmapped] },
+      { ...scaled, marketKey: '1000TSLA', venues: [scaled] },
+      { ...lighter, venues: [lighter] },
+      {
+        ...lighterFallback,
+        marketKey: 'lighter:TSLA',
+        venues: [lighterFallback],
+      },
+    ]);
+  });
+
+  it('resolves legacy symbols to their original venue and new keys to the preferred venue', () => {
+    const lighterOnly = market({ symbol: 'OPENAI', providerId: 'lighter' });
+    const renamed = market({
+      ...lighter,
+      symbol: 'XAU',
+      marketKey: 'xyz:GOLD',
+    });
+    expect(
+      resolveSavedPerpsMarkets(
+        ['xyz:TSLA', 'lighter:OPENAI', 'xyz:GOLD', 'UNKNOWN'],
+        [lighter, hyperliquid, lighterOnly, renamed],
+        'lighter',
+      ),
+    ).toStrictEqual([hyperliquid, lighterOnly, renamed]);
+  });
+});
 
 describe('marketUtils category classification', () => {
   describe('isHip3Market', () => {
@@ -52,6 +119,12 @@ describe('marketUtils category classification', () => {
 
     it("matches non-HIP3 markets for 'crypto'", () => {
       expect(matchesCategory(market({ isHip3: false }), 'crypto')).toBe(true);
+    });
+
+    it('honors the explicit stock category on a non-HIP3 Lighter market', () => {
+      const stock = market({ providerId: 'lighter', marketType: 'stock' });
+      expect(matchesCategory(stock, 'stock')).toBe(true);
+      expect(matchesCategory(stock, 'crypto')).toBe(false);
     });
 
     it("matches HIP-3 markets explicitly typed crypto for 'crypto'", () => {

@@ -67,6 +67,10 @@ Code: `src/providers/LighterProvider.ts` constructor, `#placeChaseProbe`, `#plac
 
 Code: `src/providers/LighterProvider.ts` `#assertStandardAccount`, `closePosition`, `editOrder`, `updateMargin`, `previewPositionModify`, `getDepositRoutes`, `getWithdrawalRoutes`; `src/utils/lighterNativeEdit.ts`.
 
+With `terminalApi.globalSnapshotUrl` set, `getMarketDataWithPrices` adds the Lighter snapshot's name, description, icon, category, keywords, tags, listing time, volume, open interest and `marketKey` to each market it lists. Price, change, funding, leverage and the `getMarkets` trading rules stay with the venue. A missing or invalid Lighter snapshot leaves the venue rows unchanged.
+
+Code: `src/services/MarketDataService.ts` `getMarketDataWithPrices`.
+
 ## Fees
 
 `calculateFees` first resolves the account and refuses a non-Standard one, so a Premium account is never quoted zero. The rate is the market's `makerFee` or `takerFee` from venue metadata (`'0'` when absent). `metamaskFeeRate` is 0 and `chargesMetamaskBuilderFee` is false; no partner or integrator fee is wired.

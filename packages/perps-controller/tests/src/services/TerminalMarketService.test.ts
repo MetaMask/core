@@ -579,6 +579,7 @@ describe('TerminalMarketService', () => {
             tags: ['top-10'],
             categories: ['crypto'],
             listedAt: 1_600_000_000_000,
+            iconUrl: 'https://example.com/btc.png',
             trend: [
               [SNAPSHOT_NOW - 3_600_000, '49000'],
               [SNAPSHOT_NOW - 1_000, '50000'],
@@ -1455,14 +1456,16 @@ describe('TerminalMarketService', () => {
       const context = {
         tracingContext: { provider: 'hyperliquid', isTestnet: false },
         errorContext: { controller: 'PerpsController', method: 'getMarkets' },
-        globalSnapshot: {
-          request: {
-            provider: 'hyperliquid' as const,
-            network: 'mainnet' as const,
-            enabledDexes: ['main'],
+        globalSnapshots: {
+          hyperliquid: {
+            request: {
+              provider: 'hyperliquid' as const,
+              network: 'mainnet' as const,
+              enabledDexes: ['main'],
+            },
+            isCurrent: (): boolean => true,
+            isMarketAllowed: (): boolean => true,
           },
-          isCurrent: (): boolean => true,
-          isMarketAllowed: (): boolean => true,
         },
       };
       const provider = createMockHyperLiquidProvider();
@@ -1502,6 +1505,177 @@ describe('TerminalMarketService', () => {
       expect(urls[0]).toContain('/v4/perpetuals');
       expect(getMarkets).not.toHaveBeenCalled();
       expect(getMarketDataWithPrices).not.toHaveBeenCalled();
+    });
+
+    describe('Lighter snapshot', () => {
+      const LIGHTER_TESTNET_FINGERPRINT =
+        'sha256:cfb3ac760540ae944b003fe0af04552e617ef32d1700e16746e27cd1db7a757f';
+      const lighterRequest = {
+        provider: 'lighter' as const,
+        network: 'testnet' as const,
+        enabledDexes: ['main'],
+      };
+      const createLighterMarket = (
+        overrides: Record<string, unknown> = {},
+      ): Record<string, unknown> =>
+        createSnapshotMarket({
+          id: 'btc-lighter-testnet',
+          network: 'testnet',
+          provider: 'lighter',
+          marketKey: 'BTC-USD',
+          priceScale: 1,
+          venueMarketId: '1',
+          ...overrides,
+        });
+      const createLighterSnapshot = (
+        markets: Record<string, unknown>[],
+      ): Record<string, unknown> =>
+        createGlobalSnapshot({
+          provider: 'lighter',
+          network: 'testnet',
+          fingerprint: LIGHTER_TESTNET_FINGERPRINT,
+          markets,
+        });
+
+      it('accepts the main DEX and maps marketKey, iconUrl and the category market type', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createLighterSnapshot([
+              createLighterMarket(),
+              createLighterMarket({
+                id: 'nvda-lighter-testnet',
+                symbol: 'NVDA',
+                name: 'NVIDIA',
+                category: 'stocks',
+                marketKey: 'NVDA-USD',
+                venueMarketId: '42',
+                priceScale: 0.5,
+              }),
+            ]),
+          ),
+        );
+
+        const result = await service.fetchGlobalSnapshot(lighterRequest);
+
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+          'https://terminal.test-api.cx.metamask.io/v4/perpetuals?provider=lighter&network=testnet&dexes=main',
+          expect.objectContaining({ method: 'GET' }),
+        );
+        expect(result.markets[0]).toMatchObject({
+          symbol: 'BTC',
+          name: 'Bitcoin',
+          iconUrl: 'https://example.com/btc.png',
+          marketKey: 'BTC-USD',
+          marketType: 'crypto',
+          isHip3: false,
+        });
+        expect(result.markets[1]).toMatchObject({
+          symbol: 'NVDA',
+          marketKey: 'NVDA-USD',
+          priceScale: 0.5,
+          marketType: 'stock',
+          isHip3: false,
+          isNewMarket: false,
+        });
+        expect(result.marketInfos[1]).toMatchObject({
+          name: 'NVDA',
+          marketKey: 'NVDA-USD',
+          priceScale: 0.5,
+        });
+      });
+
+      it('leaves a Lighter market without a known category untyped', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createLighterSnapshot([createLighterMarket({ category: null })]),
+          ),
+        );
+
+        const result = await service.fetchGlobalSnapshot(lighterRequest);
+
+        expect(result.markets[0]?.marketType).toBeUndefined();
+      });
+
+      it('keeps HyperLiquid main markets typed as crypto whatever their category', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createGlobalSnapshot({
+              markets: [createSnapshotMarket({ category: 'stocks' })],
+            }),
+          ),
+        );
+
+        const result = await service.fetchGlobalSnapshot({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          enabledDexes: ['main'],
+        });
+
+        expect(result.markets[0]?.marketType).toBe('crypto');
+      });
+
+      it('accepts rows without the optional cross-venue fields', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createLighterSnapshot([
+              createLighterMarket({
+                marketKey: null,
+                priceScale: null,
+                venueMarketId: null,
+              }),
+            ]),
+          ),
+        );
+
+        const result = await service.fetchGlobalSnapshot(lighterRequest);
+
+        expect(result.markets[0]).not.toHaveProperty('marketKey');
+      });
+
+      it('rejects a Lighter request with a DEX other than main', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+        await expect(
+          service.fetchGlobalSnapshot({
+            ...lighterRequest,
+            enabledDexes: ['main', 'xyz'],
+          }),
+        ).rejects.toThrow('Terminal global snapshot Lighter DEX must be main');
+        expect(fetchSpy).not.toHaveBeenCalled();
+      });
+
+      it('rejects a Lighter snapshot served for the HyperLiquid identity', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(createLighterSnapshot([createLighterMarket()])),
+        );
+
+        await expect(
+          service.fetchGlobalSnapshot({
+            provider: 'hyperliquid',
+            network: 'testnet',
+            enabledDexes: ['main'],
+          }),
+        ).rejects.toThrow('Terminal global snapshot identity mismatch');
+      });
+
+      it.each([
+        ['empty marketKey', { marketKey: '' }],
+        ['negative priceScale', { priceScale: -1 }],
+        ['zero priceScale', { priceScale: 0 }],
+        ['empty venueMarketId', { venueMarketId: '' }],
+        ['negative venueMarketId', { venueMarketId: -1 }],
+        ['non-string marketKey', { marketKey: 7 }],
+      ])('rejects a row with %s', async (_name, overrides) => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          okJsonResponse(
+            createLighterSnapshot([createLighterMarket(overrides)]),
+          ),
+        );
+
+        await expect(
+          service.fetchGlobalSnapshot(lighterRequest),
+        ).rejects.toThrow('Terminal global snapshot');
+      });
     });
   });
 

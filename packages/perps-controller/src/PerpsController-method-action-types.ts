@@ -1714,6 +1714,7 @@ export type PerpsControllerSaveMarginModeAction = {
  * Watchlist markets are stored per network (testnet/mainnet).
  *
  * @param symbol - The trading pair symbol.
+ * @param marketKey - Optional cross-venue key for a grouped market.
  */
 export type PerpsControllerToggleWatchlistMarketAction = {
   type: `PerpsController:toggleWatchlistMarket`;
@@ -1724,7 +1725,8 @@ export type PerpsControllerToggleWatchlistMarketAction = {
  * Check if a market is in the watchlist on the current network
  *
  * @param symbol - The trading pair symbol.
- * @returns True if the condition is met.
+ * @param marketKey - Optional cross-venue key for a grouped market.
+ * @returns Whether the reference is saved.
  */
 export type PerpsControllerIsWatchlistMarketAction = {
   type: `PerpsController:isWatchlistMarket`;
@@ -1734,7 +1736,7 @@ export type PerpsControllerIsWatchlistMarketAction = {
 /**
  * Get all watchlist markets for the current network
  *
- * @returns The resulting string value.
+ * @returns Saved market references for the current network.
  */
 export type PerpsControllerGetWatchlistMarketsAction = {
   type: `PerpsController:getWatchlistMarkets`;
@@ -1744,11 +1746,12 @@ export type PerpsControllerGetWatchlistMarketsAction = {
 /**
  * Record that the user viewed a market.
  *
- * The symbol is prepended to the per-network recently-viewed list (newest-first).
- * Any existing entry for the same symbol is removed first so there are no
+ * The market reference is prepended to the per-network recently-viewed list (newest-first).
+ * Any existing entry for the same reference is removed first so there are no
  * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
  *
  * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+ * @param marketKey - Optional cross-venue key for a grouped market.
  */
 export type PerpsControllerRecordMarketViewedAction = {
   type: `PerpsController:recordMarketViewed`;
@@ -1758,12 +1761,12 @@ export type PerpsControllerRecordMarketViewedAction = {
 /**
  * Get recently viewed markets for the current network.
  *
- * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit references, ordered
  * newest-first, filtered to entries within the last
  * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
  * array when no qualifying entries exist.
  *
- * @returns Ordered array of market symbols.
+ * @returns Ordered array of saved market references.
  */
 export type PerpsControllerGetRecentlyViewedMarketsAction = {
   type: `PerpsController:getRecentlyViewedMarkets`;

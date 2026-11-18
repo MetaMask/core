@@ -1201,6 +1201,10 @@ export type MarketInfo = {
   isDelisted?: true; // HyperLiquid: delisted status (optional, only when true)
   minimumOrderSize?: number; // Minimum order size in USD (protocol-specific)
   providerId?: PerpsProviderType; // Multi-provider: which provider this market comes from (injected by aggregator)
+  /** Cross-venue identity from the Terminal snapshot. */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
 };
 
 /**
@@ -1346,6 +1350,21 @@ export type PerpsMarketData = {
    * Clients can use this to surface recently added markets (e.g. markets listed within the last 30 days).
    */
   listedAt?: number;
+  /** Asset icon URL from the Terminal global snapshot. */
+  iconUrl?: string;
+  /**
+   * Cross-venue market identity from the Terminal global snapshot. Rows from
+   * different providers with the same `marketKey` are the same market.
+   */
+  marketKey?: string;
+  /** Venue price divided by canonical market price. */
+  priceScale?: number;
+};
+
+/** One display row with its original venue rows, preferred venue first. */
+export type GroupedPerpsMarket = PerpsMarketData & {
+  marketKey: string;
+  venues: PerpsMarketData[];
 };
 
 export type ToggleTestnetResult = {
@@ -3834,9 +3853,12 @@ export type PerpsTerminalMarketService = {
   ): Promise<PerpsGlobalSnapshotResult>;
 };
 
-/** Exact identity a client expects from an atomic global Perps snapshot. */
+/**
+ * Exact identity a client expects from an atomic global Perps snapshot.
+ * Lighter has a single DEX, so its `enabledDexes` is `['main']`.
+ */
 export type PerpsGlobalSnapshotRequest = {
-  provider: 'hyperliquid';
+  provider: 'hyperliquid' | 'lighter';
   network: 'mainnet' | 'testnet';
   enabledDexes: string[];
 };

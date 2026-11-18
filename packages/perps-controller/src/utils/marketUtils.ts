@@ -1,10 +1,157 @@
 import type {
   GetMarketDataWithPricesParams,
+  GroupedPerpsMarket,
+  MarketInfo,
   MarketTypeFilter,
   PerpsMarketData,
+  PerpsProviderType,
 } from '../types/index.js';
 import type { CandleData, CandleStick } from '../types/perps-types.js';
 import { sortMarkets } from './sortMarkets.js';
+
+const SAVED_MARKET_KEY_PREFIX = 'market-key:';
+
+type MarketIdentity = Pick<MarketInfo, 'marketKey' | 'priceScale'>;
+
+/**
+ * Copy the optional cross-venue identity fields of a snapshot row.
+ *
+ * @param identity - The snapshot row's optional identity.
+ * @returns The identity fields supplied by the backend.
+ */
+export function getSnapshotMarketIdentity(identity: {
+  marketKey?: string | null;
+  priceScale?: number | null;
+}): MarketIdentity {
+  const { marketKey, priceScale } = identity;
+  return {
+    ...(marketKey !== null && marketKey !== undefined && { marketKey }),
+    ...(priceScale !== null && priceScale !== undefined && { priceScale }),
+  };
+}
+
+function getUnscaledMarketKey(market: MarketIdentity): string | undefined {
+  const { marketKey, priceScale } = market;
+  return marketKey && (priceScale === undefined || priceScale === 1)
+    ? marketKey
+    : undefined;
+}
+
+function getVenueMarketKey(
+  market: PerpsMarketData,
+  defaultProvider: PerpsProviderType,
+): string {
+  return (market.providerId ?? defaultProvider) === 'lighter'
+    ? `lighter:${market.symbol}`
+    : market.symbol;
+}
+
+/**
+ * Group rows that share a backend market key at the same price scale.
+ * The first venue supplies the display data and retains its execution symbol.
+ *
+ * @param markets - Venue market rows. Untagged direct rows belong to the default venue.
+ * @param defaultProvider - The venue whose data should be first when present.
+ * @returns Display rows in first-seen market order, with the original venue rows.
+ */
+export function groupMarketsByMarketKey(
+  markets: readonly PerpsMarketData[],
+  defaultProvider: PerpsProviderType,
+): GroupedPerpsMarket[] {
+  const groups: { marketKey: string; venues: PerpsMarketData[] }[] = [];
+  const byKey = new Map<string, PerpsMarketData[]>();
+  for (const market of markets) {
+    const marketKey = getUnscaledMarketKey(market);
+    const venues = marketKey ? byKey.get(marketKey) : undefined;
+    if (venues) {
+      venues.push(market);
+    } else {
+      const firstVenue = [market];
+      groups.push({
+        marketKey: marketKey ?? getVenueMarketKey(market, defaultProvider),
+        venues: firstVenue,
+      });
+      if (marketKey) {
+        byKey.set(marketKey, firstVenue);
+      }
+    }
+  }
+
+  return groups.map(({ marketKey, venues }) => {
+    const preferred = venues.findIndex(
+      (market) => (market.providerId ?? defaultProvider) === defaultProvider,
+    );
+    if (preferred > 0) {
+      const [primary] = venues.splice(preferred, 1);
+      venues.unshift(primary);
+    }
+    return { ...venues[0], marketKey, venues };
+  });
+}
+
+/**
+ * Encode a saved market reference without changing the persisted string format.
+ * An explicit key can have the same text as a legacy venue symbol.
+ *
+ * @param symbol - The venue's trading symbol.
+ * @param marketKey - The market key when saving a grouped row.
+ * @returns A reference for persistence in a watchlist or recently viewed list.
+ */
+export function toSavedPerpsMarketReference(
+  symbol: string,
+  marketKey?: string,
+): string {
+  return marketKey ? `${SAVED_MARKET_KEY_PREFIX}${marketKey}` : symbol;
+}
+
+/**
+ * Resolve saved entries to executable venue rows. Legacy symbols keep their
+ * original venue when available. Explicit keys follow the current default venue.
+ *
+ * @param references - Strings read from the watchlist or recently viewed list.
+ * @param markets - Current ungrouped market rows.
+ * @param defaultProvider - Preferred venue for a market key and for untagged direct rows.
+ * @param legacyProvider - Venue that owned the saved symbols before grouping.
+ * @returns The resolved venue rows in saved order.
+ */
+export function resolveSavedPerpsMarkets(
+  references: readonly string[],
+  markets: readonly PerpsMarketData[],
+  defaultProvider: PerpsProviderType,
+  legacyProvider: PerpsProviderType = 'hyperliquid',
+): PerpsMarketData[] {
+  const symbols = new Map<string, PerpsMarketData>();
+  const backendKeys = new Map<string, PerpsMarketData>();
+  const venueKeys = new Map<string, PerpsMarketData>();
+  for (const market of markets) {
+    const provider = market.providerId ?? defaultProvider;
+    if (!symbols.has(market.symbol) || provider === legacyProvider) {
+      symbols.set(market.symbol, market);
+    }
+    const backendKey = getUnscaledMarketKey(market);
+    if (
+      backendKey &&
+      (!backendKeys.has(backendKey) || provider === defaultProvider)
+    ) {
+      backendKeys.set(backendKey, market);
+    }
+    venueKeys.set(getVenueMarketKey(market, defaultProvider), market);
+  }
+
+  const resolved = new Set<PerpsMarketData>();
+  for (const reference of references) {
+    const market = reference.startsWith(SAVED_MARKET_KEY_PREFIX)
+      ? (backendKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length)) ??
+        venueKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length)))
+      : (symbols.get(reference) ??
+        backendKeys.get(reference) ??
+        venueKeys.get(reference));
+    if (market) {
+      resolved.add(market);
+    }
+  }
+  return [...resolved];
+}
 
 export function clonePerpsMarketData(
   markets: PerpsMarketData[],
@@ -65,8 +212,7 @@ export function matchesCategory(
         (isHip3Market(market) && market.marketType === undefined)
       );
     case 'crypto':
-      // Main-DEX markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
-      return !isHip3Market(market) || market.marketType === 'crypto';
+      return getMarketTypeFilter(market) === 'crypto';
     case 'memecoin':
       // Derived category: a crypto market that carries the 'memecoin' tag.
       // Aligned with the 'crypto' case above so tagged main-DEX markets
@@ -74,7 +220,7 @@ export function matchesCategory(
       // provider-sourced shape prior to Terminal enrichment). Overlaps
       // with 'crypto' by design — memecoins appear under both pills.
       return (
-        (!isHip3Market(market) || market.marketType === 'crypto') &&
+        getMarketTypeFilter(market) === 'crypto' &&
         (market.tags?.includes('memecoin') ?? false)
       );
     default:

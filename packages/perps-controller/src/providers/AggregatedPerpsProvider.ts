@@ -696,10 +696,23 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
-  async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
+  /**
+   * Read market data from every venue and stamp each row with its venue.
+   *
+   * @param readVenue - Per-venue read, such as one that applies the venue's
+   * own Terminal snapshot. Defaults to the venue's `getMarketDataWithPrices`.
+   * @returns Rows from every venue whose read succeeded.
+   */
+  async getMarketDataWithPrices(
+    readVenue: (
+      providerId: PerpsProviderType,
+      provider: PerpsProvider,
+    ) => Promise<PerpsMarketData[]> = async (_providerId, provider) =>
+      provider.getMarketDataWithPrices(),
+  ): Promise<PerpsMarketData[]> {
     const results = await Promise.allSettled(
       this.#getActiveProviders().map(async ([id, provider]) => {
-        const data = await provider.getMarketDataWithPrices();
+        const data = await readVenue(id, provider);
         return data.map((item) => ({ ...item, providerId: id }));
       }),
     );
