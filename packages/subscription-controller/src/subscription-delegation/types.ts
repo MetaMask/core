@@ -88,6 +88,11 @@ export type StartSubscriptionWithDelegationRequest = {
   recurringInterval: RecurringInterval;
   chainId: Hex;
   payerAddress: Hex;
+  /**
+   * When true, the Subscription API attaches a Stripe test clock to the
+   * created subscription. Omit to leave the subscription on real time.
+   */
+  useTestClock?: boolean;
 };
 
 export type PrepareAuthorizationBundleResult =
