@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve significant digits in sub-$1 HyperLiquid prices and keep chase quotes from crossing the book after price formatting ([#10052](https://github.com/MetaMask/core/pull/10052))
+  - `countSignificantFigures` excludes leading fractional zeros, so `0.001234` has four significant figures instead of six. `hasExceededSignificantFigures` and `roundToSignificantFigures` use the corrected budget
+  - `formatHyperLiquidPrice` preserves valid prices such as `0.000001` instead of rounding them to zero
+  - `computeChaseQuotePrice` checks the formatted quote against the opposing touch and falls back to the original side when rounding would cross it
+
 ## [24.1.0]
 
 ### Added

@@ -382,10 +382,18 @@ export function computeChaseQuotePrice(params: {
   // cross, which a post-only order cannot do. Join the touch instead.
   const crosses = isBuy ? improved >= bestAsk : improved <= bestBid;
 
-  return formatHyperLiquidPrice({
+  const formattedPrice = formatHyperLiquidPrice({
     price: crosses ? reference : improved,
     szDecimals,
   });
+  // Formatting can move a floating-point improvement onto the opposing touch.
+  const formattedCrosses = isBuy
+    ? Number(formattedPrice) >= bestAsk
+    : Number(formattedPrice) <= bestBid;
+
+  return formattedCrosses
+    ? formatHyperLiquidPrice({ price: reference, szDecimals })
+    : formattedPrice;
 }
 
 /**

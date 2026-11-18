@@ -9,6 +9,7 @@ import {
   adaptOrderFromSDK,
   adaptMarketFromSDK,
   buildHyperLiquidFillId,
+  formatHyperLiquidPrice,
 } from '../../../src/utils/hyperLiquidAdapter.js';
 
 /**
@@ -309,4 +310,27 @@ describe('adaptAccountStateFromSDK available balance (characterization)', () => 
     expect(accountState.spendableBalance).toBe('0.050136');
     expect(accountState.withdrawableBalance).toBe('0.050136');
   });
+});
+
+describe('formatHyperLiquidPrice', () => {
+  it.each([
+    ['0.001234', 0, '0.001234'],
+    [0.000463, 0, '0.000463'],
+    ['0.000171', 0, '0.000171'],
+    ['0.000001', 0, '0.000001'],
+    ['0.00123456', 0, '0.001235'],
+    ['0.123456', 0, '0.12346'],
+    ['0.000171', 1, '0.00017'],
+    ['2999.14159', 4, '2999.1'],
+    [123456789, 6, '123456789'],
+    ['0.00000049', 0, '0'],
+    ['0.00000051', 0, '0.000001'],
+    ['1.234e-3', 0, '0.001234'],
+    ['0.1234551', 0, '0.12345'],
+  ])(
+    'formats %s with size precision %s as %s',
+    (price, szDecimals, expected) => {
+      expect(formatHyperLiquidPrice({ price, szDecimals })).toBe(expected);
+    },
+  );
 });
