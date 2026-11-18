@@ -100,18 +100,16 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
   gasless: true,
   id: 'server-intent-id',
   input: {
-    chainId: 137,
+    asset: 'eip155:137/erc20:0x5555555555555555555555555555555555555555',
     decimals: 6,
     formatted: '1.23',
     raw: '1230000',
-    token: '0x5555555555555555555555555555555555555555',
   },
   output: {
-    chainId: 1,
+    asset: 'eip155:1/erc20:0x6666666666666666666666666666666666666666',
     decimals: 6,
     formatted: '1',
     raw: '1000000',
-    token: '0x6666666666666666666666666666666666666666',
   },
   provider: 'relay',
   steps: [
