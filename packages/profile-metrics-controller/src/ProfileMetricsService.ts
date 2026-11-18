@@ -2,7 +2,11 @@ import type {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  handleWhen,
+  HttpError,
+} from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -118,6 +122,19 @@ export const MAX_NONCE_BATCH_SIZE = 50;
 const MESSENGER_EXPOSED_METHODS = ['submitMetrics', 'fetchNonces'] as const;
 
 /**
+ * A 4xx response will not change on an immediate retry, so retrying it only
+ * adds load on the API. Network errors and 5xx responses stay retryable.
+ */
+const DO_NOT_RETRY_CLIENT_ERRORS = handleWhen(
+  (error) =>
+    !(
+      error instanceof HttpError &&
+      error.httpStatus >= 400 &&
+      error.httpStatus < 500
+    ),
+);
+
+/**
  * Actions that {@link ProfileMetricsService} exposes to other consumers.
  */
 export type ProfileMetricsServiceActions = ProfileMetricsServiceMethodActions;
@@ -226,12 +243,16 @@ export class ProfileMetricsService {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
-    this.#fetchNoncesPolicy = createServicePolicy(policyOptions);
+    this.#fetchNoncesPolicy = createServicePolicy({
+      retryFilterPolicy: DO_NOT_RETRY_CLIENT_ERRORS,
+      ...policyOptions,
+    });
     // Keep the circuit breaker scaled to the retry count the same way
     // `createServicePolicy` derives `DEFAULT_MAX_CONSECUTIVE_FAILURES`:
     // `(1 + maxRetries) * 3` failed attempts ≈ 3 failed `execute()` calls.
     const submitMaxRetries = policyOptions.maxRetries ?? 0;
     this.#submitMetricsPolicy = createServicePolicy({
+      retryFilterPolicy: DO_NOT_RETRY_CLIENT_ERRORS,
       ...policyOptions,
       maxRetries: submitMaxRetries,
       maxConsecutiveFailures:

@@ -840,21 +840,24 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('attempts a request that responds with 4xx up to 4 times, throwing if it never succeeds', async () => {
-      nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(400);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+    it.each([400, 403, 429])(
+      'does not retry a request that responds with %i, throwing immediately',
+      async (status) => {
+        nock(defaultBaseEndpoint).post('/nonce/batch').once().reply(status);
+        const { service, rootMessenger } = getService();
+        const onRetry = vi.fn();
+        service.onRetry(onRetry);
 
-      await expect(
-        rootMessenger.call('ProfileMetricsService:fetchNonces', {
-          identifiers: ['0xAddressOne'],
-        }),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '400'`,
-      );
-    });
+        await expect(
+          rootMessenger.call('ProfileMetricsService:fetchNonces', {
+            identifiers: ['0xAddressOne'],
+          }),
+        ).rejects.toThrow(
+          `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '${status}'`,
+        );
+        expect(onRetry).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('fetchNonces', () => {
