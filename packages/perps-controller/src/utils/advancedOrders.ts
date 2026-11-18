@@ -548,7 +548,9 @@ function parsePositiveDecimal(raw: unknown): BigNumber {
  * @param params.usdAmount - Maximum ladder value in USD.
  * @returns Rung sizes and ladder totals.
  * @throws `ORDER_SIZE_POSITIVE` for a missing or non-positive amount, and
- * `ORDER_SCALE_SIZE_TOO_SMALL` when no rung can get a grid unit.
+ * `ORDER_SCALE_SIZE_TOO_SMALL` when no rung can get a grid unit. The internal
+ * guards `ORDER_SCALE_SIZE_CONSERVATION_FAILED` and
+ * `ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT` fire only if the split itself breaks.
  */
 export function sizeScaleLadder(
   params: {
@@ -591,7 +593,7 @@ export function sizeScaleLadder(
       rungUnits.some((unit) => !unit.isInteger()) ||
       !BigNumber.sum(...rungUnits).isEqualTo(totalUnits)
     ) {
-      throw new Error('Scale size conservation failed');
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_SIZE_CONSERVATION_FAILED);
     }
     return sizes;
   };
@@ -636,7 +638,7 @@ export function sizeScaleLadder(
     totalSize.isGreaterThan(rawSize) ||
     (budget && totalNotional.isGreaterThan(budget))
   ) {
-    throw new Error('Scale exposure exceeds intent');
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_EXPOSURE_EXCEEDS_INTENT);
   }
   return {
     sizes,

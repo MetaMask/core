@@ -310,6 +310,34 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ]);
     });
 
+    it('lists no chase when no account is selected', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
+
+      mockWalletService.getUserAddressWithDefault.mockRejectedValue(
+        new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED),
+      );
+
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
+    it('rejects instead of listing no chase when the account read fails', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
+
+      mockWalletService.getUserAddressWithDefault.mockRejectedValue(
+        new Error(PERPS_ERROR_CODES.INVALID_ADDRESS_FORMAT),
+      );
+
+      await expect(provider.getChaseOrders()).rejects.toThrow(
+        PERPS_ERROR_CODES.INVALID_ADDRESS_FORMAT,
+      );
+    });
+
     it('counts the chase cap only for the account and network placing it', async () => {
       useStrategyClients({
         exchange: { order: vi.fn().mockResolvedValue(chaseRested) },

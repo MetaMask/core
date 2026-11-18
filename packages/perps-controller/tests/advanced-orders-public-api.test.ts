@@ -34,16 +34,10 @@ import type {
   AdvancedOrderValidationResult,
   ChaseOrderLists,
   ChasePlacementCheck,
-  LiveChaseOrderSource,
-  LiveTwapOrderSource,
-  PerpsControllerSubscribeToChaseOrderListsAction,
-  PerpsControllerSubscribeToLiveTwapOrdersAction,
   PerpsDurationFormatOptions,
   PerpsStrategyRules,
   ScaleLadderSizing,
   ScalePriceWarning,
-  SubscribeChaseOrderListsParams,
-  SubscribeLiveTwapOrdersParams,
   TwapSlicePreview,
 } from '../src/index.js';
 
@@ -120,40 +114,42 @@ describe('@metamask/perps-controller advanced-order public API', () => {
       size: '6',
       sizeDecimals: 0,
     });
-    const lists: ChaseOrderLists = { running: [], history: [] };
-    const check: ChasePlacementCheck = { canPlace: true, activeCount: 0 };
-    const sizing: ScaleLadderSizing = {
-      sizes: [],
-      totalSize: '0',
-      totalNotional: '0',
-    };
-    const warning: ScalePriceWarning = { code: 'crosses_market' };
+    const lists: ChaseOrderLists = mergeChaseOrderHistory({ current: [] });
+    const check: ChasePlacementCheck = checkChasePlacement({
+      rules: {
+        maxActiveSessions: 1,
+        defaultIntervalMs: 1000,
+        minIntervalMs: 1000,
+      },
+      chaseOrders: [],
+    });
+    const sizing: ScaleLadderSizing = sizeScaleLadder({
+      prices: ['1', '2'],
+      sizeDecimals: 0,
+      size: '2',
+    });
+    const warnings: ScalePriceWarning[] = classifyScalePriceWarnings({
+      prices: ['101'],
+      isBuy: true,
+      bestBid: '99',
+      bestAsk: '100',
+    });
     const options: PerpsDurationFormatOptions = { unitDisplay: 'long' };
-    const twapSource: LiveTwapOrderSource = {
-      getTwapOrders: async () => [],
-      subscribeToTwapOrders: () => () => undefined,
-    };
-    const chaseSource: LiveChaseOrderSource = {
-      getChaseOrders: async () => [],
-    };
-    const twapParams: SubscribeLiveTwapOrdersParams = {
-      callback: () => undefined,
-    };
-    const chaseParams: SubscribeChaseOrderListsParams = {
-      callback: () => undefined,
-    };
-    const actions: [
-      PerpsControllerSubscribeToLiveTwapOrdersAction['type'],
-      PerpsControllerSubscribeToChaseOrderListsAction['type'],
-    ] = [
-      'PerpsController:subscribeToLiveTwapOrders',
-      'PerpsController:subscribeToChaseOrderLists',
-    ];
 
     expect(valid).toStrictEqual({ isValid: true });
     expect(preview).toMatchObject({ sliceCount: 6, sizePerSlice: '1' });
-    expect([lists, check, sizing, warning, options]).toHaveLength(5);
-    expect([twapSource, chaseSource, twapParams, chaseParams]).toHaveLength(4);
-    expect(actions).toHaveLength(2);
+    expect(lists).toStrictEqual({ running: [], history: [] });
+    expect(check).toStrictEqual({
+      canPlace: true,
+      activeCount: 0,
+      maxActiveSessions: 1,
+    });
+    expect(sizing).toStrictEqual({
+      sizes: ['1', '1'],
+      totalSize: '2',
+      totalNotional: '3',
+    });
+    expect(warnings).toStrictEqual([{ code: 'crosses_market' }]);
+    expect(formatPerpsDuration(5 * 60_000, options)).toBe('5 minutes');
   });
 });

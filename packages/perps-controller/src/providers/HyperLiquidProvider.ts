@@ -9700,14 +9700,25 @@ export class HyperLiquidProvider implements PerpsProvider {
    * instance retains for the current account and network. Sessions placed by
    * another account or on another network stay retained but are not listed. A
    * read may refresh the current child order's remaining size from the venue,
-   * throttled to the Chase interval.
+   * throttled to the Chase interval. With no account selected the list is
+   * empty; any other failure to read the account rejects, so an unknown
+   * account is never reported as having no Chases.
    *
    * @returns Current Chase session snapshots.
    */
   async getChaseOrders(): Promise<ChaseOrder[]> {
-    const currentAddress = (
-      await this.#walletService.getUserAddressWithDefault().catch(() => '')
-    ).toLowerCase();
+    const currentAddress = await this.#walletService
+      .getUserAddressWithDefault()
+      .then((address) => address.toLowerCase())
+      .catch((error: unknown) => {
+        if (
+          ensureError(error, 'HyperLiquidProvider.getChaseOrders').message ===
+          PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED
+        ) {
+          return '';
+        }
+        throw error;
+      });
     const currentNetwork = this.#clientService.isTestnetMode()
       ? 'testnet'
       : 'mainnet';
