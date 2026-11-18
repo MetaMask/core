@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/sentinel-api-service` from `^2.2.0` to `^2.3.0` ([#11590](https://github.com/MetaMask/core/pull/11590))
+
+## [74.1.0]
+
+### Changed
+
+- Refactor transaction creation into explicit lifecycle stages with shared state helpers ([#10255](https://github.com/MetaMask/core/pull/10255))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.2.0` ([#11546](https://github.com/MetaMask/core/pull/11546))
 
@@ -2917,7 +2924,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.1.0...HEAD
+[74.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@74.0.0...@metamask/transaction-controller@74.1.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...@metamask/transaction-controller@74.0.0
 [73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2
 [73.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.0...@metamask/transaction-controller@73.1.1

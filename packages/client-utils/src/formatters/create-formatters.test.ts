@@ -91,6 +91,72 @@ describe('formatCurrency', () => {
       Intl.NumberFormat = original;
     }
   });
+
+  it('uses narrow currency symbols when currencyDisplay is narrowSymbol', () => {
+    const { formatCurrency: formatNarrow } = createFormatters({
+      locale: 'en-GB',
+      currencyDisplay: 'narrowSymbol',
+    });
+    const expected = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'USD',
+      currencyDisplay: 'narrowSymbol',
+    }).format(1234.56);
+    expect(formatNarrow(1234.56, 'USD')).toBe(expected);
+  });
+
+  it('keeps the default currency display when currencyDisplay is omitted', () => {
+    const { formatCurrency: formatDefault } = createFormatters({
+      locale: 'en-GB',
+    });
+    const expected = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(1234.56);
+    expect(formatDefault(1234.56, 'USD')).toBe(expected);
+  });
+
+  it('allows per-call currencyDisplay options to override the default', () => {
+    const { formatCurrency: formatNarrow } = createFormatters({
+      locale: 'en-GB',
+      currencyDisplay: 'narrowSymbol',
+    });
+    const expected = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'USD',
+      currencyDisplay: 'code',
+    }).format(10);
+    expect(formatNarrow(10, 'USD', { currencyDisplay: 'code' })).toBe(expected);
+  });
+});
+
+describe('currencyDisplay shared config', () => {
+  it('applies currencyDisplay to formatCurrencyCompact and formatCurrencyWithMinThreshold', () => {
+    const { formatCurrencyCompact, formatCurrencyWithMinThreshold } =
+      createFormatters({
+        locale: 'en-GB',
+        currencyDisplay: 'narrowSymbol',
+      });
+
+    const expectedCompact = new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'USD',
+      currencyDisplay: 'narrowSymbol',
+      notation: 'compact',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(1_500_000);
+    expect(formatCurrencyCompact(1_500_000, 'USD')).toBe(expectedCompact);
+
+    const expectedThreshold = `<${new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'USD',
+      currencyDisplay: 'narrowSymbol',
+    }).format(0.01)}`;
+    expect(formatCurrencyWithMinThreshold(0.001, 'USD')).toBe(
+      expectedThreshold,
+    );
+  });
 });
 
 describe('formatCurrencyWithMinThreshold', () => {

@@ -8,6 +8,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
 import { getServerUnsupportedReason } from './server-support.js';
@@ -27,6 +28,10 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
     const config = getPayStrategiesConfig(request.messenger);
 
     if (!config.server.enabled) {
+      return false;
+    }
+
+    if (!request.requests.every(isEvmQuoteRequest)) {
       return false;
     }
 

@@ -517,12 +517,12 @@
 /packages/money-account-lifecycle-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/earn    # maintenance-owner: @MetaMask/core-platform
 
 ### money-account-mfa-whitelist
-/packages/money-account-mfa-whitelist                    @MetaMask/earn
-/packages/money-account-mfa-whitelist/CHANGELOG.md       @MetaMask/core-platform @MetaMask/earn    # maintenance-owner: @MetaMask/core-platform
-/packages/money-account-mfa-whitelist/package.json       @MetaMask/core-platform @MetaMask/earn    # maintenance-owner: @MetaMask/core-platform
-/packages/money-account-mfa-whitelist/tsconfig.*         @MetaMask/core-platform @MetaMask/earn    # maintenance-owner: @MetaMask/core-platform
-/packages/money-account-mfa-whitelist/typedoc.json       @MetaMask/core-platform @MetaMask/earn    # maintenance-owner: @MetaMask/core-platform
-/packages/money-account-mfa-whitelist/vitest.config.*    @MetaMask/core-platform @MetaMask/earn    # maintenance-owner: @MetaMask/core-platform
+/packages/money-account-mfa-whitelist                    @MetaMask/earn @MetaMask/mfa-team
+/packages/money-account-mfa-whitelist/CHANGELOG.md       @MetaMask/core-platform @MetaMask/earn @MetaMask/mfa-team    # maintenance-owner: @MetaMask/core-platform
+/packages/money-account-mfa-whitelist/package.json       @MetaMask/core-platform @MetaMask/earn @MetaMask/mfa-team    # maintenance-owner: @MetaMask/core-platform
+/packages/money-account-mfa-whitelist/tsconfig.*         @MetaMask/core-platform @MetaMask/earn @MetaMask/mfa-team    # maintenance-owner: @MetaMask/core-platform
+/packages/money-account-mfa-whitelist/typedoc.json       @MetaMask/core-platform @MetaMask/earn @MetaMask/mfa-team    # maintenance-owner: @MetaMask/core-platform
+/packages/money-account-mfa-whitelist/vitest.config.*    @MetaMask/core-platform @MetaMask/earn @MetaMask/mfa-team    # maintenance-owner: @MetaMask/core-platform
 
 ### money-account-upgrade-controller
 /packages/money-account-upgrade-controller                    @MetaMask/delegation @MetaMask/earn

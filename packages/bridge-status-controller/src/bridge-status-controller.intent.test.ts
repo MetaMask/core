@@ -8,6 +8,7 @@ import {
   QuoteResponse as QuoteResponseV1,
   getNativeAssetForChainId,
   validateQuoteResponseV1,
+  MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type {
   GasFeeEstimates,
@@ -319,6 +320,7 @@ const setup = (options?: {
     traceFn: (_req: any, fn?: any): any => fn?.(),
     isQuoteStatusManagerEnabled: options?.isQuoteStatusManagerEnabled,
     onQuoteStatusManagerError: options?.onQuoteStatusManagerError,
+    clientProduct: 'extension',
   });
 
   const startPollingSpy = vi
@@ -964,6 +966,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
       slippagePercentage: 0,
       startTime: Date.now(),
       isStxEnabled: false,
+      location: MetaMetricsSwapsEventSource.MainView,
     });
 
     expect(controller.state.txHistory.bridgeToWipe1).toBeDefined();
@@ -1021,6 +1024,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       addTransactionBatchFn: vi.fn(),
       config: { customBridgeApiBaseUrl: 'http://localhost' },
       traceFn: (_r: any, fn?: any): any => fn?.(),
+      clientProduct: 'extension',
     });
 
     expect(controller.state.txHistory.init1.attempts?.counter).toBe(
@@ -1236,14 +1240,19 @@ describe('BridgeStatusController (target uncovered branches)', () => {
         evt === 'TransactionController:transactionStatusUpdated',
     )?.[1];
 
-    failedCb({
-      transactionMeta: {
-        id: 'feat1',
-        type: TransactionType.bridge,
-        status: TransactionStatus.failed,
-        chainId: '0x1',
-      },
-    });
+    failedCb(
+      historyUtils.resolveHistoryKeyForTxMeta(
+        {
+          transactionMeta: {
+            id: 'feat1',
+            type: TransactionType.bridge,
+            status: TransactionStatus.failed,
+            chainId: '0x1',
+          } as unknown as TransactionMeta,
+        },
+        controller.state.txHistory,
+      ),
+    );
 
     // should skip due to featureId
     expect((messenger.call as Mock).mock.calls).not.toStrictEqual(
