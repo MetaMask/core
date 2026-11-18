@@ -116,7 +116,11 @@ export function isTrustedIdentifier(
 }
 
 function trimSlash(namespace: string): string {
-  return namespace.replace(/\/+$/u, '');
+  let end = namespace.length;
+  while (namespace[end - 1] === '/') {
+    end -= 1;
+  }
+  return namespace.slice(0, end);
 }
 
 export type UserStorageTrustedIdentifierStoreMessenger = Messenger<
