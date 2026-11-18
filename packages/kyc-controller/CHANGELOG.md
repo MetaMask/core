@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
-- Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))

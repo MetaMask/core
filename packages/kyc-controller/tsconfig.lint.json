@@ -15,9 +15,6 @@
       "path": "../base-data-service/tsconfig.lint.json"
     },
     {
-      "path": "../cryptography/tsconfig.lint.json"
-    },
-    {
       "path": "../controller-utils/tsconfig.lint.json"
     },
     {

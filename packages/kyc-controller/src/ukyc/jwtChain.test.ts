@@ -53,50 +53,48 @@ function buildJwt({
 }
 
 describe('UKYC verifyJwtChain', () => {
-  it('returns the payload for a validly-signed jwtChain', async () => {
-    expect(await verifyJwtChain([JWK], buildJwt())).toStrictEqual(PAYLOAD);
+  it('returns the payload for a validly-signed jwtChain', () => {
+    expect(verifyJwtChain([JWK], buildJwt())).toStrictEqual(PAYLOAD);
   });
 
-  it('rejects a jwtChain that is not three segments', async () => {
-    await expect(verifyJwtChain([JWK], 'only.two')).rejects.toThrow(
+  it('rejects a jwtChain that is not three segments', () => {
+    expect(() => verifyJwtChain([JWK], 'only.two')).toThrow(
       'not a well-formed JWT',
     );
   });
 
-  it('rejects a non-EdDSA algorithm', async () => {
+  it('rejects a non-EdDSA algorithm', () => {
     const jwt = buildJwt({ header: { alg: 'RS256', kid: KID } });
 
-    await expect(verifyJwtChain([JWK], jwt)).rejects.toThrow('expected EdDSA');
+    expect(() => verifyJwtChain([JWK], jwt)).toThrow('expected EdDSA');
   });
 
-  it('rejects when no JWKS key matches the kid', async () => {
+  it('rejects when no JWKS key matches the kid', () => {
     const jwt = buildJwt({ header: { alg: 'EdDSA', kid: 'other' } });
 
-    await expect(verifyJwtChain([JWK], jwt)).rejects.toThrow(
-      'no JWKS key matches',
-    );
+    expect(() => verifyJwtChain([JWK], jwt)).toThrow('no JWKS key matches');
   });
 
-  it('rejects a JWKS key that is not an Ed25519 OKP key', async () => {
+  it('rejects a JWKS key that is not an Ed25519 OKP key', () => {
     const badJwk: Jwk = { ...JWK, crv: 'X25519' };
 
-    await expect(verifyJwtChain([badJwk], buildJwt())).rejects.toThrow(
+    expect(() => verifyJwtChain([badJwk], buildJwt())).toThrow(
       'is not an Ed25519 OKP key',
     );
   });
 
-  it('rejects a tampered signature', async () => {
-    await expect(
-      verifyJwtChain([JWK], buildJwt({ tamper: true })),
-    ).rejects.toThrow('signature verification failed');
+  it('rejects a tampered signature', () => {
+    expect(() => verifyJwtChain([JWK], buildJwt({ tamper: true }))).toThrow(
+      'signature verification failed',
+    );
   });
 
-  it('rejects a malformed (non-JSON) header segment', async () => {
+  it('rejects a malformed (non-JSON) header segment', () => {
     const jwt = `not-json.${toBase64Url(
       stringToBytes(JSON.stringify(PAYLOAD)),
     )}.sig`;
 
-    await expect(verifyJwtChain([JWK], jwt)).rejects.toThrow(
+    expect(() => verifyJwtChain([JWK], jwt)).toThrow(
       'failed to decode jwtChain header',
     );
   });
@@ -108,16 +106,16 @@ describe('UKYC assertAttestedServerPublicKey', () => {
     serverPublicKey: { x: PAYLOAD.sessionServerPublicKeyX },
   };
 
-  it('accepts a schema whose public key matches the attested jwtChain payload', async () => {
-    expect(await assertAttestedServerPublicKey([JWK], schema)).toBeUndefined();
+  it('accepts a schema whose public key matches the attested jwtChain payload', () => {
+    expect(() => assertAttestedServerPublicKey([JWK], schema)).not.toThrow();
   });
 
-  it('rejects a schema whose public key does not match the attested jwtChain payload', async () => {
-    await expect(
+  it('rejects a schema whose public key does not match the attested jwtChain payload', () => {
+    expect(() =>
       assertAttestedServerPublicKey([JWK], {
         ...schema,
         serverPublicKey: { x: 'tampered' },
       }),
-    ).rejects.toThrow('sessionServerPublicKey does not match');
+    ).toThrow('sessionServerPublicKey does not match');
   });
 });

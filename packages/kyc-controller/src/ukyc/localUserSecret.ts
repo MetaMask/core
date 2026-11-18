@@ -1,5 +1,5 @@
-import { getRandomBytes } from '@metamask/cryptography';
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
+import { randomBytes } from '@noble/hashes/utils';
 
 import type { KycControllerMessenger } from '../KycController.js';
 import {
@@ -84,7 +84,7 @@ export class UkycLocalUserSecretStore {
  * Deduplicates concurrent enrollments in a single client session so we never
  * generate and persist two competing `local_user_secret`s for the same source.
  */
-const inFlightCreations = new Map<string, Promise<Uint8Array<ArrayBuffer>>>();
+const inFlightCreations = new Map<string, Promise<Uint8Array>>();
 
 /**
  * Loads the persisted `local_user_secret` from Encrypted User Storage, if one
@@ -99,7 +99,7 @@ const inFlightCreations = new Map<string, Promise<Uint8Array<ArrayBuffer>>>();
 export async function loadLocalUserSecret(
   store: UkycLocalUserSecretStore,
   entropySourceId?: string,
-): Promise<Uint8Array<ArrayBuffer> | null> {
+): Promise<Uint8Array | null> {
   const stored = await store.get(UKYC_LOCAL_USER_SECRET_PATH, entropySourceId);
 
   if (!stored) {
@@ -153,7 +153,7 @@ async function persistLocalUserSecret(
 export async function getOrCreateLocalUserSecret(
   store: UkycLocalUserSecretStore,
   entropySourceId?: string,
-): Promise<Uint8Array<ArrayBuffer>> {
+): Promise<Uint8Array> {
   const cacheKey = entropySourceId ?? '';
 
   const pending = inFlightCreations.get(cacheKey);
@@ -161,13 +161,13 @@ export async function getOrCreateLocalUserSecret(
     return pending;
   }
 
-  const creation = (async (): Promise<Uint8Array<ArrayBuffer>> => {
+  const creation = (async (): Promise<Uint8Array> => {
     const existing = await loadLocalUserSecret(store, entropySourceId);
     if (existing) {
       return existing;
     }
 
-    const localUserSecret = getRandomBytes(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
+    const localUserSecret = randomBytes(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
     await persistLocalUserSecret(store, localUserSecret, entropySourceId);
 
     // Re-read after persisting so that all callers converge on whatever value

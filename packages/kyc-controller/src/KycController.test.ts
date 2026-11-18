@@ -3049,7 +3049,7 @@ function withController<ReturnValue>(
     handlers.performSetStorage,
   );
 
-  mockVerifyJwtChain.mockResolvedValue({
+  mockVerifyJwtChain.mockReturnValue({
     sessionServerPublicKeyX: 'spk-x',
     nonce: 'n',
   });

@@ -1,6 +1,6 @@
 import { base64ToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
-import { describe, expect, it, beforeAll } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   UKYC_KWIL_AUDIENCE,
@@ -9,7 +9,6 @@ import {
   UKYC_STORAGE_ACCESS_TOKEN_VERSION,
 } from './constants.js';
 import { deriveClientMaterial } from './deriveClientMaterial.js';
-import type { UkycClientMaterial } from './deriveClientMaterial.js';
 import {
   canonicalizeJson,
   encodeStorageAccessTokenForHeader,
@@ -19,7 +18,7 @@ import {
 const LOCAL_USER_SECRET = new Uint8Array(
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
 ).fill(42);
-let MATERIAL: UkycClientMaterial;
+const MATERIAL = deriveClientMaterial(LOCAL_USER_SECRET);
 
 const ISSUED_AT = new Date('2026-07-07T00:00:00.000Z');
 const EXPIRES_AT = new Date('2026-07-07T04:00:00.000Z');
@@ -66,12 +65,8 @@ describe('UKYC canonicalizeJson', () => {
 });
 
 describe('UKYC signStorageAccessToken', () => {
-  beforeAll(async () => {
-    MATERIAL = await deriveClientMaterial(LOCAL_USER_SECRET);
-  });
-
-  it('mints a client-presented token with the expected payload', async () => {
-    const token = await signStorageAccessToken({
+  it('mints a client-presented token with the expected payload', () => {
+    const token = signStorageAccessToken({
       material: MATERIAL,
       operations: ['delete'],
       issuedAt: ISSUED_AT,
@@ -91,8 +86,8 @@ describe('UKYC signStorageAccessToken', () => {
     expect(token.payload).not.toHaveProperty('session_id');
   });
 
-  it('formats timestamps as RFC 3339 with whole seconds, truncating sub-second precision', async () => {
-    const token = await signStorageAccessToken({
+  it('formats timestamps as RFC 3339 with whole seconds, truncating sub-second precision', () => {
+    const token = signStorageAccessToken({
       material: MATERIAL,
       operations: ['read'],
       issuedAt: new Date('2026-07-07T00:00:00.715Z'),
@@ -103,8 +98,8 @@ describe('UKYC signStorageAccessToken', () => {
     expect(token.payload.expires_at).toBe('2026-07-07T04:00:00Z');
   });
 
-  it('produces a signature that verifies against the signing public key', async () => {
-    const token = await signStorageAccessToken({
+  it('produces a signature that verifies against the signing public key', () => {
+    const token = signStorageAccessToken({
       material: MATERIAL,
       operations: ['read', 'write'],
       presenter: 'idos-relay',
@@ -121,8 +116,8 @@ describe('UKYC signStorageAccessToken', () => {
     );
   });
 
-  it('binds session_id for Relay-presented tokens', async () => {
-    const token = await signStorageAccessToken({
+  it('binds session_id for Relay-presented tokens', () => {
+    const token = signStorageAccessToken({
       material: MATERIAL,
       operations: ['read'],
       presenter: 'idos-relay',
@@ -135,7 +130,7 @@ describe('UKYC signStorageAccessToken', () => {
     expect(token.payload.presenter).toBe('idos-relay');
   });
 
-  it('is deterministic for the same inputs', async () => {
+  it('is deterministic for the same inputs', () => {
     const params = {
       material: MATERIAL,
       operations: ['read' as const],
@@ -143,13 +138,13 @@ describe('UKYC signStorageAccessToken', () => {
       expiresAt: EXPIRES_AT,
     };
 
-    expect(await signStorageAccessToken(params)).toStrictEqual(
-      await signStorageAccessToken(params),
+    expect(signStorageAccessToken(params)).toStrictEqual(
+      signStorageAccessToken(params),
     );
   });
 
-  it('rejects a Relay presenter without a session_id', async () => {
-    await expect(
+  it('rejects a Relay presenter without a session_id', () => {
+    expect(() =>
       signStorageAccessToken({
         material: MATERIAL,
         operations: ['read'],
@@ -157,11 +152,11 @@ describe('UKYC signStorageAccessToken', () => {
         issuedAt: ISSUED_AT,
         expiresAt: EXPIRES_AT,
       }),
-    ).rejects.toThrow('requires a session_id');
+    ).toThrow('requires a session_id');
   });
 
-  it('rejects delegating a delete token to the Relay', async () => {
-    await expect(
+  it('rejects delegating a delete token to the Relay', () => {
+    expect(() =>
       signStorageAccessToken({
         material: MATERIAL,
         operations: ['delete'],
@@ -170,55 +165,55 @@ describe('UKYC signStorageAccessToken', () => {
         issuedAt: ISSUED_AT,
         expiresAt: EXPIRES_AT,
       }),
-    ).rejects.toThrow('cannot be delegated to the Relay');
+    ).toThrow('cannot be delegated to the Relay');
   });
 
-  it('rejects delete combined with other operations', async () => {
-    await expect(
+  it('rejects delete combined with other operations', () => {
+    expect(() =>
       signStorageAccessToken({
         material: MATERIAL,
         operations: ['delete', 'read'],
         issuedAt: ISSUED_AT,
         expiresAt: EXPIRES_AT,
       }),
-    ).rejects.toThrow('must contain only "delete"');
+    ).toThrow('must contain only "delete"');
   });
 
-  it('rejects an empty operations list', async () => {
-    await expect(
+  it('rejects an empty operations list', () => {
+    expect(() =>
       signStorageAccessToken({
         material: MATERIAL,
         operations: [],
         issuedAt: ISSUED_AT,
         expiresAt: EXPIRES_AT,
       }),
-    ).rejects.toThrow('at least one operation');
+    ).toThrow('at least one operation');
   });
 
-  it('rejects duplicate operations', async () => {
-    await expect(
+  it('rejects duplicate operations', () => {
+    expect(() =>
       signStorageAccessToken({
         material: MATERIAL,
         operations: ['read', 'read'],
         issuedAt: ISSUED_AT,
         expiresAt: EXPIRES_AT,
       }),
-    ).rejects.toThrow('must be unique');
+    ).toThrow('must be unique');
   });
 
-  it('rejects an expiry at or before issued_at', async () => {
-    await expect(
+  it('rejects an expiry at or before issued_at', () => {
+    expect(() =>
       signStorageAccessToken({
         material: MATERIAL,
         operations: ['read'],
         issuedAt: EXPIRES_AT,
         expiresAt: EXPIRES_AT,
       }),
-    ).rejects.toThrow('expires_at must be after issued_at');
+    ).toThrow('expires_at must be after issued_at');
   });
 
-  it('defaults issuedAt to now when omitted', async () => {
-    const token = await signStorageAccessToken({
+  it('defaults issuedAt to now when omitted', () => {
+    const token = signStorageAccessToken({
       material: MATERIAL,
       operations: ['read'],
       expiresAt: new Date(Date.now() + 60_000),
@@ -229,12 +224,8 @@ describe('UKYC signStorageAccessToken', () => {
 });
 
 describe('UKYC encodeStorageAccessTokenForHeader', () => {
-  beforeAll(async () => {
-    MATERIAL = await deriveClientMaterial(LOCAL_USER_SECRET);
-  });
-
-  it('encodes the envelope as unpadded base64url that round-trips', async () => {
-    const token = await signStorageAccessToken({
+  it('encodes the envelope as unpadded base64url that round-trips', () => {
+    const token = signStorageAccessToken({
       material: MATERIAL,
       operations: ['read'],
       issuedAt: ISSUED_AT,
