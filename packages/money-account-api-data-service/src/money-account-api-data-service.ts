@@ -661,8 +661,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
             name: TRACES.VAULTS_API,
             data: { operation: 'fetchVaults' },
           },
-          async () =>
-            this.#fetchValidated(url, VaultsResponseStruct, 'vaults'),
+          async () => this.#fetchValidated(url, VaultsResponseStruct, 'vaults'),
         );
       },
     });

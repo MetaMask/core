@@ -458,7 +458,10 @@ describe('MoneyAccountApiDataService', () => {
       )
         .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
         .reply(200, MOCK_VAULT_RATE_RESPONSE);
-      const vaultsScope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], requestHeaders)
+      const vaultsScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
         .get('/v1/vaults')
         .reply(200, MOCK_VAULTS_RESPONSE);
       const vaultShareValuationsScope = nock(
