@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- HyperLiquid now allows Cross margin on HIP-3 markets whose venue `marginMode` is `normal` or absent: `getOrderCapabilities` reports `supportedMarginModes` `['isolated', 'cross']` for them and Cross orders are accepted ([#11609](https://github.com/MetaMask/core/pull/11609))
+- HyperLiquid now allows Cross margin on HIP-3 markets whose venue `marginMode` is `normal` or absent: `getOrderCapabilities` reports `supportedMarginModes` `['isolated', 'cross']` for them and Cross orders are accepted ([#11610](https://github.com/MetaMask/core/pull/11610))
   - HIP-3 markets with `marginMode` `noCross` or `strictIsolated`, or `onlyIsolated`, still report `['isolated']` and refuse Cross with `ORDER_MARGIN_MODE_UNSUPPORTED`
   - With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position now transfers only the new order's margin instead of the whole position's
 
