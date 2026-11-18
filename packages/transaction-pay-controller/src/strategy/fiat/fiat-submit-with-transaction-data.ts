@@ -3,15 +3,19 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
-import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types.js';
+import type {
+  PayStrategyExecuteRequest,
+  QuoteRequest,
+  TransactionPayQuote,
+} from '../../types.js';
 import {
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
 } from '../../utils/feature-flags.js';
 import { getTransaction, updateTransaction } from '../../utils/transaction.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import { submitRelayQuotes } from '../relay/relay-submit.js';
-import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import { submitServerQuotes } from '../server/server-submit.js';
+import type { ServerQuote } from '../server/types.js';
 import type { FiatQuote } from './types.js';
 import { validateRelayRateDrift } from './utils.js';
 
@@ -52,7 +56,7 @@ export async function submitWithTransactionData({
   }
 
   const feeReserveRaw = calculateFeeReserve({
-    feeQuote: originalRelayQuote,
+    feeQuote: request.quotes[0],
     multiplier: getFiatFeeReserveMultiplier(messenger),
   });
 
@@ -76,7 +80,7 @@ export async function submitWithTransactionData({
     sourceTokenAmount: discoverySourceAmount,
   };
 
-  const discoveryQuotes = await getRelayQuotes({
+  const discoveryQuotes = await getServerQuotes({
     accountSupports7702: request.accountSupports7702,
     from: baseRequest.from,
     messenger,
@@ -88,12 +92,12 @@ export async function submitWithTransactionData({
     throw new Error('No relay quotes returned for fiat discovery');
   }
 
-  const discoveryRelay = discoveryQuotes[0].original;
+  const discoveryRelay = discoveryQuotes[0];
 
   const adjustedTargetRaw = calculateAdjustedTarget(discoveryRelay);
 
   log('Adjusted target for final quote', {
-    discoveryMinimum: discoveryRelay.details.currencyOut.minimumAmount,
+    discoveryMinimum: discoveryRelay.original.output.raw,
     adjustedTargetRaw,
     transactionId,
   });
@@ -135,7 +139,7 @@ export async function submitWithTransactionData({
     targetAmountMinimum: adjustedTargetRaw,
   };
 
-  const relayQuotes = await getRelayQuotes({
+  const relayQuotes = await getServerQuotes({
     accountSupports7702: request.accountSupports7702,
     from: baseRequest.from,
     messenger,
@@ -148,8 +152,8 @@ export async function submitWithTransactionData({
   }
 
   validateRelayRateDrift({
-    originalQuote: originalRelayQuote,
-    discoveryQuote: relayQuotes[0].original,
+    originalQuote: request.quotes[0],
+    discoveryQuote: relayQuotes[0],
     maxRateDriftPercent: getFiatMaxRateDriftPercent(messenger),
     transactionId,
   });
@@ -159,7 +163,7 @@ export async function submitWithTransactionData({
     transactionId,
   });
 
-  return await submitRelayQuotes({
+  return await submitServerQuotes({
     accountSupports7702: request.accountSupports7702,
     isSmartTransaction: request.isSmartTransaction,
     messenger,
@@ -183,13 +187,12 @@ function calculateFeeReserve({
   feeQuote,
   multiplier,
 }: {
-  feeQuote: RelayQuote;
+  feeQuote: TransactionPayQuote<unknown>;
   multiplier: number;
 }): BigNumber {
-  const sourceRaw = new BigNumber(feeQuote.details.currencyIn.amount);
-  const sourceUsd = new BigNumber(feeQuote.details.currencyIn.amountUsd);
-  const rawImpact = new BigNumber(feeQuote.details.totalImpact.usd);
-  const feeUsd = rawImpact.isNegative() ? rawImpact.abs() : new BigNumber(0);
+  const sourceRaw = new BigNumber(feeQuote.sourceAmount.raw);
+  const sourceUsd = new BigNumber(feeQuote.sourceAmount.usd);
+  const feeUsd = sourceUsd.minus(feeQuote.targetAmount.usd);
 
   if (!sourceUsd.gt(0) || !sourceRaw.gt(0) || !feeUsd.gt(0)) {
     return new BigNumber(0);
@@ -215,12 +218,12 @@ function calculateFeeReserve({
  * @param discoveryQuote - The relay quote from the discovery phase.
  * @returns The adjusted target amount in raw target token units.
  */
-function calculateAdjustedTarget(discoveryQuote: RelayQuote): string {
-  const targetMinRaw = new BigNumber(
-    discoveryQuote.details.currencyOut.minimumAmount,
-  );
-  const targetUsd = new BigNumber(discoveryQuote.details.currencyOut.amountUsd);
-  const sourceUsd = new BigNumber(discoveryQuote.details.currencyIn.amountUsd);
+function calculateAdjustedTarget(
+  discoveryQuote: TransactionPayQuote<ServerQuote>,
+): string {
+  const targetMinRaw = new BigNumber(discoveryQuote.original.output.raw);
+  const targetUsd = new BigNumber(discoveryQuote.targetAmount.usd);
+  const sourceUsd = new BigNumber(discoveryQuote.sourceAmount.usd);
 
   if (!targetUsd.gt(0) || !targetMinRaw.gt(0)) {
     return targetMinRaw.toFixed(0);

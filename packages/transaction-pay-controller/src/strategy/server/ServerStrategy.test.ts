@@ -101,15 +101,6 @@ describe('ServerStrategy', () => {
         }),
       ).toBe(false);
     });
-
-    it('returns false when a request uses an unsupported capability', () => {
-      expect(
-        new ServerStrategy().supports({
-          ...SUPPORTS_REQUEST_MOCK,
-          requests: [{ ...QUOTE_REQUEST_MOCK, isDirectMusdMoneyAccount: true }],
-        }),
-      ).toBe(false);
-    });
   });
 
   describe('getQuotes', () => {

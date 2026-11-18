@@ -37,7 +37,6 @@ export class ServerStrategy implements PayStrategy<ServerQuote> {
 
     const reason = getServerUnsupportedReason({
       enabledTransactionTypes: config.server.enabledTransactionTypes,
-      requests: request.requests,
       transaction: request.transaction,
     });
 

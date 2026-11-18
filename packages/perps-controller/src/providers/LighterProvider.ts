@@ -8448,11 +8448,11 @@ export class LighterProvider implements PerpsProvider {
   // ============================================================================
 
   /**
-   * Report native standalone triggers for an active, known perpetual market. Explicit
-   * margin modes and strategies remain unreported until their write paths exist.
+   * Report the native order capabilities of an active, known perpetual market:
+   * standalone triggers, explicit margin modes and the supported strategies.
    *
    * @param params - Market route to inspect.
-   * @returns Native trigger types or the reason the market is unavailable.
+   * @returns Native capabilities, or the reason the market is unavailable.
    */
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,

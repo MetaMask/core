@@ -25,8 +25,8 @@ import {
   getTokenFiatRate,
   getTokenInfo,
 } from '../../utils/token.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import type { ServerQuote } from '../server/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import { getFiatQuotes } from './fiat-quotes.js';
@@ -36,7 +36,7 @@ import {
   isMoneyAccountDepositTransaction,
 } from './utils.js';
 
-vi.mock(import('../relay/relay-quotes.js'));
+vi.mock(import('../server/server-quotes.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) =>
   mockModuleExcept(await importOriginal(), ['getEvmQuoteSource']),
 );
@@ -115,7 +115,7 @@ function getRelayQuoteMock({
   providerUsd?: string;
   sourceNetworkUsd?: string;
   targetNetworkUsd?: string;
-} = {}): TransactionPayQuote<RelayQuote> {
+} = {}): TransactionPayQuote<ServerQuote> {
   return {
     dust: { fiat: '0', usd: '0' },
     estimatedDuration: 1,
@@ -137,7 +137,7 @@ function getRelayQuoteMock({
     },
     original: (isExecute === undefined
       ? {}
-      : { metamask: { isExecute } }) as RelayQuote,
+      : { metamask: { isExecute } }) as ServerQuote,
     request: {} as never,
     sourceAmount: AMOUNT_MOCK,
     strategy: TransactionPayStrategy.Relay,
@@ -224,7 +224,7 @@ const FIAT_ASSET_CAIP_ID_MOCK = 'eip155:137/slip44:966';
 
 describe('getFiatQuotes', () => {
   const buildCaipAssetTypeMock = vi.mocked(buildCaipAssetType);
-  const getRelayQuotesMock = vi.mocked(getRelayQuotes);
+  const getRelayQuotesMock = vi.mocked(getServerQuotes);
   const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
   const getTokenInfoMock = vi.mocked(getTokenInfo);
   const computeRawFromFiatAmountMock = vi.mocked(computeRawFromFiatAmount);
