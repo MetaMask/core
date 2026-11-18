@@ -4,12 +4,13 @@ import type {
   BatchTransactionParams,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import { PaymentOverride } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
@@ -44,7 +45,12 @@ vi.mock(import('../../utils/second-leg.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   submitSecondLeg: vi.fn(),
 }));
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 vi.mock(import('../../utils/transaction.js'));
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('./hyperliquid-withdraw.js'));
@@ -58,6 +64,7 @@ const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
 const FROM_MOCK = '0xabcde' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const TOKEN_ADDRESS_MOCK = '0x123' as Hex;
+const SOURCE_ASSET_ID_MOCK: CaipAssetType = `eip155:1/erc20:${TOKEN_ADDRESS_MOCK}`;
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -124,8 +131,7 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
       original: ORIGINAL_QUOTE_MOCK,
       request: {
         from: FROM_MOCK,
-        sourceChainId: CHAIN_ID_MOCK,
-        sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+        sourceAssetId: SOURCE_ASSET_ID_MOCK,
       },
       sourceAmount: {
         raw: SOURCE_AMOUNT_RAW_MOCK,

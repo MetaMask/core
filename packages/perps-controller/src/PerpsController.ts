@@ -151,6 +151,8 @@ import type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   SubscribePublicTradesParams,
@@ -201,6 +203,11 @@ import {
   TransactionStatus,
 } from './types/transactionTypes.js';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import {
+  createLiveChaseOrderList,
+  createLiveTwapOrderList,
+} from './utils/advancedOrderLists.js';
+import type { CanceledChaseOrder } from './utils/advancedOrderLists.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -1153,7 +1160,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToAccount',
   'subscribeToAvailableToTrade',
   'subscribeToCandles',
+  'subscribeToChaseOrderLists',
   'subscribeToConnectionState',
+  'subscribeToLiveTwapOrders',
   'subscribeToOICaps',
   'subscribeToOrderBook',
   'subscribeToOrderFills',
@@ -1341,6 +1350,11 @@ export class PerpsController extends BaseController<
    * so a late read does not drop changes the user already sees.
    */
   readonly #watchlistEditsDuringHydration = new Set<WatchlistEdit[]>();
+
+  // Live chase lists waiting to hear which chase cancels succeeded.
+  readonly #chaseCancellationListeners = new Set<
+    (canceled: CanceledChaseOrder) => void
+  >();
 
   /**
    * Latest toggle number per `network:symbol` whose write is still pending,
@@ -2761,7 +2775,7 @@ export class PerpsController extends BaseController<
 
         // If not the last attempt, wait before retrying (exponential backoff)
         if (attempt < maxAttempts) {
-          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s
           this.#debugLog(
             `PerpsController: Retrying initialization in ${delay}ms`,
             {
@@ -3800,6 +3814,8 @@ export class PerpsController extends BaseController<
    * @returns The cancellation result with status.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // Live lists only take an ending in the context the cancel started in.
+    const contextKey = this.#getOrderListContextKey();
     const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
       params.providerId,
     );
@@ -3819,11 +3835,35 @@ export class PerpsController extends BaseController<
       return resolvedRefusal;
     }
 
-    return this.#tradingService.cancelOrder({
+    const result = await this.#tradingService.cancelOrder({
       provider,
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+    // A provider may resolve a plain child order ID to its chase, so the
+    // ending is keyed by the chase handle, not by what the caller passed.
+    const { chaseOrder } = result;
+    if (
+      result.success &&
+      chaseOrder &&
+      this.#getOrderListContextKey() === contextKey
+    ) {
+      const providerId = params.providerId ?? result.providerId;
+      for (const listener of [...this.#chaseCancellationListeners]) {
+        // A listener that throws must not undo the cancel or starve the rest.
+        try {
+          listener({ handle: chaseOrder.handle, providerId, chaseOrder });
+        } catch (error) {
+          this.#logError(
+            ensureError(error, 'PerpsController.cancelOrder'),
+            this.#getErrorContext('cancelOrder', {
+              orderId: params.orderId,
+            }),
+          );
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -7377,6 +7417,161 @@ export class PerpsController extends BaseController<
         // No-op
       };
     }
+  }
+
+  /**
+   * Keep one merged, live TWAP list for the active provider: reads and the
+   * venue stream merged by schedule, execution totals raised from slice
+   * fills, and re-reads while a schedule runs. Split it with
+   * `partitionTwapOrders`. Follows the selected account.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads and the stream.
+   */
+  subscribeToLiveTwapOrders(params: SubscribeLiveTwapOrdersParams): () => void {
+    return createLiveTwapOrderList({
+      source: {
+        getTwapOrders: async () => await this.getTwapOrders(),
+        subscribeToTwapOrders: (streamParams) =>
+          this.#subscribeToTwapOrdersWhenReady(streamParams),
+        getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Open the TWAP stream once the active provider is ready, and open it again
+   * each time the controller finishes initializing. A switch, or a client
+   * reconnect that keeps the same account, provider and network, tears the
+   * provider stream down, and the new provider has no stream until it is
+   * ready.
+   *
+   * @param params - Subscription parameters including callback.
+   * @returns A cleanup function that closes the stream, or cancels opening it.
+   */
+  #subscribeToTwapOrdersWhenReady(
+    params: SubscribeTwapOrdersParams,
+  ): () => void {
+    let closed = false;
+    let attempt = 0;
+    let unsubscribe: (() => void) | undefined;
+    const open = (): void => {
+      unsubscribe?.();
+      unsubscribe = undefined;
+      attempt += 1;
+      const current = attempt;
+      this.#getActiveProviderWhenReady()
+        .then(() => {
+          if (closed || current !== attempt) {
+            return;
+          }
+          const opened = this.subscribeToTwapOrders(params);
+          // A synchronous first push may already have closed this opener.
+          if (closed || current !== attempt) {
+            opened();
+          } else {
+            unsubscribe = opened;
+          }
+        })
+        // A read reports the same failure through the list's onError.
+        .catch(() => undefined);
+    };
+    let wasInitialized =
+      this.state.initializationState === InitializationState.Initialized;
+    const onStateChange = (): void => {
+      const isInitialized =
+        this.state.initializationState === InitializationState.Initialized;
+      if (isInitialized && !wasInitialized && !closed) {
+        open();
+      }
+      wasInitialized = isInitialized;
+    };
+    this.messenger.subscribe('PerpsController:stateChanged', onStateChange);
+    open();
+    return () => {
+      closed = true;
+      this.messenger.unsubscribe('PerpsController:stateChanged', onStateChange);
+      unsubscribe?.();
+    };
+  }
+
+  /**
+   * Keep running and history chase lists for the active provider. Ended
+   * chases stay in history after the provider drops them, up to
+   * `CHASE_ORDER_CONFIG.HistoryLimit`.
+   *
+   * @param params - Listener and optional error listener.
+   * @returns A cleanup function that stops reads.
+   */
+  subscribeToChaseOrderLists(
+    params: SubscribeChaseOrderListsParams,
+  ): () => void {
+    return createLiveChaseOrderList({
+      source: {
+        getChaseOrders: async () => await this.getChaseOrders(),
+        getContextKey: () => this.#getOrderListContextKey(),
+        subscribeToContextChanges: (listener) =>
+          this.#subscribeToOrderListContextChanges(listener),
+        subscribeToChaseCancellations: (listener) => {
+          this.#chaseCancellationListeners.add(listener);
+          return () => {
+            this.#chaseCancellationListeners.delete(listener);
+          };
+        },
+      },
+      callback: params.callback,
+      onError: params.onError,
+    });
+  }
+
+  /**
+   * Name the account, provider and network that order reads answer for, so a
+   * live list can drop rows when any of them changes.
+   *
+   * @returns Context key for live order lists.
+   */
+  #getOrderListContextKey(): string {
+    const account = getSelectedEvmAccountFromMessenger(this.messenger);
+    return [
+      this.state.activeProvider,
+      this.state.isTestnet ? 'testnet' : 'mainnet',
+      account?.address.toLowerCase() ?? '',
+    ].join(':');
+  }
+
+  /**
+   * Call a listener whenever the provider, network or selected account may
+   * have changed, so a live list can clear without waiting for its next read.
+   *
+   * @param listener - Called on each possible change.
+   * @returns A function that stops the calls.
+   */
+  #subscribeToOrderListContextChanges(listener: () => void): () => void {
+    const handler = (): void => listener();
+    this.messenger.subscribe('PerpsController:stateChanged', handler);
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      handler,
+    );
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      handler,
+    );
+    return () => {
+      this.messenger.unsubscribe('PerpsController:stateChanged', handler);
+      this.messenger.unsubscribe(
+        'AccountsController:selectedAccountChange',
+        handler,
+      );
+      this.messenger.unsubscribe(
+        'AccountTreeController:selectedAccountGroupChange',
+        handler,
+      );
+    };
   }
 
   /**

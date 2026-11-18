@@ -4,16 +4,21 @@ import { BigNumber } from 'bignumber.js';
 
 import type {
   PayStrategyGetQuotesRequest,
+  PayStrategyGetRefreshIntervalRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types.js';
 import { accountRequiresMfa } from './account.js';
 import { prefixError } from './error-prefix.js';
-import { isAtomicMaxEnabled } from './feature-flags.js';
+import {
+  getMaxBalanceRefreshInterval,
+  isAtomicMaxEnabled,
+} from './feature-flags.js';
 import { getMaxGasStationQuote } from './max-gas-station.js';
 import type { MaxGasStationQuoteDetails } from './max-gas-station.js';
-import { getTokenInfo } from './token.js';
+import { getEvmQuoteSource, getTokenInfo } from './token.js';
+import { getTransaction } from './transaction.js';
 import { QuoteError } from './validation.js';
 
 const ATOMIC_PROMOTION_FAILURE_PREFIX = 'Atomic promotion failed: ';
@@ -152,6 +157,30 @@ export function isAtomicMaxQuote(
   quote: Pick<TransactionPayQuote<unknown>, 'request'>,
 ): boolean {
   return quote.request.isMaxAmount === true && quote.request.atomic === true;
+}
+
+/**
+ * Refresh interval for max amount quotes, so they track the latest source
+ * balance.
+ *
+ * @param request - Refresh interval request.
+ * @returns Configured interval for the transaction type, or `undefined` if the
+ * transaction is not max amount or no interval is configured.
+ */
+export function getMaxAmountRefreshInterval(
+  request: PayStrategyGetRefreshIntervalRequest,
+): number | undefined {
+  const { messenger, transactionId } = request;
+  const transactionData = messenger.call('TransactionPayController:getState')
+    .transactionData[transactionId];
+
+  if (!transactionData?.isMaxAmount) {
+    return undefined;
+  }
+
+  const transaction = getTransaction(transactionId, messenger);
+
+  return getMaxBalanceRefreshInterval(messenger, transaction);
 }
 
 async function getAtomicFirstQuotes<OriginalQuote>(
@@ -306,10 +335,12 @@ function getFixedRateTargetAmount(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
 ): string {
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
   const sourceToken = getTokenInfo(
     messenger,
-    request.sourceTokenAddress,
-    request.sourceChainId,
+    sourceTokenAddress,
+    sourceChainId,
   );
 
   const targetToken = getTokenInfo(

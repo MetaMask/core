@@ -1,5 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants.js';
@@ -10,6 +11,7 @@ import type {
 import { TransactionPayStrategy } from '../index.js';
 import { projectLogger } from '../logger.js';
 import type {
+  EvmPaymentToken,
   GetBalanceCallback,
   GetBalanceResponse,
   TransactionPaySourceAmount,
@@ -17,7 +19,13 @@ import type {
   TransactionPayRequiredToken,
 } from '../types.js';
 import { isPerpsDepositTransaction } from './perps.js';
-import { getTokenFiatRate, isSameToken } from './token.js';
+import {
+  buildCaipAssetType,
+  getAssetFiatRate,
+  getEvmAsset,
+  getEvmPaymentToken,
+  isSameToken,
+} from './token.js';
 import { getTransaction } from './transaction.js';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
@@ -60,11 +68,17 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
+    const evmPaymentToken = getEvmPaymentToken(paymentToken);
+
+    if (!evmPaymentToken) {
+      throw new Error('Post-quote payment tokens must be EVM tokens');
+    }
+
     const { isHyperliquidSource, isPolymarketDepositWallet, paymentOverride } =
       transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
       tokens,
-      paymentToken,
+      evmPaymentToken,
       isMaxAmount ?? false,
       isHyperliquidSource,
       isPolymarketDepositWallet,
@@ -113,21 +127,30 @@ export function updateSourceAmounts(
  */
 function calculatePostQuoteSourceAmounts(
   tokens: TransactionPayRequiredToken[],
-  paymentToken: TransactionPaymentToken,
+  paymentToken: EvmPaymentToken,
   isMaxAmount: boolean,
   isHyperliquidSource?: boolean,
   isPolymarketDepositWallet?: boolean,
   balanceOverride?: GetBalanceResponse,
   hasPaymentOverride?: boolean,
 ): TransactionPaySourceAmount[] {
+  // Synthetic sources and payment overrides are funded from the quote, so a
+  // max with no encoded amount still uses the live balance. Every other
+  // post-quote transfer is funded by the prepended call, which cannot pay a
+  // Relay deposit while its amount is still 0.
+  const isFundedByPrependedTransfer =
+    !isHyperliquidSource && !isPolymarketDepositWallet && !hasPaymentOverride;
+
   return tokens
     .filter((token) => {
       if (token.skipIfBalance) {
         return false;
       }
 
-      // Skip zero amounts (unless max amount, where we use balance)
-      if (token.amountRaw === '0' && !isMaxAmount) {
+      if (
+        token.amountRaw === '0' &&
+        (!isMaxAmount || isFundedByPrependedTransfer)
+      ) {
         log('Skipping token as zero amount', { tokenAddress: token.address });
         return false;
       }
@@ -204,10 +227,9 @@ function calculateSourceAmount(
   isQuoteRequired?: boolean,
   balanceOverride?: GetBalanceResponse,
 ): TransactionPaySourceAmount | undefined {
-  const paymentTokenFiatRate = getTokenFiatRate(
+  const paymentTokenFiatRate = getAssetFiatRate(
     messenger,
-    paymentToken.address,
-    paymentToken.chainId,
+    paymentToken.assetId,
   );
 
   if (!paymentTokenFiatRate) {
@@ -234,7 +256,7 @@ function calculateSourceAmount(
     isQuoteRequired,
   );
 
-  if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
+  if (isSameAsset(token, paymentToken.assetId) && !isAlwaysRequired) {
     log('Skipping token as same as payment token');
     return undefined;
   }
@@ -324,4 +346,28 @@ function getStrategyContext(
     ),
     transaction,
   };
+}
+
+/**
+ * Check if a required token is the asset identified by a CAIP-19 asset type.
+ *
+ * Both are compared as canonical CAIP-19 asset types, so a native asset keyed
+ * by address and by SLIP-44 coin type, or an address in a different case,
+ * still match.
+ *
+ * @param token - Required token.
+ * @param assetId - CAIP-19 asset type.
+ * @returns True if the required token is the asset.
+ */
+function isSameAsset(
+  token: TransactionPayRequiredToken,
+  assetId: CaipAssetType,
+): boolean {
+  const evmAsset = getEvmAsset(assetId);
+
+  return (
+    evmAsset !== undefined &&
+    buildCaipAssetType(token.chainId, token.address).toLowerCase() ===
+      buildCaipAssetType(evmAsset.chainId, evmAsset.address).toLowerCase()
+  );
 }

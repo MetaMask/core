@@ -486,13 +486,16 @@ export function adaptPositionTriggerOrderFromSDK(params: {
 export function adaptMarketFromSDK(
   sdkMarket: MetaResponse['universe'][number],
 ): MarketInfo {
+  // The venue also sends `normal` (no restriction), which the SDK type omits.
+  // `MarketInfo.marginMode` carries restrictions only, so drop it.
+  const venueMarginMode: string | undefined = sdkMarket.marginMode;
   return {
     name: sdkMarket.name,
     szDecimals: sdkMarket.szDecimals,
     maxLeverage: sdkMarket.maxLeverage,
     marginTableId: sdkMarket.marginTableId,
     onlyIsolated: sdkMarket.onlyIsolated,
-    marginMode: sdkMarket.marginMode,
+    ...(venueMarginMode !== 'normal' && { marginMode: sdkMarket.marginMode }),
     isDelisted: sdkMarket.isDelisted,
   };
 }

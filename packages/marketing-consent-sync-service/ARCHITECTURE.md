@@ -70,7 +70,7 @@ flowchart TD
 
 If a change is made while the AUS read is in progress, the read result is ignored and the change is written instead.
 
-After a write, the service calls `clearMarketingConsentSyncPending` with the value it wrote.
+After a write, the service calls `clearMarketingConsentSyncPending` with the value it wrote. The flag is only cleared if local consent still equals that value, so a change made during the write stays pending and is written next.
 
 A write that has started is never cancelled; a newer change is written after it. Only the latest value is ever written next, so values the user moved past are skipped: if the user changes consent several times during a write, at most one more write follows, and none if they end up back on the value being written. Before sign-in, or while another run is still reading AUS, intermediate values are never sent at all.
 

@@ -55,6 +55,13 @@ import type {
   SubscribePublicTradesParams,
   PerpsControllerGetPublicTradesAction,
   PerpsControllerSubscribeToPublicTradesAction,
+  TwapOrder,
+  LiveTwapOrderSource,
+  LiveChaseOrderSource,
+  SubscribeLiveTwapOrdersParams,
+  SubscribeChaseOrderListsParams,
+  PerpsControllerSubscribeToLiveTwapOrdersAction,
+  PerpsControllerSubscribeToChaseOrderListsAction,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -808,5 +815,38 @@ export type ReplacePositionTPSLLegConsumerContracts = [
   AssertCompatible<
     PerpsProvider,
     Omit<PerpsProvider, 'replacePositionTPSLLeg'>
+  >,
+];
+
+export type AdvancedOrderListsConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      PerpsControllerSubscribeToLiveTwapOrdersAction['type'],
+      'PerpsController:subscribeToLiveTwapOrders'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerSubscribeToLiveTwapOrdersAction['handler']>,
+      [params: SubscribeLiveTwapOrdersParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerSubscribeToChaseOrderListsAction['type'],
+      'PerpsController:subscribeToChaseOrderLists'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerSubscribeToChaseOrderListsAction['handler']>,
+      [params: SubscribeChaseOrderListsParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<LiveTwapOrderSource['getTwapOrders'], () => Promise<TwapOrder[]>>
+  >,
+  AssertTrue<
+    IsExact<LiveChaseOrderSource['getChaseOrders'], () => Promise<ChaseOrder[]>>
   >,
 ];

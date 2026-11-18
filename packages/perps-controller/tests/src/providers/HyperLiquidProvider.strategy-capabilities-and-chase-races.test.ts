@@ -32,6 +32,22 @@ import {
 import type { MockClient } from '../../helpers/hyperLiquidStrategyOrders.js';
 import { createDeferred } from '../../helpers/serviceMocks.js';
 
+// Venue rules HyperLiquid reports for every market it runs strategies on.
+const HYPERLIQUID_STRATEGY_RULES = {
+  twap: {
+    minDurationMinutes: 5,
+    maxDurationMinutes: 1440,
+    minNotionalUsd: 100,
+    sliceIntervalSeconds: 30,
+  },
+  chase: {
+    maxActiveSessions: 5,
+    defaultIntervalMs: 15000,
+    minIntervalMs: 1000,
+  },
+  scale: { minOrders: 2, maxOrders: 20 },
+};
+
 vi.mock('../../../src/services/HyperLiquidClientService');
 vi.mock('../../../src/services/HyperLiquidWalletService');
 vi.mock('../../../src/services/HyperLiquidSubscriptionService');
@@ -116,6 +132,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -151,6 +168,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -174,7 +192,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('advertises strategies for an existing HIP-3 market', async () => {
+    it('advertises strategies and Cross for an existing HIP-3 market', async () => {
       const { capabilityProvider, infoClient } = useHip3Capabilities();
 
       expect(
@@ -183,6 +201,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -202,10 +221,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_market',
           'take_profit_limit',
         ],
-        supportedMarginModes: ['isolated'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
     });
+
+    it.each([
+      ['isolated-only', { onlyIsolated: true }, ['isolated']],
+      ['strictIsolated', { marginMode: 'strictIsolated' }, ['isolated']],
+      ['noCross', { marginMode: 'noCross' }, ['isolated']],
+      ['normal', { marginMode: 'normal' }, ['isolated', 'cross']],
+    ])(
+      'reports the venue margin modes for a %s HIP-3 market',
+      async (_, restriction, supportedMarginModes) => {
+        const { capabilityProvider } = useHip3Capabilities({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'xyz:TSLA',
+                szDecimals: 3,
+                maxLeverage: 20,
+                ...restriction,
+              },
+            ],
+            collateralToken: 0,
+          }),
+        });
+
+        expect(
+          await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+        ).toMatchObject({ status: 'ready', supportedMarginModes });
+      },
+    );
 
     it.each([
       ['isolated-only', { onlyIsolated: true }],
@@ -230,6 +277,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -253,6 +301,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       },
     );
+
+    it('reports Cross for a main-DEX market with explicit normal margin mode', async () => {
+      useStrategyClients({
+        info: {
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 50,
+                marginMode: 'normal',
+              },
+            ],
+          }),
+        },
+      });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toMatchObject({
+        status: 'ready',
+        supportedMarginModes: ['isolated', 'cross'],
+      });
+    });
 
     it.each([
       ['the HIP-3 kill switch is off', { hip3Enabled: false }],
@@ -334,6 +406,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -463,6 +536,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -498,6 +572,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -589,6 +664,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -622,6 +698,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -678,6 +755,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -703,6 +781,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ready',
           providerId: 'hyperliquid',
           supportedStrategies: ['twap', 'scale', 'chase'],
+          strategyRules: HYPERLIQUID_STRATEGY_RULES,
           positionTpsl: {
             supportsExpectedPosition: true,
             childOrderIds: 'request-correlated',
@@ -812,6 +891,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -940,6 +1020,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1009,6 +1090,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1058,6 +1140,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1114,6 +1197,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1349,6 +1433,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
+        strategyRules: HYPERLIQUID_STRATEGY_RULES,
         positionTpsl: {
           supportsExpectedPosition: true,
           childOrderIds: 'request-correlated',
@@ -1934,6 +2019,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(first).toStrictEqual({
         success: true,
         orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'failed',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
       });
       expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
 
@@ -1993,6 +2083,74 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
       });
       expect(second).toStrictEqual({ success: true, orderId: placed.orderId });
+    });
+
+    it('reports a fill, not a cancel, when the gone child had filled between reads', async () => {
+      const childStatus = (status: 'open' | 'filled', sz: string): unknown => ({
+        status: 'order',
+        order: {
+          status,
+          order: {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '2999',
+            sz,
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+      useStrategyClients({
+        exchange: {
+          order: vi.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+          }),
+          cancel: vi.fn().mockResolvedValue(alreadyGone),
+        },
+        info: {
+          orderStatus: vi
+            .fn()
+            .mockResolvedValueOnce(childStatus('open', '1'))
+            .mockResolvedValue(childStatus('filled', '0')),
+        },
+      });
+      const { orderId: handle = '' } = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      } satisfies OrderParams);
+
+      const before = await provider.getChaseOrders();
+      // The child fills here, before the cancel reaches it.
+      const result = await provider.cancelOrder({
+        orderId: handle,
+        symbol: 'ETH',
+        orderType: 'chase',
+      });
+
+      expect(handle).not.toBe('');
+      expect(before).toStrictEqual([
+        expect.objectContaining({ status: 'active' }),
+      ]);
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: handle,
+        chaseOrder: expect.objectContaining({
+          handle,
+          status: 'filled',
+          remainingSize: '0',
+          restingOrderId: null,
+        }),
+      });
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
     });
 
     it('completes a chase cancel when the SDK throws that its child is gone', async () => {
@@ -2834,7 +2992,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'filled',
+          remainingSize: '0',
+          restingOrderId: null,
+        }),
+      });
     });
 
     it('retries on the next tick when the resting child is briefly unknown', async () => {
@@ -2891,6 +3057,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toStrictEqual({
         success: true,
         orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
       });
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 66 }],
@@ -3434,7 +3605,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
         symbol: 'ETH',
         orderType: 'chase',
       });
-      expect(result).toStrictEqual({ success: true, orderId: placed.orderId });
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'failed',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      });
     });
   });
 

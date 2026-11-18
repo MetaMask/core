@@ -31,7 +31,7 @@
   "metamask/money-account-balance-service": "team-earn",
   "metamask/money-account-utils": "team-earn",
   "metamask/money-account-api-data-service": "team-earn",
-  "metamask/money-account-mfa-whitelist": "team-earn",
+  "metamask/money-account-mfa-whitelist": "team-earn,team-mfa",
   "metamask/notification-services-controller": "team-engagement",
   "metamask/marketing-consent-sync-service": "team-engagement",
   "metamask/compliance-controller": "team-perps",
