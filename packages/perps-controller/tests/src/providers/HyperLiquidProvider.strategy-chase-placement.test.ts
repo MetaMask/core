@@ -7,6 +7,7 @@ import {
 } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
@@ -81,12 +82,17 @@ vi.mock('../../../src/services/TradingReadinessCache');
 
 describe('HyperLiquidProvider - strategy order types', () => {
   let provider: HyperLiquidProvider;
+  let mockClientService: Mocked<HyperLiquidClientService>;
   let mockWalletService: Mocked<HyperLiquidWalletService>;
   let mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
 
   beforeEach(() => {
-    ({ provider, mockWalletService, mockSubscriptionService } =
-      setUpStrategyProvider());
+    ({
+      provider,
+      mockClientService,
+      mockWalletService,
+      mockSubscriptionService,
+    } = setUpStrategyProvider());
   });
 
   describe('Chase placement', () => {
@@ -278,6 +284,97 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ]);
     });
 
+    it('lists a chase only for the account and network that placed it', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      });
+      const placedBy = await mockWalletService.getUserAddressWithDefault();
+
+      // The same provider instance keeps the session after the account changes.
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(placedBy);
+      mockClientService.isTestnetMode.mockReturnValue(true);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+
+      mockClientService.isTestnetMode.mockReturnValue(false);
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({ handle: result.orderId }),
+      ]);
+    });
+
+    it('lists no chase when no account is selected', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
+
+      mockWalletService.getUserAddressWithDefault.mockRejectedValue(
+        new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED),
+      );
+
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
+    it('rejects instead of listing no chase when the account read fails', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      await provider.placeOrder({ ...baseOrder, orderType: 'chase' });
+
+      mockWalletService.getUserAddressWithDefault.mockRejectedValue(
+        new Error(PERPS_ERROR_CODES.INVALID_ADDRESS_FORMAT),
+      );
+
+      await expect(provider.getChaseOrders()).rejects.toThrow(
+        PERPS_ERROR_CODES.INVALID_ADDRESS_FORMAT,
+      );
+    });
+
+    it('counts the chase cap only for the account and network placing it', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      for (
+        let placed = 0;
+        placed < CHASE_ORDER_CONFIG.MaxActiveSessions;
+        placed += 1
+      ) {
+        expect(
+          await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+        ).toMatchObject({ success: true });
+      }
+      const placedBy = await mockWalletService.getUserAddressWithDefault();
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      expect(
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+      ).toMatchObject({ success: true });
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(placedBy);
+      mockClientService.isTestnetMode.mockReturnValue(true);
+      expect(
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+      ).toMatchObject({ success: true });
+
+      mockClientService.isTestnetMode.mockReturnValue(false);
+      expect(
+        await provider.placeOrder({ ...baseOrder, orderType: 'chase' }),
+      ).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED,
+      });
+    });
+
     it('refreshes the snapshot remaining size after a partial fill', async () => {
       const { infoClient } = useStrategyClients({
         exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
@@ -356,7 +453,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
           symbol: 'ETH',
           orderType: 'chase',
         }),
-      ).toStrictEqual({ success: true, orderId: result.orderId });
+      ).toStrictEqual({
+        success: true,
+        orderId: result.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      });
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 55 }],
       });
@@ -580,6 +685,119 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(sendAsset).toHaveBeenCalledTimes(3);
     });
 
+    it('keeps a gone child of unknown ending unresolved until a read finds it', async () => {
+      const balances = new Map<string | undefined, string>([
+        [undefined, '1000'],
+        ['', '1000'],
+        ['xyz', '0'],
+      ]);
+      const clearinghouseState = vi
+        .fn()
+        .mockImplementation(({ dex }: { dex?: string }) =>
+          Promise.resolve(
+            createClearinghouseBalance(balances.get(dex) as string),
+          ),
+        );
+      const sendAsset = vi
+        .fn()
+        .mockResolvedValueOnce({ status: 'ok' })
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValue({ status: 'ok' });
+      const { infoClient } = useStrategyClients({
+        exchange: {
+          order: vi.fn().mockImplementation(async () => {
+            balances.set('xyz', '20');
+            return chaseRested;
+          }),
+          cancel: vi.fn().mockResolvedValue({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: [
+                  {
+                    error:
+                      'Order was never placed, already canceled, or filled.',
+                  },
+                ],
+              },
+            },
+          }),
+          sendAsset,
+        },
+        info: {
+          clearinghouseState,
+          orderStatus: vi.fn().mockRejectedValue(new Error('network blip')),
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            collateralToken: 0,
+          }),
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+      const { orderId: handle = '' } = await provider.placeOrder({
+        ...baseOrder,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      } satisfies OrderParams);
+
+      const result = await provider.cancelOrder({
+        orderId: handle,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      });
+      // Collateral cleanup fails again, so the session stays.
+      const whileUnknown = await provider.getChaseOrders();
+      infoClient.orderStatus.mockResolvedValue({
+        status: 'order',
+        order: {
+          status: 'filled',
+          order: {
+            coin: 'xyz:TSLA',
+            side: 'B',
+            limitPx: '2999.1',
+            sz: '0',
+            origSz: '1',
+            oid: 55,
+            timestamp: 1_700_000_000_000,
+            isTrigger: false,
+            triggerCondition: 'N/A',
+            triggerPx: '0',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+          },
+        },
+      });
+      const onceKnown = await provider.getChaseOrders();
+
+      expect(handle).not.toBe('');
+      expect(result).toStrictEqual({ success: true, orderId: handle });
+      expect(whileUnknown).toStrictEqual([
+        expect.objectContaining({
+          handle,
+          status: CHASE_ORDER_STATUS.TerminationPending,
+        }),
+      ]);
+      expect(onceKnown).toStrictEqual([
+        expect.objectContaining({
+          handle,
+          remainingSize: '0',
+          restingOrderId: null,
+          status: CHASE_ORDER_STATUS.Filled,
+        }),
+      ]);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+    });
+
     it('reports a backgrounded child that later fills as filled', async () => {
       vi.useFakeTimers();
       const { infoClient } = useStrategyClients({
@@ -703,10 +921,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       const results = await Promise.all([first, second]);
 
-      expect(results).toStrictEqual([
-        { success: true, orderId: placed.orderId },
-        { success: true, orderId: placed.orderId },
-      ]);
+      const ended = {
+        success: true,
+        orderId: placed.orderId,
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      };
+      expect(results).toStrictEqual([ended, ended]);
       expect(cancel).toHaveBeenCalledTimes(1);
     });
 
@@ -722,7 +946,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(
         await provider.cancelOrder({ orderId: '55', symbol: 'ETH' }),
-      ).toStrictEqual({ success: true, orderId: '55' });
+      ).toStrictEqual({
+        success: true,
+        orderId: '55',
+        chaseOrder: expect.objectContaining({
+          status: 'canceled',
+          remainingSize: '1',
+          restingOrderId: null,
+        }),
+      });
       expect(await provider.getChaseOrders()).toStrictEqual([]);
     });
 
