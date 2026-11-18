@@ -548,28 +548,32 @@ describe('AggregatedPerpsProvider', () => {
       expect(positions[0].providerId).toBe('hyperliquid');
     });
 
-    it('handles partial failures gracefully', async () => {
-      mockHLProvider.getPositions.mockResolvedValue([
-        createMockPosition('BTC', '0.1'),
-      ]);
-      mockLighterProvider.getPositions.mockRejectedValue(
-        new Error('Provider unavailable'),
+    it('rejects when one venue fails instead of returning the other venue alone', async () => {
+      const integrityError = new Error(
+        "Invalid Lighter venue data: initial margin fraction '0' for open position ETH",
       );
+      mockHLProvider.getPositions.mockResolvedValue([]);
+      mockLighterProvider.getPositions.mockRejectedValue(integrityError);
 
-      const positions = await aggregatedProvider.getPositions();
-
-      // Should still return positions from successful provider
-      expect(positions).toHaveLength(1);
-      expect(positions[0].providerId).toBe('hyperliquid');
+      const read = aggregatedProvider.getPositions();
+      await expect(read).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
+      await expect(read).rejects.toHaveProperty('cause', integrityError);
     });
 
-    it('returns empty array when all providers fail', async () => {
+    it('rejects when every venue fails instead of returning []', async () => {
       mockHLProvider.getPositions.mockRejectedValue(new Error('Error 1'));
       mockLighterProvider.getPositions.mockRejectedValue(new Error('Error 2'));
 
-      const positions = await aggregatedProvider.getPositions();
+      await expect(aggregatedProvider.getPositions()).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+    });
 
-      expect(positions).toEqual([]);
+    it('rethrows a stale-account failure unchanged', async () => {
+      const stale = new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      mockLighterProvider.getPositions.mockRejectedValue(stale);
+
+      await expect(aggregatedProvider.getPositions()).rejects.toBe(stale);
     });
   });
 

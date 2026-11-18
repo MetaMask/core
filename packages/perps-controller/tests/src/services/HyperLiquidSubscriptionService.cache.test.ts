@@ -702,6 +702,60 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribeAccount();
     });
 
+    it.each([
+      ['delivers late', false],
+      ['fails to subscribe', true],
+    ])(
+      'marks the account partial when a DEX enabled at runtime %s',
+      async (_label, xyzFails) => {
+        const accountCallbacks = new Map<string, (payload: unknown) => void>();
+        mockSubscriptionClient.clearinghouseState.mockImplementation(
+          (params: any, callback: (payload: unknown) => void) => {
+            const dex = params.dex || '';
+            if (xyzFails && dex === 'xyz') {
+              return Promise.reject(new Error('xyz account unavailable'));
+            }
+            accountCallbacks.set(dex, callback);
+            return Promise.resolve({
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            });
+          },
+        );
+        const hip3Service = new HyperLiquidSubscriptionService(
+          mockClientService,
+          mockWalletService,
+          mockDeps,
+          true,
+        );
+        await hip3Service.updateFeatureFlags(true, [], [], []);
+        const accountCallback = vi.fn();
+        const unsubscribe = hip3Service.subscribeToAccount({
+          callback: accountCallback,
+        });
+        await vi.runAllTimersAsync();
+        accountCallbacks.get('')?.({
+          dex: '',
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+            withdrawable: '100',
+          },
+        });
+        await vi.runAllTimersAsync();
+        expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+          'unavailableSubAccounts',
+        );
+
+        await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+        await vi.runAllTimersAsync();
+
+        expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
+          unavailableSubAccounts: ['xyz'],
+        });
+        unsubscribe();
+      },
+    );
+
     it('marks the account partial when a DEX account subscription fails', async () => {
       const accountCallbacks = new Map<string, (payload: unknown) => void>();
       mockSubscriptionClient.clearinghouseState.mockImplementation(

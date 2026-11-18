@@ -479,15 +479,17 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
-   * Values of an orders read across venues. A venue whose read failed leaves
-   * the merged list unknown, never shorter: the first failure is rethrown
-   * when it is already classified, else wrapped in `ORDERS_FAILED`.
+   * Values of a read across venues. A venue whose read failed leaves the
+   * merged list unknown, never shorter: the first failure is rethrown when it
+   * is already classified, else wrapped in `failureCode` with the cause.
    *
    * @param results - Results from Promise.allSettled
-   * @returns Every venue's orders
+   * @param failureCode - Error code for an unclassified venue failure.
+   * @returns Every venue's values
    */
-  #requireAllOrderResults<TResult>(
+  #requireAllVenueResults<TResult>(
     results: PromiseSettledResult<TResult>[],
+    failureCode: string,
   ): TResult[] {
     const failure = results.find(
       (result): result is PromiseRejectedResult => result.status === 'rejected',
@@ -496,12 +498,12 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       const reason: unknown = failure.reason;
       if (
         reason instanceof Error &&
-        (reason.message === PERPS_ERROR_CODES.ORDERS_FAILED ||
+        (reason.message === failureCode ||
           reason.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE)
       ) {
         throw reason;
       }
-      throw new Error(PERPS_ERROR_CODES.ORDERS_FAILED, { cause: reason });
+      throw new Error(failureCode, { cause: reason });
     }
     return results.flatMap((result) =>
       result.status === 'fulfilled' ? [result.value] : [],
@@ -687,7 +689,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       }),
     );
 
-    return this.#extractSuccessfulResults(results, 'getPositions').flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.POSITIONS_FAILED,
+    ).flat();
   }
 
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
@@ -776,7 +781,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       }),
     );
 
-    return this.#requireAllOrderResults(results).flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.ORDERS_FAILED,
+    ).flat();
   }
 
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
@@ -787,7 +795,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       }),
     );
 
-    return this.#requireAllOrderResults(results).flat();
+    return this.#requireAllVenueResults(
+      results,
+      PERPS_ERROR_CODES.ORDERS_FAILED,
+    ).flat();
   }
 
   async getFunding(

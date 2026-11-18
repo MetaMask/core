@@ -890,6 +890,19 @@ export class HyperLiquidSubscriptionService {
         ? new Set()
         : new Set(hip3Enabled ? ['', ...enabledDexs] : ['']);
 
+    // Account completeness follows the configuration too, once user-data
+    // subscriptions exist: a newly enabled DEX is unavailable until it
+    // publishes (or for as long as its subscription fails), and subscribers
+    // learn that before the async subscription work below.
+    if (this.#accountSnapshotDexs.size > 0) {
+      this.#accountSnapshotDexs = new Set(
+        hip3Enabled
+          ? ['', ...enabledDexs.filter((dexId) => this.#isDexEnabled(dexId))]
+          : [''],
+      );
+      this.#aggregateAndNotifySubscribers();
+    }
+
     // Resolve any pending DEX discovery wait now that DEXs are available
     if (this.#dexDiscoveryResolver && enabledDexs.length > 0) {
       this.#dexDiscoveryResolver();
