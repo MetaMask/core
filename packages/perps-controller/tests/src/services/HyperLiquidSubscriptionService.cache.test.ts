@@ -731,8 +731,60 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(recoveredProtection).toMatchObject({ size: '0.25' });
       expect(recoveredProtection).not.toHaveProperty('coverageUnavailable');
 
+      const restoredFrames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementationOnce(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          restoredFrames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      await service.restoreSubscriptions();
+      const onRestoredAccount = await restoredFrames.promise;
+      onRestoredAccount({ dex: '', clearinghouseState: {} });
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          size: '0.25',
+          stopLossOrders: [
+            expect.objectContaining({ coverageUnavailable: true }),
+          ],
+        }),
+      ]);
+
       unsubscribePositions();
       unsubscribeAccount();
+    });
+
+    it('does not initialize the order stream from a malformed clearinghouse frame', async () => {
+      const frames = createDeferred<(payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: unknown, callback: (payload: unknown) => void) => {
+          frames.resolve(callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockResolvedValue({
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      });
+      const orders = vi.fn();
+      const unsubscribe = service.subscribeToOrders({ callback: orders });
+      const onAccount = await frames.promise;
+      onAccount({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+          withdrawable: '100',
+        },
+      });
+      onAccount({ dex: '', clearinghouseState: {} });
+
+      expect(orders).not.toHaveBeenCalled();
+      expect(service.getOrdersCacheIfInitialized()).toBeNull();
+      unsubscribe();
     });
 
     it('invalidates a balance replayed after an OI-only subscription warmed the cache', async () => {

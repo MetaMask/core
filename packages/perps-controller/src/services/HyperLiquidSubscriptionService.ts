@@ -2608,29 +2608,8 @@ export class HyperLiquidSubscriptionService {
           if (!Array.isArray(data.clearinghouseState?.assetPositions)) {
             this.#dexAccountCache.delete(cacheKey);
             this.#dexPositionsEpoch.delete(cacheKey);
-            const retainedPositions = this.#dexPositionsCache.get(cacheKey);
-            if (retainedPositions?.length) {
-              const markCoverageUnavailable = (
-                orders?: PositionTriggerOrder[],
-              ): PositionTriggerOrder[] | undefined =>
-                orders?.map((order) => ({
-                  ...order,
-                  coverageUnavailable: true,
-                }));
-              this.#dexPositionsCache.set(
-                cacheKey,
-                retainedPositions.map((position) => ({
-                  ...position,
-                  takeProfitOrders: markCoverageUnavailable(
-                    position.takeProfitOrders,
-                  ),
-                  stopLossOrders: markCoverageUnavailable(
-                    position.stopLossOrders,
-                  ),
-                })),
-              );
-            }
-            this.#aggregateAndNotifySubscribers();
+            this.#invalidateDexProtectionCoverage(cacheKey);
+            this.#notifyAccountSubscribers();
             return;
           }
 
@@ -2964,20 +2943,9 @@ export class HyperLiquidSubscriptionService {
       .flatMap(([, orders]) => orders);
     const aggregatedOrders = [...mainDexOrders, ...hip3DexOrders];
 
-    const positionsHash = this.#hashPositions(aggregatedPositions);
     const ordersHash = this.#hashOrders(aggregatedOrders);
-    const positionsChanged = positionsHash !== this.#cachedPositionsHash;
     const ordersChanged = ordersHash !== this.#cachedOrdersHash;
-
-    // Only notify subscribers if aggregated data changed
-    if (positionsChanged) {
-      this.#cachedPositions = aggregatedPositions;
-      this.#cachedPositionsHash = positionsHash;
-      this.#positionsCacheInitialized = true; // Mark cache as initialized
-      this.#positionSubscribers.forEach((callback) => {
-        callback(aggregatedPositions);
-      });
-    }
+    this.#notifyPositionsIfChanged(aggregatedPositions);
 
     if (ordersChanged) {
       this.#cachedOrders = aggregatedOrders;
@@ -2986,6 +2954,45 @@ export class HyperLiquidSubscriptionService {
       this.#orderSubscribers.forEach((callback) => {
         callback(aggregatedOrders);
       });
+    }
+  }
+
+  #invalidateDexProtectionCoverage(dex: string): void {
+    const markOrders = (
+      orders?: PositionTriggerOrder[],
+    ): PositionTriggerOrder[] | undefined =>
+      orders?.map((order) => ({ ...order, coverageUnavailable: true }));
+    const markPosition = (position: Position): Position => ({
+      ...position,
+      takeProfitOrders: markOrders(position.takeProfitOrders),
+      stopLossOrders: markOrders(position.stopLossOrders),
+    });
+
+    const retainedPositions = this.#dexPositionsCache.get(dex);
+    if (retainedPositions?.length) {
+      this.#dexPositionsCache.set(dex, retainedPositions.map(markPosition));
+    }
+
+    // During reconnect the snapshot gate is closed. Change only previously
+    // published positions on this DEX, leaving unverified orders untouched.
+    if (this.#cachedPositions) {
+      this.#notifyPositionsIfChanged(
+        this.#cachedPositions.map((position) =>
+          (parseAssetName(position.symbol).dex ?? '') === dex
+            ? markPosition(position)
+            : position,
+        ),
+      );
+    }
+  }
+
+  #notifyPositionsIfChanged(positions: Position[]): void {
+    const hash = this.#hashPositions(positions);
+    if (hash !== this.#cachedPositionsHash) {
+      this.#cachedPositions = positions;
+      this.#cachedPositionsHash = hash;
+      this.#positionsCacheInitialized = true;
+      this.#positionSubscribers.forEach((callback) => callback(positions));
     }
   }
 
