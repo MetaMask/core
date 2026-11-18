@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
+### Removed
+
+- Remove Blast Mainnet (`0x13e31`) from the EVM RPC Multicall3 address map, as the network is being terminated ([#11598](https://github.com/MetaMask/core/pull/11598))
+
 ## [20.4.1]
 
 ### Changed
