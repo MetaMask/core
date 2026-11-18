@@ -163,6 +163,7 @@ vi.mock('./hooks/ExtraTransactionsPublishHook');
 vi.mock('./logger.js', () => ({
   createModuleLogger: vi.fn(() => vi.fn()),
   incomingTransactionsLogger: vi.fn(),
+  lifecycleLogger: vi.fn(),
   projectLogger: projectLoggerMock,
 }));
 vi.mock('./utils/batch');
@@ -1349,7 +1350,7 @@ describe('TransactionController', () => {
 
       const { controller } = setupController({
         options: {
-          hooks: { isResumable },
+          isResumable,
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           state: { transactions: mockedTransactions } as any,
@@ -1373,6 +1374,112 @@ describe('TransactionController', () => {
       ]);
     });
 
+    it('does not fail incomplete required transactions of resumable transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '222',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222'],
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          isResumable: (transactionMeta: TransactionMeta) =>
+            transactionMeta.id === '123',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+        ]),
+      ).toStrictEqual(
+        expect.arrayContaining([
+          ['222', TransactionStatus.approved],
+          ['123', TransactionStatus.approved],
+        ]),
+      );
+    });
+
+    it('does not fail required transactions shared with a resumable transaction', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '333',
+          chainId: toHex(5),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '456',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['333'],
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          isResumable: (transactionMeta: TransactionMeta) =>
+            transactionMeta.id === '123',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+        ]),
+      ).toStrictEqual(
+        expect.arrayContaining([
+          ['333', TransactionStatus.submitted],
+          ['123', TransactionStatus.approved],
+          ['456', TransactionStatus.failed],
+        ]),
+      );
+    });
+
     it('fails incomplete transactions when isResumable throws', async () => {
       const mockTransactionMeta = {
         from: ACCOUNT_MOCK,
@@ -1392,10 +1499,8 @@ describe('TransactionController', () => {
 
       const { controller } = setupController({
         options: {
-          hooks: {
-            isResumable: () => {
-              throw new Error('Cannot resume');
-            },
+          isResumable: () => {
+            throw new Error('Cannot resume');
           },
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1412,7 +1517,7 @@ describe('TransactionController', () => {
         'Transaction incomplete at startup',
       );
       expect(projectLoggerMock).toHaveBeenCalledWith(
-        'isResumable hook threw',
+        'isResumable error',
         expect.any(Error),
       );
     });
@@ -6842,7 +6947,7 @@ describe('TransactionController', () => {
       const finishedListener = vi.fn();
       const { controller, messenger } = setupController({
         options: {
-          hooks: { isResumable: () => true },
+          isResumable: () => true,
           state: {
             transactions: [approvedTransactionMock],
           },
@@ -6888,7 +6993,7 @@ describe('TransactionController', () => {
       } as unknown as TransactionMeta;
       const { controller } = setupController({
         options: {
-          hooks: { isResumable: () => true },
+          isResumable: () => true,
           state: {
             transactions: [signedTransactionMock],
           },

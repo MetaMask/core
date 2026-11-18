@@ -843,6 +843,21 @@ export enum TransactionType {
   perpsDepositAndOrder = 'perpsDepositAndOrder',
 
   /**
+   * Deposit funds to be available for trading via Perps on Lighter.
+   */
+  perpsLighterDeposit = 'perpsLighterDeposit',
+
+  /**
+   * Deposit funds and place an order for trading via Perps on Lighter.
+   */
+  perpsLighterDepositAndOrder = 'perpsLighterDepositAndOrder',
+
+  /**
+   * Withdraw funds from Perps on Lighter.
+   */
+  perpsLighterWithdraw = 'perpsLighterWithdraw',
+
+  /**
    * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
    */
   perpsRelayDeposit = 'perpsRelayDeposit',
@@ -2226,18 +2241,18 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
-  /** Source chain transaction hash if no local transaction. */
-  sourceHash?: Hex;
-
-  /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
-  strategy?: string;
-
   /**
    * Timestamp (ms since epoch) set by the pay controller when it starts
    * resuming this transaction after a restart. Used as a once-only guard —
    * TC does not read this field.
    */
   resumeAttemptedAt?: number;
+
+  /** Source chain transaction hash if no local transaction. */
+  sourceHash?: Hex;
+
+  /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
+  strategy?: string;
 
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;

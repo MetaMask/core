@@ -20,6 +20,11 @@ const dateTimeFormatCache: Record<string, Intl.DateTimeFormat> = {};
 
 type Value = number | bigint | `${number}`;
 
+type FormattersConfig = {
+  locale: string;
+  currencyDisplay?: Intl.NumberFormatOptions['currencyDisplay'];
+};
+
 function getCachedNumberFormat(
   locale: string,
   options: Intl.NumberFormatOptions,
@@ -58,7 +63,7 @@ function getCachedDateTimeFormat(
 }
 
 function formatNumber(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   options: Intl.NumberFormatOptions = {},
 ): string {
@@ -73,7 +78,7 @@ function formatNumber(
 }
 
 function formatCurrency(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
   options: Intl.NumberFormatOptions = {},
@@ -85,6 +90,9 @@ function formatCurrency(
   const numberFormat = getCachedNumberFormat(config.locale, {
     style: 'currency',
     currency,
+    ...(config.currencyDisplay
+      ? { currencyDisplay: config.currencyDisplay }
+      : {}),
     ...options,
   });
 
@@ -93,7 +101,7 @@ function formatCurrency(
 }
 
 function formatCurrencyCompact(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
 ): string {
@@ -104,7 +112,7 @@ function formatCurrencyCompact(
 }
 
 function formatCurrencyWithMinThreshold(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
 ): string {
@@ -129,7 +137,7 @@ function formatCurrencyWithMinThreshold(
 }
 
 function formatCurrencyTokenPrice(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
 ): string {
@@ -161,7 +169,7 @@ function formatCurrencyTokenPrice(
 }
 
 function formatToken(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   symbol: string,
   options: Intl.NumberFormatOptions = {},
@@ -182,7 +190,7 @@ function formatToken(
 }
 
 function formatTokenQuantity(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   symbol: string,
 ): string {
@@ -218,7 +226,7 @@ function formatTokenQuantity(
 
 // Format token quantity without trailing zeros.
 function formatTokenAmount(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   symbol: string,
 ): string {
@@ -263,7 +271,7 @@ function formatTokenAmount(
 }
 
 function formatPercentWithMinThreshold(
-  config: { locale: string },
+  config: FormattersConfig,
   value: Value,
   options: Intl.NumberFormatOptions = {},
 ): string {
@@ -287,7 +295,7 @@ function formatPercentWithMinThreshold(
   });
 }
 
-function formatCompact(config: { locale: string }, value: Value): string {
+function formatCompact(config: FormattersConfig, value: Value): string {
   return formatNumber(config, value, {
     notation: 'compact',
     minimumFractionDigits: 2,
@@ -296,7 +304,7 @@ function formatCompact(config: { locale: string }, value: Value): string {
 }
 
 function formatDateTime(
-  config: { locale: string },
+  config: FormattersConfig,
   timestamp: string | number,
   options?: Intl.DateTimeFormatOptions,
 ): string {
@@ -357,10 +365,12 @@ export type Formatters = {
 
 export function createFormatters({
   locale = FALLBACK_LOCALE,
+  currencyDisplay,
 }: {
   locale?: string;
+  currencyDisplay?: Intl.NumberFormatOptions['currencyDisplay'];
 }): Formatters {
-  const config = { locale };
+  const config = { locale, currencyDisplay };
   return {
     formatNumber: formatNumber.bind(null, config),
     formatCurrency: formatCurrency.bind(null, config),

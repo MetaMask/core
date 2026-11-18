@@ -8,8 +8,7 @@ import type { SentinelApiService } from './sentinel-api-service.js';
 /**
  * Fetches the configuration of a single network from the `/network`
  * endpoint of that network's subdomain. The subdomain is resolved from the
- * supported-network registry. The result is cached, as the configuration is
- * stable.
+ * supported-network registry. Not cached as it is the sentinel live capabilities endpoint.
  *
  * @param chainId - The chain ID of the network.
  * @returns The network configuration.
@@ -42,6 +41,9 @@ export type SentinelApiServiceGetNetworksAction = {
  * Sentinel URL resolved for the chain and returns the URL to use instead.
  * Lets consumers rewrite the request URL (for example to route through the
  * MetaMask Shield proxy) without the service knowing about those concerns.
+ * @param options.traceContext - Optional trace context to nest the
+ * simulation trace under. Without it, clients that do not infer a parent
+ * from the active span record the trace as a root span.
  * @returns The simulation response.
  */
 export type SentinelApiServiceSimulateTransactionsAction = {

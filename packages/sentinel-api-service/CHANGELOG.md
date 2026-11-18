@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0]
+
+### Changed
+
+- Stop caching `getNetwork` (`staleTime: 0`) so live liveness and killswitch flags from `GET /network` propagate immediately ([#11505](https://github.com/MetaMask/core/pull/11505))
+
+## [2.2.0]
+
 ### Added
 
+- Add optional `trace` constructor option to `SentinelApiService` for tracing `simulateTransactions`. Tracing is best-effort and does not affect the simulation result if it fails ([#11505](https://github.com/MetaMask/core/pull/11505))
+  - Add optional `traceContext` option to `simulateTransactions` to nest the simulation trace under a caller-provided parent context.
 - Add optional `accountHardwareType` to `SentinelMeta` for relay transaction metadata ([#10842](https://github.com/MetaMask/core/pull/10842))
 - Add `getFees`, `submitTransactions`, `cancel`, and `getBatchStatus` methods, with matching `SentinelApiService:*` actions, for smart-transaction fee quotes, submission, cancellation, and status lookup ([#11272](https://github.com/MetaMask/core/pull/11272))
   - `getFees` quotes gas fees via `POST /v1/networks/{chainId}/getFees`. Accepts a `SentinelGetFeesRequest` and returns a `SentinelGetFeesResponse`. Each transaction is a `SentinelSimulationTransaction`, the object `infura_simulateTransactions` accepts. The handler forwards them as the `txs` array.
@@ -73,7 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit ([#9466](https://github.com/MetaMask/core/pull/9466))
   - Supports `getNetworks`, `simulateTransactions`, `submitRelayTransaction`, and `getSmartTransaction`
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.3.0...HEAD
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.2.0...@metamask/sentinel-api-service@2.3.0
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.1.0...@metamask/sentinel-api-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@2.0.0...@metamask/sentinel-api-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@1.0.1...@metamask/sentinel-api-service@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/sentinel-api-service@1.0.0...@metamask/sentinel-api-service@1.0.1
