@@ -1,7 +1,7 @@
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
@@ -36,7 +36,7 @@ import {
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-  getResumeEnabledTypes,
+  isResumeEnabled,
   getStablecoins,
   isChainExcludedFromInfura,
   isEIP7702Chain,
@@ -2125,64 +2125,98 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getResumeEnabledTypes', () => {
-    it('returns empty array when the flag is absent', () => {
-      expect(
-        getResumeEnabledTypes(messenger, TransactionPayStrategy.Fiat),
-      ).toStrictEqual([]);
-    });
-
-    it('returns empty array when confirmations_pay_extended.resume is missing', () => {
+  describe('isResumeEnabled', () => {
+    function mockResumeFlags(resume: Json): void {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay_extended: {},
+          confirmations_pay_extended: { resume },
+        },
+      });
+    }
+
+    it('returns false when the flag is absent', () => {
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when the strategy is not configured', () => {
+      mockResumeFlags({ [TransactionPayStrategy.Fiat]: { default: true } });
+
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Relay,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns the strategy default when the type has no override', () => {
+      mockResumeFlags({ [TransactionPayStrategy.Fiat]: { default: true } });
+
+      expect(
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true when a type override enables it over a false default', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: {
+          default: false,
+          transactionTypes: { [TransactionType.moneyAccountDeposit]: true },
         },
       });
 
       expect(
-        getResumeEnabledTypes(messenger, TransactionPayStrategy.Fiat),
-      ).toStrictEqual([]);
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(true);
     });
 
-    it('returns the configured types for the requested strategy', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            resume: {
-              [TransactionPayStrategy.Fiat]: [
-                TransactionType.moneyAccountDeposit,
-              ],
-              [TransactionPayStrategy.Relay]: [],
-              [TransactionPayStrategy.Server]: [],
-            },
-          },
+    it('returns false when a type override disables it over a true default', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: {
+          default: true,
+          transactionTypes: { [TransactionType.moneyAccountDeposit]: false },
         },
       });
 
       expect(
-        getResumeEnabledTypes(messenger, TransactionPayStrategy.Fiat),
-      ).toStrictEqual([TransactionType.moneyAccountDeposit]);
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
     });
 
-    it('returns empty array when the strategy key is not present', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay_extended: {
-            resume: {
-              [TransactionPayStrategy.Fiat]: [
-                TransactionType.moneyAccountDeposit,
-              ],
-            },
-          },
+    it('returns false when default is unset and the type has no override', () => {
+      mockResumeFlags({
+        [TransactionPayStrategy.Fiat]: {
+          transactionTypes: { [TransactionType.predictDeposit]: true },
         },
       });
 
       expect(
-        getResumeEnabledTypes(messenger, TransactionPayStrategy.Relay),
-      ).toStrictEqual([]);
+        isResumeEnabled(
+          messenger,
+          TransactionPayStrategy.Fiat,
+          TransactionType.moneyAccountDeposit,
+        ),
+      ).toBe(false);
     });
   });
 

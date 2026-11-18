@@ -9,14 +9,19 @@ import type { Mock } from 'vitest';
 import { TransactionPayStrategy } from '../constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { getStrategyByName } from '../utils/strategy.js';
-import { resumePayTransactions } from './resume-pay-transactions.js';
+import {
+  isPayTransactionResumable,
+  resumePayTransactions,
+} from './resume-pay-transactions.js';
 
 vi.mock(import('../utils/strategy.js'));
 
 const REMOTE_FEATURE_FLAGS_MOCK = {
   confirmations_pay_extended: {
     resume: {
-      [TransactionPayStrategy.Fiat]: [TransactionType.predictDeposit],
+      [TransactionPayStrategy.Fiat]: {
+        transactionTypes: { [TransactionType.predictDeposit]: true },
+      },
     },
   },
 };
@@ -40,10 +45,12 @@ function getTransactionMock(
 function getMessengerMock({
   failTransactionError,
   isUnlocked = true,
+  remoteFeatureFlags = REMOTE_FEATURE_FLAGS_MOCK,
   transactions = [],
 }: {
   failTransactionError?: Error;
   isUnlocked?: boolean;
+  remoteFeatureFlags?: Record<string, unknown>;
   transactions?: TransactionMeta[];
 } = {}): {
   call: Mock;
@@ -53,7 +60,7 @@ function getMessengerMock({
   const state = { transactions: [...transactions] };
   const call = vi.fn((action: string, ...args: unknown[]) => {
     if (action === 'RemoteFeatureFlagController:getState') {
-      return { remoteFeatureFlags: REMOTE_FEATURE_FLAGS_MOCK };
+      return { remoteFeatureFlags };
     }
 
     if (action === 'TransactionController:getState') {
@@ -362,7 +369,9 @@ describe('resumePayTransactions', () => {
     const { messenger } = getMessengerMock({ transactions: [transaction] });
     const canResume = vi.fn().mockReturnValue(true);
 
+    // Candidate scan and re-check before resume.
     getStrategyByNameMock
+      .mockReturnValueOnce({ canResume, execute: vi.fn(), getQuotes: vi.fn() })
       .mockReturnValueOnce({ canResume, execute: vi.fn(), getQuotes: vi.fn() })
       .mockReturnValueOnce({ execute: vi.fn(), getQuotes: vi.fn() });
 
@@ -430,5 +439,164 @@ describe('resumePayTransactions', () => {
     });
 
     expect(await resumePayTransactions(messenger)).toBeUndefined();
+  });
+});
+
+describe('isPayTransactionResumable', () => {
+  const getStrategyByNameMock = vi.mocked(getStrategyByName);
+  const { messenger } = getMessengerMock();
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    getStrategyByNameMock.mockReturnValue({
+      canResume: vi.fn().mockReturnValue(true),
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+    });
+  });
+
+  it('returns true when the flag enables the pay type and strategy can resume', () => {
+    expect(
+      isPayTransactionResumable(messenger, getTransactionMock('tx-1')),
+    ).toBe(true);
+  });
+
+  it('returns false when transaction is undefined', () => {
+    expect(isPayTransactionResumable(messenger, undefined)).toBe(false);
+  });
+
+  it('returns false when status is submitted', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock('tx-1', { status: TransactionStatus.submitted }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when metamaskPay is missing', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock('tx-1', { metamaskPay: undefined }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when strategy is none', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock('tx-1', {
+          metamaskPay: { strategy: TransactionPayStrategy.None },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when resume was already attempted', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock('tx-1', {
+          metamaskPay: {
+            resumeAttemptedAt: 123,
+            strategy: TransactionPayStrategy.Fiat,
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when no pay type can be derived', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock('tx-1', {
+          nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
+          type: TransactionType.batch,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('uses the first pay-specific nested type for batch transactions', () => {
+    expect(
+      isPayTransactionResumable(
+        messenger,
+        getTransactionMock('tx-1', {
+          nestedTransactions: [
+            { type: TransactionType.tokenMethodApprove },
+            { type: TransactionType.predictDeposit },
+          ],
+          type: TransactionType.batch,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false when resume flags are empty', () => {
+    const { messenger: emptyFlagsMessenger } = getMessengerMock({
+      remoteFeatureFlags: {},
+    });
+
+    expect(
+      isPayTransactionResumable(
+        emptyFlagsMessenger,
+        getTransactionMock('tx-1'),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns false when the pay type is disabled for the strategy', () => {
+    const { messenger: disabledMessenger } = getMessengerMock({
+      remoteFeatureFlags: {
+        confirmations_pay_extended: {
+          resume: {
+            [TransactionPayStrategy.Fiat]: {
+              default: true,
+              transactionTypes: { [TransactionType.predictDeposit]: false },
+            },
+          },
+        },
+      },
+    });
+
+    expect(
+      isPayTransactionResumable(disabledMessenger, getTransactionMock('tx-1')),
+    ).toBe(false);
+  });
+
+  it('returns false when canResume is undefined', () => {
+    getStrategyByNameMock.mockReturnValue({
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+    });
+
+    expect(
+      isPayTransactionResumable(messenger, getTransactionMock('tx-1')),
+    ).toBe(false);
+  });
+
+  it('returns false when canResume returns false', () => {
+    getStrategyByNameMock.mockReturnValue({
+      canResume: vi.fn().mockReturnValue(false),
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+    });
+
+    expect(
+      isPayTransactionResumable(messenger, getTransactionMock('tx-1')),
+    ).toBe(false);
+  });
+
+  it('returns false when a check throws', () => {
+    getStrategyByNameMock.mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    expect(
+      isPayTransactionResumable(messenger, getTransactionMock('tx-1')),
+    ).toBe(false);
   });
 });

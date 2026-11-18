@@ -5628,7 +5628,7 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 156
+      "count": 158
     },
     "typescript/no-unsafe-call": {
       "count": 118
@@ -5745,17 +5745,6 @@
   "packages/transaction-pay-controller/src/utils/required-tokens.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/utils/resume.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 13
-    },
-    "typescript/no-unsafe-call": {
-      "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
     }
   },
   "packages/transaction-pay-controller/src/utils/second-leg.test.ts": {

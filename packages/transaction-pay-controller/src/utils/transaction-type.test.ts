@@ -2,7 +2,7 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { describe, expect, it } from 'vitest';
 
-import { getPayTransactionType } from './pay-transaction-type.js';
+import { getPayTransactionType } from './transaction-type.js';
 
 function getTransactionMock(
   overrides: Partial<TransactionMeta> = {},

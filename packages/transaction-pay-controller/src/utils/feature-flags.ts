@@ -206,6 +206,11 @@ export type MaxBalanceRefreshIntervalConfig = {
   [key in TransactionType]?: number;
 };
 
+export type ResumeEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 export type ServerValidationEnabledConfig = {
   default?: boolean;
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
@@ -231,7 +236,7 @@ type FeatureFlagsExtendedRaw = {
       validationEnabled?: ServerValidationEnabledConfig;
     };
   };
-  resume?: Partial<Record<TransactionPayStrategy, TransactionType[]>>;
+  resume?: Partial<Record<TransactionPayStrategy, ResumeEnabledConfig>>;
 };
 
 type EIP7702FeatureFlag = {
@@ -1122,27 +1127,34 @@ export function getFiatEnabledTypes(
 }
 
 /**
- * Returns the transaction types enabled for resume for a given strategy.
- * Reads `confirmations_pay_extended.resume[strategy]`.
+ * Whether resume is enabled for a strategy and transaction type.
+ * Reads `confirmations_pay_extended.resume[strategy]`, where a per-type
+ * override in `transactionTypes` takes precedence over `default`.
  *
  * Only reads `RemoteFeatureFlagController:getState` from the messenger, so a
  * minimal TC init messenger that only exposes that action is sufficient.
  *
  * @param messenger - Controller messenger.
  * @param strategy - The pay strategy.
- * @returns Array of enabled transaction types, or `[]` if not configured.
+ * @param transactionType - The pay transaction type.
+ * @returns True if resume is enabled, false if not configured.
  */
-export function getResumeEnabledTypes(
+export function isResumeEnabled(
   messenger: TransactionPayControllerMessenger,
   strategy: TransactionPayStrategy,
-): TransactionType[] {
+  transactionType: TransactionType,
+): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const featureFlags =
     (state.remoteFeatureFlags?.confirmations_pay_extended as
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  return featureFlags.resume?.[strategy] ?? [];
+  const config = featureFlags.resume?.[strategy];
+
+  return (
+    config?.transactionTypes?.[transactionType] ?? config?.default ?? false
+  );
 }
 
 /**

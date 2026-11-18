@@ -1,12 +1,14 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 
-import type { TransactionPayStrategy } from '../constants.js';
+import { TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
+import { isResumeEnabled } from '../utils/feature-flags.js';
 import { waitForKeyringUnlock } from '../utils/keyring.js';
-import { isPayTransactionResumable } from '../utils/resume.js';
 import { getStrategyByName } from '../utils/strategy.js';
+import { getPayTransactionType } from '../utils/transaction-type.js';
 import { updateTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'resume-pay-transactions');
@@ -19,8 +21,8 @@ const log = createModuleLogger(projectLogger, 'resume-pay-transactions');
  * 1. Await wallet unlock AND waitForClientReady (if provided).
  * 2. For each candidate captured at Step 0, sequentially:
  *    a. Re-read the current tx from TC state by id and skip it if it is
- *       missing or no longer in `approved`/`signed` (i.e. it moved to a
- *       final state while gates were pending).
+ *       missing or no longer resumable (e.g. it moved to a final state
+ *       while gates were pending).
  *    b. Set metamaskPay.resumeAttemptedAt before calling resume.
  *    c. Call strategy.resume(). On success → finalizeResumedTransaction.
  *       On failure → failTransaction.
@@ -59,11 +61,7 @@ export async function resumePayTransactions(
       );
       const currentTransaction = currentTransactions.find((tx) => tx.id === id);
 
-      if (
-        !currentTransaction ||
-        (currentTransaction.status !== TransactionStatus.approved &&
-          currentTransaction.status !== TransactionStatus.signed)
-      ) {
+      if (!isPayTransactionResumable(messenger, currentTransaction)) {
         log('Skipping transaction no longer eligible for resume', {
           id,
           status: currentTransaction?.status,
@@ -120,5 +118,61 @@ export async function resumePayTransactions(
         log('Failed to fail transaction after resume error', { id, failError });
       }
     }
+  }
+}
+
+/**
+ * Returns true if the given transaction is eligible for resume by the
+ * transaction-pay-controller.
+ *
+ * All checks are synchronous and only read `RemoteFeatureFlagController:getState`
+ * from the messenger — this is intentional so the function can be called at
+ * TransactionController boot time (before Pay is constructed) with a minimal
+ * init messenger that only exposes that action.
+ *
+ * @param messenger - Controller messenger. Only
+ * `RemoteFeatureFlagController:getState` is called.
+ * @param transaction - The transaction to check.
+ * @returns True if the transaction should be resumed.
+ */
+export function isPayTransactionResumable(
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta | undefined,
+): boolean {
+  try {
+    if (!transaction) {
+      return false;
+    }
+
+    const { status, metamaskPay } = transaction;
+
+    if (
+      status !== TransactionStatus.approved &&
+      status !== TransactionStatus.signed
+    ) {
+      return false;
+    }
+
+    const strategy = metamaskPay?.strategy as
+      | TransactionPayStrategy
+      | undefined;
+
+    if (!strategy || strategy === TransactionPayStrategy.None) {
+      return false;
+    }
+
+    if (metamaskPay?.resumeAttemptedAt) {
+      return false;
+    }
+
+    const payType = getPayTransactionType(transaction);
+
+    if (!payType || !isResumeEnabled(messenger, strategy, payType)) {
+      return false;
+    }
+
+    return getStrategyByName(strategy).canResume?.(transaction) === true;
+  } catch {
+    return false;
   }
 }
