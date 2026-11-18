@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `bypassServerCache` parameter to `addCustomAsset` (and the `AssetsController:addCustomAsset` action) ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Add optional `bypassServerCache` parameter to `addCustomAsset` (and the `AssetsController:addCustomAsset` action) ([#11613](https://github.com/MetaMask/core/pull/11613))
   - When `true`, the force-fetch of the asset's chain also bypasses server-side HTTP caches such as the Accounts API's 60s cache. It only applies when the account is in the selected account group.
 
 ### Changed
