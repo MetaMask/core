@@ -4923,16 +4923,13 @@
       "count": 1
     },
     "typescript/explicit-function-return-type": {
-      "count": 12
-    },
-    "typescript/no-explicit-any": {
-      "count": 3
+      "count": 8
     },
     "typescript/no-unsafe-call": {
       "count": 6
     },
     "typescript/no-unsafe-member-access": {
-      "count": 12
+      "count": 3
     },
     "typescript/no-unsafe-return": {
       "count": 6
@@ -4940,7 +4937,10 @@
   },
   "packages/smart-transactions-controller/src/SmartTransactionsController.ts": {
     "typescript/explicit-function-return-type": {
-      "count": 10
+      "count": 8
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
     },
     "typescript/no-floating-promises": {
       "count": 4
@@ -4949,13 +4949,10 @@
       "count": 3
     },
     "typescript/no-unsafe-assignment": {
-      "count": 15
+      "count": 8
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
-    },
-    "typescript/no-unsafe-return": {
-      "count": 6
+      "count": 7
     }
   },
   "packages/smart-transactions-controller/src/featureFlags/feature-flags.ts": {
@@ -4976,9 +4973,6 @@
   "packages/smart-transactions-controller/src/utils.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
     }
   },
   "packages/smart-transactions-controller/src/utils.ts": {
@@ -4986,19 +4980,13 @@
       "count": 1
     },
     "typescript/explicit-function-return-type": {
-      "count": 10
+      "count": 8
     },
     "typescript/no-explicit-any": {
       "count": 4
     },
     "typescript/no-unsafe-argument": {
-      "count": 4
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
+      "count": 3
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 1
