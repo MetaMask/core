@@ -152,8 +152,8 @@ export async function* submitDepositHandler(
 
   const transactionParams = await getAddTransactionBatchParams({
     tradeData,
-    // Always require approval for deposit batch because we need to add MM Pay
-    // quotes before approving the batch
+    // Always require approval for deposit batch because we need to
+    // programmatically approve it after MMPay quotes are available
     requireApproval: true,
     isDelegatedAccount,
     disableHook: true,

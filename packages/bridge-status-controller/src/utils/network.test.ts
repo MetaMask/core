@@ -1,3 +1,7 @@
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+} from '@metamask/network-controller';
 import { CHAIN_IDS } from '@metamask/transaction-controller';
 import { describe, expect, it } from 'vitest';
 
@@ -21,7 +25,10 @@ const setup = (
     );
     rootMessenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
-      () => ({ provider: undefined }),
+      () =>
+        ({
+          provider: undefined,
+        }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
     );
   }
 

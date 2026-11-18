@@ -42,7 +42,6 @@ const handleTronApproval = async (
         );
         return txMeta.id;
       }
-      return;
     },
   );
 
@@ -51,7 +50,6 @@ const handleTronApproval = async (
     await handleApprovalDelay(quoteResponse.quote.srcChainId);
     return approvalTxId;
   }
-  return;
 };
 
 /**
@@ -94,10 +92,10 @@ export async function* submitNonEvmHandler(
     payload: { tradeMeta },
   };
 
-  // This strategy doesn't rekey the history item, so key by the next batchId
-  // for the next submit execution
   let historyKey: string | undefined;
 
+  // If historyKey is provided, update the existing history item
+  // Otherwise, add a new history item
   if (args.historyKey) {
     historyKey = args.historyKey;
     yield {

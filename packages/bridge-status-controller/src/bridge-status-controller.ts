@@ -68,7 +68,6 @@ import type {
   FetchFunction,
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
-  NextAction,
 } from './types.js';
 import { BridgeClientId, Operation } from './types.js';
 import { getJwt } from './utils/authentication.js';
@@ -86,9 +85,11 @@ import {
 } from './utils/bridge.js';
 import {
   getInitialHistoryItem,
+  lockHistoryItem,
   rekeyHistoryItemInState,
   shouldPollHistoryItem,
   resolveHistoryKeyForTxMeta,
+  updateHistoryItemInState,
 } from './utils/history.js';
 import {
   getFinalizedTxProperties,
@@ -533,10 +534,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (updatedHistoryItem.next && updatedHistoryItem.next.length > 0) {
       this.#updateHistoryItem({
         historyKey,
-        ...((isSwap || isBridge) && { txHash }),
-        ...(updatedHistoryItem.depositTxMeta && {
-          depositTxMeta: { hash: txHash },
-        }),
+        historyItemOverrides: {
+          ...((isSwap || isBridge) && { txHash }),
+          ...(updatedHistoryItem.depositTxMeta && {
+            depositTxMeta: { hash: txHash },
+          }),
+        },
       });
       await this.#nextTx(historyKey);
       return;
@@ -1073,6 +1076,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             historyItem.quote.intent.protocol,
             this.#clientId,
             historyItem.status.srcChain.txHash,
+            historyItem.orderId,
           );
 
         if (
@@ -1237,55 +1241,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
-  /*
-   * Generates a new batchId and adds it to history
-   * so the upcoming action can't be executed again.
-   *
-   * @param historyKey - The key of the history item to lock
-   * @returns The shifted next actions, new batchId, and rebuilt quoteResponse
-   */
   readonly #lockHistoryItem = (
     historyKey: string,
-  ): {
-    operation: Operation;
-    batchId: `0x${string}`;
-    next: NextAction[];
-    quoteResponse: QuoteResponseV1;
-  } => {
+  ): ReturnType<typeof lockHistoryItem> => {
     const historyItem = this.state.txHistory[historyKey];
-    if (historyItem.status.isExpectedToken === false) {
-      throw new Error(
-        `Incorrect token received from bridge tx, skipping next action: ${historyKey}`,
-      );
-    }
-
-    const { depositTxMeta } = historyItem;
-    const [pending, ...next] = historyItem.next ?? [];
-
-    // Return early if deposit has already started
-    if (depositTxMeta?.batchId || !pending) {
-      throw new Error(`Deposit has already started, skipping: ${historyKey}`);
-    }
-
-    const batchId = generateBatchId();
-
-    this.#updateHistoryItem({
-      historyKey,
-      historyItemOverrides: {
-        ...(pending.operation === Operation.DEPOSIT && {
-          depositTxMeta: {
-            batchId,
-          },
-        }),
-      },
+    let result!: ReturnType<typeof lockHistoryItem>;
+    this.update((state) => {
+      result = lockHistoryItem(state, historyKey, historyItem);
     });
-
-    return {
-      operation: pending.operation,
-      batchId,
-      next,
-      quoteResponse: { quote: historyItem.quote, ...pending.partialQuote },
-    };
+    return result;
   };
 
   readonly #nextTx = async (historyKey: string): Promise<void> => {
@@ -1419,90 +1383,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return localTxHash;
   };
 
-  readonly #updateHistoryItem = ({
-    historyKey,
-    historyItemOverrides,
-  }: {
-    historyKey?: string;
-    historyItemOverrides?: {
-      status?: StatusTypes;
-      txHash?: string;
-    } & Partial<
-      Pick<
-        BridgeHistoryItem,
-        | 'attempts'
-        | 'completionTime'
-        | 'depositTxMeta'
-        | 'next'
-        | 'quote'
-        | 'batchId'
-        | 'actionId'
-        | 'txMetaId'
-        | 'approvalTxId'
-        | 'originalTransactionId'
-      >
-    >;
-  }): void => {
-    if (!historyKey || !historyItemOverrides) {
-      return;
-    }
-
-    const {
-      status,
-      txHash,
-      attempts,
-      completionTime,
-      depositTxMeta,
-      next,
-      quote,
-      batchId,
-      actionId,
-      txMetaId,
-      approvalTxId,
-      originalTransactionId,
-    } = historyItemOverrides;
-
-    this.update((currentState) => {
-      const historyItem = currentState.txHistory[historyKey];
-      if (status) {
-        historyItem.status.status = status;
-      }
-      if (txHash) {
-        historyItem.status.srcChain.txHash = txHash;
-      }
-      if (attempts) {
-        historyItem.attempts = attempts;
-      }
-      if (completionTime) {
-        historyItem.completionTime = completionTime;
-      }
-      if (depositTxMeta) {
-        historyItem.depositTxMeta = {
-          ...historyItem.depositTxMeta,
-          ...depositTxMeta,
-        };
-      }
-      if (next) {
-        historyItem.next = next;
-      }
-      if (quote) {
-        historyItem.quote = quote;
-      }
-      if (batchId) {
-        historyItem.batchId = batchId;
-      }
-      if (actionId) {
-        historyItem.actionId = actionId;
-      }
-      if (txMetaId) {
-        historyItem.txMetaId = txMetaId;
-      }
-      if (approvalTxId) {
-        historyItem.approvalTxId = approvalTxId;
-      }
-      if (originalTransactionId) {
-        historyItem.originalTransactionId = originalTransactionId;
-      }
+  readonly #updateHistoryItem = (
+    params: Parameters<typeof updateHistoryItemInState>[1],
+  ): void => {
+    this.update((state) => {
+      updateHistoryItemInState(state, params);
     });
   };
 

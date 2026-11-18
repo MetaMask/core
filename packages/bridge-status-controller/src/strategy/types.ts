@@ -20,7 +20,10 @@ import type {
   StartPollingForBridgeTxStatusArgs,
   SubmitStrategyParamsJson,
 } from '../types.js';
-import type { rekeyHistoryItemInState } from '../utils/history.js';
+import type {
+  rekeyHistoryItemInState,
+  updateHistoryItemInState,
+} from '../utils/history.js';
 
 export enum SubmitStep {
   /**
@@ -29,7 +32,6 @@ export enum SubmitStep {
   AddHistoryItem = 'addHistoryItem',
   /**
    * Rekeys and updates the history item keyed by the old history key to the new history key.
-   * If a post-tx action is required, strategies re-key the history item to the next batchId.
    */
   RekeyHistoryItem = 'rekeyHistoryItem',
   /**
@@ -63,7 +65,7 @@ export type SubmitStepResult =
       type: SubmitStep.AddHistoryItem;
       payload: Pick<
         StartPollingForBridgeTxStatusArgs,
-        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId'
+        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'orderId'
       > & {
         historyKey: string;
         quoteResponse: QuoteResponseV1 & QuoteMetadata;
@@ -88,13 +90,7 @@ export type SubmitStepResult =
     }
   | {
       type: SubmitStep.UpdateHistoryItem;
-      payload: {
-        historyKey: string;
-        historyItemOverrides: Omit<
-          Parameters<typeof rekeyHistoryItemInState>[3],
-          'status'
-        >;
-      };
+      payload: Parameters<typeof updateHistoryItemInState>[1];
     }
   | {
       type: SubmitStep.StartPolling;

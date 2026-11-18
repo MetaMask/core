@@ -336,8 +336,8 @@
       "count": 5
     }
   },
-  "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
-    "TS2307": {
+  "packages/bridge-status-controller/src/bridge-status-controller.deposit.test.ts": {
+    "TS6305": {
       "count": 1
     }
   },
@@ -357,6 +357,11 @@
     },
     "TS2353": {
       "count": 2
+    }
+  },
+  "packages/bridge-status-controller/src/utils/with-mm-pay-approval.test.ts": {
+    "TS6305": {
+      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {

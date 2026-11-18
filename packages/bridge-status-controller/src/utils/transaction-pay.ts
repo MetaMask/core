@@ -1,3 +1,4 @@
+import { formatAddressToAssetId } from '@metamask/bridge-controller';
 import { PaymentOverride } from '@metamask/transaction-pay-controller';
 import type { TransactionConfig } from '@metamask/transaction-pay-controller';
 
@@ -23,16 +24,20 @@ export const setTransactionConfigForMmPay = (
   );
 };
 
-// Updates transaction payment quotes, required for withdraws
+// Updates transaction payment quotes, required for withdraws/deposit
 export const updatePaymentToken = (
   messenger: BridgeStatusControllerMessenger,
   txMetaId: string,
   tokenAddress: `0x${string}`,
   chainId: `0x${string}`,
 ): void => {
+  const assetId = formatAddressToAssetId(tokenAddress, chainId);
+  if (!assetId) {
+    throw new Error('Invalid token address or chain ID');
+  }
+
   messenger.call('TransactionPayController:updatePaymentToken', {
     transactionId: txMetaId,
-    tokenAddress,
-    chainId,
+    assetId,
   });
 };

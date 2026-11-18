@@ -1,4 +1,3 @@
-import { Web3Provider } from '@ethersproject/providers';
 // oxlint-disable typescript/no-unsafe-call
 import type {
   QuoteResponseV1,
@@ -1362,6 +1361,7 @@ describe('BridgeStatusController (deposit)', () => {
       walletAddress,
       gasSponsored,
       gasIncluded7702,
+      startTime = Date.now(),
     }: {
       srcChainId?: number;
       destChainId?: number;
@@ -1371,6 +1371,7 @@ describe('BridgeStatusController (deposit)', () => {
       walletAddress?: string | null;
       gasSponsored?: boolean;
       gasIncluded7702?: boolean;
+      startTime?: number;
     } = {}): Record<string, BridgeHistoryItem> => {
       const pending = MockTxHistory.getPendingSwap({
         txMetaId: SWAP_ID,
@@ -1380,7 +1381,7 @@ describe('BridgeStatusController (deposit)', () => {
       })[SWAP_ID];
       const historyItem: BridgeHistoryItem = {
         ...pending,
-        startTime: Date.now(),
+        startTime,
         quote: {
           ...pending.quote,
           destAsset: { ...pending.quote.destAsset, address: DEST_ASSET },
@@ -1571,36 +1572,38 @@ describe('BridgeStatusController (deposit)', () => {
           if (!networkProvider) {
             throw new Error(`No provider available for chain ${chainId}`);
           }
-          const provider = new Web3Provider(networkProvider);
-          provider.getTransactionReceipt = async () => ({
-            to: DEST_ASSET,
-            from: MONEY_ACCOUNT,
-            contractAddress: DEST_ASSET,
-            transactionIndex: 0,
-            gasUsed: null as never,
-            logsBloom: `0x${'0'.repeat(512)}`,
-            blockHash: `0x${'0'.repeat(64)}`,
-            transactionHash: SRC_HASH,
-            logs: (receipt.logs ?? []).map((log, logIndex) => ({
-              blockNumber: 1,
-              blockHash: `0x${'0'.repeat(64)}`,
+          // const provider = new Web3Provider(networkProvider);
+          const provider = {
+            getTransactionReceipt: async () => ({
+              to: DEST_ASSET,
+              from: MONEY_ACCOUNT,
+              contractAddress: DEST_ASSET,
               transactionIndex: 0,
-              removed: false,
-              address: log.address ?? DEST_ASSET,
-              data: log.data ?? '0x',
-              topics: log.topics ?? [],
+              gasUsed: null as never,
+              logsBloom: `0x${'0'.repeat(512)}`,
+              blockHash: `0x${'0'.repeat(64)}`,
               transactionHash: SRC_HASH,
-              logIndex,
-            })),
-            blockNumber: 1,
-            confirmations: 1,
-            cumulativeGasUsed: null as never,
-            effectiveGasPrice: null as never,
-            byzantium: true,
-            type: 0,
-            status: 1,
-          });
-          return provider;
+              logs: (receipt.logs ?? []).map((log, logIndex) => ({
+                blockNumber: 1,
+                blockHash: `0x${'0'.repeat(64)}`,
+                transactionIndex: 0,
+                removed: false,
+                address: log.address ?? DEST_ASSET,
+                data: log.data ?? '0x',
+                topics: log.topics ?? [],
+                transactionHash: SRC_HASH,
+                logIndex,
+              })),
+              blockNumber: 1,
+              confirmations: 1,
+              cumulativeGasUsed: null as never,
+              effectiveGasPrice: null as never,
+              byzantium: true,
+              type: 0,
+              status: 1,
+            }),
+          };
+          return provider as never;
         },
       );
     });
@@ -2171,48 +2174,6 @@ describe('BridgeStatusController (deposit)', () => {
       );
     });
 
-    it('skips the next action when the deposit has already started', async () => {
-      const messengerCall = queueDepositMessenger();
-      const history = swapHistory();
-      history[SWAP_ID].depositTxMeta = { batchId: BATCH_ID_1 };
-
-      await withController(
-        {
-          mockMessengerCall: messengerCall,
-          options: { state: { txHistory: history } },
-        },
-        async ({ controller, messenger, rootMessenger }) => {
-          const transactionMeta: TransactionMeta = {
-            id: SWAP_ID,
-            hash: SRC_HASH,
-            batchId: BATCH_ID_1,
-            status: TransactionStatus.confirmed,
-            type: TransactionType.swap,
-            chainId: CHAIN_IDS.ARBITRUM,
-            networkClientId: 'arb',
-            time: 1,
-            txParams: { from: '0xaccount1' },
-          };
-          rootMessenger.publish(
-            'TransactionController:transactionStatusUpdated',
-            { transactionMeta },
-          );
-          await flushPromises();
-
-          expect(mockBuildMoneyAccountDepositBatch).not.toHaveBeenCalled();
-          expect(controller.state.txHistory[SWAP_ID].next).toHaveLength(1);
-          expect(controller.state.txHistory[SWAP_ID].status.status).toBe(
-            StatusTypes.FAILED,
-          );
-          expect(messenger.captureException).toHaveBeenCalledWith(
-            expect.objectContaining({
-              message: `Deposit has already started, skipping: ${SWAP_ID}`,
-            }),
-          );
-        },
-      );
-    });
-
     it('skips the next action when the account is missing', async () => {
       const messengerCall = queueDepositMessenger([], { account: undefined });
 
@@ -2395,6 +2356,14 @@ describe('BridgeStatusController (deposit)', () => {
         txHash: undefined,
         metadata: { txHashes: [] },
       });
+      const getOrderStatusSpy = vi
+        .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
+        .mockResolvedValue({
+          id: 'order-uid-1',
+          status: IntentOrderStatus.COMPLETED,
+          txHash: '0xfilled',
+          metadata: { txHashes: ['0xfilled'] },
+        });
       const baseMessengerCall = queueDepositMessenger();
       const messengerCall = vi.fn((action: string, ...args: unknown[]) => {
         if (action === 'KeyringController:signTypedMessage') {
@@ -2461,7 +2430,11 @@ describe('BridgeStatusController (deposit)', () => {
           mockMessengerCall: messengerCall,
           options: { state: { txHistory: history } },
         },
-        async ({ controller, rootMessenger }) => {
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
           publishSwap(rootMessenger, TransactionStatus.confirmed);
           await flushPromises();
 
@@ -2471,6 +2444,25 @@ describe('BridgeStatusController (deposit)', () => {
           expect(
             controller.state.txHistory[SWAP_ID].originalTransactionId,
           ).toBe('intent-synthetic-id');
+          expect(controller.state.txHistory[SWAP_ID].orderId).toBe(
+            'order-uid-1',
+          );
+          expect(controller.state.txHistory['order-uid-1']).toBeUndefined();
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledWith({
+            bridgeTxMetaId: SWAP_ID,
+          });
+
+          await controller._executePoll({ bridgeTxMetaId: SWAP_ID });
+
+          expect(getOrderStatusSpy).toHaveBeenCalledWith(
+            'order-uid-1',
+            'cowswap',
+            42161,
+            'extension',
+          );
+          expect(controller.state.txHistory[SWAP_ID].status.status).toBe(
+            StatusTypes.COMPLETE,
+          );
         },
       );
     });

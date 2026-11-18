@@ -80,29 +80,33 @@ export class IntentManager {
   /**
    * Get the status of an intent order.
    *
-   * @param bridgeTxMetaId - The bridge transaction meta ID.
+   * @param historyKey - The history key used to store intent statuses.
+   * @param srcChainId - The source chain ID.
    * @param protocol - The protocol of the intent.
    * @param clientId - The client ID.
+   * @param txHash - Optional tx hash of the settled transaction.
+   * @param orderId - The intent order uid to fetch. Defaults to `bridgeTxMetaId`.
    * @returns The intent order mapped status.
    */
 
   getIntentTransactionStatus = async (
-    bridgeTxMetaId: string,
+    historyKey: string,
     srcChainId: number,
     protocol: string,
     clientId: BridgeClientId,
     txHash?: string,
+    orderId = historyKey,
   ): Promise<IntentStatuses | undefined> => {
     try {
       const orderStatus = await this.intentApi.getOrderStatus(
-        bridgeTxMetaId,
+        orderId,
         protocol,
         srcChainId,
         clientId,
       );
 
       return this.#setIntentStatuses(
-        bridgeTxMetaId,
+        historyKey,
         orderStatus,
         srcChainId,
         txHash,

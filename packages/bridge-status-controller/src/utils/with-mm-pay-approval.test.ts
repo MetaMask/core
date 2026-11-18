@@ -104,10 +104,9 @@ const setupMessenger = (
     (): void => undefined,
   );
 
-  const callSpy: Mock<(...args: unknown[]) => unknown> = vi.spyOn(
-    messenger,
-    'call',
-  );
+  const callSpy = vi.spyOn(messenger, 'call') as unknown as Mock<
+    (...args: unknown[]) => unknown
+  >;
   return { rootMessenger, messenger, callSpy };
 };
 

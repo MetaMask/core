@@ -160,7 +160,7 @@ export async function* submitEvmHandler(
   const actionId = batchId ?? generateActionId();
   const historyKey = args.historyKey ?? actionId;
 
-  // Add new history item if no batchId is provided
+  // Add new history item if no historyKey is provided
   if (args.historyKey) {
     yield {
       type: SubmitStep.UpdateHistoryItem,

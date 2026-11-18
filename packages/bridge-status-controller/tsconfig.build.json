@@ -52,6 +52,9 @@
     },
     {
       "path": "../approval-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-json-rpc-provider/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

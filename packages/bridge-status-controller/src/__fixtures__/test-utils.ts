@@ -115,8 +115,8 @@ export const getMockPayQuote = (): TransactionPayQuote<Json> => ({
   request: {
     from: '0x1111111111111111111111111111111111111111',
     sourceBalanceRaw: '0',
-    sourceChainId: '0xa4b1',
-    sourceTokenAddress: '0x0000000000000000000000000000000000000001',
+    sourceAccountId: 'eip155:42161:0x1111111111111111111111111111111111111111',
+    sourceAssetId: 'eip155:42161:60/slip44:60',
     sourceTokenAmount: '0',
     targetAmountMinimum: '0',
     targetChainId: '0xa4b1',

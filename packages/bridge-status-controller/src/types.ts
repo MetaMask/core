@@ -217,6 +217,11 @@ export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
   /**
+   * Intent order uid returned by submitOrder. Used to fetch order status when
+   * the history key is a prior withdraw/swap id rather than the order uid.
+   */
+  orderId?: string;
+  /**
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
@@ -381,6 +386,7 @@ export type StartPollingForBridgeTxStatusArgs = {
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string;
+  orderId?: BridgeHistoryItem['orderId'];
   quoteResponse: QuoteResponseV1 & QuoteMetadata;
   startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];

@@ -182,24 +182,25 @@ export async function* submitIntentHandler(
     },
   };
 
-  // TODO re-key back to orderUid after deposit to fix activity list?
   const intentId =
     args.batchId ??
     // Use orderId because it's always defined for intent transactions
     orderUid;
 
-  // If no batchId is provided, add a new history item (intent or deposit)
+  const historyKeyToUse = args.historyKey ?? intentId;
+
+  // If no historyKey is provided, add a new history item
   if (args.historyKey) {
-    // If the batchId is provided, withdrawal was executed first
     yield {
       type: SubmitStep.UpdateHistoryItem,
       payload: {
-        historyKey: args.historyKey,
+        historyKey: historyKeyToUse,
         historyItemOverrides: {
           txMetaId: syntheticTxMeta?.id,
           approvalTxId,
           // Keep original txId for TransactionController updates
           originalTransactionId: syntheticTxMeta?.id,
+          orderId: orderUid,
           quote: args.quoteResponses[0].quote,
           next: args.next,
         },
@@ -210,10 +211,11 @@ export async function* submitIntentHandler(
     yield {
       type: SubmitStep.AddHistoryItem,
       payload: {
-        historyKey: intentId,
+        historyKey: historyKeyToUse,
         bridgeTxMeta: {
           id: syntheticTxMeta?.id,
         },
+        orderId: orderUid,
         approvalTxId,
         // Keep original txId for TransactionController updates
         originalTransactionId: syntheticTxMeta?.id,
@@ -223,11 +225,11 @@ export async function* submitIntentHandler(
     };
   }
 
-  // Start polling using the orderId as the history key
+  // Poll the same txHistory key that was just added/updated
   yield {
     type: SubmitStep.StartPolling,
     payload: {
-      historyKey: orderUid,
+      historyKey: historyKeyToUse,
     },
   };
 }

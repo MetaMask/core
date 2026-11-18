@@ -51,6 +51,9 @@
     },
     {
       "path": "../approval-controller"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
     }
   ],
   "include": ["../../types", "./src", "./test"]

@@ -114,8 +114,6 @@ export const getGasFeeEstimates = async (
   if (estimates?.type === GasFeeEstimateType.FeeMarket) {
     return estimates[BRIDGE_PREFERRED_GAS_ESTIMATE];
   }
-
-  return;
 };
 
 export const getTransactions = (messenger: BridgeStatusControllerMessenger) => {
@@ -194,14 +192,6 @@ export const getTransactionMetaByBatchId = ({
   getTransactions(messenger).filter(
     (tx: TransactionMeta) => tx.batchId === batchId,
   );
-
-const getBatchTransactionCounts = (
-  messenger: BridgeStatusControllerMessenger,
-  batchId: `0x${string}`,
-) =>
-  messenger.call('TransactionController:getState').batchTransactionCounts[
-    batchId
-  ];
 
 const waitForHashAndReturnFinalTxMeta = async (
   messenger: BridgeStatusControllerMessenger,
@@ -527,6 +517,8 @@ export const getAddTransactionBatchParams = async ({
   selectedAccount?: { address: `0x${string}` };
 }): Promise<Parameters<TransactionController['addTransactionBatch']>[0]> => {
   const trade = tradeData[0].tx;
+  // Deposit and withdraw txs use the money account address
+  // Which is not recognized by the getAccountByAddress util
   const selectedAccount =
     selectedAccountOverride ??
     (trade.from ? getAccountByAddress(messenger, trade.from) : undefined);

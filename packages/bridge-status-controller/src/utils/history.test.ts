@@ -16,12 +16,14 @@ import type {
   StartPollingForBridgeTxStatusArgs,
   StatusResponse,
 } from '../types.js';
+import { Operation } from '../types.js';
 import {
   getHistoryKey,
   getHistoryOverridesFromTxMeta,
   getInitialHistoryItem,
   getMatchingHistoryEntryForApprovalTxMeta,
   getMatchingHistoryEntryForTxMeta,
+  lockHistoryItem,
   rekeyHistoryItemInState,
 } from './history.js';
 
@@ -203,6 +205,7 @@ describe('History Utils', () => {
       const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
         txMetaId: 'tx1',
         batchId: '0xnewBatch',
+        orderId: 'order-uid-1',
         next: [],
         depositTxMeta: { id: 'deposit-1' },
       });
@@ -210,10 +213,106 @@ describe('History Utils', () => {
       expect(result).toBe(true);
       expect(state.txHistory.tx1.next).toStrictEqual([]);
       expect(state.txHistory.tx1.batchId).toBe('0xnewBatch');
+      expect(state.txHistory.tx1.orderId).toBe('order-uid-1');
       expect(state.txHistory.tx1.depositTxMeta).toStrictEqual({
         batchId: '0xoldBatch',
         id: 'deposit-1',
       });
+    });
+  });
+
+  describe('lockHistoryItem', () => {
+    const depositAction = {
+      operation: Operation.DEPOSIT,
+      partialQuote: {
+        estimatedProcessingTimeInSeconds: 15,
+        trade: 'depositTrade',
+      },
+    };
+    const swapAction = {
+      operation: Operation.SWAP,
+      partialQuote: { estimatedProcessingTimeInSeconds: 15, trade: 'swap' },
+    };
+    const makeState = (
+      overrides?: Partial<BridgeHistoryItem>,
+    ): BridgeStatusControllerState => ({
+      quoteUpdateStatusStore: {},
+      txHistory: {
+        tx1: {
+          quote: { srcChainId: 1, destChainId: 10 } as Quote,
+          status: {
+            status: StatusTypes.PENDING,
+            srcChain: { chainId: 1 },
+          },
+          account: '0xaccount',
+          estimatedProcessingTimeInSeconds: 1,
+          slippagePercentage: 0,
+          hasApprovalTx: false,
+          startTime: 1,
+          next: [depositAction, swapAction],
+          ...overrides,
+        },
+      },
+    });
+
+    it('throws when dest token is unexpected', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({
+            status: {
+              status: StatusTypes.PENDING,
+              srcChain: { chainId: 1 },
+              isExpectedToken: false,
+            },
+          }),
+          'tx1',
+        ),
+      ).toThrow(
+        'Incorrect token received from bridge tx, skipping next action: tx1',
+      );
+    });
+
+    it('throws when deposit already started', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({ depositTxMeta: { batchId: '0xbatch' } }),
+          'tx1',
+        ),
+      ).toThrow('Deposit has already started, skipping: tx1');
+    });
+
+    it('throws when next is missing', () => {
+      expect(() =>
+        lockHistoryItem(makeState({ next: undefined }), 'tx1'),
+      ).toThrow('Deposit has already started, skipping: tx1');
+    });
+
+    it('locks a deposit, writes batchId, returns remaining next', () => {
+      const state = makeState();
+      const result = lockHistoryItem(state, 'tx1');
+
+      expect(result.operation).toBe(Operation.DEPOSIT);
+      expect(result.next).toStrictEqual([swapAction]);
+      expect(result.quoteResponse).toStrictEqual({
+        quote: state.txHistory.tx1.quote,
+        ...depositAction.partialQuote,
+      });
+      expect(state.txHistory.tx1.depositTxMeta).toStrictEqual({
+        batchId: result.batchId,
+      });
+    });
+
+    it('locks a swap without writing depositTxMeta', () => {
+      const state = makeState({ next: [swapAction] });
+      const result = lockHistoryItem(state, 'tx1');
+
+      expect(result.operation).toBe(Operation.SWAP);
+      expect(result.next).toStrictEqual([]);
+      expect(result.quoteResponse).toStrictEqual({
+        quote: state.txHistory.tx1.quote,
+        ...swapAction.partialQuote,
+      });
+      expect(state.txHistory.tx1.depositTxMeta).toBeUndefined();
     });
   });
 
@@ -338,6 +437,14 @@ describe('History Utils', () => {
         inputPrimaryDenomination: 'fiat_value',
       });
       expect(txHistoryItem.inputPrimaryDenomination).toBe('fiat_value');
+    });
+
+    it('persists orderId when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        orderId: 'order-uid-1',
+      });
+      expect(txHistoryItem.orderId).toBe('order-uid-1');
     });
 
     it('defaults status to PENDING when txMeta status is unmapped', () => {

@@ -1,6 +1,9 @@
 import { CHAIN_IDS } from '@metamask/transaction-controller';
 import { PaymentOverride } from '@metamask/transaction-pay-controller';
-import type { TransactionConfig } from '@metamask/transaction-pay-controller';
+import type {
+  TransactionConfig,
+  UpdatePaymentTokenRequest,
+} from '@metamask/transaction-pay-controller';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -20,20 +23,12 @@ const TOKEN = '0x8888888888888888888888888888888888888888' as const;
 const setup = (): {
   messenger: ReturnType<typeof getControllerMessenger>;
   configs: TransactionConfig[];
-  paymentTokens: {
-    transactionId: string;
-    tokenAddress: `0x${string}`;
-    chainId: `0x${string}`;
-  }[];
+  paymentTokens: UpdatePaymentTokenRequest[];
 } => {
   const rootMessenger = getRootMessenger();
   const messenger = getControllerMessenger(rootMessenger);
   const configs: TransactionConfig[] = [];
-  const paymentTokens: {
-    transactionId: string;
-    tokenAddress: `0x${string}`;
-    chainId: `0x${string}`;
-  }[] = [];
+  const paymentTokens: UpdatePaymentTokenRequest[] = [];
 
   rootMessenger.registerActionHandler(
     'TransactionPayController:setTransactionConfig',
@@ -90,8 +85,8 @@ describe('updatePaymentToken', () => {
     expect(paymentTokens).toStrictEqual([
       {
         transactionId: TX_ID,
-        tokenAddress: TOKEN,
-        chainId: CHAIN_IDS.ARBITRUM,
+        assetId:
+          'eip155:42161/erc20:0x8888888888888888888888888888888888888888',
       },
     ]);
   });

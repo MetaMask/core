@@ -1,8 +1,8 @@
 import type { ExtractEventHandler, MessengerEvents } from '@metamask/messenger';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { TransactionPayControllerState } from '@metamask/transaction-pay-controller';
 
-import type { TransactionPayControllerState } from '../../../transaction-pay-controller/src/types.js';
 import type { BridgeStatusControllerMessenger, Operation } from '../types.js';
 import { acceptApprovalRequest } from './approval.js';
 import {

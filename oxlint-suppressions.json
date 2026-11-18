@@ -1606,17 +1606,8 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
-    "import/extensions": {
-      "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 37
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 29
-    },
     "vitest/no-conditional-in-test": {
-      "count": 19
+      "count": 20
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
@@ -1636,11 +1627,6 @@
       "count": 2
     },
     "vitest/no-conditional-in-test": {
-      "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/bridge-status-controller.intent.ts": {
-    "jsdoc/require-param": {
       "count": 1
     }
   },
@@ -1695,11 +1681,6 @@
       "count": 1
     }
   },
-  "packages/bridge-status-controller/src/strategy/non-evm-strategy.ts": {
-    "no-useless-return": {
-      "count": 2
-    }
-  },
   "packages/bridge-status-controller/src/utils/intent-api.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 4
@@ -1721,22 +1702,12 @@
       "count": 1
     }
   },
-  "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
-    "typescript/explicit-function-return-type": {
-      "count": 3
-    }
-  },
   "packages/bridge-status-controller/src/utils/transaction.test.ts": {
     "no-useless-return": {
       "count": 2
     },
     "typescript/no-unsafe-return": {
       "count": 2
-    }
-  },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "no-useless-return": {
-      "count": 1
     }
   },
   "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
