@@ -22,6 +22,12 @@
     },
     {
       "path": "../eth-sig-util/tsconfig.lint.json"
+    },
+    {
+      "path": "../base-data-service/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
     }
   ]
 }

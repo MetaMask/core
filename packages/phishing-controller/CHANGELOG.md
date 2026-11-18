@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SecurityAlertsApiService`, a data service for the Security Alerts API, with a `getApprovalDashboard` method and `SecurityAlertsApiService:getApprovalDashboard` messenger action for the multi-chain approval inventory (`POST /approvals/dashboard`) ([#11628](https://github.com/MetaMask/core/pull/11628))
+  - Takes `{ address, chainIds, forceFresh? }`; `chainIds` are hex strings (at most 20 distinct) and are sent to the API as decimal numbers.
+  - Validates the response against schema major `0` and passes unknown fields through. Unknown chain statuses become `failed` + `unverified`; unknown risk verdicts become `unknown`.
+  - Rejects with `ApprovalDashboardError` (`code`, `retryable`, `httpStatus`) on invalid input, HTTP/network failure, timeout, open circuit, or an invalid/incompatible response; it never resolves to an empty inventory on failure.
+  - Identical concurrent calls share one HTTP request, bounded by a 15-second timeout.
+  - Constructor accepts `messenger`, `fetch`, `baseUrl`, and `policyOptions` (retries are off by default).
+  - Export `SecurityAlertsApiService`, its messenger, action, event, and options types, `ApprovalDashboardError`, and the `ApprovalDashboardRequest`, `ApprovalDashboardResponse`, `ApprovalDashboardRecord`, `ApprovalDashboardChainResult` and `ApprovalDashboardErrorCode` types.
+- Add `@metamask/base-data-service` `^2.1.0`, `@metamask/superstruct` `^3.4.1` and `@metamask/utils` `^12.0.2` dependencies ([#11628](https://github.com/MetaMask/core/pull/11628))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
