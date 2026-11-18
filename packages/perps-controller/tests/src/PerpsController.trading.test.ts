@@ -1234,6 +1234,44 @@ describe('PerpsController', () => {
       }
     });
 
+    it('keeps a Chase ended by cancelling its child order ID', async () => {
+      vi.useFakeTimers();
+      try {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        mockProvider.getChaseOrders
+          .mockResolvedValueOnce([chaseOrder])
+          .mockResolvedValue([]);
+        const canceledChase = {
+          ...chaseOrder,
+          status: 'canceled' as const,
+          restingOrderId: null,
+        };
+        // The provider resolves the child to its chase and echoes the child ID.
+        vi.spyOn(mockTradingServiceInstance, 'cancelOrder').mockResolvedValue({
+          success: true,
+          orderId: '55',
+          chaseOrder: canceledChase,
+        });
+        const callback = vi.fn();
+
+        const stop = controller.subscribeToChaseOrderLists({ callback });
+        await vi.advanceTimersByTimeAsync(0);
+        await controller.cancelOrder({ orderId: '55', symbol: 'ETH' });
+        await vi.advanceTimersByTimeAsync(
+          CHASE_ORDER_CONFIG.RefreshIntervalMs * 3,
+        );
+        stop();
+
+        expect(callback).toHaveBeenLastCalledWith({
+          running: [],
+          history: [canceledChase],
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('leaves a Chase to its reads when the cancel reports no ending', async () => {
       vi.useFakeTimers();
       try {

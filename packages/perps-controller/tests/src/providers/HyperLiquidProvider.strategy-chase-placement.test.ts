@@ -7,6 +7,7 @@ import {
 } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
@@ -81,12 +82,17 @@ vi.mock('../../../src/services/TradingReadinessCache');
 
 describe('HyperLiquidProvider - strategy order types', () => {
   let provider: HyperLiquidProvider;
+  let mockClientService: Mocked<HyperLiquidClientService>;
   let mockWalletService: Mocked<HyperLiquidWalletService>;
   let mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
 
   beforeEach(() => {
-    ({ provider, mockWalletService, mockSubscriptionService } =
-      setUpStrategyProvider());
+    ({
+      provider,
+      mockClientService,
+      mockWalletService,
+      mockSubscriptionService,
+    } = setUpStrategyProvider());
   });
 
   describe('Chase placement', () => {
@@ -275,6 +281,32 @@ describe('HyperLiquidProvider - strategy order types', () => {
           repricings: 0,
           status: 'active',
         }),
+      ]);
+    });
+
+    it('lists a chase only for the account and network that placed it', async () => {
+      useStrategyClients({
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
+      });
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+      });
+      const placedBy = await mockWalletService.getUserAddressWithDefault();
+
+      // The same provider instance keeps the session after the account changes.
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(placedBy);
+      mockClientService.isTestnetMode.mockReturnValue(true);
+      expect(await provider.getChaseOrders()).toStrictEqual([]);
+
+      mockClientService.isTestnetMode.mockReturnValue(false);
+      expect(await provider.getChaseOrders()).toStrictEqual([
+        expect.objectContaining({ handle: result.orderId }),
       ]);
     });
 

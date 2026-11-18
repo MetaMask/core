@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - HyperLiquid chase cancels whose child the venue reports gone now read that child's status. A child that filled before the cancel ends the chase as `filled` with its final unfilled size, instead of `canceled` with the size from the last read ([#11592](https://github.com/MetaMask/core/pull/11592))
   - When that status cannot be read, the chase keeps its last status instead of `canceled`. A session kept for HIP-3 collateral cleanup asks for the child's status again on each `getChaseOrders` read until the venue reports it
+- HyperLiquid `getChaseOrders` lists only chases placed by the current account on the current network, so a chase started under another account no longer shows, with its cancel action, after the account or network changes ([#11592](https://github.com/MetaMask/core/pull/11592))
 - HyperLiquid TWAP reads raise `executedSize`, `remainingSize`, `executedNotional`, `averagePrice` and `fillProgressBps` from slice fills, so they rise while a TWAP runs instead of staying at the venue's stale 0 ([#11592](https://github.com/MetaMask/core/pull/11592))
 
 ## [24.1.0]

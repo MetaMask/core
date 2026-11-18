@@ -3840,10 +3840,11 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('cancelOrder'),
     });
+    // A provider may resolve a plain child order ID to its chase, so the
+    // ending is keyed by the chase handle, not by what the caller passed.
     const { chaseOrder } = result;
     if (
       result.success &&
-      params.orderType === 'chase' &&
       chaseOrder &&
       this.#getOrderListContextKey() === contextKey
     ) {
@@ -3851,7 +3852,7 @@ export class PerpsController extends BaseController<
       for (const listener of [...this.#chaseCancellationListeners]) {
         // A listener that throws must not undo the cancel or starve the rest.
         try {
-          listener({ handle: params.orderId, providerId, chaseOrder });
+          listener({ handle: chaseOrder.handle, providerId, chaseOrder });
         } catch (error) {
           this.#logError(
             ensureError(error, 'PerpsController.cancelOrder'),

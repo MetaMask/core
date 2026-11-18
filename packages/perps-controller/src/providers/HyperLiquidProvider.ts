@@ -9665,15 +9665,28 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Return stable client-facing snapshots for every Chase session retained by
-   * this provider instance. A read may refresh the current child order's
-   * remaining size from the venue, throttled to the Chase interval.
+   * Return stable client-facing snapshots for the Chase sessions this provider
+   * instance retains for the current account and network. Sessions placed by
+   * another account or on another network stay retained but are not listed. A
+   * read may refresh the current child order's remaining size from the venue,
+   * throttled to the Chase interval.
    *
    * @returns Current Chase session snapshots.
    */
   async getChaseOrders(): Promise<ChaseOrder[]> {
+    const currentAddress = (
+      await this.#walletService.getUserAddressWithDefault().catch(() => '')
+    ).toLowerCase();
+    const currentNetwork = this.#clientService.isTestnetMode()
+      ? 'testnet'
+      : 'mainnet';
+    const sessions = [...this.#chaseSessions.entries()].filter(
+      ([, session]) =>
+        session.accountContext.userAddress.toLowerCase() === currentAddress &&
+        session.accountContext.network === currentNetwork,
+    );
     return await Promise.all(
-      [...this.#chaseSessions.entries()].map(async ([handle, session]) => {
+      sessions.map(async ([handle, session]) => {
         const now = Date.now();
         let snapshotRemainingSize = session.size;
         if (
