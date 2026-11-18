@@ -1085,6 +1085,49 @@ describe('LighterClientService', () => {
       },
     );
 
+    it('accepts a flat account row with no initial margin fraction', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          accounts: [
+            {
+              code: 200,
+              account_type: 0,
+              index: 28,
+              l1_address: '0xabc',
+              cancel_all_time: 0,
+              total_order_count: 0,
+              pending_order_count: 0,
+              status: 1,
+              collateral: '10000',
+              available_balance: '10000',
+              positions: [
+                {
+                  market_id: 1,
+                  symbol: 'BTC',
+                  open_order_count: 0,
+                  sign: 1,
+                  position: '0',
+                  avg_entry_price: '0',
+                  position_value: '0',
+                  unrealized_pnl: '0',
+                  realized_pnl: '0',
+                  liquidation_price: '0',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const account = await buildService().getAccountByIndex(28);
+      expect(account.accounts[0].positions?.[0]).toMatchObject({
+        position: '0',
+      });
+      expect(
+        account.accounts[0].positions?.[0].initialMarginFraction,
+      ).toBeUndefined();
+    });
+
     it('queries the account by index', async () => {
       fetchMock.mockResolvedValue(
         mockJsonResponse({ code: 200, accounts: [] }),

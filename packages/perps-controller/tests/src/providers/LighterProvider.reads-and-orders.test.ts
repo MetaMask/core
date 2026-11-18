@@ -2519,6 +2519,37 @@ describe('LighterProvider', () => {
       ).toBe('1');
     });
 
+    it('sizes a reduce-only close without adapting another market’s leverage', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const btc = ACCOUNT.positions[0];
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              btc,
+              {
+                ...btc,
+                symbol: 'ETH',
+                marketId: btc.marketId + 1,
+                initialMarginFraction: 'unavailable',
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(
+        await provider.validateClosePosition({ symbol: 'BTC' }),
+      ).toMatchObject({
+        isValid: true,
+      });
+      expect(await provider.closePosition({ symbol: 'BTC' })).toMatchObject({
+        success: true,
+      });
+    });
+
     it('does not apply maker minimums to a dust market full close', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       // The live position IS the dust amount being closed.

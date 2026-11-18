@@ -12365,7 +12365,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Use atomic getter to prevent race condition between check and get
       const cachedOrders =
-        this.#subscriptionService.getOrdersCacheIfInitialized();
+        this.#subscriptionService.getOrdersCacheIfInitialized(true);
 
       // Replacing TP/SL has to consider standalone ('na' grouping) triggers —
       // left by a partial update or placed independently — which are not
@@ -13495,12 +13495,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Similar to getValidatedDexs() but doesn't require full initialization.
    * Reuses cachedValidatedDexs to avoid redundant perpDexs() calls.
    *
-   * @param requireComplete - Whether failed discovery must reject.
    * @returns A promise that resolves to the result.
    */
-  async #getStandaloneValidatedDexs(
-    requireComplete = false,
-  ): Promise<(string | null)[]> {
+  async #getStandaloneValidatedDexs(): Promise<(string | null)[]> {
     // Return cached result if available (unified state)
     if (this.#dexDiscoveryCache.state?.validated) {
       return this.#dexDiscoveryCache.state.validated;
@@ -13516,27 +13513,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     const standaloneInfoClient = createStandaloneInfoClient({
       isTestnet: this.#clientService.isTestnetMode(),
     });
-    let allDexs;
-    try {
-      allDexs = await standaloneInfoClient.perpDexs();
-    } catch (error) {
-      if (requireComplete) {
-        throw error;
-      }
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: standalone perpDexs() failed, falling back to main DEX only',
-      );
-      // Do not cache — transient error, allow retry on next call
-      return [null];
-    }
-
-    // Validate response
-    if (!allDexs || !Array.isArray(allDexs)) {
-      if (requireComplete) {
-        throw new Error('Hyperliquid returned an invalid DEX list');
-      }
-      // Do not cache — may be transient, allow retry on next call
-      return [null];
+    const allDexs = await standaloneInfoClient.perpDexs();
+    if (!Array.isArray(allDexs)) {
+      throw new Error('Hyperliquid returned an invalid DEX list');
     }
 
     // Atomically update unified state (raw + validated + timestamp).
@@ -13951,7 +13930,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         const standaloneInfoClient = createStandaloneInfoClient({
           isTestnet: this.#clientService.isTestnetMode(),
         });
-        const dexs = await this.#getStandaloneValidatedDexs(true);
+        const dexs = await this.#getStandaloneValidatedDexs();
         const { results, failedDexs } =
           await queryStandaloneClearinghouseStates(
             standaloneInfoClient,
@@ -13983,13 +13962,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       if (!params?.skipCache && params?.accountId === undefined) {
         const cachedPositions =
-          this.#subscriptionService.getFreshPositionsForAllDexs();
-        if (
-          cachedPositions !== null &&
-          (cachedPositions.length === 0 ||
-            this.#subscriptionService.getOrdersCacheIfInitialized(true) !==
-              null)
-        ) {
+          this.#subscriptionService.getFreshPositionsForAllDexs(true);
+        if (cachedPositions !== null) {
           return cachedPositions;
         }
       }
@@ -14009,27 +13983,31 @@ export class HyperLiquidProvider implements PerpsProvider {
         params?.accountId,
       );
 
-      // Use the same verified DEX list for positions and their TP/SL orders.
       const dexs = await this.#getValidatedDexsStrict();
-      const [stateResponse, orderResponse] = await Promise.all([
-        this.#queryUserDataAcrossDexs(
+      const { results: stateResults, failedDexs: failedStateDexs } =
+        await this.#queryUserDataAcrossDexs(
           { user: userAddress },
           (userParam) => infoClient.clearinghouseState(userParam),
           dexs,
-        ),
-        this.#queryUserDataAcrossDexs(
+        );
+      if (failedStateDexs.length > 0) {
+        throw failedStateDexs[0].error;
+      }
+
+      // A flat DEX has no positions whose protection needs enriching.
+      const positionDexs = stateResults
+        .filter(({ data }) =>
+          data.assetPositions.some((entry) => entry.position.szi !== '0'),
+        )
+        .map(({ dex }) => dex ?? null);
+      const { results: orderResults, failedDexs: failedOrderDexs } =
+        await this.#queryUserDataAcrossDexs(
           { user: userAddress },
           (userParam) => infoClient.frontendOpenOrders(userParam),
-          dexs,
-        ),
-      ]);
-      const { results: stateResults, failedDexs: failedStateDexs } =
-        stateResponse;
-      const { results: orderResults, failedDexs: failedOrderDexs } =
-        orderResponse;
-      const failedDex = failedStateDexs[0] ?? failedOrderDexs[0];
-      if (failedDex) {
-        throw failedDex.error;
+          positionDexs,
+        );
+      if (failedOrderDexs.length > 0) {
+        throw failedOrderDexs[0].error;
       }
 
       // Combine all orders from all DEXs for TP/SL lookup
@@ -14466,6 +14444,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
+    const generation = this.#lifecycleGeneration;
     try {
       // Path 0: Standalone mode for lightweight open order queries
       // Creates a standalone InfoClient without requiring full initialization
@@ -14480,7 +14459,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         const standaloneInfoClient = createStandaloneInfoClient({
           isTestnet: this.#clientService.isTestnetMode(),
         });
-        const dexs = await this.#getStandaloneValidatedDexs(true);
+        const dexs = await this.#getStandaloneValidatedDexs();
         const { results, failedDexs } = await this.#queryUserDataAcrossDexs(
           { user: userAddress },
           (userParam) => standaloneInfoClient.frontendOpenOrders(userParam),
@@ -14499,6 +14478,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           { count: orders.length },
         );
 
+        this.#assertCacheWriteLifecycleCurrent(generation, 'Get open orders');
         return orders;
       }
 
@@ -14508,6 +14488,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         const cachedOrders =
           this.#subscriptionService.getOrdersCacheIfInitialized(true);
         if (cachedOrders !== null) {
+          this.#assertCacheWriteLifecycleCurrent(generation, 'Get open orders');
           this.#deps.debugLogger.log(
             'Using cached open orders from WebSocket',
             {
@@ -14546,10 +14527,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const rawOrders = orderResults.flatMap((result) => result.data);
-      if (rawOrders.length === 0) {
-        return [];
-      }
-
       let positions: Position[] = [];
       if (
         rawOrders.some(
@@ -14577,10 +14554,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         return adaptOrderFromSDK(order, position);
       });
 
+      this.#assertCacheWriteLifecycleCurrent(generation, 'Get open orders');
       this.#restoreScaleOrderGroups(orders);
       return orders;
     } catch (error) {
       this.#deps.debugLogger.log('Error getting currently open orders:', error);
+      if (
+        error instanceof Error &&
+        error.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
+        throw error;
+      }
       throw new Error(PERPS_ERROR_CODES.ORDERS_FAILED, { cause: error });
     }
   }
@@ -15016,6 +15000,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#clientService.isTestnetMode() ? 'TESTNET' : 'MAINNET',
       );
 
+      const dexs = await this.#getValidatedDexsStrict();
       // Get Spot balance, Perps states across DEXs, and the HL abstraction
       // mode (Unified / Standard / Portfolio / DEX-abstraction). Mode decides
       // whether spot USDC is perps collateral — see addSpotBalanceToAccountState.
@@ -15023,8 +15008,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       const [spotStateResult, perpsStateResult, abstractionResult] =
         await Promise.allSettled([
           infoClient.spotClearinghouseState({ user: userAddress }),
-          this.#queryUserDataAcrossDexs({ user: userAddress }, (userParam) =>
-            infoClient.clearinghouseState(userParam),
+          this.#queryUserDataAcrossDexs(
+            { user: userAddress },
+            (userParam) => infoClient.clearinghouseState(userParam),
+            dexs,
           ),
           infoClient.userAbstraction({ user: userAddress }),
         ]);

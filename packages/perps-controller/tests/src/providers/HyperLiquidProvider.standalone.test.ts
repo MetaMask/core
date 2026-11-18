@@ -1683,6 +1683,21 @@ describe('HyperLiquidProvider', () => {
         expect(mockStandaloneInfoClient.perpDexs).toHaveBeenCalledTimes(1);
       });
 
+      it('rejects account state when standalone HIP-3 discovery is unavailable', async () => {
+        const cause = new Error('DEX discovery unavailable');
+        mockStandaloneInfoClient.perpDexs.mockRejectedValue(cause);
+
+        await expect(
+          hip3Provider.getAccountState({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(cause.message);
+        expect(
+          mockStandaloneInfoClient.clearinghouseState,
+        ).not.toHaveBeenCalled();
+      });
+
       it('aggregates account state across multiple DEXs in standalone mode', async () => {
         // Arrange: main DEX + xyz DEX both have balances
         mockStandaloneInfoClient.clearinghouseState

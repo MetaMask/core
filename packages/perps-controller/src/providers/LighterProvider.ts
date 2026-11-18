@@ -12415,7 +12415,7 @@ export class LighterProvider implements PerpsProvider {
     );
     if (
       rows.length !== 1 ||
-      !new BigNumber(rows[0].initialMarginFraction).eq(100) ||
+      parseStrictDecimal(rows[0].initialMarginFraction) !== 100 ||
       !new BigNumber(rows[0].position).abs().eq(expectedFilled) ||
       (!expectedFilled.isZero() && (rows[0].sign === 1) !== intent.isBuy) ||
       account.pendingOrderCount !== 0 ||
@@ -13528,7 +13528,7 @@ export class LighterProvider implements PerpsProvider {
     );
     if (
       positions.length !== 1 ||
-      !new BigNumber(positions[0].initialMarginFraction).eq(100)
+      parseStrictDecimal(positions[0].initialMarginFraction) !== 100
     ) {
       throw new Error(
         'Native TWAP probe requires independently confirmed existing 1x leverage',
@@ -14520,6 +14520,57 @@ export class LighterProvider implements PerpsProvider {
   };
 
   /**
+   * Read only the position identity and signed size needed to reduce exposure.
+   *
+   * @param symbol - Market being closed.
+   * @returns Signed base size, or zero when the target position is absent.
+   */
+  async #readPositionSizeForClose(symbol: string): Promise<number> {
+    this.#ensureSessionBinding();
+    const generation = this.#sessionGeneration;
+    try {
+      const accountIndex = await this.#readAccountIndex(generation);
+      const response =
+        await this.#clientService.getAccountByIndex(accountIndex);
+      this.#assertSession(generation);
+      const positions = response.accounts[0]?.positions;
+      if (!Array.isArray(positions)) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+      const rows = positions.filter((position) => position.symbol === symbol);
+      if (rows.length === 0) {
+        return 0;
+      }
+      const row = rows[0];
+      const size = parseStrictDecimal(row.position);
+      if (rows.length !== 1) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} duplicate position for ${symbol}`,
+        );
+      }
+      if (size === null || size < 0) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} position size '${row.position}' for ${symbol}`,
+        );
+      }
+      if (row.sign !== 1 && row.sign !== -1) {
+        throw new Error(
+          `${LIGHTER_DATA_INTEGRITY_PREFIX} position sign '${String(row.sign)}' for ${symbol}`,
+        );
+      }
+      return size * row.sign;
+    } catch (error) {
+      if (error instanceof LighterAccountNotFoundError) {
+        return 0;
+      }
+      if (this.#mustSurfaceReadError(error)) {
+        throw error;
+      }
+      throw this.#readFailure(PERPS_ERROR_CODES.POSITIONS_FAILED, error);
+    }
+  }
+
+  /**
    * Live check whether a below-minimum reduce-only request is actually a
    * full close of the held position (shared by placement and validation).
    *
@@ -14531,12 +14582,7 @@ export class LighterProvider implements PerpsProvider {
     symbol: string,
     requestedSize: number,
   ): Promise<boolean> => {
-    const positions = await this.getPositions();
-    const held = Math.abs(
-      parseFloat(
-        positions.find((entry) => entry.symbol === symbol)?.size ?? '0',
-      ),
-    );
+    const held = Math.abs(await this.#readPositionSizeForClose(symbol));
     // Exact match (float epsilon only): closePosition forwards the precise
     // live size, and anything less is a deliberate partial that a min-size
     // bump would silently over-close.
@@ -14562,18 +14608,14 @@ export class LighterProvider implements PerpsProvider {
       if (shapeError) {
         return { success: false, error: shapeError };
       }
-      const positions = await this.getPositions();
+      const signedSize = await this.#readPositionSizeForClose(params.symbol);
       this.#assertSession(generationAtIntent);
-      const position = positions.find(
-        (entry) => entry.symbol === params.symbol,
-      );
-      if (!position) {
+      if (signedSize === 0) {
         return {
           success: false,
           error: `No open Lighter position for ${params.symbol}`,
         };
       }
-      const signedSize = parseFloat(position.size);
       const explicitSizing =
         params.size !== undefined || params.usdAmount !== undefined;
       const closeSize = params.size ?? String(Math.abs(signedSize));
@@ -17694,9 +17736,9 @@ export class LighterProvider implements PerpsProvider {
     // approves a close the execution path rejects is worse than none.
     // Capability and data-integrity errors from the read surface as an
     // explicit invalid result, never an exception or a silent empty.
-    let positions: Position[];
+    let signedHeld: number;
     try {
-      positions = await this.getPositions();
+      signedHeld = await this.#readPositionSizeForClose(params.symbol);
     } catch (error) {
       return {
         isValid: false,
@@ -17704,9 +17746,6 @@ export class LighterProvider implements PerpsProvider {
           .message,
       };
     }
-    const signedHeld = parseFloat(
-      positions.find((entry) => entry.symbol === params.symbol)?.size ?? '0',
-    );
     const held = Math.abs(signedHeld);
     if (held === 0) {
       return {

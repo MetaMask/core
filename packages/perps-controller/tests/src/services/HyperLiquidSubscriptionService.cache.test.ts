@@ -689,12 +689,12 @@ describe('HyperLiquidSubscriptionService', () => {
       };
 
       accountCallbacks.get('')?.({ dex: '', clearinghouseState });
-      orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
       await vi.runAllTimersAsync();
       expect(accountCallback.mock.calls.at(-1)?.[0]).toMatchObject({
         unavailableSubAccounts: ['xyz'],
       });
 
+      orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
       accountCallbacks.get('xyz')?.({ dex: 'xyz', clearinghouseState });
       await vi.runAllTimersAsync();
       expect(accountCallback.mock.calls.at(-1)?.[0]).not.toHaveProperty(
@@ -706,6 +706,16 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(hip3Service.getOrdersCacheIfInitialized(true)).toStrictEqual([]);
 
       mockClientService.getConnectionEpoch = vi.fn(() => 2);
+      const newAccountCallback = vi.fn();
+      const unsubscribeNew = hip3Service.subscribeToAccount({
+        callback: newAccountCallback,
+      });
+      expect(newAccountCallback).not.toHaveBeenCalled();
+      accountCallbacks.get('')?.({ dex: '', clearinghouseState });
+      expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
+      unsubscribeNew();
       orderCallbacks.get('')?.({ dex: '', orders: [] });
       expect(hip3Service.getOrdersCacheIfInitialized(true)).toBeNull();
       orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
@@ -892,6 +902,15 @@ describe('HyperLiquidSubscriptionService', () => {
           });
         },
       );
+      const orderCallbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (params: { dex?: string }, callback: (payload: unknown) => void) => {
+          orderCallbacks.set(params.dex ?? '', callback);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
       const hip3Service = new HyperLiquidSubscriptionService(
         mockClientService,
         mockWalletService,
@@ -942,6 +961,11 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(hip3Service.getFreshPositionsForAllDexs()).toMatchObject([
         { size: '1' },
       ]);
+      expect(hip3Service.getFreshPositionsForAllDexs(true)).toBeNull();
+      orderCallbacks.get('flx')?.({ dex: 'flx', orders: [] });
+      expect(hip3Service.getFreshPositionsForAllDexs(true)).toMatchObject([
+        { size: '1' },
+      ]);
 
       expect(positionCallback).toHaveBeenLastCalledWith([
         expect.objectContaining({ size: '1' }),
@@ -977,7 +1001,12 @@ describe('HyperLiquidSubscriptionService', () => {
           withdrawable: '0',
         },
       });
+      const opensBeforeReenable =
+        mockSubscriptionClient.clearinghouseState.mock.calls.length;
       await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledTimes(
+        opensBeforeReenable + 1,
+      );
       expect(accountCallback.mock.lastCall?.[0]).toMatchObject({
         unavailableSubAccounts: ['xyz'],
       });
@@ -1167,15 +1196,21 @@ describe('HyperLiquidSubscriptionService', () => {
         dex: 'xyz',
         clearinghouseState,
       });
+      expect(callback).not.toHaveBeenCalled();
       callbacks.get(`${secondAddress}:`)?.({ dex: '', clearinghouseState });
       expect(unsubscribeLateDex).toHaveBeenCalledOnce();
-      expect(callback).not.toHaveBeenCalled();
+      expect(callback.mock.lastCall?.[0]).toMatchObject({
+        unavailableSubAccounts: ['xyz'],
+      });
 
       callbacks.get(`${secondAddress}:xyz`)?.({
         dex: 'xyz',
         clearinghouseState,
       });
-      expect(callback).toHaveBeenCalledOnce();
+      expect(callback).toHaveBeenCalledTimes(2);
+      expect(callback.mock.lastCall?.[0]).not.toHaveProperty(
+        'unavailableSubAccounts',
+      );
       unsubscribeSecond();
     });
 

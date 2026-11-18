@@ -770,6 +770,9 @@ export function adaptCrossMarginSummaryFromLighter(
       position.positionValue,
       `REST position value for ${position.symbol}`,
     );
+    if (position.initialMarginFraction === undefined) {
+      return undefined;
+    }
     const initialMarginFraction = parseStrictAccountDecimal(
       position.initialMarginFraction,
       `REST initial margin fraction for ${position.symbol}`,

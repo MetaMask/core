@@ -2,6 +2,7 @@
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import type { FrontendOpenOrdersResponse } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
@@ -37,6 +38,7 @@ import {
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -1595,6 +1597,71 @@ describe('HyperLiquidProvider', () => {
   });
 
   describe('getOpenOrders additional coverage', () => {
+    it('rejects open orders that arrive across a provider disconnect', async () => {
+      const started = createDeferred<void>();
+      const response = createDeferred<FrontendOpenOrdersResponse>();
+      mockClientService.getInfoClient().frontendOpenOrders = vi.fn(() => {
+        started.resolve();
+        return response.promise;
+      });
+
+      const read = provider.getOpenOrders({ skipCache: true });
+      const rejected = expect(read).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await started.promise;
+      response.resolve([
+        {
+          coin: 'BTC',
+          side: 'B',
+          limitPx: '50000',
+          oid: 1,
+          sz: '1',
+          origSz: '1',
+          isPositionTpsl: false,
+          orderType: 'Limit',
+          timestamp: Date.now(),
+          triggerCondition: '',
+          isTrigger: false,
+          triggerPx: '',
+          children: [],
+          reduceOnly: false,
+          tif: 'Gtc',
+          cloid: null,
+        },
+      ]);
+      await provider.disconnect();
+      await rejected;
+    });
+
+    it('only requests position protection from DEXs with an open position', async () => {
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const info = createMockInfoClient();
+      info.perpDexs.mockResolvedValue([null, { name: 'xyz' }]);
+      const mainState = await info.clearinghouseState();
+      info.clearinghouseState.mockImplementation(async ({ dex }) => ({
+        ...mainState,
+        assetPositions:
+          dex === 'xyz' ? [] : mainState.assetPositions.slice(0, 1),
+      }));
+      info.frontendOpenOrders.mockImplementation(async ({ dex }) => {
+        if (dex === 'xyz') {
+          throw new Error('flat DEX orders unavailable');
+        }
+        return [];
+      });
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(info);
+
+      expect(await provider.getPositions({ skipCache: true })).toHaveLength(1);
+      expect(info.frontendOpenOrders).toHaveBeenCalledOnce();
+      expect(info.frontendOpenOrders).toHaveBeenCalledWith(
+        expect.not.objectContaining({ dex: 'xyz' }),
+      );
+    });
+
     it('rejects an unavailable open order read', async () => {
       // Arrange
       mockClientService.getInfoClient = vi.fn().mockReturnValue({

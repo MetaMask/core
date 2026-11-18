@@ -114,6 +114,9 @@ type SubscriptionWallet = Pick<
  */
 const MAX_RETAINED_TWAP_ORDERS = 100;
 
+const DEX_DISCOVERY_INITIAL_WAIT_MS = 5000;
+const DEX_DISCOVERY_RETRY_DELAY_MS = 5000;
+
 /**
  * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
  */
@@ -406,8 +409,6 @@ export class HyperLiquidSubscriptionService {
   #cachedPositions: Position[] | null = null; // Aggregated positions
 
   #cachedOrders: Order[] | null = null; // Aggregated orders
-
-  #cachedAccount: AccountState | null = null; // Aggregated account
 
   #ordersCacheInitialized = false; // Track if orders cache has received WebSocket data
 
@@ -813,10 +814,9 @@ export class HyperLiquidSubscriptionService {
    * Used when HIP-3 is enabled but enabledDexs hasn't been populated yet.
    * This allows subscriptions to wait for DEX discovery before creating per-DEX subscriptions.
    *
-   * @param timeoutMs - The maximum time in milliseconds to wait for DEX discovery.
    * @returns A promise that settles when discovery finishes or times out.
    */
-  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<void> {
+  async #waitForDexDiscovery(): Promise<void> {
     this.#dexDiscoveryPromise ??= new Promise<void>((resolve) => {
       this.#dexDiscoveryResolver = resolve;
     });
@@ -830,7 +830,7 @@ export class HyperLiquidSubscriptionService {
           'DEX discovery wait timed out, proceeding with main DEX only',
         );
         resolve();
-      }, timeoutMs);
+      }, DEX_DISCOVERY_INITIAL_WAIT_MS);
     });
 
     try {
@@ -881,7 +881,7 @@ export class HyperLiquidSubscriptionService {
           this.#dexDiscoveryRetryTimer = setTimeout(() => {
             this.#dexDiscoveryRetryTimer = undefined;
             this.#discoverDexsForSubscription();
-          }, 5000);
+          }, DEX_DISCOVERY_RETRY_DELAY_MS);
         }
       });
   }
@@ -943,20 +943,24 @@ export class HyperLiquidSubscriptionService {
       this.#accountSnapshotDexs = new Set(
         hip3Enabled ? ['', ...enabledDexs] : [''],
       );
-      let removedAccount = false;
       for (const dex of previousDexs) {
         if (!this.#accountSnapshotDexs.has(dex)) {
-          removedAccount = this.#dexAccountCache.delete(dex) || removedAccount;
+          this.#dexAccountCache.delete(dex);
           this.#dexPositionsCache.delete(dex);
           this.#dexOrdersCache.delete(dex);
           this.#dexPositionsEpoch.delete(dex);
           this.#dexOrdersEpoch.delete(dex);
           this.#expectedDexs.delete(dex);
+          this.#initializedDexs.delete(dex);
+          for (const subscriptions of [
+            this.#clearinghouseStateSubscriptions,
+            this.#openOrdersSubscriptions,
+          ]) {
+            const subscription = subscriptions.get(dex);
+            subscriptions.delete(dex);
+            subscription?.unsubscribe().catch(() => undefined);
+          }
         }
-      }
-      if (removedAccount || !this.#dexDiscoveryComplete) {
-        this.#cachedAccount = null;
-        this.#cachedAccountHash = '';
       }
       this.#aggregateAndNotifySubscribers();
     }
@@ -1027,12 +1031,18 @@ export class HyperLiquidSubscriptionService {
       ) {
         await Promise.all(
           newDexs.map(async (dex) => {
+            if (!this.#accountSnapshotDexs.has(dex)) {
+              return;
+            }
             try {
               await this.#ensureClearinghouseStateSubscription(
                 userAddress,
                 dex,
               );
-              if (this.#userDataBinding === userDataBinding) {
+              if (
+                this.#userDataBinding === userDataBinding &&
+                this.#accountSnapshotDexs.has(dex)
+              ) {
                 await this.#ensureOpenOrdersSubscription(userAddress, dex);
               }
               this.#deps.debugLogger.log(
@@ -1113,7 +1123,8 @@ export class HyperLiquidSubscriptionService {
     // A slice arriving or failing changes completeness even when totals match.
     // JSON keeps the main DEX ('') distinct from a complete account.
     const unavailable = JSON.stringify(account.unavailableSubAccounts ?? null);
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}:${unavailable}`;
+    const breakdown = JSON.stringify(account.subAccountBreakdown ?? null);
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${spotCollateral}:${summaryHash}:${unavailable}:${breakdown}`;
   }
 
   // Cache hashes to avoid recomputation
@@ -1479,7 +1490,14 @@ export class HyperLiquidSubscriptionService {
    * @private
    */
   #aggregateAccountStates(): AccountState | undefined {
-    if (!this.#dexDiscoveryComplete || this.#dexAccountCache.size === 0) {
+    if (!this.#dexDiscoveryComplete) {
+      return undefined;
+    }
+    const freshAccounts = [...this.#dexAccountCache.entries()].filter(([dex]) =>
+      this.#isPositionDexFresh(dex),
+    );
+    const firstDexAccount = freshAccounts[0]?.[1];
+    if (!firstDexAccount) {
       return undefined;
     }
     const subAccountBreakdown: Record<
@@ -1494,32 +1512,28 @@ export class HyperLiquidSubscriptionService {
     // Collect account states for weighted ROE calculation
     const accountStatesForROE: ReturnOnEquityInput[] = [];
 
-    // Aggregate all cached account states
-    Array.from(this.#dexAccountCache.entries()).forEach(
-      ([currentDex, state]) => {
-        const dexKey = currentDex === '' ? 'main' : currentDex;
-        subAccountBreakdown[dexKey] = {
-          spendableBalance: state.spendableBalance,
-          withdrawableBalance: state.withdrawableBalance,
-          totalBalance: state.totalBalance,
-        };
+    // Positions and account values are stamped by the same clearinghouse frame.
+    freshAccounts.forEach(([currentDex, state]) => {
+      const dexKey = currentDex === '' ? 'main' : currentDex;
+      subAccountBreakdown[dexKey] = {
+        spendableBalance: state.spendableBalance,
+        withdrawableBalance: state.withdrawableBalance,
+        totalBalance: state.totalBalance,
+      };
 
-        // Collect data for weighted ROE calculation
-        accountStatesForROE.push({
-          unrealizedPnl: state.unrealizedPnl,
-          returnOnEquity: state.returnOnEquity,
-          marginUsed: state.marginUsed,
-        });
-      },
-    );
+      // Collect data for weighted ROE calculation
+      accountStatesForROE.push({
+        unrealizedPnl: state.unrealizedPnl,
+        returnOnEquity: state.returnOnEquity,
+        marginUsed: state.marginUsed,
+      });
+    });
 
     // Use first DEX's account state as base and override aggregated values
-    const firstDexAccount =
-      this.#dexAccountCache.values().next().value ?? ({} as AccountState);
     const { crossMarginSummary: _firstDexSummary, ...firstDexBase } =
       firstDexAccount;
     const aggregatedAccountState = aggregateAccountStates(
-      Array.from(this.#dexAccountCache.values()),
+      freshAccounts.map(([, account]) => account),
     );
 
     // Calculate weighted returnOnEquity across all DEXs
@@ -1528,7 +1542,7 @@ export class HyperLiquidSubscriptionService {
     // Configured DEXs whose account state has not arrived (late, or the
     // subscription failed): the totals exclude them, so say which.
     const unavailableSubAccounts = Array.from(this.#accountSnapshotDexs).filter(
-      (dex) => !this.#dexAccountCache.has(dex),
+      (dex) => !this.#isPositionDexFresh(dex),
     );
 
     return addSpotBalanceToAccountState(
@@ -2466,7 +2480,10 @@ export class HyperLiquidSubscriptionService {
       throw new Error('Subscription client not available');
     }
 
-    if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+    if (
+      !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
+      !this.#accountSnapshotDexs.has(dexName)
+    ) {
       return;
     }
 
@@ -2562,7 +2579,10 @@ export class HyperLiquidSubscriptionService {
         },
       );
 
-      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+      if (
+        !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
+        !this.#accountSnapshotDexs.has(dexName)
+      ) {
         await subscription.unsubscribe().catch(() => undefined);
         return;
       }
@@ -2660,7 +2680,10 @@ export class HyperLiquidSubscriptionService {
       throw new Error('Subscription client not available');
     }
 
-    if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+    if (
+      !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
+      !this.#accountSnapshotDexs.has(dexName)
+    ) {
       return;
     }
 
@@ -2723,7 +2746,10 @@ export class HyperLiquidSubscriptionService {
         },
       );
 
-      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+      if (
+        !this.#isCurrentUserDataStream(binding, subscriptionClient) ||
+        !this.#accountSnapshotDexs.has(dexName)
+      ) {
         await subscription.unsubscribe().catch(() => undefined);
         return;
       }
@@ -2756,6 +2782,8 @@ export class HyperLiquidSubscriptionService {
    * Used by both webData3 callback and fallback subscription callbacks
    */
   #aggregateAndNotifySubscribers(): void {
+    this.#notifyAccountSubscribers();
+
     // Wait for all expected DEXs to send initial data before notifying
     // This ensures positions from all DEXs appear simultaneously
     if (this.#expectedDexs.size > 0) {
@@ -2788,19 +2816,10 @@ export class HyperLiquidSubscriptionService {
       .flatMap(([, orders]) => orders);
     const aggregatedOrders = [...mainDexOrders, ...hip3DexOrders];
 
-    const aggregatedAccount = this.#aggregateAccountStates();
-
-    // Check if aggregated data changed using fast hash comparison
     const positionsHash = this.#hashPositions(aggregatedPositions);
     const ordersHash = this.#hashOrders(aggregatedOrders);
-    // An unknown account is not published.
-    const accountHash = aggregatedAccount
-      ? this.#hashAccountState(aggregatedAccount)
-      : this.#cachedAccountHash;
-
     const positionsChanged = positionsHash !== this.#cachedPositionsHash;
     const ordersChanged = ordersHash !== this.#cachedOrdersHash;
-    const accountChanged = accountHash !== this.#cachedAccountHash;
 
     // Only notify subscribers if aggregated data changed
     if (positionsChanged) {
@@ -2820,13 +2839,18 @@ export class HyperLiquidSubscriptionService {
         callback(aggregatedOrders);
       });
     }
+  }
 
-    if (aggregatedAccount && accountChanged) {
-      this.#cachedAccount = aggregatedAccount;
-      this.#cachedAccountHash = accountHash;
-      this.#accountSubscribers.forEach((callback) => {
-        callback(aggregatedAccount);
-      });
+  #notifyAccountSubscribers(): void {
+    const account = this.#aggregateAccountStates();
+    if (!account) {
+      this.#cachedAccountHash = '';
+      return;
+    }
+    const hash = this.#hashAccountState(account);
+    if (hash !== this.#cachedAccountHash) {
+      this.#cachedAccountHash = hash;
+      this.#accountSubscribers.forEach((callback) => callback(account));
     }
   }
 
@@ -2958,7 +2982,6 @@ export class HyperLiquidSubscriptionService {
       // Clear aggregated caches
       this.#cachedPositions = null;
       this.#cachedOrders = null;
-      this.#cachedAccount = null;
       this.#cachedSpotState = null;
       this.#cachedSpotStateUserAddress = null;
       this.#abstractionModeByUser.clear();
@@ -3639,8 +3662,9 @@ export class HyperLiquidSubscriptionService {
     // prefer stale-but-present data over silent starvation; the next
     // aggregation after #ensureSpotState / next WebSocket update pushes the
     // spot-inclusive value.
-    if (this.#cachedAccount) {
-      callback(this.#cachedAccount);
+    const account = this.#aggregateAccountStates();
+    if (account) {
+      callback(account);
     }
 
     this.#ensureSpotState(accountId).catch((error) => {
@@ -3697,10 +3721,13 @@ export class HyperLiquidSubscriptionService {
    * every configured position DEX. The check and copy are synchronous, so a reconnect
    * cannot interleave between proving completeness and reading the slices.
    *
+   * @param requireProtection - Also require fresh order data on DEXs with open positions.
    * @returns A shallow-copied complete snapshot, or null until every configured
    * DEX is current.
    */
-  public getFreshPositionsForAllDexs(): Position[] | null {
+  public getFreshPositionsForAllDexs(
+    requireProtection = false,
+  ): Position[] | null {
     if (
       this.#positionSnapshotDexs.size === 0 ||
       !Array.from(this.#positionSnapshotDexs).every((dexName) =>
@@ -3710,6 +3737,17 @@ export class HyperLiquidSubscriptionService {
       return null;
     }
 
+    if (requireProtection) {
+      const epoch = this.#clientService.getConnectionEpoch();
+      for (const dex of this.#positionSnapshotDexs) {
+        if (
+          this.#dexPositionsCache.get(dex)?.length &&
+          this.#dexOrdersEpoch.get(dex) !== epoch
+        ) {
+          return null;
+        }
+      }
+    }
     const snapshot: Position[] = [];
     for (const dexName of this.#positionSnapshotDexs) {
       const positions = this.#dexPositionsCache.get(dexName);
@@ -5759,7 +5797,6 @@ export class HyperLiquidSubscriptionService {
     this.#allMidsSnapshots.clear();
     this.#cachedPositions = null;
     this.#cachedOrders = null;
-    this.#cachedAccount = null;
     this.#cachedFills = null;
     this.#ordersCacheInitialized = false; // Reset cache initialization flag
     this.#positionsCacheInitialized = false; // Reset cache initialization flag
