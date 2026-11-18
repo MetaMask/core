@@ -2960,6 +2960,15 @@ export class TradingService {
     const { provider, symbol, amount, providerId, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
+    // Shared by the executed and failed Risk Management events below.
+    const marginProperties = {
+      [PERPS_EVENT_PROPERTY.ASSET]: symbol,
+      [PERPS_EVENT_PROPERTY.ACTION]:
+        parseFloat(amount) > 0
+          ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
+          : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
+      [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+    };
 
     try {
       this.#deps.tracer.trace({
@@ -2998,12 +3007,7 @@ export class TradingService {
         // Track success analytics
         this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
           [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.EXECUTED,
-          [PERPS_EVENT_PROPERTY.ASSET]: symbol,
-          [PERPS_EVENT_PROPERTY.ACTION]:
-            parseFloat(amount) > 0
-              ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
-              : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
-          [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+          ...marginProperties,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         });
 
@@ -3016,12 +3020,7 @@ export class TradingService {
         // thrown path below handles exceptions).
         this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
           [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
-          [PERPS_EVENT_PROPERTY.ASSET]: symbol,
-          [PERPS_EVENT_PROPERTY.ACTION]:
-            parseFloat(amount) > 0
-              ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
-              : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
-          [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+          ...marginProperties,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
         });
@@ -3056,12 +3055,7 @@ export class TradingService {
       // Track failure analytics
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
         [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
-        [PERPS_EVENT_PROPERTY.ASSET]: symbol,
-        [PERPS_EVENT_PROPERTY.ACTION]:
-          parseFloat(amount) > 0
-            ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
-            : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
-        [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+        ...marginProperties,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
       });

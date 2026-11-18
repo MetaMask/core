@@ -4156,6 +4156,67 @@ describe('TradingService', () => {
       );
     });
 
+    it('emits the exact Risk Management payload on success, failure and throw', async () => {
+      mockProvider.updateMargin = vi
+        .fn()
+        .mockResolvedValueOnce({ success: true })
+        .mockResolvedValueOnce({
+          success: false,
+          error: 'Insufficient balance',
+        })
+        .mockRejectedValueOnce(new Error('Network error'));
+
+      await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'BTC',
+        amount: '-25.5',
+        context: mockContext,
+      });
+      await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'ETH',
+        amount: '100',
+        context: mockContext,
+      });
+      await expect(
+        tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'SOL',
+          amount: '7',
+          context: mockContext,
+        }),
+      ).rejects.toThrow('Network error');
+
+      const riskPayloads = (mockDeps.metrics.trackPerpsEvent as Mock).mock.calls
+        .filter(([event]) => event === PerpsAnalyticsEvent.RiskManagement)
+        .map(([, properties]) => properties);
+      expect(riskPayloads).toStrictEqual([
+        {
+          status: 'executed',
+          asset: 'BTC',
+          action: 'remove_margin',
+          margin_used: 25.5,
+          completion_duration: expect.any(Number),
+        },
+        {
+          status: 'failed',
+          asset: 'ETH',
+          action: 'add_margin',
+          margin_used: 100,
+          completion_duration: expect.any(Number),
+          error_message: 'Insufficient balance',
+        },
+        {
+          status: 'failed',
+          asset: 'SOL',
+          action: 'add_margin',
+          margin_used: 7,
+          completion_duration: expect.any(Number),
+          error_message: 'Network error',
+        },
+      ]);
+    });
+
     it('emits the Risk Management event exactly once on success', async () => {
       const mockResult = { success: true };
       mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
