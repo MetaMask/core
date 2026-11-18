@@ -1082,6 +1082,76 @@ describe('VendorOnboardingController', () => {
       );
     });
 
+    it.each(['TemporarilyDeclined', 'FinallyRejected', 'Approved'])(
+      'reports abandoned when the SDK only opens on the %s decision',
+      async (status) => {
+        const launcher = getLauncher(
+          vi
+            .fn()
+            .mockImplementation(
+              async ({ onStatusChange }: KycSumSubLaunchParams) => {
+                onStatusChange?.('Ready', status);
+                return { status };
+              },
+            ),
+        );
+        await withController(
+          { options: { ...saved, sumsubLauncher: launcher } },
+          async ({ controller, handlers }) => {
+            expect(
+              await controller.launchProviderFlow({ vendor: 'kalshi' }),
+            ).toBe('abandoned');
+            expect(handlers.getStep).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('counts a decision that follows a submission', async () => {
+      const launcher = getLauncher(
+        vi
+          .fn()
+          .mockImplementation(
+            async ({ onStatusChange }: KycSumSubLaunchParams) => {
+              onStatusChange?.('Incomplete', 'Pending');
+              onStatusChange?.('Pending', 'TemporarilyDeclined');
+              return { status: 'TemporarilyDeclined' };
+            },
+          ),
+      );
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller }) => {
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('submitted');
+        },
+      );
+    });
+
+    it('reports abandoned when a Pending partway through a level is followed by Initial', async () => {
+      const launcher = getLauncher(
+        vi
+          .fn()
+          .mockImplementation(
+            async ({ onStatusChange }: KycSumSubLaunchParams) => {
+              onStatusChange?.('Incomplete', 'Pending');
+              onStatusChange?.('Pending', 'Initial');
+              return {};
+            },
+          ),
+      );
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller, handlers }) => {
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('abandoned');
+          expect(handlers.getStep).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('gets a fresh access token when SumSub asks for one', async () => {
       const launcher = getLauncher(
         vi

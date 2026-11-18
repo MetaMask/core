@@ -15,8 +15,9 @@ import type {
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep } from './KycService.js';
 import {
-  isSumSubFlowCompleted,
   isSumSubFlowFailed,
+  isSumSubPreSubmissionStatus,
+  isSumSubSubmissionStatus,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { needsCapabilityAuthorizationRefresh } from './types.js';
@@ -498,7 +499,7 @@ export class VendorOnboardingController extends BaseController<
 
       // A resolved `launch` alone does not mean success: the user may have
       // closed the SDK, or the SDK may have reported that it could not run.
-      let reachedCompletion = false;
+      let submitted = false;
       let sdkFailed = false;
       const result = await launcher.launch({
         applicantAccessToken,
@@ -510,7 +511,13 @@ export class VendorOnboardingController extends BaseController<
           return journey.applicantAccessToken;
         },
         onStatusChange: (_previous, next) => {
-          reachedCompletion ||= isSumSubFlowCompleted(next);
+          // A review decision keeps the previous value, so a decision the SDK
+          // opens on is not a submission but one that follows it still is.
+          if (isSumSubSubmissionStatus(next)) {
+            submitted = true;
+          } else if (isSumSubPreSubmissionStatus(next)) {
+            submitted = false;
+          }
           sdkFailed ||= isSumSubFlowFailed(next);
         },
         locale: params.locale ?? 'en',
@@ -518,13 +525,13 @@ export class VendorOnboardingController extends BaseController<
       });
       // Some native SDKs resolve with their final status without first
       // delivering the state-change callback.
-      reachedCompletion ||= isSumSubFlowCompleted(result.status);
+      submitted ||= isSumSubSubmissionStatus(result.status);
       sdkFailed ||= isSumSubFlowFailed(result.status);
 
       if (sdkFailed) {
         return 'failed';
       }
-      if (!reachedCompletion) {
+      if (!submitted) {
         return 'abandoned';
       }
       // The SDK result is not the decision. kyc-api and the relay decide, so

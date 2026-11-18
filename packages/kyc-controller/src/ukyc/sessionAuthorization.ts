@@ -1,6 +1,6 @@
 import { stringToBytes, wrapError } from '@metamask/utils';
-import { x25519 } from '@noble/curves/ed25519';
 
+import { generateKeyPair } from '../crypto.js';
 import { toBase64Url } from '../encoding.js';
 import type {
   CapabilityAuthorization,
@@ -68,10 +68,9 @@ export async function createAuthorizedSession(params: {
   // A per-session X25519 keypair seals both secrets. The private half stays
   // on the device. The public half is registered on the session so the
   // server can open the authorizations.
-  const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-  const sessionClientPublicKey = toBase64Url(
-    x25519.getPublicKey(sessionClientPrivateKey),
-  );
+  const { privateKey: sessionClientPrivateKey, publicKey } =
+    await generateKeyPair();
+  const sessionClientPublicKey = toBase64Url(publicKey);
 
   const {
     sessionId,
@@ -111,10 +110,9 @@ export async function refreshSessionAuthorizations(params: {
   sessionId: string;
 }): Promise<KycSessionStatus> {
   const { deps, sessionId } = params;
-  const sessionClientPrivateKey = x25519.utils.randomSecretKey();
-  const sessionClientPublicKey = toBase64Url(
-    x25519.getPublicKey(sessionClientPrivateKey),
-  );
+  const { privateKey: sessionClientPrivateKey, publicKey } =
+    await generateKeyPair();
+  const sessionClientPublicKey = toBase64Url(publicKey);
 
   const {
     encryptionDataKey: encryptionDataKeySchema,
@@ -171,7 +169,7 @@ async function submitAuthorizations(params: {
     encryptionDataKeySchema.serverPublicKey.x,
     clientMaterial.dataEncryptionKey,
   );
-  const wrappedUkycCapabilityToken = wrapCapabilityToken({
+  const wrappedUkycCapabilityToken = await wrapCapabilityToken({
     clientMaterial,
     sessionClientPrivateKey,
     serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
@@ -215,8 +213,10 @@ async function verifyWrappingKeys(
   }
 
   try {
-    assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    await Promise.all([
+      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey),
+      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema),
+    ]);
   } catch (error) {
     throw wrapError(
       error,
@@ -250,12 +250,12 @@ async function getClientMaterial(
  * base64url) from the capability-token schema.
  * @returns The wrapped capability token.
  */
-function wrapCapabilityToken(params: {
+async function wrapCapabilityToken(params: {
   clientMaterial: UkycClientMaterial;
   sessionClientPrivateKey: Uint8Array;
   serverPublicKeyX: string;
-}): CapabilityAuthorization {
-  const ukycCapabilityToken = signStorageAccessToken({
+}): Promise<CapabilityAuthorization> {
+  const ukycCapabilityToken = await signStorageAccessToken({
     material: params.clientMaterial,
     // TODO: Confirm with idOS when this can be switched back to read and a
     // separate token is sent for write (same open question as KycController).
