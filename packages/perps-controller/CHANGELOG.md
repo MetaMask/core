@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HIP-3 markets with `marginMode` `noCross` or `strictIsolated`, or `onlyIsolated`, still report `['isolated']` and refuse Cross with `ORDER_MARGIN_MODE_UNSUPPORTED`
   - With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position now transfers only the new order's margin instead of the whole position's
   - `adaptMarketFromSDK` and `getMarkets` no longer return `marginMode: 'normal'`, a value outside `MarketInfo.marginMode`; a market without a restriction now has no `marginMode`, and the Terminal global snapshot no longer fails schema validation when a market sends `normal`
+- With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position at a lower leverage now also transfers the margin the existing position needs at that leverage, so the order is no longer underfunded ([#11623](https://github.com/MetaMask/core/pull/11623))
 
 ## [24.1.0]
 
