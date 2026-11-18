@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and new `waitForClientReady` option ([#11450](https://github.com/MetaMask/core/pull/11450))
+
 ## [32.0.0]
 
 ### Added
@@ -46,7 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support max-amount quotes in `ServerStrategy`, using the same max flow as `RelayStrategy` ([#11418](https://github.com/MetaMask/core/pull/11418))
   - Re-quote with a reduced source amount so origin gas can be paid from the source token when the user lacks native balance.
   - Quote subsidized routes atomically when `payStrategies.relay.atomicMaxEnabled` is enabled, embedding the transaction's calls re-encoded for the max amount.
-- Resume interrupted pay transactions after restart, gated by the per-strategy `confirmations_pay_extended.resume` feature flag and new `waitForClientReady` option ([#11450](https://github.com/MetaMask/core/pull/11450))
 
 ### Changed
 
