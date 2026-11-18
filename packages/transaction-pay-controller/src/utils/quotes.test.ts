@@ -369,9 +369,14 @@ describe('Quotes Utils', () => {
         quotes: [QUOTE_MOCK],
       };
 
-      updateTransactionDataMock.mock.calls.map((call) =>
-        call[1](transactionDataMock),
-      );
+      (
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
+      ).forEach((call) => {
+        call[1](transactionDataMock);
+      });
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
@@ -411,9 +416,10 @@ describe('Quotes Utils', () => {
       };
 
       (
-        updateTransactionDataMock.mock.calls as Array<
-          [string, (data: unknown) => void]
-        >
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
       ).forEach((call) => {
         call[1](transactionDataMock);
       });
@@ -438,9 +444,10 @@ describe('Quotes Utils', () => {
       };
 
       (
-        updateTransactionDataMock.mock.calls as Array<
-          [string, (data: unknown) => void]
-        >
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
       ).forEach((call) => {
         call[1](transactionDataMock);
       });
@@ -506,9 +513,10 @@ describe('Quotes Utils', () => {
       };
 
       (
-        updateTransactionDataMock.mock.calls as Array<
-          [string, (data: unknown) => void]
-        >
+        updateTransactionDataMock.mock.calls as [
+          string,
+          (data: unknown) => void,
+        ][]
       ).forEach((call) => {
         call[1](transactionDataMock);
       });
