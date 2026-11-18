@@ -1,8 +1,13 @@
 import { toHex } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  generateEIP7702BatchTransaction,
+} from '@metamask/transaction-controller';
 import type {
   GasFeeToken,
+  TransactionControllerEstimateGasBatchAction,
+  TransactionControllerGetGasFeeTokensAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -218,6 +223,12 @@ describe('Relay Quotes Utils', () => {
   // so new assertions do not add `no-unsafe-call` violations to this file.
   const keyringStateMock = getKeyringControllerStateMock as MockedFunction<
     KeyringControllerGetStateAction['handler']
+  >;
+  const gasBatchMock = estimateGasBatchMock as MockedFunction<
+    TransactionControllerEstimateGasBatchAction['handler']
+  >;
+  const gasFeeTokensMock = getGasFeeTokensMock as MockedFunction<
+    TransactionControllerGetGasFeeTokensAction['handler']
   >;
 
   messenger.registerActionHandler(
@@ -3072,16 +3083,20 @@ describe('Relay Quotes Utils', () => {
         expect(getGasFeeTokensMock).not.toHaveBeenCalled();
       });
 
-      it('using estimated gas fee token cost if insufficient native balance and batch', async () => {
+      it('simulates multiple relay params as an EIP-7702 batch if insufficient native balance', async () => {
         const quote = cloneDeep(QUOTE_MOCK);
+        const firstItem = quote.steps[0].items[0].data;
+
+        firstItem.data = '0x1234';
+        firstItem.to = '0x0000000000000000000000000000000000000002';
 
         quote.steps[0].items.push({
           data: {
             chainId: 1,
-            data: '0x456' as Hex,
+            data: '0x4567' as Hex,
             from: FROM_MOCK,
             gas: '21000',
-            to: '0x3' as Hex,
+            to: '0x0000000000000000000000000000000000000003' as Hex,
           },
         } as never);
 
@@ -3104,14 +3119,90 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         });
 
+        const batch = generateEIP7702BatchTransaction(FROM_MOCK, [
+          {
+            data: '0x1234',
+            to: '0x0000000000000000000000000000000000000002',
+            value: toHex(firstItem.value as string),
+          },
+          {
+            data: '0x4567',
+            to: '0x0000000000000000000000000000000000000003',
+            value: '0x0',
+          },
+        ]);
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith({
+          chainId: '0x1',
+          data: batch.data,
+          from: FROM_MOCK,
+          to: FROM_MOCK,
+          value: '0x0',
+        });
         expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            gasFeeToken: {
-              ...GAS_FEE_TOKEN_MOCK,
-              amount: toHex(1230000 * 2),
-            },
-          }),
+          expect.objectContaining({ gasFeeToken: GAS_FEE_TOKEN_MOCK }),
         );
+      });
+
+      it('includes the original transaction in the gas station batch for post-quote flows', async () => {
+        const ORIGINAL_TO_MOCK = '0x0000000000000000000000000000000000000009';
+        const quote = cloneDeep(QUOTE_MOCK);
+        const firstItem = quote.steps[0].items[0].data;
+
+        firstItem.data = '0x1234';
+        firstItem.to = '0x0000000000000000000000000000000000000002';
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => quote,
+        });
+        gasBatchMock.mockResolvedValue({
+          gasLimits: [21000, 21000],
+          totalGasLimit: 42000,
+        });
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        gasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              isPostQuote: true,
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            chainId: '0x1',
+            txParams: {
+              data: '0xaaaa',
+              from: FROM_MOCK,
+              gas: '0x5208',
+              to: ORIGINAL_TO_MOCK,
+              value: '0x0',
+            },
+          },
+        });
+
+        const batch = generateEIP7702BatchTransaction(FROM_MOCK, [
+          { data: '0xaaaa', to: ORIGINAL_TO_MOCK, value: '0x0' },
+          {
+            data: '0x1234',
+            to: '0x0000000000000000000000000000000000000002',
+            value: toHex(firstItem.value as string),
+          },
+        ]);
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledWith({
+          chainId: '0x1',
+          data: batch.data,
+          from: FROM_MOCK,
+          to: FROM_MOCK,
+          value: '0x0',
+        });
       });
 
       it('uses proxy simulation and scales gas fee token amount for post-quote with a single relay param', async () => {
