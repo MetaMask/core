@@ -649,6 +649,17 @@ describe('HyperLiquidSubscriptionService', () => {
       onAccount({ dex: '', clearinghouseState: {} });
       expect(account).toHaveBeenLastCalledWith(null);
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({
+          stopLossOrders: [
+            expect.objectContaining({
+              orderId: '1',
+              triggerPrice: '40000',
+              coverageUnavailable: true,
+            }),
+          ],
+        }),
+      ]);
       onOrders({ dex: '', orders: [order] });
       expect(hyperLiquidAdapterModule.adaptOrderFromSDK).toHaveBeenCalledWith(
         order,

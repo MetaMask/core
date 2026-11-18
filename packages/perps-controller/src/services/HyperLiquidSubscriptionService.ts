@@ -2608,7 +2608,29 @@ export class HyperLiquidSubscriptionService {
           if (!Array.isArray(data.clearinghouseState?.assetPositions)) {
             this.#dexAccountCache.delete(cacheKey);
             this.#dexPositionsEpoch.delete(cacheKey);
-            this.#notifyAccountSubscribers();
+            const retainedPositions = this.#dexPositionsCache.get(cacheKey);
+            if (retainedPositions?.length) {
+              const markCoverageUnavailable = (
+                orders?: PositionTriggerOrder[],
+              ): PositionTriggerOrder[] | undefined =>
+                orders?.map((order) => ({
+                  ...order,
+                  coverageUnavailable: true,
+                }));
+              this.#dexPositionsCache.set(
+                cacheKey,
+                retainedPositions.map((position) => ({
+                  ...position,
+                  takeProfitOrders: markCoverageUnavailable(
+                    position.takeProfitOrders,
+                  ),
+                  stopLossOrders: markCoverageUnavailable(
+                    position.stopLossOrders,
+                  ),
+                })),
+              );
+            }
+            this.#aggregateAndNotifySubscribers();
             return;
           }
 
