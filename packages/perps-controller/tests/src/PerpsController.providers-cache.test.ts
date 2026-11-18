@@ -1900,7 +1900,7 @@ describe('PerpsController', () => {
         infrastructure: mockInfrastructure,
       });
       controller.testSetProviders(
-        new Map([
+        new Map<PerpsProviderType, PerpsProvider>([
           ['hyperliquid', mockProvider],
           ['lighter', createMockHyperLiquidProvider()],
         ]),
@@ -4590,6 +4590,40 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('grouped watchlist', () => {
+    it('removes a legacy favorite when its grouped row is unfavorited', async () => {
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['BTC', 'ETH'];
+      });
+
+      expect(controller.isWatchlistMarket('BTC', 'BTC')).toBe(true);
+      await controller.toggleWatchlistMarket('BTC', 'BTC');
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['ETH']);
+      expect(controller.isWatchlistMarket('BTC', 'BTC')).toBe(false);
+
+      await controller.toggleWatchlistMarket('BTC', 'BTC');
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'ETH',
+        'market-key:BTC',
+      ]);
+    });
+
+    it('keeps a HyperLiquid favorite separate from an unrelated Lighter-only market', async () => {
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.watchlistMarkets.mainnet = ['BTC'];
+      });
+
+      expect(controller.isWatchlistMarket('BTC', 'lighter:BTC')).toBe(false);
+      await controller.toggleWatchlistMarket('BTC', 'lighter:BTC');
+      expect(controller.getWatchlistMarkets()).toStrictEqual([
+        'BTC',
+        'market-key:lighter:BTC',
+      ]);
+    });
+  });
+
   describe('getCachedUserDataForActiveProvider', () => {
     const mockAddress = '0x1234567890123456789012345678901234567890';
 
@@ -4829,7 +4863,7 @@ describe('PerpsController', () => {
       expect(sentinel?.timestamp).toBeGreaterThan(0);
     });
 
-    it('caches an aggregated HyperLiquid snapshot slice until its snapshot expires', async () => {
+    it('refreshes an incomplete aggregate when the HyperLiquid snapshot expires first', async () => {
       const sourceExpiresAt = Date.now() + 20_000;
       const base = {
         maxLeverage: '50x',
@@ -4837,7 +4871,7 @@ describe('PerpsController', () => {
         change24hPercent: '+0.1%',
         volume: '$1M',
       };
-      mockProvider.getMarketDataWithPrices.mockResolvedValue([
+      const rows: [PerpsMarketData, PerpsMarketData] = [
         {
           ...base,
           symbol: 'BTC',
@@ -4855,9 +4889,15 @@ describe('PerpsController', () => {
           providerId: 'lighter',
           categories: ['crypto'],
         },
-      ]);
+      ];
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(rows);
       markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', createMockHyperLiquidProvider()],
+        ]),
+      );
       controller.testUpdate((state) => {
         state.activeProvider = 'aggregated';
       });
@@ -4874,6 +4914,34 @@ describe('PerpsController', () => {
         controller.state.cachedMarketDataByProvider['lighter:mainnet'];
       expect(lighterEntry?.sourceExpiresAt).toBeUndefined();
       expect(lighterEntry?.data[0]?.categories).toStrictEqual(['crypto']);
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual(
+        rows,
+      );
+
+      vi.setSystemTime(sourceExpiresAt);
+      expect(
+        controller.getCachedMarketDataForActiveProvider({ skipTTL: true }),
+      ).toBeNull();
+      expect(
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'],
+      ).toStrictEqual(lighterEntry);
+
+      mockProvider.getMarketDataWithPrices.mockResolvedValue([
+        {
+          ...rows[0],
+          price: '50020',
+          sourceExpiresAt: sourceExpiresAt + 20_000,
+        },
+        rows[1],
+      ]);
+      controller.stopMarketDataPreload();
+      controller.startMarketDataPreload();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(controller.getCachedMarketDataForActiveProvider()).toStrictEqual([
+        expect.objectContaining({ providerId: 'hyperliquid', price: '50020' }),
+        rows[1],
+      ]);
     });
 
     it('assigns items without providerId to hyperliquid fallback', async () => {

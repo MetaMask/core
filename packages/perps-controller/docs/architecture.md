@@ -128,9 +128,11 @@ Code: `src/services/`; `src/PerpsController.ts` constructor.
 
 ## Market lists and saved markets
 
-Aggregated reads return the original venue rows. Clients can call `groupMarketsByMarketKey(rows, defaultProvider)` for display. It groups rows only when the backend supplies a shared key and each row uses the canonical price scale. Each group puts the default venue first when present. Use the selected venue row's `providerId` and `symbol` for charts and trading. Unmapped and scaled rows remain separate, with a venue-local display key based on the HyperLiquid symbol or `lighter:<SYMBOL>`.
+Aggregated reads return the original venue rows. Clients can call `groupMarketsByMarketKey(rows, defaultProvider)` for display. Rows group when they share a backend key and each explicitly has `priceScale: 1`. Each group puts the default venue first when present. Use `rowId` as the display row identity and the selected venue's `providerId` and `symbol` for charts and trading. Rows with missing keys or with missing or non-unit scales remain separate and use a HyperLiquid symbol or `lighter:<SYMBOL>` as their fallback `marketKey`.
 
-`toggleWatchlistMarket`, `isWatchlistMarket` and `recordMarketViewed` take an optional second argument for a grouped market key. Only pass it for a backend-confirmed market at the canonical scale. Symbol-only callers keep the existing stored format. When opening a saved item, pass the watchlist or recently viewed strings and the ungrouped rows to `resolveSavedPerpsMarkets`. This resolves older symbols on the original venue when available, using HyperLiquid by default for legacy entries. Pass the prior venue if the entries were saved on Lighter. New keyed entries resolve to the configured default venue when it lists the market.
+`toggleWatchlistMarket`, `isWatchlistMarket` and `recordMarketViewed` take an optional backend key from a unit-scale row. Grouped watchlist actions also recognize and remove a legacy HyperLiquid favorite when the key is that venue's symbol. When opening a saved item, pass the saved strings and ungrouped venue rows to `resolveSavedPerpsMarkets`. A legacy symbol requires an exact match on its original venue and stays unresolved while that row is unavailable. The resolver defaults legacy ownership to HyperLiquid and accepts the prior venue for entries saved on Lighter. New keyed entries look for unit-scale rows and prefer the configured default venue.
+
+With snapshots configured, a missing or expired venue slice invalidates the aggregated preload. The client can fetch a fresh list from Core.
 
 ## Platform dependencies
 

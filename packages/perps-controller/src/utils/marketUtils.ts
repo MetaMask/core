@@ -10,6 +10,7 @@ import type { CandleData, CandleStick } from '../types/perps-types.js';
 import { sortMarkets } from './sortMarkets.js';
 
 const SAVED_MARKET_KEY_PREFIX = 'market-key:';
+const LIGHTER_MARKET_KEY_PREFIX = 'lighter:';
 
 type MarketIdentity = Pick<MarketInfo, 'marketKey' | 'priceScale'>;
 
@@ -32,9 +33,7 @@ export function getSnapshotMarketIdentity(identity: {
 
 function getUnscaledMarketKey(market: MarketIdentity): string | undefined {
   const { marketKey, priceScale } = market;
-  return marketKey && (priceScale === undefined || priceScale === 1)
-    ? marketKey
-    : undefined;
+  return marketKey && priceScale === 1 ? marketKey : undefined;
 }
 
 function getVenueMarketKey(
@@ -42,12 +41,12 @@ function getVenueMarketKey(
   defaultProvider: PerpsProviderType,
 ): string {
   return (market.providerId ?? defaultProvider) === 'lighter'
-    ? `lighter:${market.symbol}`
+    ? `${LIGHTER_MARKET_KEY_PREFIX}${market.symbol}`
     : market.symbol;
 }
 
 /**
- * Group rows that share a backend market key at the same price scale.
+ * Group rows that share a backend market key and explicitly have unit scale.
  * The first venue supplies the display data and retains its execution symbol.
  *
  * @param markets - Venue market rows. Untagged direct rows belong to the default venue.
@@ -58,7 +57,8 @@ export function groupMarketsByMarketKey(
   markets: readonly PerpsMarketData[],
   defaultProvider: PerpsProviderType,
 ): GroupedPerpsMarket[] {
-  const groups: { marketKey: string; venues: PerpsMarketData[] }[] = [];
+  const groups: Pick<GroupedPerpsMarket, 'marketKey' | 'rowId' | 'venues'>[] =
+    [];
   const byKey = new Map<string, PerpsMarketData[]>();
   for (const market of markets) {
     const marketKey = getUnscaledMarketKey(market);
@@ -69,6 +69,9 @@ export function groupMarketsByMarketKey(
       const firstVenue = [market];
       groups.push({
         marketKey: marketKey ?? getVenueMarketKey(market, defaultProvider),
+        rowId: marketKey
+          ? `market:${marketKey}`
+          : `venue:${market.providerId ?? defaultProvider}:${market.symbol}`,
         venues: firstVenue,
       });
       if (marketKey) {
@@ -77,7 +80,7 @@ export function groupMarketsByMarketKey(
     }
   }
 
-  return groups.map(({ marketKey, venues }) => {
+  return groups.map(({ marketKey, rowId, venues }) => {
     const preferred = venues.findIndex(
       (market) => (market.providerId ?? defaultProvider) === defaultProvider,
     );
@@ -85,7 +88,7 @@ export function groupMarketsByMarketKey(
       const [primary] = venues.splice(preferred, 1);
       venues.unshift(primary);
     }
-    return { ...venues[0], marketKey, venues };
+    return { ...venues[0], marketKey, rowId, venues };
   });
 }
 
@@ -102,6 +105,25 @@ export function toSavedPerpsMarketReference(
   marketKey?: string,
 ): string {
   return marketKey ? `${SAVED_MARKET_KEY_PREFIX}${marketKey}` : symbol;
+}
+
+/**
+ * Match an explicit key and its legacy HyperLiquid favorite. The backend uses
+ * the HyperLiquid venue symbol for shared keys and reserves `lighter:` for
+ * Lighter-only markets.
+ *
+ * @param symbol - The displayed venue's symbol.
+ * @param marketKey - Explicit backend key from a unit-scale row.
+ * @returns The new reference and its legacy alias, when available.
+ */
+export function getPerpsWatchlistReferences(
+  symbol: string,
+  marketKey?: string,
+): [reference: string, ...legacyAliases: string[]] {
+  const reference = toSavedPerpsMarketReference(symbol, marketKey);
+  return marketKey && !marketKey.startsWith(LIGHTER_MARKET_KEY_PREFIX)
+    ? [reference, marketKey]
+    : [reference];
 }
 
 /**
@@ -122,10 +144,9 @@ export function resolveSavedPerpsMarkets(
 ): PerpsMarketData[] {
   const symbols = new Map<string, PerpsMarketData>();
   const backendKeys = new Map<string, PerpsMarketData>();
-  const venueKeys = new Map<string, PerpsMarketData>();
   for (const market of markets) {
     const provider = market.providerId ?? defaultProvider;
-    if (!symbols.has(market.symbol) || provider === legacyProvider) {
+    if (provider === legacyProvider) {
       symbols.set(market.symbol, market);
     }
     const backendKey = getUnscaledMarketKey(market);
@@ -135,17 +156,13 @@ export function resolveSavedPerpsMarkets(
     ) {
       backendKeys.set(backendKey, market);
     }
-    venueKeys.set(getVenueMarketKey(market, defaultProvider), market);
   }
 
   const resolved = new Set<PerpsMarketData>();
   for (const reference of references) {
     const market = reference.startsWith(SAVED_MARKET_KEY_PREFIX)
-      ? (backendKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length)) ??
-        venueKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length)))
-      : (symbols.get(reference) ??
-        backendKeys.get(reference) ??
-        venueKeys.get(reference));
+      ? backendKeys.get(reference.slice(SAVED_MARKET_KEY_PREFIX.length))
+      : symbols.get(reference);
     if (market) {
       resolved.add(market);
     }

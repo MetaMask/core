@@ -2687,6 +2687,60 @@ describe('MarketDataService', () => {
             { ...lighterMarkets[0], marketKey: 'BTC-USD', priceScale: 1 },
           ]);
         });
+
+        it.each(['getMarketDataWithPrices', 'getMarkets'] as const)(
+          'discards a snapshot that expires while the Lighter provider read is pending in %s',
+          async (method) => {
+            const lighterMarkets: MarketInfo[] = [
+              { name: 'BTC', szDecimals: 5, maxLeverage: 20, marginTableId: 0 },
+            ];
+            let resolveProvider: () => void = () => undefined;
+            const providerReady = new Promise<void>((resolve) => {
+              resolveProvider = resolve;
+            });
+            lighterProvider.getMarketDataWithPrices.mockImplementation(
+              async () => {
+                await providerReady;
+                return lighterRows;
+              },
+            );
+            lighterProvider.getMarkets.mockImplementation(async () => {
+              await providerReady;
+              return lighterMarkets;
+            });
+
+            const now = Date.now();
+            const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+            const expiresAt = now + 1;
+            try {
+              fetchGlobalSnapshot.mockResolvedValue({
+                markets: [lighterSnapshotBtc],
+                marketInfos: [
+                  { ...lighterMarkets[0], marketKey: 'BTC-USD', priceScale: 1 },
+                ],
+                expiresAt,
+              });
+              const pending = serviceWithTerminal[method]({
+                provider: lighterProvider,
+                context: {
+                  ...mockContext,
+                  globalSnapshots: { lighter: lighterContext() },
+                },
+              });
+              await Promise.resolve();
+              expect(fetchGlobalSnapshot).toHaveBeenCalledTimes(1);
+              clock.mockReturnValue(expiresAt);
+              resolveProvider();
+
+              await expect(pending).resolves.toStrictEqual(
+                method === 'getMarkets' ? lighterMarkets : lighterRows,
+              );
+            } finally {
+              resolveProvider();
+              clock.mockRestore();
+            }
+          },
+        );
       });
     });
   });

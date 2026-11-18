@@ -224,6 +224,7 @@ import { captureScaleOrderParams } from './utils/lighterScaleOrders.js';
 import {
   clonePerpsMarketData,
   compileMarketPattern,
+  getPerpsWatchlistReferences,
   shouldIncludeMarket,
   toSavedPerpsMarketReference,
 } from './utils/marketUtils.js';
@@ -1643,25 +1644,8 @@ export class PerpsController extends BaseController<
     const cache = this.state.cachedMarketDataByProvider;
 
     if (activeProvider === 'aggregated') {
-      // Assemble from all registered provider entries
-      const assembled: PerpsMarketData[] = [];
-      for (const providerId of this.#getAggregatedCacheProviderIds(
-        Object.keys(cache),
-      )) {
-        const key = buildProviderCacheKey(providerId, this.state.isTestnet);
-        const entry = cache[key];
-        if (!entry || entry.data.length === 0) {
-          continue;
-        }
-        if (!this.#isMarketCacheEntryCurrent(providerId, entry, options)) {
-          continue;
-        }
-        assembled.push(...clonePerpsMarketData(entry.data));
-      }
-      if (assembled.length === 0) {
-        return null;
-      }
-      return assembled;
+      const rows = this.#getCachedAggregateMarketRows(options);
+      return rows ? clonePerpsMarketData(rows) : null;
     }
 
     // Single provider mode
@@ -1674,6 +1658,36 @@ export class PerpsController extends BaseController<
       return null;
     }
     return clonePerpsMarketData(entry.data);
+  }
+
+  #getCachedAggregateMarketRows(options?: {
+    skipTTL?: boolean;
+  }): PerpsMarketData[] | null {
+    const { cachedMarketDataByProvider: cache, isTestnet } = this.state;
+    const snapshotConfigured = this.#isGlobalSnapshotConfigured();
+    const providerIds = new Set(
+      this.#getAggregatedCacheProviderIds(Object.keys(cache)),
+    );
+    if (snapshotConfigured) {
+      providerIds.add('hyperliquid');
+      if (this.#isLighterProviderEnabled()) {
+        providerIds.add('lighter');
+      }
+    }
+    const assembled: PerpsMarketData[] = [];
+    for (const providerId of providerIds) {
+      const entry = cache[buildProviderCacheKey(providerId, isTestnet)];
+      if (
+        entry?.data.length &&
+        this.#isMarketCacheEntryCurrent(providerId, entry, options)
+      ) {
+        assembled.push(...entry.data);
+      } else if (snapshotConfigured || entry?.sourceExpiresAt !== undefined) {
+        // Clients treat a nonempty aggregate preload as fresh for every venue.
+        return null;
+      }
+    }
+    return assembled.length > 0 ? assembled : null;
   }
 
   #isMarketCacheEntryCurrent(
@@ -5506,11 +5520,7 @@ export class PerpsController extends BaseController<
    * undefined when none applies.
    */
   #buildGlobalSnapshotContexts(): ServiceContext['globalSnapshots'] {
-    const snapshotConfigured =
-      Boolean(this.#options.infrastructure.terminalApi?.globalSnapshotUrl) ||
-      typeof this.#options.infrastructure.terminalMarketService
-        ?.fetchGlobalSnapshot === 'function';
-    if (!snapshotConfigured) {
+    if (!this.#isGlobalSnapshotConfigured()) {
       return undefined;
     }
 
@@ -5555,6 +5565,14 @@ export class PerpsController extends BaseController<
       };
     }
     return contexts.hyperliquid || contexts.lighter ? contexts : undefined;
+  }
+
+  #isGlobalSnapshotConfigured(): boolean {
+    const { terminalApi, terminalMarketService } = this.#options.infrastructure;
+    return (
+      Boolean(terminalApi?.globalSnapshotUrl) ||
+      typeof terminalMarketService?.fetchGlobalSnapshot === 'function'
+    );
   }
 
   #getStaticSnapshotDexes(): string[] | undefined {
@@ -5914,7 +5932,9 @@ export class PerpsController extends BaseController<
     if (
       existingEntry &&
       this.#isMarketCacheEntryCurrent(actualProviderId, existingEntry) &&
-      now - existingEntry.timestamp < PerpsController.#preloadGuardMs
+      now - existingEntry.timestamp < PerpsController.#preloadGuardMs &&
+      (actualProviderId !== 'aggregated' ||
+        this.#getCachedAggregateMarketRows() !== null)
     ) {
       return;
     }
@@ -9266,10 +9286,13 @@ export class PerpsController extends BaseController<
     symbol: string,
     marketKey?: string,
   ): Promise<void> {
-    const reference = toSavedPerpsMarketReference(symbol, marketKey);
+    const references = getPerpsWatchlistReferences(symbol, marketKey);
+    const [reference, legacyAlias] = references;
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const currentWatchlist = this.state.watchlistMarkets[currentNetwork];
-    const isWatchlisted = currentWatchlist.includes(reference);
+    const isWatchlisted = references.some((entry) =>
+      currentWatchlist.includes(entry),
+    );
 
     this.#debugLog('PerpsController: Toggling watchlist market', {
       timestamp: new Date().toISOString(),
@@ -9282,7 +9305,7 @@ export class PerpsController extends BaseController<
     this.update((state) => {
       if (isWatchlisted) {
         state.watchlistMarkets[currentNetwork] = currentWatchlist.filter(
-          (marketSymbol) => marketSymbol !== reference,
+          (marketSymbol) => !references.includes(marketSymbol),
         );
       } else {
         state.watchlistMarkets[currentNetwork] = [
@@ -9292,13 +9315,15 @@ export class PerpsController extends BaseController<
       }
     });
     for (const edits of this.#watchlistEditsDuringHydration) {
-      edits.push({
-        network: currentNetwork,
-        symbol: reference,
-        add: !isWatchlisted,
-      });
+      for (const entry of references) {
+        edits.push({
+          network: currentNetwork,
+          symbol: entry,
+          add: !isWatchlisted && entry === reference,
+        });
+      }
     }
-    const toggleKey = `${currentNetwork}:${reference}`;
+    const toggleKey = `${currentNetwork}:${legacyAlias ?? reference}`;
     const toggleNumber =
       (this.#pendingWatchlistToggles.get(toggleKey) ?? 0) + 1;
     this.#pendingWatchlistToggles.set(toggleKey, toggleNumber);
@@ -9348,13 +9373,10 @@ export class PerpsController extends BaseController<
       this.update((state) => {
         const watchlist = state.watchlistMarkets[currentNetwork];
         if (isWatchlisted) {
-          if (!watchlist.includes(reference)) {
-            // Back where it was, as far as the current list allows.
-            const index = Math.min(
-              currentWatchlist.indexOf(reference),
-              watchlist.length,
-            );
-            watchlist.splice(index, 0, reference);
+          for (const [index, entry] of currentWatchlist.entries()) {
+            if (references.includes(entry) && !watchlist.includes(entry)) {
+              watchlist.splice(Math.min(index, watchlist.length), 0, entry);
+            }
           }
         } else {
           state.watchlistMarkets[currentNetwork] = watchlist.filter(
@@ -9378,8 +9400,8 @@ export class PerpsController extends BaseController<
    */
   isWatchlistMarket(symbol: string, marketKey?: string): boolean {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
-    return this.state.watchlistMarkets[currentNetwork].includes(
-      toSavedPerpsMarketReference(symbol, marketKey),
+    return getPerpsWatchlistReferences(symbol, marketKey).some((reference) =>
+      this.state.watchlistMarkets[currentNetwork].includes(reference),
     );
   }
 

@@ -38,8 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A Lighter row's `category` sets its `marketType`. Lighter lists stocks, FX and commodities on its one DEX, so `main` does not mean crypto there as it does for HyperLiquid
   - A missing or invalid Lighter snapshot leaves the Lighter rows as the provider returned them
 - Add optional `marketKey` and `priceScale` to `PerpsMarketData` and `MarketInfo`, and `iconUrl` to `PerpsMarketData`, mapped from either provider's global snapshot
-- Export `groupMarketsByMarketKey` to display one row for a shared, unscaled backend key. Each row carries its original venue data with the default venue first. Scaled and unkeyed rows remain separate
-- Watchlist and recently viewed actions accept an optional market key. `resolveSavedPerpsMarkets` opens existing symbol entries on their original venue and resolves new market keys using the default venue
+- Export `groupMarketsByMarketKey` to group rows with an explicit backend key and `priceScale: 1`. Each row has a stable `rowId` and carries its original venue data, default venue first. Rows with absent keys or absent or different scales remain separate
+- Watchlist and recently viewed actions accept an optional market key. `resolveSavedPerpsMarkets` opens legacy symbols only on their original venue and resolves explicit keys among unit-scale rows. A grouped watchlist toggle can also remove a legacy HyperLiquid favorite
 - Accept optional `marketKey`, `priceScale` and `venueMarketId` on global snapshot markets. A malformed value rejects that provider's snapshot, so that provider falls back
 - Export type `GlobalSnapshotContext`
 
@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `ServiceContext.globalSnapshot` in favor of `globalSnapshots`, with one `GlobalSnapshotContext` per provider
 - In aggregated mode each venue reads its own global snapshot: HyperLiquid rows come from the HyperLiquid snapshot and Lighter rows take the Lighter snapshot's metadata. Each venue falls back to its provider alone when its snapshot is missing or invalid
   - `AggregatedPerpsProvider.getMarketDataWithPrices` takes an optional per-venue reader
-  - An aggregated HyperLiquid preload slice made of snapshot rows is cached until its snapshot expires, as in direct mode
+  - An expired snapshot slice invalidates the aggregated preload so clients refresh the market list
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))
 - Correct Perps code comments and the published traces doc where they no longer matched the code: the `PRICE_RANGES_UNIVERSAL` examples and the `PRICE_THRESHOLD.VERY_SMALL` note now describe the sub-floor `<$0` output instead of promising `$0.000001`, the Lighter `getOrderCapabilities` doc lists the margin modes and strategies it returns, the initialization retry backoff reads `1s, 2s`, `AccountState.totalBalance` names `marginSummary.accountValue`, and the traces doc no longer lists the removed names below ([#11604](https://github.com/MetaMask/core/pull/11604))
 

@@ -788,7 +788,7 @@ export class MarketDataService {
         globalSnapshot.request,
       );
       this.#assertSnapshotCurrent(globalSnapshot);
-      if (Date.now() >= snapshot.expiresAt) {
+      if (!this.#isGlobalSnapshotFresh(snapshot)) {
         throw new Error('Terminal global snapshot expired');
       }
       return snapshot;
@@ -797,6 +797,12 @@ export class MarketDataService {
       terminalMarketService.logError(snapshotError, logMethod);
       return undefined;
     }
+  }
+
+  #isGlobalSnapshotFresh(
+    snapshot: PerpsGlobalSnapshotResult | undefined,
+  ): snapshot is PerpsGlobalSnapshotResult {
+    return snapshot !== undefined && Date.now() < snapshot.expiresAt;
   }
 
   #assertSnapshotCurrent(globalSnapshot: GlobalSnapshotContext): void {
@@ -884,7 +890,7 @@ export class MarketDataService {
         this.#readCurrentGlobalSnapshot(globalSnapshot, logMethod),
       ]);
       this.#assertSnapshotCurrent(globalSnapshot);
-      return snapshot
+      return this.#isGlobalSnapshotFresh(snapshot)
         ? this.#mergeSnapshotMetadata(markets, snapshot.markets)
         : markets;
     }
@@ -979,7 +985,7 @@ export class MarketDataService {
     if (params?.skipFilters || venueContexts.length === 0) {
       return provider.getMarkets(params);
     }
-    const [markets, dictionaries] = await Promise.all([
+    const [markets, snapshots] = await Promise.all([
       provider.getMarkets(params),
       Promise.all(
         venueContexts.map(async (snapshotContext) => {
@@ -987,19 +993,22 @@ export class MarketDataService {
             snapshotContext,
             'getMarkets.globalSnapshot',
           );
-          return [
-            snapshotContext.request.provider,
-            new Map(
-              snapshot?.marketInfos?.map((market) => [market.name, market]),
-            ),
-          ] as const;
+          return [snapshotContext.request.provider, snapshot] as const;
         }),
       ),
     ]);
     venueContexts.forEach((snapshotContext) =>
       this.#assertSnapshotCurrent(snapshotContext),
     );
-    const byVenue = new Map(dictionaries);
+    const byVenue = new Map<PerpsProviderType, Map<string, MarketInfo>>();
+    for (const [venue, snapshot] of snapshots) {
+      if (this.#isGlobalSnapshotFresh(snapshot)) {
+        byVenue.set(
+          venue,
+          new Map(snapshot.marketInfos?.map((market) => [market.name, market])),
+        );
+      }
+    }
     return markets.map((market) => {
       const venue = market.providerId ?? provider.protocolId;
       const snapshot =

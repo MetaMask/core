@@ -41,7 +41,13 @@ describe('groupMarketsByMarketKey', () => {
   it('keeps the default venue’s data first and retains both venue symbols', () => {
     expect(
       groupMarketsByMarketKey([hyperliquid, lighter], 'lighter'),
-    ).toStrictEqual([{ ...lighter, venues: [lighter, hyperliquid] }]);
+    ).toStrictEqual([
+      {
+        ...lighter,
+        rowId: 'market:xyz:TSLA',
+        venues: [lighter, hyperliquid],
+      },
+    ]);
   });
 
   it('keeps missing keys and scaled prices separate even when keys would match', () => {
@@ -58,12 +64,23 @@ describe('groupMarketsByMarketKey', () => {
         'lighter',
       ),
     ).toStrictEqual([
-      { ...unmapped, marketKey: 'xyz:TSLA', venues: [unmapped] },
-      { ...scaled, marketKey: '1000TSLA', venues: [scaled] },
-      { ...lighter, venues: [lighter] },
+      {
+        ...unmapped,
+        marketKey: 'xyz:TSLA',
+        rowId: 'venue:hyperliquid:xyz:TSLA',
+        venues: [unmapped],
+      },
+      {
+        ...scaled,
+        marketKey: '1000TSLA',
+        rowId: 'venue:hyperliquid:1000TSLA',
+        venues: [scaled],
+      },
+      { ...lighter, rowId: 'market:xyz:TSLA', venues: [lighter] },
       {
         ...lighterFallback,
         marketKey: 'lighter:TSLA',
+        rowId: 'venue:lighter:TSLA',
         venues: [lighterFallback],
       },
     ]);
@@ -78,11 +95,73 @@ describe('groupMarketsByMarketKey', () => {
     });
     expect(
       resolveSavedPerpsMarkets(
-        ['xyz:TSLA', 'lighter:OPENAI', 'xyz:GOLD', 'UNKNOWN'],
+        ['xyz:TSLA', 'market-key:xyz:GOLD', 'UNKNOWN'],
         [lighter, hyperliquid, lighterOnly, renamed],
         'lighter',
       ),
-    ).toStrictEqual([hyperliquid, lighterOnly, renamed]);
+    ).toStrictEqual([hyperliquid, renamed]);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['OPENAI'],
+        [lighterOnly],
+        'hyperliquid',
+        'lighter',
+      ),
+    ).toStrictEqual([lighterOnly]);
+  });
+
+  it('keeps a keyed row with unknown scale out of both grouping and key resolution', () => {
+    const unknown = market({ ...lighter, priceScale: undefined });
+
+    expect(
+      groupMarketsByMarketKey([hyperliquid, unknown], 'lighter'),
+    ).toStrictEqual([
+      { ...hyperliquid, rowId: 'market:xyz:TSLA', venues: [hyperliquid] },
+      {
+        ...unknown,
+        marketKey: 'lighter:TSLA',
+        rowId: 'venue:lighter:TSLA',
+        venues: [unknown],
+      },
+    ]);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['market-key:xyz:TSLA'],
+        [unknown, hyperliquid],
+        'lighter',
+      ),
+    ).toStrictEqual([hyperliquid]);
+    expect(
+      resolveSavedPerpsMarkets(
+        ['market-key:xyz:TSLA'],
+        [{ ...hyperliquid, priceScale: undefined }],
+        'hyperliquid',
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it('leaves a legacy favorite unresolved when only a different venue has the symbol', () => {
+    const lighterBtc = market({
+      symbol: 'BTC',
+      providerId: 'lighter',
+      marketKey: 'BTC',
+      priceScale: 1,
+    });
+    expect(
+      resolveSavedPerpsMarkets(['BTC'], [lighterBtc], 'lighter', 'hyperliquid'),
+    ).toStrictEqual([]);
+  });
+
+  it('does not interpret a legacy symbol as an unrelated backend key', () => {
+    const unrelated = market({
+      symbol: 'X',
+      providerId: 'hyperliquid',
+      marketKey: 'BTC',
+      priceScale: 1,
+    });
+    expect(
+      resolveSavedPerpsMarkets(['BTC'], [unrelated], 'hyperliquid'),
+    ).toStrictEqual([]);
   });
 });
 
