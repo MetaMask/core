@@ -324,6 +324,7 @@ import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  SCALE_ORDER_COUNT,
   TRIGGER_ORDER_TYPES,
 } from '../utils/orderTypes.js';
 import { assertExpectedPosition } from '../utils/positionProtection.js';
@@ -8487,15 +8488,29 @@ export class LighterProvider implements PerpsProvider {
     if (market.status !== 'active' || market.marketType !== 'perp') {
       return unavailable('order_market_unsupported');
     }
+    const supportsChase =
+      this.#chaseTestnetProbe && this.#isTestnet && this.#signerBridge !== null;
+    const scaleRules = Object.freeze({
+      minOrders: SCALE_ORDER_COUNT.min,
+      maxOrders: SCALE_ORDER_COUNT.max,
+    });
     return Object.freeze({
       status: 'ready',
       providerId: this.protocolId,
       supportedStrategies: Object.freeze(
-        this.#chaseTestnetProbe &&
-          this.#isTestnet &&
-          this.#signerBridge !== null
-          ? (['scale', 'chase'] as const)
-          : (['scale'] as const),
+        supportsChase ? (['scale', 'chase'] as const) : (['scale'] as const),
+      ),
+      // Lighter runs no TWAP yet and puts no cap on concurrent chases.
+      strategyRules: Object.freeze(
+        supportsChase
+          ? {
+              scale: scaleRules,
+              chase: Object.freeze({
+                defaultIntervalMs: LIGHTER_CHASE_DEFAULT_INTERVAL_MS,
+                minIntervalMs: LIGHTER_CHASE_MIN_INTERVAL_MS,
+              }),
+            }
+          : { scale: scaleRules },
       ),
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),

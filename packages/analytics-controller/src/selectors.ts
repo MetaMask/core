@@ -66,6 +66,17 @@ const selectMarketingConsentDecisionMade = (
 ): boolean => state.marketingConsentDecisionMade ?? false;
 
 /**
+ * Selects whether the marketing consent held locally is a choice not yet
+ * saved to the user's profile in Authenticated User Storage.
+ *
+ * @param state - The controller state
+ * @returns Whether the marketing consent is waiting to be saved
+ */
+const selectMarketingConsentSyncPending = (
+  state: AnalyticsControllerState,
+): boolean => state.marketingConsentSyncPending === true;
+
+/**
  * Selects the in-progress event fragments from the controller state.
  *
  * @param state - The controller state
@@ -99,6 +110,7 @@ export const analyticsControllerSelectors = {
   selectEnabled,
   selectConsentDecisionMade,
   selectMarketingConsentDecisionMade,
+  selectMarketingConsentSyncPending,
   selectEventFragments,
   selectEventFragmentById,
 };
