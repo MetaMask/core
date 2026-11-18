@@ -135,6 +135,12 @@ export type RampsServiceGetQuotesAction = {
  * Makes a request to the buyURL (as provided in a quote) to get the actual
  * provider widget URL, browser type, and order ID.
  *
+ * The URL must be on the ramps API origin for this service's environment
+ * (for example `https://on-ramp.api.cx.metamask.io` in production). A URL
+ * from any other origin is rejected before the request is made, because the
+ * request carries the bearer token. `baseUrlOverride` does not change the
+ * origin a buy URL may use.
+ *
  * @param buyUrl - The full buy URL endpoint to fetch from.
  * @returns The buy widget data containing the provider widget URL.
  */
