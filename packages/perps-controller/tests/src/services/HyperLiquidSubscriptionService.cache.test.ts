@@ -631,7 +631,8 @@ describe('HyperLiquidSubscriptionService', () => {
       const order = {
         oid: 1,
         coin: 'BTC',
-        orderType: 'Stop Market',
+        side: 'A',
+        orderType: 'Trigger',
         isTrigger: true,
         isPositionTpsl: true,
         reduceOnly: true,
@@ -655,6 +656,23 @@ describe('HyperLiquidSubscriptionService', () => {
       );
       expect(positions).toHaveBeenLastCalledWith([
         expect.objectContaining({ size: '0.1' }),
+      ]);
+
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ stopLossCount: 1, takeProfitCount: 0 }),
+      ]);
+      const shortStop = {
+        ...order,
+        oid: 2,
+        side: 'B',
+        orderType: 'Stop Market',
+      };
+      onOrders({ dex: '', orders: [shortStop] });
+      expect(service.getOrdersCacheIfInitialized(true)).toMatchObject([
+        { orderId: '2' },
+      ]);
+      expect(positions).toHaveBeenLastCalledWith([
+        expect.objectContaining({ stopLossCount: 0, takeProfitCount: 0 }),
       ]);
 
       onOrders({ dex: '', orders: [] });

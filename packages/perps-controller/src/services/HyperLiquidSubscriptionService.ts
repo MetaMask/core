@@ -1319,7 +1319,13 @@ export class HyperLiquidSubscriptionService {
 
     orders.forEach((order) => {
       let position: Position | undefined;
-      let positionForCoin: Position | undefined;
+      const positionForCoin = order.triggerPx
+        ? positions.find((candidate) => candidate.symbol === order.coin)
+        : undefined;
+      const canAttachProtection =
+        positionSizesAreFresh ||
+        !positionForCoin ||
+        (order.side === 'A') === Number(positionForCoin.size) > 0;
 
       const matchPositionToTpsl = (pos: Position): boolean => {
         if (TP_SL_CONFIG.UsePositionBoundTpsl) {
@@ -1336,17 +1342,13 @@ export class HyperLiquidSubscriptionService {
         );
       };
 
-      const matchPositionToCoin = (pos: Position): boolean =>
-        pos.symbol === order.coin;
-
-      // Process trigger orders for TP/SL extraction
-      if (order.triggerPx) {
+      // Process trigger orders for TP/SL extraction.
+      if (order.triggerPx && canAttachProtection) {
         const isTakeProfit = order.orderType?.includes('Take Profit');
         const isStop = order.orderType?.includes('Stop');
 
         const { coin } = order;
         position = positions.find(matchPositionToTpsl);
-        positionForCoin = positions.find(matchPositionToCoin);
 
         // Determine TP vs SL classification for count and price updates
         // Use order type first, fallback to price-based detection for ambiguous 'Trigger' types
@@ -1414,6 +1416,7 @@ export class HyperLiquidSubscriptionService {
       processedOrders.push(convertedOrder);
 
       if (
+        canAttachProtection &&
         convertedOrder.isTrigger &&
         convertedOrder.reduceOnly &&
         !convertedOrder.parentOrderId
@@ -1422,7 +1425,7 @@ export class HyperLiquidSubscriptionService {
           convertedOrder.symbol,
           buildPositionTriggerOrderFromOrder({
             order: convertedOrder,
-            positionSize: positionForSize?.size ?? '0',
+            positionSize: (position ?? positionForCoin)?.size ?? '0',
             entryPrice: (position ?? positionForCoin)?.entryPrice,
           }),
         );
