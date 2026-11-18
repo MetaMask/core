@@ -10,14 +10,16 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
-import type { TransactionPayControllerMessenger } from '../../types.js';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPayQuote,
+} from '../../types.js';
 import {
   getFiatAssetPerTransactionType,
   getFiatEnabledTypes,
 } from '../../utils/feature-flags.js';
 import { buildCaipAssetType } from '../../utils/token.js';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
-import type { RelayQuote } from '../relay/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import {
   DEFAULT_FIAT_CURRENCY,
@@ -284,21 +286,15 @@ export function validateRelayRateDrift({
   maxRateDriftPercent,
   transactionId,
 }: {
-  originalQuote: RelayQuote;
-  discoveryQuote: RelayQuote;
+  originalQuote: TransactionPayQuote<unknown>;
+  discoveryQuote: TransactionPayQuote<unknown>;
   maxRateDriftPercent: number;
   transactionId: string;
 }): void {
-  const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
-  const originalOut = new BigNumber(
-    originalQuote.details.currencyOut.amountUsd,
-  );
-  const discoveryIn = new BigNumber(
-    discoveryQuote.details.currencyIn.amountUsd,
-  );
-  const discoveryOut = new BigNumber(
-    discoveryQuote.details.currencyOut.amountUsd,
-  );
+  const originalIn = new BigNumber(originalQuote.sourceAmount.usd);
+  const originalOut = new BigNumber(originalQuote.targetAmount.usd);
+  const discoveryIn = new BigNumber(discoveryQuote.sourceAmount.usd);
+  const discoveryOut = new BigNumber(discoveryQuote.targetAmount.usd);
 
   if (
     !originalIn.gt(0) ||

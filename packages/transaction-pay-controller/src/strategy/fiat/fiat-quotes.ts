@@ -15,6 +15,7 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types.js';
+import { getCaipAccountId } from '../../utils/account.js';
 import { getDirectMoneyMusdEnabled } from '../../utils/feature-flags.js';
 import {
   buildCaipAssetType,
@@ -22,8 +23,8 @@ import {
   getTokenFiatRate,
   getTokenInfo,
 } from '../../utils/token.js';
-import { getRelayQuotes } from '../relay/relay-quotes.js';
-import type { RelayQuote } from '../relay/types.js';
+import { getServerQuotes } from '../server/server-quotes.js';
+import type { ServerQuote } from '../server/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
 import { getDirectMusdFiatQuote } from './fiat-direct-musd.js';
 import type { FiatQuote } from './types.js';
@@ -133,7 +134,7 @@ async function executeFiatQuotePipeline(
       throw new Error('Failed to build relay request from fiat amount');
     }
 
-    const relayQuotes = await getRelayQuotes({
+    const relayQuotes = await getServerQuotes({
       accountSupports7702,
       from: walletAddress,
       messenger,
@@ -267,15 +268,20 @@ function buildRelayRequestFromAmountFiat({
     return undefined;
   }
 
+  const sourceAssetId = buildCaipAssetType(
+    fiatAsset.chainId,
+    fiatAsset.address,
+  );
+
   return {
     from: walletAddress,
     // Force EXACT_INPUT mode: source amount is pre-calculated from the fiat
     // amount, so the relay should treat it as a fixed input rather than
     // computing it from the target.
     isPostQuote: true,
+    sourceAccountId: getCaipAccountId(sourceAssetId, walletAddress),
+    sourceAssetId,
     sourceBalanceRaw: sourceAmountRaw,
-    sourceChainId: fiatAsset.chainId,
-    sourceTokenAddress: fiatAsset.address,
     sourceTokenAmount: sourceAmountRaw,
     targetAmountMinimum: requiredToken.amountRaw,
     targetChainId: requiredToken.chainId,
@@ -314,7 +320,7 @@ function combineQuotes({
   adjustedAmountFiat: string;
   amountFiat: string;
   fiatQuote: RampsQuote;
-  relayQuote: TransactionPayQuote<RelayQuote>;
+  relayQuote: TransactionPayQuote<ServerQuote>;
 }): TransactionPayQuote<FiatQuote> {
   const rampsProviderFee = getRampsProviderFee(fiatQuote);
   const totalProviderFee = new BigNumber(relayQuote.fees.provider.usd)
@@ -366,7 +372,7 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
 }
 
 function getRelayTotalFeeUsd(
-  relayQuote: TransactionPayQuote<RelayQuote>,
+  relayQuote: TransactionPayQuote<ServerQuote>,
 ): BigNumber {
   return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.sourceNetwork.estimate.usd)
@@ -375,7 +381,7 @@ function getRelayTotalFeeUsd(
 }
 
 function getNonGasRelayFeeUsd(
-  relayQuote: TransactionPayQuote<RelayQuote>,
+  relayQuote: TransactionPayQuote<ServerQuote>,
 ): BigNumber {
   return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.targetNetwork.usd)

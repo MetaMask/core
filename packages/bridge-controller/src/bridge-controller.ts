@@ -7,7 +7,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
@@ -52,6 +52,8 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters.js';
+import { getAccountByAddress } from './utils/controllers/accounts.js';
+import { getNetworkClientByChainId } from './utils/controllers/network.js';
 import {
   getBridgeFeatureFlags,
   hasMinimumRequiredVersion,
@@ -295,6 +297,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   readonly #getUseAssetsControllerForRates: () => boolean;
 
+  readonly #getShouldYieldAfterFirstQuote?: () => boolean;
   readonly #getShouldFetchFirstQuoteImmediately?: () => boolean;
 
   #initialFetch?: Promise<void>;
@@ -310,6 +313,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     trackMetaMetricsFn,
     traceFn,
     getUseAssetsControllerForRates,
+    getShouldYieldAfterFirstQuote,
     getShouldFetchFirstQuoteImmediately,
   }: {
     messenger: BridgeControllerMessenger;
@@ -332,6 +336,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
      * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
      */
     getUseAssetsControllerForRates?: () => boolean;
+    /**
+     * When it returns true, the quote stream yields one macrotask after the first quote is written to state.
+     */
+    getShouldYieldAfterFirstQuote?: () => boolean;
     /** When it returns true, the first quote fetch starts without waiting for the first poll. */
     getShouldFetchFirstQuoteImmediately?: () => boolean;
   }) {
@@ -357,6 +365,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trace = traceFn;
     this.#getUseAssetsControllerForRates =
       getUseAssetsControllerForRates ?? (() => false);
+    this.#getShouldYieldAfterFirstQuote = getShouldYieldAfterFirstQuote;
     this.#getShouldFetchFirstQuoteImmediately =
       getShouldFetchFirstQuoteImmediately;
 
@@ -636,8 +645,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   ) => {
     try {
       const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-      const provider =
-        this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
+      const provider = getNetworkClientByChainId(
+        this.messenger,
+        srcChainIdInHex,
+      )?.provider;
       const normalizedSrcTokenAddress = formatAddressToCaipReference(
         quoteRequest.srcTokenAddress,
       );
@@ -668,7 +679,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const isSrcChainNonEVM = isNonEvmChainId(quoteRequest.srcChainId);
     const providerConfig = isSrcChainNonEVM
       ? undefined
-      : this.#getNetworkClientByChainId(
+      : getNetworkClientByChainId(
+          this.messenger,
           formatChainIdToHex(quoteRequest.srcChainId),
         )?.configuration;
 
@@ -1121,6 +1133,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               }
               state.quotes = [...state.quotes, ...quotesWithFees];
             });
+            if (
+              validQuotesCounter === 1 &&
+              quotesWithFees.length > 0 &&
+              this.#getShouldYieldAfterFirstQuote?.()
+            ) {
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
           })();
           pendingFeeAppendPromises.add(feeAppendPromise);
           feeAppendPromise
@@ -1195,26 +1214,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (!addressToUse) {
       throw new Error('Account address is required');
     }
-    const selectedAccount = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      addressToUse,
-    );
+    const selectedAccount = getAccountByAddress(this.messenger, addressToUse);
     return selectedAccount;
-  }
-
-  #getNetworkClientByChainId(chainId: Hex) {
-    const networkClientId = this.messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
-    if (!networkClientId) {
-      throw new Error(`No network client found for chainId: ${chainId}`);
-    }
-    const networkClient = this.messenger.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-    return networkClient;
   }
 
   readonly #getJwt = async (): Promise<string | undefined> => {
@@ -1553,8 +1554,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     contractAddress: string,
     destinationChainId: GenericQuoteRequest['destChainId'],
   ): Promise<string> => {
-    const networkClient = this.#getNetworkClientByChainId(CHAIN_IDS.MAINNET);
-    const provider = networkClient?.provider;
+    const provider = getNetworkClientByChainId(
+      this.messenger,
+      CHAIN_IDS.MAINNET,
+    )?.provider;
     if (!provider) {
       throw new Error('No provider found');
     }
