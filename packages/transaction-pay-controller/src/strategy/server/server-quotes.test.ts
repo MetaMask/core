@@ -973,6 +973,7 @@ describe('server-quotes', () => {
 
         await getServerQuotes({
           accountSupports7702,
+          from: FROM_MOCK,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
