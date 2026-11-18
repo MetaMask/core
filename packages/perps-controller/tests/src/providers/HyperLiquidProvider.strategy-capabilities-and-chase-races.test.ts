@@ -282,6 +282,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
     );
 
+    it('reports Cross for a main-DEX market with explicit normal margin mode', async () => {
+      useStrategyClients({
+        info: {
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 50,
+                marginMode: 'normal',
+              },
+            ],
+          }),
+        },
+      });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toMatchObject({
+        status: 'ready',
+        supportedMarginModes: ['isolated', 'cross'],
+      });
+    });
+
     it.each([
       ['the HIP-3 kill switch is off', { hip3Enabled: false }],
       ['the market is blocklisted', { blocklistMarkets: ['xyz:TSLA'] }],

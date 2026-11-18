@@ -645,6 +645,30 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it('validates Cross on a main-DEX market with explicit normal margin mode', async () => {
+      const info = createMockInfoClient({
+        meta: vi.fn().mockResolvedValue({
+          universe: [
+            {
+              name: 'BTC',
+              szDecimals: 3,
+              maxLeverage: 50,
+              marginTableId: 1,
+              marginMode: 'normal',
+            },
+          ],
+        }),
+      });
+      mockClientService.getInfoClient.mockReturnValue(info as never);
+
+      const result = await provider.validateOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result).toEqual({ isValid: true });
+    });
+
     it.each([
       ['normal', { marginMode: 'normal' }, { isValid: true }],
       ['unrestricted', {}, { isValid: true }],
