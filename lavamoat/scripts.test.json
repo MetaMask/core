@@ -1,0 +1,14 @@
+{
+  "extends": "./scripts.base.json",
+  "nodeOptions": {
+    "--allow-fs-read": ["*"],
+    "--allow-fs-write": ["*"],
+    "--allow-child-process": true,
+    "--allow-net": false,
+    "--allow-worker": false,
+    "--allow-addons": true,
+    "--allow-wasi": false,
+    "--allow-inspector": true,
+    "--allow-ffi": false
+  }
+}
