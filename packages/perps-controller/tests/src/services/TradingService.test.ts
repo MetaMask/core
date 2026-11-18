@@ -3325,6 +3325,70 @@ describe('TradingService', () => {
       expect(getProviderErrorCause(result.results[1])).toBe(normalized);
     });
 
+    it('logs every attached cause of a batch close with several failures', async () => {
+      const ethNormalized = new Error(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      );
+      ethNormalized.cause = new Error(
+        'post only order would have immediately matched',
+      );
+      const solNormalized = new Error(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      solNormalized.cause = new Error('unclassified venue rejection');
+      (mockProvider.closePositions as Mock).mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 3,
+        results: [
+          { symbol: 'BTC', success: true },
+          attachProviderErrorCause(
+            {
+              symbol: 'ETH',
+              success: false,
+              error: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+              errorCode: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+            },
+            ethNormalized,
+          ),
+          attachProviderErrorCause(
+            {
+              symbol: 'SOL',
+              success: false,
+              error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+              errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            },
+            solNormalized,
+          ),
+          {
+            symbol: 'DOGE',
+            success: false,
+            error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          },
+        ],
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.closePositions({
+        provider: mockProvider,
+        params: { closeAll: true },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      const [logged] = (mockDeps.logger.error as Mock).mock.calls[0] as [Error];
+      expect(logged.message).toBe(
+        `closePositions batch failure: 3/4 failed (3 reported) - ETH: ${PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS}; SOL: ${PERPS_ERROR_CODES.UNKNOWN_ERROR}; DOGE: ${PERPS_ERROR_CODES.UNKNOWN_ERROR}`,
+      );
+      expect(logged.cause).toBeInstanceOf(AggregateError);
+      const aggregate = logged.cause as AggregateError;
+      expect(aggregate.message).toBe('closePositions per-position failures');
+      expect(aggregate.errors).toStrictEqual([ethNormalized, solNormalized]);
+      expect(aggregate.errors[0]).toBe(ethNormalized);
+      expect(aggregate.errors[1]).toBe(solNormalized);
+    });
+
     it('logs batch error when provider.closePositions returns partial/full failure', async () => {
       const params: ClosePositionsParams = { closeAll: true };
       (mockProvider.closePositions as Mock).mockResolvedValue({
