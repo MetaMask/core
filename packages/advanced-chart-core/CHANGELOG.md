@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix an excessive historical-data request when switching chart intervals ([#11625](https://github.com/MetaMask/core/pull/11625))
+  - Interval switches now set the visible time window and resolution atomically via `setTimeFrame`, so the initial load is bounded per interval instead of inheriting the previous interval's wide range and paginating deep into history; scroll-back still loads older bars on demand
+
 ## [1.1.2]
 
 ### Changed
