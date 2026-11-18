@@ -1585,8 +1585,17 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  it('rejects a failed Hyperliquid order history fetch with its cause', async () => {
+    const cause = new Error('history unavailable');
+    mockClientService.fetchHistoricalOrders.mockRejectedValue(cause);
+
+    const call = provider.getOrders();
+    await expect(call).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+    await expect(call).rejects.toHaveProperty('cause', cause);
+  });
+
   describe('getOpenOrders additional coverage', () => {
-    it('returns empty array when frontendOpenOrders throws error', async () => {
+    it('rejects an unavailable open order read', async () => {
       // Arrange
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
         frontendOpenOrders: vi.fn().mockRejectedValue(new Error('API Error')),
@@ -1597,10 +1606,9 @@ describe('HyperLiquidProvider', () => {
       });
 
       // Act
-      const result = await provider.getOpenOrders({ skipCache: true });
-
-      // Assert
-      expect(result).toEqual([]);
+      await expect(provider.getOpenOrders({ skipCache: true })).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDERS_FAILED,
+      );
     });
 
     it('returns cached orders when cache is initialized', async () => {

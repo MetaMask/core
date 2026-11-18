@@ -1244,20 +1244,16 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('returns empty array when standalone client fails', async () => {
-        // Arrange - getPositions catches errors and returns empty array
-        mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(
-          new Error('Network error'),
-        );
+      it('rejects failed standalone positions with their cause', async () => {
+        const cause = new Error('Network error');
+        mockStandaloneInfoClient.clearinghouseState.mockRejectedValue(cause);
 
-        // Act
-        const positions = await provider.getPositions({
+        const call = provider.getPositions({
           standalone: true,
           userAddress: mockUserAddress,
         });
-
-        // Assert - returns empty array instead of throwing (matches implementation)
-        expect(positions).toEqual([]);
+        await expect(call).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
+        await expect(call).rejects.toHaveProperty('cause', cause);
       });
     });
 
@@ -1410,20 +1406,16 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('returns empty array when standalone client fails', async () => {
-        // Arrange
-        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
-          new Error('API unavailable'),
-        );
+      it('rejects failed standalone open orders with their cause', async () => {
+        const cause = new Error('API unavailable');
+        mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(cause);
 
-        // Act
-        const orders = await provider.getOpenOrders({
+        const call = provider.getOpenOrders({
           standalone: true,
           userAddress: mockUserAddress,
         });
-
-        // Assert — all DEX queries failed, flatMap([]) returns empty
-        expect(orders).toEqual([]);
+        await expect(call).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+        await expect(call).rejects.toHaveProperty('cause', cause);
       });
     });
 
@@ -1587,130 +1579,40 @@ describe('HyperLiquidProvider', () => {
         ).toHaveBeenCalledWith({ user: mockUserAddress, dex: 'xyz' });
       });
 
-      it('falls back to main DEX only when perpDexs() fails', async () => {
-        // Arrange: perpDexs fails
-        mockStandaloneInfoClient.perpDexs.mockRejectedValue(
-          new Error('Network error'),
-        );
-        mockStandaloneInfoClient.clearinghouseState.mockResolvedValue({
-          assetPositions: [
-            {
-              position: {
-                coin: 'BTC',
-                szi: '1',
-                entryPx: '45000',
-                positionValue: '45000',
-                unrealizedPnl: '0',
-                marginUsed: '4500',
-                leverage: { type: 'cross', value: 10 },
-                liquidationPx: '40000',
-                maxLeverage: 50,
-                returnOnEquity: '0',
-                cumFunding: {
-                  allTime: '0',
-                  sinceOpen: '0',
-                  sinceChange: '0',
-                },
-              },
-              type: 'oneWay',
-            },
-          ],
-          marginSummary: {
-            totalMarginUsed: '4500',
-            accountValue: '45000',
-          },
-        });
+      it('rejects standalone positions when HIP-3 discovery fails', async () => {
+        const cause = new Error('Network error');
+        mockStandaloneInfoClient.perpDexs.mockRejectedValue(cause);
 
-        // Act
-        const positions = await hip3Provider.getPositions({
+        const call = hip3Provider.getPositions({
           standalone: true,
           userAddress: mockUserAddress,
         });
-
-        // Assert - should fall back to main DEX only
-        expect(positions).toHaveLength(1);
-        expect(positions[0].symbol).toBe('BTC');
+        await expect(call).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
+        await expect(call).rejects.toHaveProperty('cause', cause);
         expect(
           mockStandaloneInfoClient.clearinghouseState,
-        ).toHaveBeenCalledTimes(1);
-        expect(
-          mockStandaloneInfoClient.clearinghouseState,
-        ).toHaveBeenCalledWith({ user: mockUserAddress });
+        ).not.toHaveBeenCalled();
+      });
 
-        // Verify cache was NOT poisoned: a subsequent call should retry perpDexs()
-        mockStandaloneInfoClient.perpDexs.mockResolvedValue([
-          null,
-          { name: 'xyz' },
-        ]);
+      it('rejects partial snapshots when a configured DEX fails', async () => {
+        const cause = new Error('xyz unavailable');
         mockStandaloneInfoClient.clearinghouseState
-          .mockResolvedValueOnce({
-            assetPositions: [
-              {
-                position: {
-                  coin: 'BTC',
-                  szi: '1',
-                  entryPx: '45000',
-                  positionValue: '45000',
-                  unrealizedPnl: '0',
-                  marginUsed: '4500',
-                  leverage: { type: 'cross', value: 10 },
-                  liquidationPx: '40000',
-                  maxLeverage: 50,
-                  returnOnEquity: '0',
-                  cumFunding: {
-                    allTime: '0',
-                    sinceOpen: '0',
-                    sinceChange: '0',
-                  },
-                },
-                type: 'oneWay',
-              },
-            ],
-            marginSummary: {
-              totalMarginUsed: '4500',
-              accountValue: '45000',
-            },
-          })
-          .mockResolvedValueOnce({
-            assetPositions: [
-              {
-                position: {
-                  coin: 'TSLA',
-                  szi: '10',
-                  entryPx: '200',
-                  positionValue: '2000',
-                  unrealizedPnl: '50',
-                  marginUsed: '200',
-                  leverage: { type: 'cross', value: 10 },
-                  liquidationPx: '180',
-                  maxLeverage: 50,
-                  returnOnEquity: '25',
-                  cumFunding: {
-                    allTime: '0',
-                    sinceOpen: '0',
-                    sinceChange: '0',
-                  },
-                },
-                type: 'oneWay',
-              },
-            ],
-            marginSummary: {
-              totalMarginUsed: '200',
-              accountValue: '2000',
-            },
-          });
+          .mockResolvedValueOnce({ assetPositions: [] })
+          .mockRejectedValueOnce(cause);
+        mockStandaloneInfoClient.frontendOpenOrders
+          .mockResolvedValueOnce([])
+          .mockRejectedValueOnce(cause);
+        const params = { standalone: true, userAddress: mockUserAddress };
 
-        const retryPositions = await hip3Provider.getPositions({
-          standalone: true,
-          userAddress: mockUserAddress,
-        });
+        const positions = hip3Provider.getPositions(params);
+        await expect(positions).rejects.toThrow(
+          PERPS_ERROR_CODES.POSITIONS_FAILED,
+        );
+        await expect(positions).rejects.toHaveProperty('cause', cause);
 
-        // perpDexs should have been called again (retry after transient failure)
-        expect(mockStandaloneInfoClient.perpDexs).toHaveBeenCalledTimes(2);
-        // Should now see positions from both DEXs
-        expect(retryPositions).toHaveLength(2);
-        const symbols = retryPositions.map((p) => p.symbol).sort();
-        expect(symbols).toEqual(['BTC', 'TSLA']);
+        const orders = hip3Provider.getOpenOrders(params);
+        await expect(orders).rejects.toThrow(PERPS_ERROR_CODES.ORDERS_FAILED);
+        await expect(orders).rejects.toHaveProperty('cause', cause);
       });
 
       it('returns only main DEX positions when hip3Enabled is false', async () => {
@@ -1822,11 +1724,12 @@ describe('HyperLiquidProvider', () => {
           marginSummary: { totalMarginUsed: '0', accountValue: '0' },
         });
 
-        // Act: standalone call falls back to main DEX only
-        await hip3Provider.getPositions({
-          standalone: true,
-          userAddress: mockUserAddress,
-        });
+        await expect(
+          hip3Provider.getPositions({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
 
         // Now set up the fully-initialized path's perpDexs to succeed
         const infoClient = mockClientService.getInfoClient();
@@ -1855,11 +1758,12 @@ describe('HyperLiquidProvider', () => {
           marginSummary: { totalMarginUsed: '0', accountValue: '0' },
         });
 
-        // Act: first call gets invalid response, falls back to main DEX
-        await hip3Provider.getPositions({
-          standalone: true,
-          userAddress: mockUserAddress,
-        });
+        await expect(
+          hip3Provider.getPositions({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.POSITIONS_FAILED);
         expect(mockStandaloneInfoClient.perpDexs).toHaveBeenCalledTimes(1);
 
         // Fix perpDexs to return valid response

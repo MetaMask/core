@@ -94,6 +94,8 @@ import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
  * What the service needs from the wallet: the account, and the wallet
  * adapters it (re)initializes the SDK clients with.
  */
+type UserDataBinding = { address?: string; discoveringDexs: boolean };
+
 type SubscriptionWallet = Pick<
   HyperLiquidWalletService,
   'createWalletAdapter' | 'getUserAddressWithDefault'
@@ -158,7 +160,7 @@ export class HyperLiquidSubscriptionService {
 
   #dexDiscoveryRetryTimer?: ReturnType<typeof setTimeout>;
 
-  #userDataBinding?: { address?: string; discoveringDexs: boolean };
+  #userDataBinding?: UserDataBinding;
 
   // Track DEXs for synchronized position notifications
   // Ensures all DEXs send initial data before notifying subscribers
@@ -359,6 +361,8 @@ export class HyperLiquidSubscriptionService {
   // explicit invalidation step to place at the right lifecycle point. That also
   // covers SDK-internal automatic reconnects, which fire no callback here, and
   // leaves a same-epoch webData3 retry untouched because the epoch has not moved.
+  readonly #dexOrdersEpoch = new Map<string, number>();
+
   readonly #dexPositionsEpoch = new Map<string, number>();
 
   readonly #dexOrdersCache = new Map<string, Order[]>(); // Per-DEX orders
@@ -912,6 +916,7 @@ export class HyperLiquidSubscriptionService {
     const previousAllowlistMarkets = [...this.#allowlistMarkets];
     const previousBlocklistMarkets = [...this.#blocklistMarkets];
     const previousHip3Enabled = this.#hip3Enabled;
+    const userDataBinding = this.#userDataBinding;
 
     this.#hip3Enabled = hip3Enabled;
     this.#dexDiscoveryComplete = !hip3Enabled || dexDiscoveryComplete;
@@ -934,18 +939,16 @@ export class HyperLiquidSubscriptionService {
     // publishes (or for as long as its subscription fails), and subscribers
     // learn that before the async subscription work below.
     if (this.#accountSnapshotDexs.size > 0) {
+      const previousDexs = this.#accountSnapshotDexs;
       this.#accountSnapshotDexs = new Set(
         hip3Enabled ? ['', ...enabledDexs] : [''],
       );
       let removedAccount = false;
-      for (const dex of this.#dexAccountCache.keys()) {
+      for (const dex of previousDexs) {
         if (!this.#accountSnapshotDexs.has(dex)) {
-          this.#dexAccountCache.delete(dex);
-          removedAccount = true;
-        }
-      }
-      for (const dex of this.#expectedDexs) {
-        if (!this.#accountSnapshotDexs.has(dex)) {
+          removedAccount = this.#dexAccountCache.delete(dex) || removedAccount;
+          this.#dexPositionsEpoch.delete(dex);
+          this.#dexOrdersEpoch.delete(dex);
           this.#expectedDexs.delete(dex);
         }
       }
@@ -1013,8 +1016,13 @@ export class HyperLiquidSubscriptionService {
 
       // Establish clearinghouseState/openOrders subscriptions for new DEXs
       // (needed for positions, orders, and account data when using individual subscriptions)
-      const userAddress = this.#userDataBinding?.address;
-      if (userAddress && this.#accountSnapshotDexs.size > 0 && hip3Enabled) {
+      const userAddress = userDataBinding?.address;
+      if (
+        userAddress &&
+        this.#userDataBinding === userDataBinding &&
+        this.#accountSnapshotDexs.size > 0 &&
+        hip3Enabled
+      ) {
         await Promise.all(
           newDexs.map(async (dex) => {
             try {
@@ -1022,7 +1030,9 @@ export class HyperLiquidSubscriptionService {
                 userAddress,
                 dex,
               );
-              await this.#ensureOpenOrdersSubscription(userAddress, dex);
+              if (this.#userDataBinding === userDataBinding) {
+                await this.#ensureOpenOrdersSubscription(userAddress, dex);
+              }
               this.#deps.debugLogger.log(
                 `Established user data subscriptions for new DEX: ${dex}`,
               );
@@ -2134,6 +2144,16 @@ export class HyperLiquidSubscriptionService {
     // Note: webData3 includes all DEX data, so no separate HIP-3 subscriptions needed
   }
 
+  #isCurrentUserDataStream(
+    binding: UserDataBinding,
+    client: ReturnType<HyperLiquidClientService['getSubscriptionClient']>,
+  ): boolean {
+    return (
+      this.#userDataBinding === binding &&
+      this.#clientService.getSubscriptionClient() === client
+    );
+  }
+
   /**
    * Create WebSocket subscription for user data (positions, orders, account).
    *
@@ -2168,7 +2188,7 @@ export class HyperLiquidSubscriptionService {
     const userAddress =
       binding.address ??
       (await this.#walletService.getUserAddressWithDefault(accountId));
-    if (this.#userDataBinding !== binding || this.#isClearing) {
+    if (this.#userDataBinding !== binding) {
       return;
     }
     binding.address = userAddress;
@@ -2195,7 +2215,7 @@ export class HyperLiquidSubscriptionService {
       );
     }
 
-    if (this.#userDataBinding !== binding || this.#isClearing) {
+    if (this.#userDataBinding !== binding) {
       return undefined;
     }
 
@@ -2251,6 +2271,9 @@ export class HyperLiquidSubscriptionService {
       // Also set up webData3 for OI caps only
       const webData3Promise = subscriptionClient
         .webData3({ user: userAddress }, (data: WebData3WsEvent) => {
+          if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+            return;
+          }
           try {
             // webData3 is ONLY used for OI caps extraction
             // Positions, orders, and account data come from individual subscriptions
@@ -2312,7 +2335,15 @@ export class HyperLiquidSubscriptionService {
             );
           }
         })
-        .then((sub) => {
+        .then(async (sub) => {
+          if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+            try {
+              await sub.unsubscribe();
+            } catch {
+              // A replaced connection may already be closed.
+            }
+            return;
+          }
           this.#webData3Subscriptions.set(dexName, sub);
           this.#deps.debugLogger.log(
             `webData3 subscription established for OI caps (main + HIP-3)`,
@@ -2401,7 +2432,12 @@ export class HyperLiquidSubscriptionService {
     try {
       await subscriptionPromise;
     } finally {
-      this.#pendingClearinghouseSubscriptions.delete(dexName);
+      if (
+        this.#pendingClearinghouseSubscriptions.get(dexName) ===
+        subscriptionPromise
+      ) {
+        this.#pendingClearinghouseSubscriptions.delete(dexName);
+      }
     }
   }
 
@@ -2416,12 +2452,20 @@ export class HyperLiquidSubscriptionService {
     userAddress: string,
     dexName: string,
   ): Promise<void> {
+    const binding = this.#userDataBinding;
+    if (binding?.address !== userAddress) {
+      return;
+    }
     await this.#clientService.ensureSubscriptionClient(
       this.#walletService.createWalletAdapter(),
     );
     const subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
       throw new Error('Subscription client not available');
+    }
+
+    if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+      return;
     }
 
     try {
@@ -2434,11 +2478,9 @@ export class HyperLiquidSubscriptionService {
           // Automatic reconnect reuses this client. Replacing the transport
           // creates a new one, and a queued payload from the retired client
           // must not stamp stale size or side with the new connection epoch.
-          if (
-            this.#clientService.getSubscriptionClient() !== subscriptionClient
-          ) {
+          if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
             this.#deps.debugLogger.log(
-              'Ignoring clearinghouseState update from a replaced subscription client',
+              'Ignoring clearinghouseState update from a retired user-data stream',
               { dex: data.dex || 'main' },
             );
             return;
@@ -2503,10 +2545,12 @@ export class HyperLiquidSubscriptionService {
           // the epoch cannot interleave with this callback. Only this
           // clearinghouseState path stamps because openOrders carries no
           // authoritative size or side.
-          this.#dexPositionsEpoch.set(
-            cacheKey,
-            this.#clientService.getConnectionEpoch(),
-          );
+          if (this.#accountSnapshotDexs.has(cacheKey)) {
+            this.#dexPositionsEpoch.set(
+              cacheKey,
+              this.#clientService.getConnectionEpoch(),
+            );
+          }
 
           if (
             this.#positionSubscriberCount > 0 ||
@@ -2518,11 +2562,18 @@ export class HyperLiquidSubscriptionService {
         },
       );
 
+      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+        await subscription.unsubscribe().catch(() => undefined);
+        return;
+      }
       this.#clearinghouseStateSubscriptions.set(dexName, subscription);
       this.#deps.debugLogger.log(
         `clearinghouseState subscription established for DEX: ${dexName || 'main'}`,
       );
     } catch (error) {
+      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+        return;
+      }
       // Remove this DEX from expected set so it doesn't block notifications for other DEXs
       this.#expectedDexs.delete(dexName);
 
@@ -2577,7 +2628,12 @@ export class HyperLiquidSubscriptionService {
     try {
       await subscriptionPromise;
     } finally {
-      this.#pendingOpenOrdersSubscriptions.delete(dexName);
+      if (
+        this.#pendingOpenOrdersSubscriptions.get(dexName) ===
+        subscriptionPromise
+      ) {
+        this.#pendingOpenOrdersSubscriptions.delete(dexName);
+      }
     }
   }
 
@@ -2592,12 +2648,20 @@ export class HyperLiquidSubscriptionService {
     userAddress: string,
     dexName: string,
   ): Promise<void> {
+    const binding = this.#userDataBinding;
+    if (binding?.address !== userAddress) {
+      return;
+    }
     await this.#clientService.ensureSubscriptionClient(
       this.#walletService.createWalletAdapter(),
     );
     const subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
       throw new Error('Subscription client not available');
+    }
+
+    if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+      return;
     }
 
     try {
@@ -2607,6 +2671,10 @@ export class HyperLiquidSubscriptionService {
           dex: dexName || undefined, // Empty string -> undefined for main DEX
         },
         (data: OpenOrdersWsEvent) => {
+          if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+            return;
+          }
+
           const cacheKey = data.dex || '';
 
           // Update caches and notify subscribers if we have order subscribers
@@ -2627,6 +2695,12 @@ export class HyperLiquidSubscriptionService {
 
             // Update orders cache with processed orders
             this.#dexOrdersCache.set(cacheKey, orders);
+            if (this.#accountSnapshotDexs.has(cacheKey)) {
+              this.#dexOrdersEpoch.set(
+                cacheKey,
+                this.#clientService.getConnectionEpoch(),
+              );
+            }
 
             // Update positions with TP/SL if we have positions
             if (cachedPositions.length > 0) {
@@ -2648,11 +2722,18 @@ export class HyperLiquidSubscriptionService {
         },
       );
 
+      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+        await subscription.unsubscribe().catch(() => undefined);
+        return;
+      }
       this.#openOrdersSubscriptions.set(dexName, subscription);
       this.#deps.debugLogger.log(
         `openOrders subscription established for DEX: ${dexName || 'main'}`,
       );
     } catch (error) {
+      if (!this.#isCurrentUserDataStream(binding, subscriptionClient)) {
+        return;
+      }
       // Remove this DEX from expected set so it doesn't block notifications for other DEXs
       this.#expectedDexs.delete(dexName);
 
@@ -2863,6 +2944,7 @@ export class HyperLiquidSubscriptionService {
       // Clear per-DEX caches
       this.#dexPositionsCache.clear();
       this.#dexOrdersCache.clear();
+      this.#dexOrdersEpoch.clear();
       this.#dexAccountCache.clear();
 
       // Clear DEX tracking for synchronized notifications
@@ -3711,16 +3793,32 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Atomically get cached orders if initialized
-   * Prevents race condition between checking initialization and getting data
+   * Atomically get cached orders if initialized.
    *
-   * @returns Cached orders array if initialized, null otherwise
+   * @param requireComplete - Whether every configured DEX must have published
+   * its orders on the current connection.
+   * @returns Cached orders, or null until available.
    */
-  public getOrdersCacheIfInitialized(): Order[] | null {
-    if (!this.#ordersCacheInitialized) {
+  public getOrdersCacheIfInitialized(requireComplete = false): Order[] | null {
+    if (!requireComplete) {
+      return this.#ordersCacheInitialized
+        ? [...(this.#cachedOrders ?? [])]
+        : null;
+    }
+    if (!this.#dexDiscoveryComplete || this.#accountSnapshotDexs.size === 0) {
       return null;
     }
-    return this.#cachedOrders ? [...this.#cachedOrders] : [];
+
+    const epoch = this.#clientService.getConnectionEpoch();
+    const orders: Order[] = [];
+    for (const dex of this.#accountSnapshotDexs) {
+      const slice = this.#dexOrdersCache.get(dex);
+      if (slice === undefined || this.#dexOrdersEpoch.get(dex) !== epoch) {
+        return null;
+      }
+      orders.push(...slice);
+    }
+    return orders;
   }
 
   /**
@@ -5686,6 +5784,7 @@ export class HyperLiquidSubscriptionService {
 
     this.#dexPositionsCache.clear();
     this.#dexOrdersCache.clear();
+    this.#dexOrdersEpoch.clear();
     this.#dexAccountCache.clear();
     this.#dexPositionsEpoch.clear();
     this.#cachedSpotState = null;

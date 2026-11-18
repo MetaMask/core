@@ -1353,7 +1353,7 @@ describe('HyperLiquidProvider', () => {
         );
       });
 
-      it('returns partial account state when one HIP-3 DEX fails', async () => {
+      it('reports partial balances and rejects incomplete position reads when a DEX fails', async () => {
         const hip3Provider = createTestProvider({
           hip3Enabled: true,
           allowlistMarkets: ['xyz:*'],
@@ -1402,6 +1402,15 @@ describe('HyperLiquidProvider', () => {
           user: '0x123',
           dex: 'xyz',
         });
+
+        const positions = hip3Provider.getPositions({ skipCache: true });
+        await expect(positions).rejects.toThrow(
+          PERPS_ERROR_CODES.POSITIONS_FAILED,
+        );
+        await expect(positions).rejects.toHaveProperty(
+          'cause.message',
+          'xyz DEX unavailable',
+        );
       });
     });
 

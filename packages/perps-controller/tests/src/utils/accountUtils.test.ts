@@ -873,10 +873,22 @@ describe('calculateWeightedReturnOnEquity', () => {
   it('weighs an account with an RoE of 0 by its margin used', () => {
     const result = calculateWeightedReturnOnEquity([
       { unrealizedPnl: '10', returnOnEquity: '10', marginUsed: '100' },
-      { unrealizedPnl: 0, returnOnEquity: 0, marginUsed: 100 },
+      { unrealizedPnl: 0, returnOnEquity: 0, marginUsed: 300 },
     ]);
-    expect(parseFloat(result)).toBeCloseTo(5, 10);
+    expect(parseFloat(result)).toBeCloseTo(2.5, 10);
   });
+
+  it.each([Infinity, 'Infinity', '500usd'])(
+    'skips an invalid explicit margin weight %s',
+    (marginUsed) => {
+      expect(
+        calculateWeightedReturnOnEquity([
+          { unrealizedPnl: 10, returnOnEquity: 10, marginUsed: '100' },
+          { unrealizedPnl: 10, returnOnEquity: 90, marginUsed },
+        ]),
+      ).toBe('10');
+    },
+  );
 
   it('still skips an RoE of 0 when margin used is not given', () => {
     const result = calculateWeightedReturnOnEquity([

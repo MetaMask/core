@@ -1026,15 +1026,17 @@ describe('HyperLiquidProvider', () => {
       ]);
     });
 
-    it('handles data retrieval errors gracefully', async () => {
+    it('rejects when the position request fails', async () => {
+      const cause = new Error('API Error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('API Error'));
+      ).mockRejectedValueOnce(cause);
 
-      const positions = await provider.getPositions();
-
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
   });
 
@@ -1501,15 +1503,17 @@ describe('HyperLiquidProvider', () => {
       expect(result.error).toContain('Invalid withdrawal parameters');
     });
 
-    it('handles unknown errors gracefully', async () => {
+    it('retains the underlying error when positions are unavailable', async () => {
+      const cause = new Error('Unknown error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('Unknown error'));
+      ).mockRejectedValueOnce(cause);
 
-      const result = await provider.getPositions();
-
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
 
     describe('error mapping integration', () => {

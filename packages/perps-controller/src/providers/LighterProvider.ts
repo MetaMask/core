@@ -10482,6 +10482,9 @@ export class LighterProvider implements PerpsProvider {
         // Capability gates must surface, never degrade into empty state.
         throw caughtError;
       }
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        return [];
+      }
       // A failed read leaves the order list unknown, not empty.
       throw this.#readFailure(PERPS_ERROR_CODES.ORDERS_FAILED, caughtError);
     }
@@ -10530,6 +10533,9 @@ export class LighterProvider implements PerpsProvider {
       ) {
         // Already classified by the open-orders leg.
         throw caughtError;
+      }
+      if (caughtError instanceof LighterAccountNotFoundError) {
+        return [];
       }
       // A failed read leaves the order list unknown, not empty.
       throw this.#readFailure(PERPS_ERROR_CODES.ORDERS_FAILED, caughtError);

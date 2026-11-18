@@ -701,6 +701,16 @@ describe('HyperLiquidSubscriptionService', () => {
         'unavailableSubAccounts',
       );
 
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toBeNull();
+      orderCallbacks.get('')?.({ dex: '', orders: [] });
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toStrictEqual([]);
+
+      mockClientService.getConnectionEpoch = vi.fn(() => 2);
+      orderCallbacks.get('')?.({ dex: '', orders: [] });
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toBeNull();
+      orderCallbacks.get('xyz')?.({ dex: 'xyz', orders: [] });
+      expect(hip3Service.getOrdersCacheIfInitialized(true)).toStrictEqual([]);
+
       unsubscribeOrders();
       unsubscribeAccount();
     });
@@ -1073,6 +1083,103 @@ describe('HyperLiquidSubscriptionService', () => {
       );
 
       unsubscribe();
+    });
+
+    it('disposes a DEX subscription that opens after its wallet unsubscribes', async () => {
+      const firstAddress = '0x0000000000000000000000000000000000000001';
+      const secondAddress = '0x0000000000000000000000000000000000000002';
+      const discovery = createDeferred<string[]>();
+      const lateDex = createDeferred<MockSubscription>();
+      const unsubscribeLateDex = vi.fn().mockResolvedValue(undefined);
+      const callbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (
+          params: { user: string; dex?: string },
+          callback: (payload: unknown) => void,
+        ) => {
+          callbacks.set(`${params.user}:${params.dex ?? ''}`, callback);
+          if (params.user === firstAddress && params.dex === 'xyz') {
+            return lateDex.promise;
+          }
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        firstAddress,
+      );
+      const discoveryService = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+        [],
+        [],
+        [],
+        undefined,
+        () => discovery.promise,
+      );
+      const unsubscribeFirst = discoveryService.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      discovery.resolve(['xyz']);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(callbacks.get(`${firstAddress}:xyz`)).toBeTypeOf('function');
+
+      unsubscribeFirst();
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        secondAddress,
+      );
+      const callback = vi.fn();
+      const unsubscribeSecond = discoveryService.subscribeToAccount({
+        callback,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const clearinghouseState = {
+        assetPositions: [],
+        marginSummary: { accountValue: '100', totalMarginUsed: '0' },
+        withdrawable: '100',
+      };
+
+      lateDex.resolve({ unsubscribe: unsubscribeLateDex });
+      await vi.advanceTimersByTimeAsync(0);
+      callbacks.get(`${firstAddress}:xyz`)?.({
+        dex: 'xyz',
+        clearinghouseState,
+      });
+      callbacks.get(`${secondAddress}:`)?.({ dex: '', clearinghouseState });
+      expect(unsubscribeLateDex).toHaveBeenCalledOnce();
+      expect(callback).not.toHaveBeenCalled();
+
+      callbacks.get(`${secondAddress}:xyz`)?.({
+        dex: 'xyz',
+        clearinghouseState,
+      });
+      expect(callback).toHaveBeenCalledOnce();
+      unsubscribeSecond();
+    });
+
+    it('reopens the account stream after clearing the provider for reinitialization', async () => {
+      const unsubscribeBefore = service.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledTimes(
+        1,
+      );
+      unsubscribeBefore();
+      service.clearAll();
+
+      const unsubscribeAfter = service.subscribeToAccount({
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledTimes(
+        2,
+      );
+      unsubscribeAfter();
     });
 
     it('stops treating a DEX slice as live after a reconnect until it republishes', async () => {

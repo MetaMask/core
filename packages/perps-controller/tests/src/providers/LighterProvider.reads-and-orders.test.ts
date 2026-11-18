@@ -7,8 +7,14 @@ import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
 } from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
-import type { OrderParams, OrderResult } from '../../../src/types/index.js';
+import type {
+  OrderParams,
+  OrderResult,
+  PerpsProvider,
+  PerpsProviderType,
+} from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
   LighterSignerOperation,
@@ -28,6 +34,10 @@ import type {
   BuiltProvider,
   MockClientInstance,
 } from '../../helpers/lighterProvider.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+} from '../../helpers/providerMocks.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 vi.mock(
@@ -1098,6 +1108,35 @@ describe('LighterProvider', () => {
       await expect(provider.getAccountState()).rejects.toThrow(
         'Invalid Lighter venue data',
       );
+    });
+
+    it('keeps Hyperliquid orders when the wallet has no Lighter account', async () => {
+      const { provider, clientInstance } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+
+      const hyperliquid = createMockHyperLiquidProvider();
+      const order = createMockOrder({ providerId: 'hyperliquid' });
+      hyperliquid.getOpenOrders.mockResolvedValue([order]);
+      hyperliquid.getOrders.mockResolvedValue([order]);
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', hyperliquid],
+          ['lighter', provider],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: createMockInfrastructure(),
+      });
+
+      expect(await aggregated.getOpenOrders()).toStrictEqual([order]);
+      expect(await aggregated.getOrders()).toStrictEqual([order]);
+      expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
+      expect(clientInstance.getInactiveOrders).not.toHaveBeenCalled();
     });
 
     it('returns open orders through the auth-token path', async () => {

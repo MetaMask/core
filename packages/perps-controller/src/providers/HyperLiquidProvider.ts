@@ -282,7 +282,6 @@ import {
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
-  queryStandaloneOpenOrders,
 } from '../utils/standaloneInfoClient.js';
 import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
 import {
@@ -13496,9 +13495,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Similar to getValidatedDexs() but doesn't require full initialization.
    * Reuses cachedValidatedDexs to avoid redundant perpDexs() calls.
    *
+   * @param requireComplete - Whether failed discovery must reject.
    * @returns A promise that resolves to the result.
    */
-  async #getStandaloneValidatedDexs(): Promise<(string | null)[]> {
+  async #getStandaloneValidatedDexs(
+    requireComplete = false,
+  ): Promise<(string | null)[]> {
     // Return cached result if available (unified state)
     if (this.#dexDiscoveryCache.state?.validated) {
       return this.#dexDiscoveryCache.state.validated;
@@ -13517,7 +13519,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     let allDexs;
     try {
       allDexs = await standaloneInfoClient.perpDexs();
-    } catch {
+    } catch (error) {
+      if (requireComplete) {
+        throw error;
+      }
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: standalone perpDexs() failed, falling back to main DEX only',
       );
@@ -13527,6 +13532,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Validate response
     if (!allDexs || !Array.isArray(allDexs)) {
+      if (requireComplete) {
+        throw new Error('Hyperliquid returned an invalid DEX list');
+      }
       // Do not cache — may be transient, allow retry on next call
       return [null];
     }
@@ -13844,12 +13852,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Query one DEX's positions directly, preserving whether that DEX answered.
    *
-   * `getPositions()` fans out across every enabled DEX, flattens the subset that
-   * answered and converts any thrown error into an empty array, so its result
-   * cannot distinguish "this DEX answered and holds no positions" from "this
-   * DEX's request failed or it was never queried". Symbol operations need that
-   * distinction: the first means the position is closed, while the second must
-   * fail with `PROVIDER_NOT_AVAILABLE`.
+   * Symbol operations need to distinguish a confirmed flat position from
+   * an unavailable read, even when another DEX cannot be reached.
    *
    * TP/SL enrichment is skipped because callers only read size, side, and margin.
    *
@@ -13925,12 +13929,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         const standaloneInfoClient = createStandaloneInfoClient({
           isTestnet: this.#clientService.isTestnetMode(),
         });
-        const dexs = await this.#getStandaloneValidatedDexs();
-        const { results } = await queryStandaloneClearinghouseStates(
-          standaloneInfoClient,
-          userAddress,
-          dexs,
-        );
+        const dexs = await this.#getStandaloneValidatedDexs(true);
+        const { results, failedDexs } =
+          await queryStandaloneClearinghouseStates(
+            standaloneInfoClient,
+            userAddress,
+            dexs,
+          );
+
+        if (failedDexs.length > 0) {
+          throw failedDexs[0].error;
+        }
 
         // Combine and filter positions from all DEXs
         // Skip TP/SL lookup (would require additional API call)
@@ -13950,17 +13959,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         return positions;
       }
 
-      // Try WebSocket cache first (unless explicitly bypassed)
-      if (
-        !params?.skipCache &&
-        this.#subscriptionService.isPositionsCacheInitialized()
-      ) {
+      if (!params?.skipCache && params?.accountId === undefined) {
         const cachedPositions =
-          this.#subscriptionService.getCachedPositions() ?? [];
-        this.#deps.debugLogger.log('Using cached positions from WebSocket', {
-          count: cachedPositions.length,
-        });
-        return cachedPositions;
+          this.#subscriptionService.getFreshPositionsForAllDexs();
+        if (cachedPositions !== null) {
+          return cachedPositions;
+        }
       }
 
       // Fallback to API call
@@ -13978,32 +13982,27 @@ export class HyperLiquidProvider implements PerpsProvider {
         params?.accountId,
       );
 
-      // Query positions and orders across all enabled DEXs in parallel
+      // Use the same verified DEX list for positions and their TP/SL orders.
+      const dexs = await this.#getValidatedDexsStrict();
       const [stateResponse, orderResponse] = await Promise.all([
-        this.#queryUserDataAcrossDexs({ user: userAddress }, (userParam) =>
-          infoClient.clearinghouseState(userParam),
+        this.#queryUserDataAcrossDexs(
+          { user: userAddress },
+          (userParam) => infoClient.clearinghouseState(userParam),
+          dexs,
         ),
-        this.#queryUserDataAcrossDexs({ user: userAddress }, (userParam) =>
-          infoClient.frontendOpenOrders(userParam),
+        this.#queryUserDataAcrossDexs(
+          { user: userAddress },
+          (userParam) => infoClient.frontendOpenOrders(userParam),
+          dexs,
         ),
       ]);
       const { results: stateResults, failedDexs: failedStateDexs } =
         stateResponse;
       const { results: orderResults, failedDexs: failedOrderDexs } =
         orderResponse;
-
-      if (failedStateDexs.length > 0 || failedOrderDexs.length > 0) {
-        this.#deps.debugLogger.log(
-          'Partial multi-DEX position fetch completed with failures',
-          {
-            failedStateDexs: failedStateDexs.map(
-              ({ dex, error }) => `${dex ?? 'main'}:${error.message}`,
-            ),
-            failedOrderDexs: failedOrderDexs.map(
-              ({ dex, error }) => `${dex ?? 'main'}:${error.message}`,
-            ),
-          },
-        );
+      const failedDex = failedStateDexs[0] ?? failedOrderDexs[0];
+      if (failedDex) {
+        throw failedDex.error;
       }
 
       // Combine all orders from all DEXs for TP/SL lookup
@@ -14177,7 +14176,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return allPositions;
     } catch (error) {
       this.#deps.debugLogger.log('Error getting positions:', error);
-      return [];
+      throw new Error(PERPS_ERROR_CODES.POSITIONS_FAILED, { cause: error });
     }
   }
 
@@ -14380,7 +14379,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return orders;
     } catch (error) {
       this.#deps.debugLogger.log('Error getting user orders:', error);
-      return [];
+      throw new Error(PERPS_ERROR_CODES.ORDERS_FAILED, { cause: error });
     }
   }
 
@@ -14454,16 +14453,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         const standaloneInfoClient = createStandaloneInfoClient({
           isTestnet: this.#clientService.isTestnetMode(),
         });
-        const dexs = await this.#getStandaloneValidatedDexs();
-        const orderResults = await queryStandaloneOpenOrders(
-          standaloneInfoClient,
-          userAddress,
+        const dexs = await this.#getStandaloneValidatedDexs(true);
+        const { results, failedDexs } = await this.#queryUserDataAcrossDexs(
+          { user: userAddress },
+          (userParam) => standaloneInfoClient.frontendOpenOrders(userParam),
           dexs,
         );
+        if (failedDexs.length > 0) {
+          throw failedDexs[0].error;
+        }
 
-        // Combine all orders from all DEXs and adapt (without position context in standalone mode)
-        const orders = orderResults.flatMap((dexOrders) =>
-          dexOrders.map((order) => adaptOrderFromSDK(order, undefined)),
+        const orders = results.flatMap(({ data }) =>
+          data.map((order) => adaptOrderFromSDK(order, undefined)),
         );
 
         this.#deps.debugLogger.log(
@@ -14476,9 +14477,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Try WebSocket cache first (unless explicitly bypassed)
       // Use atomic getter to prevent race condition between check and get
-      if (!params?.skipCache) {
+      if (!params?.skipCache && params?.accountId === undefined) {
         const cachedOrders =
-          this.#subscriptionService.getOrdersCacheIfInitialized();
+          this.#subscriptionService.getOrdersCacheIfInitialized(true);
         if (cachedOrders !== null) {
           this.#deps.debugLogger.log(
             'Using cached open orders from WebSocket',
@@ -14506,29 +14507,23 @@ export class HyperLiquidProvider implements PerpsProvider {
         params?.accountId,
       );
 
-      // Query orders across all enabled DEXs in parallel
+      const dexs = await this.#getValidatedDexsStrict();
       const { results: orderResults, failedDexs } =
         await this.#queryUserDataAcrossDexs(
           { user: userAddress },
           (userParam) => infoClient.frontendOpenOrders(userParam),
+          dexs,
         );
-
       if (failedDexs.length > 0) {
-        this.#deps.debugLogger.log(
-          'Partial multi-DEX open order fetch completed with failures',
-          {
-            failedDexs: failedDexs.map(
-              ({ dex, error }) => `${dex ?? 'main'}:${error.message}`,
-            ),
-          },
-        );
+        throw failedDexs[0].error;
       }
 
-      // Combine all orders from all DEXs
       const rawOrders = orderResults.flatMap((result) => result.data);
+      if (rawOrders.length === 0) {
+        return [];
+      }
 
-      // Get positions for order context (already multi-DEX aware)
-      const positions = await this.getPositions();
+      const positions = await this.getPositions(params);
 
       this.#deps.debugLogger.log('Currently open orders received (all DEXs):', {
         count: rawOrders.length,
@@ -14545,7 +14540,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return orders;
     } catch (error) {
       this.#deps.debugLogger.log('Error getting currently open orders:', error);
-      return [];
+      throw new Error(PERPS_ERROR_CODES.ORDERS_FAILED, { cause: error });
     }
   }
 

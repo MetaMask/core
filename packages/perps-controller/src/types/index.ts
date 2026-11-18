@@ -1843,9 +1843,10 @@ export type GetAccountStateParams = {
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
   /**
    * Optional: also throw when the Lighter cross-margin summary cannot be
-   * read, instead of omitting it. A failed account read always throws
-   * `ACCOUNT_STATE_FAILED` (with the cause attached); a wallet without a
-   * Lighter account still reads as empty.
+   * read, instead of omitting it. Ordinary Lighter account read failures
+   * throw `ACCOUNT_STATE_FAILED` with a cause. Capability and malformed venue
+   * data errors propagate, and a superseded session throws
+   * `PROVIDER_LIFECYCLE_STALE`. A wallet without a Lighter account reads empty.
    */
   throwOnUnavailable?: boolean;
 };

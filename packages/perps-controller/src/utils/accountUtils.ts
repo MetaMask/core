@@ -17,6 +17,7 @@ import type {
   CrossMarginSummary,
   PerpsInternalAccount,
 } from '../types/index.js';
+import { parseFiniteDecimal } from './stringParseUtils.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
 
@@ -124,8 +125,8 @@ export function calculateWeightedReturnOnEquity(
     return '0';
   }
 
-  let totalWeightedROE = 0;
-  let totalMarginUsed = 0;
+  let totalWeightedROE = new BigNumber(0);
+  let totalMarginUsed = new BigNumber(0);
 
   for (const account of accounts) {
     const unrealizedPnl =
@@ -137,11 +138,11 @@ export function calculateWeightedReturnOnEquity(
         ? Number.parseFloat(account.returnOnEquity)
         : account.returnOnEquity;
 
-    if (Number.isNaN(unrealizedPnl) || Number.isNaN(returnOnEquity)) {
+    if (!Number.isFinite(unrealizedPnl) || !Number.isFinite(returnOnEquity)) {
       continue;
     }
 
-    let marginUsed: number;
+    let marginUsed: number | null;
     if (account.marginUsed === undefined) {
       if (returnOnEquity === 0) {
         continue;
@@ -150,26 +151,29 @@ export function calculateWeightedReturnOnEquity(
     } else {
       marginUsed =
         typeof account.marginUsed === 'string'
-          ? Number.parseFloat(account.marginUsed)
+          ? parseFiniteDecimal(account.marginUsed)
           : account.marginUsed;
     }
 
-    if (Number.isNaN(marginUsed) || marginUsed <= 0) {
+    if (
+      marginUsed === null ||
+      !Number.isFinite(marginUsed) ||
+      marginUsed <= 0
+    ) {
       continue;
     }
 
-    const roeDecimal = returnOnEquity / 100;
-
-    totalWeightedROE += roeDecimal * marginUsed;
-    totalMarginUsed += marginUsed;
+    totalWeightedROE = totalWeightedROE.plus(
+      new BigNumber(returnOnEquity).times(marginUsed),
+    );
+    totalMarginUsed = totalMarginUsed.plus(marginUsed);
   }
 
-  if (totalMarginUsed <= 0) {
+  if (totalMarginUsed.isZero()) {
     return '0';
   }
 
-  const weightedROE = (totalWeightedROE / totalMarginUsed) * 100;
-  return weightedROE.toString();
+  return totalWeightedROE.dividedBy(totalMarginUsed).toString();
 }
 
 // The release-branch balance bridge is USDC-only. Non-USDC spot assets must
