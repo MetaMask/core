@@ -174,7 +174,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('advertises strategies for an existing HIP-3 market', async () => {
+    it('advertises strategies and Cross for an existing HIP-3 market', async () => {
       const { capabilityProvider, infoClient } = useHip3Capabilities();
 
       expect(
@@ -202,10 +202,38 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_market',
           'take_profit_limit',
         ],
-        supportedMarginModes: ['isolated'],
+        supportedMarginModes: ['isolated', 'cross'],
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
     });
+
+    it.each([
+      ['isolated-only', { onlyIsolated: true }, ['isolated']],
+      ['strictIsolated', { marginMode: 'strictIsolated' }, ['isolated']],
+      ['noCross', { marginMode: 'noCross' }, ['isolated']],
+      ['normal', { marginMode: 'normal' }, ['isolated', 'cross']],
+    ])(
+      'reports the venue margin modes for a %s HIP-3 market',
+      async (_, restriction, supportedMarginModes) => {
+        const { capabilityProvider } = useHip3Capabilities({
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'xyz:TSLA',
+                szDecimals: 3,
+                maxLeverage: 20,
+                ...restriction,
+              },
+            ],
+            collateralToken: 0,
+          }),
+        });
+
+        expect(
+          await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' }),
+        ).toMatchObject({ status: 'ready', supportedMarginModes });
+      },
+    );
 
     it.each([
       ['isolated-only', { onlyIsolated: true }],
@@ -253,6 +281,30 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       },
     );
+
+    it('reports Cross for a main-DEX market with explicit normal margin mode', async () => {
+      useStrategyClients({
+        info: {
+          meta: vi.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'ETH',
+                szDecimals: 4,
+                maxLeverage: 50,
+                marginMode: 'normal',
+              },
+            ],
+          }),
+        },
+      });
+
+      expect(
+        await provider.getOrderCapabilities({ symbol: 'ETH' }),
+      ).toMatchObject({
+        status: 'ready',
+        supportedMarginModes: ['isolated', 'cross'],
+      });
+    });
 
     it.each([
       ['the HIP-3 kill switch is off', { hip3Enabled: false }],

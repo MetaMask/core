@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.4]
+
 ### Changed
 
 - `SubscriptionDelegationService` messenger now delegates what its Money Account Plus charge retry needs ([#11612](https://github.com/MetaMask/core/pull/11612))
   - Actions: `KeyringController:getState`, `AuthenticationController:isSignedIn` and `SubscriptionController:updatePaymentMethod`
   - Events: `TransactionController:transactionConfirmed`, `KeyringController:unlock` and `SubscriptionController:stateChange`
+- Bump `@metamask/subscription-controller` from `^15.2.2` to `^15.3.0` ([#11594](https://github.com/MetaMask/core/pull/11594), [#11611](https://github.com/MetaMask/core/pull/11611))
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
@@ -488,7 +491,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.4...HEAD
+[21.0.4]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.3...@metamask/wallet@21.0.4
 [21.0.3]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.2...@metamask/wallet@21.0.3
 [21.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.1...@metamask/wallet@21.0.2
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.0...@metamask/wallet@21.0.1

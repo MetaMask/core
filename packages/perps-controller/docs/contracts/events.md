@@ -97,6 +97,8 @@ Code: `src/services/TradingService.ts` `placeOrder`, `#trackOrderResult`, `editO
 | `amount_filled`, `remaining_amount`                                                                                                                                                          | `AMOUNT_FILLED`, `REMAINING_AMOUNT`                                                                                                                                                          | `partially_filled`                                                                 |
 | `bulk_action_id`                                                                                                                                                                             | `BULK_ACTION_ID`                                                                                                                                                                             | Events from a batch close                                                          |
 
+Trade events send the fee as `fees` and close events send it as `fee`. This is a known inconsistency: both keys are already emitted, so any rename is left to the analytics owners.
+
 When Core has no local position record, the result event carries only `status`, `asset`, `order_type`, `completion_duration`, `error_message`, the slippage and attribution groups and `bulk_action_id`. It has no `direction` or `open_position_size`.
 
 `closePositions` adds one summary event with `status`, `order_type` (`market`), `completion_duration`, `bulk_action_id`, `number_positions_closed` and, on error, `error_message`.

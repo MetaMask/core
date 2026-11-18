@@ -74,7 +74,9 @@ const GlobalSnapshotMarketStruct = type({
   listedAt: nullable(number()),
   trend: array(tuple([number(), string()])),
   onlyIsolated: optional(nullable(boolean())),
-  marginMode: optional(nullable(enums(['strictIsolated', 'noCross']))),
+  marginMode: optional(
+    nullable(enums(['normal', 'strictIsolated', 'noCross'])),
+  ),
 });
 
 const GlobalSnapshotStruct = type({
@@ -691,7 +693,9 @@ export class TerminalMarketService {
         maxLeverage: market.maxLeverage,
         marginTableId: 0,
         ...(market.onlyIsolated === true && { onlyIsolated: true as const }),
-        ...(market.marginMode && { marginMode: market.marginMode }),
+        // `normal` is no restriction, so it stays out of `marginMode`.
+        ...(market.marginMode &&
+          market.marginMode !== 'normal' && { marginMode: market.marginMode }),
       },
     };
   }
