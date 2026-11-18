@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
+import type { CreateUkycSessionParams } from './KycService.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
 import type {
   KycSessionStatus,
@@ -750,7 +751,9 @@ describe('VendorOnboardingController', () => {
           email: `  ${KALSHI_EMAIL} `,
         });
 
-        const params = handlers.createUkycSession.mock.calls[0][0];
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
         expect(params).not.toHaveProperty('email');
         expect(params.signedVendorRequests).toStrictEqual([
           {

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Kalshi session creation and the email steps send the phone-signed `Venue-Authorization` objects. `vendorRequestSigners` replaces `accountLinkAdapters`, and `startAccountLink` and `verifyAccountLink` are removed ([#11634](https://github.com/MetaMask/core/pull/11634))
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
 - `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
