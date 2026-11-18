@@ -2586,6 +2586,86 @@ describe('MarketDataService', () => {
           expect(fetchGlobalSnapshot).toHaveBeenCalledTimes(2);
         });
 
+        it.each([false, true])(
+          'replaces snapshots that expire during the sibling read or fallback (Lighter expires: %s)',
+          async (lighterExpires) => {
+            vi.useFakeTimers();
+            let finishLighter: (rows: PerpsMarketData[]) => void = () =>
+              undefined;
+            let finishHyperLiquid: (rows: PerpsMarketData[]) => void = () =>
+              undefined;
+            lighterProvider.getMarketDataWithPrices.mockReturnValueOnce(
+              new Promise((resolve) => {
+                finishLighter = resolve;
+              }),
+            );
+            mockProvider.getMarketDataWithPrices.mockReturnValueOnce(
+              new Promise((resolve) => {
+                finishHyperLiquid = resolve;
+              }),
+            );
+            const start = Date.now();
+            fetchGlobalSnapshot.mockImplementation(async ({ provider }) =>
+              provider === 'hyperliquid'
+                ? {
+                    ...snapshotResult(hyperLiquidSnapshotRows),
+                    expiresAt: start + 1,
+                  }
+                : {
+                    ...snapshotResult([lighterSnapshotBtc]),
+                    expiresAt: start + 2,
+                  },
+            );
+
+            try {
+              const pending = serviceWithTerminal.getMarketDataWithPrices({
+                provider: createAggregatedProvider(),
+                context: {
+                  ...mockContext,
+                  globalSnapshots: {
+                    hyperliquid: hyperLiquidContext(),
+                    lighter: lighterContext(),
+                  },
+                },
+              });
+              await vi.advanceTimersByTimeAsync(0);
+              expect(
+                mockProvider.getMarketDataWithPrices,
+              ).not.toHaveBeenCalled();
+
+              vi.setSystemTime(start + 1);
+              finishLighter(lighterRows);
+              await vi.advanceTimersByTimeAsync(0);
+              expect(
+                mockProvider.getMarketDataWithPrices,
+              ).toHaveBeenCalledTimes(1);
+              if (lighterExpires) {
+                vi.setSystemTime(start + 2);
+              }
+              finishHyperLiquid(providerMarketData);
+
+              expect(await pending).toStrictEqual([
+                ...providerMarketData.map((row) => ({
+                  ...row,
+                  providerId: 'hyperliquid',
+                })),
+                {
+                  ...(lighterExpires ? lighterRows[0] : expectedLighterBtc),
+                  providerId: 'lighter',
+                },
+                { ...lighterRows[1], providerId: 'lighter' },
+              ]);
+              expect(
+                lighterProvider.getMarketDataWithPrices,
+              ).toHaveBeenCalledTimes(1);
+            } finally {
+              finishLighter(lighterRows);
+              finishHyperLiquid(providerMarketData);
+              vi.useRealTimers();
+            }
+          },
+        );
+
         it.each([
           [
             'malformed',

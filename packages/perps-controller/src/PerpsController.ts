@@ -1359,11 +1359,10 @@ export class PerpsController extends BaseController<
   >();
 
   /**
-   * Latest toggle number per `network:symbol` whose write is still pending,
-   * so a failed write is undone only when no later toggle of the same market
-   * has superseded it.
+   * Latest toggle per network and saved reference whose write is pending.
+   * Grouped and symbol-only calls can overlap on a legacy reference.
    */
-  readonly #pendingWatchlistToggles = new Map<string, number>();
+  readonly #pendingWatchlistToggles = new Map<string, symbol>();
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
@@ -9281,13 +9280,15 @@ export class PerpsController extends BaseController<
    *
    * @param symbol - The trading pair symbol.
    * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy favorite.
    */
   async toggleWatchlistMarket(
     symbol: string,
     marketKey?: string,
+    venues?: readonly PerpsMarketData[],
   ): Promise<void> {
-    const references = getPerpsWatchlistReferences(symbol, marketKey);
-    const [reference, legacyAlias] = references;
+    const references = getPerpsWatchlistReferences(symbol, marketKey, venues);
+    const [reference] = references;
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const currentWatchlist = this.state.watchlistMarkets[currentNetwork];
     const isWatchlisted = references.some((entry) =>
@@ -9323,12 +9324,13 @@ export class PerpsController extends BaseController<
         });
       }
     }
-    const toggleKey = `${currentNetwork}:${legacyAlias ?? reference}`;
-    const toggleNumber =
-      (this.#pendingWatchlistToggles.get(toggleKey) ?? 0) + 1;
-    this.#pendingWatchlistToggles.set(toggleKey, toggleNumber);
-    const isLatestToggle = (): boolean =>
-      this.#pendingWatchlistToggles.get(toggleKey) === toggleNumber;
+    const toggle = Symbol(reference);
+    const toggleKey = (entry: string): string => `${currentNetwork}:${entry}`;
+    for (const entry of references) {
+      this.#pendingWatchlistToggles.set(toggleKey(entry), toggle);
+    }
+    const isLatestToggle = (entry: string): boolean =>
+      this.#pendingWatchlistToggles.get(toggleKey(entry)) === toggle;
 
     this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
       [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
@@ -9362,11 +9364,6 @@ export class PerpsController extends BaseController<
           action: isWatchlisted ? 'remove' : 'add',
         }),
       );
-      // A later toggle of the same market decides its state; its own write
-      // persists it.
-      if (!isLatestToggle()) {
-        return;
-      }
       // Undo only this toggle. The list may have changed since it was made
       // (hydration, other toggles), so restoring the earlier snapshot would
       // discard those changes.
@@ -9374,19 +9371,25 @@ export class PerpsController extends BaseController<
         const watchlist = state.watchlistMarkets[currentNetwork];
         if (isWatchlisted) {
           for (const [index, entry] of currentWatchlist.entries()) {
-            if (references.includes(entry) && !watchlist.includes(entry)) {
+            if (
+              references.includes(entry) &&
+              isLatestToggle(entry) &&
+              !watchlist.includes(entry)
+            ) {
               watchlist.splice(Math.min(index, watchlist.length), 0, entry);
             }
           }
-        } else {
+        } else if (isLatestToggle(reference)) {
           state.watchlistMarkets[currentNetwork] = watchlist.filter(
             (marketSymbol) => marketSymbol !== reference,
           );
         }
       });
     } finally {
-      if (isLatestToggle()) {
-        this.#pendingWatchlistToggles.delete(toggleKey);
+      for (const entry of references) {
+        if (isLatestToggle(entry)) {
+          this.#pendingWatchlistToggles.delete(toggleKey(entry));
+        }
       }
     }
   }
@@ -9396,12 +9399,18 @@ export class PerpsController extends BaseController<
    *
    * @param symbol - The trading pair symbol.
    * @param marketKey - Optional cross-venue key for a grouped market.
+   * @param venues - Original rows from the group, used to match a legacy favorite.
    * @returns Whether the reference is saved.
    */
-  isWatchlistMarket(symbol: string, marketKey?: string): boolean {
+  isWatchlistMarket(
+    symbol: string,
+    marketKey?: string,
+    venues?: readonly PerpsMarketData[],
+  ): boolean {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
-    return getPerpsWatchlistReferences(symbol, marketKey).some((reference) =>
-      this.state.watchlistMarkets[currentNetwork].includes(reference),
+    return getPerpsWatchlistReferences(symbol, marketKey, venues).some(
+      (reference) =>
+        this.state.watchlistMarkets[currentNetwork].includes(reference),
     );
   }
 

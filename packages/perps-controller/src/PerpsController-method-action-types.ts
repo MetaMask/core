@@ -1715,6 +1715,7 @@ export type PerpsControllerSaveMarginModeAction = {
  *
  * @param symbol - The trading pair symbol.
  * @param marketKey - Optional cross-venue key for a grouped market.
+ * @param venues - Original rows from the group, used to match a legacy favorite.
  */
 export type PerpsControllerToggleWatchlistMarketAction = {
   type: `PerpsController:toggleWatchlistMarket`;
@@ -1726,6 +1727,7 @@ export type PerpsControllerToggleWatchlistMarketAction = {
  *
  * @param symbol - The trading pair symbol.
  * @param marketKey - Optional cross-venue key for a grouped market.
+ * @param venues - Original rows from the group, used to match a legacy favorite.
  * @returns Whether the reference is saved.
  */
 export type PerpsControllerIsWatchlistMarketAction = {

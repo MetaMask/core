@@ -108,22 +108,28 @@ export function toSavedPerpsMarketReference(
 }
 
 /**
- * Match an explicit key and its legacy HyperLiquid favorite. The backend uses
- * the HyperLiquid venue symbol for shared keys and reserves `lighter:` for
- * Lighter-only markets.
+ * Match an explicit key and any legacy favorite for its confirmed HyperLiquid
+ * venue row. A fallback display key can also match an unrelated venue symbol.
  *
  * @param symbol - The displayed venue's symbol.
  * @param marketKey - Explicit backend key from a unit-scale row.
+ * @param venues - The group's original venue rows.
  * @returns The new reference and its legacy alias, when available.
  */
 export function getPerpsWatchlistReferences(
   symbol: string,
   marketKey?: string,
+  venues?: readonly PerpsMarketData[],
 ): [reference: string, ...legacyAliases: string[]] {
   const reference = toSavedPerpsMarketReference(symbol, marketKey);
-  return marketKey && !marketKey.startsWith(LIGHTER_MARKET_KEY_PREFIX)
-    ? [reference, marketKey]
-    : [reference];
+  const legacy = marketKey
+    ? venues?.find(
+        (venue) =>
+          venue.providerId === 'hyperliquid' &&
+          getUnscaledMarketKey(venue) === marketKey,
+      )
+    : undefined;
+  return legacy ? [reference, legacy.symbol] : [reference];
 }
 
 /**

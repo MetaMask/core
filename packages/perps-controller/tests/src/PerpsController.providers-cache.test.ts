@@ -74,6 +74,7 @@ import {
   PerpsAnalyticsEvent,
   WebSocketConnectionState,
 } from '../../src/types/index.js';
+import { groupMarketsByMarketKey } from '../../src/utils/marketUtils.js';
 
 vi.mock('../../src/providers/HyperLiquidProvider');
 vi.mock('../../src/providers/LighterProvider');
@@ -4591,36 +4592,89 @@ describe('PerpsController', () => {
   });
 
   describe('grouped watchlist', () => {
+    const market = {
+      price: '1',
+      maxLeverage: '20x',
+      change24h: '0',
+      change24hPercent: '0%',
+      volume: '10',
+    };
+
     it('removes a legacy favorite when its grouped row is unfavorited', async () => {
+      const [group] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            providerId: 'hyperliquid',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+          {
+            ...market,
+            symbol: 'BTC-PERP',
+            name: 'Bitcoin',
+            providerId: 'lighter',
+            marketKey: 'BTC-USD',
+            priceScale: 1,
+          },
+        ],
+        'lighter',
+      );
+      const args = [group.symbol, group.marketKey, group.venues] as const;
       controller.testUpdate((state) => {
         state.activeProvider = 'aggregated';
         state.watchlistMarkets.mainnet = ['BTC', 'ETH'];
       });
 
-      expect(controller.isWatchlistMarket('BTC', 'BTC')).toBe(true);
-      await controller.toggleWatchlistMarket('BTC', 'BTC');
+      expect(controller.isWatchlistMarket(...args)).toBe(true);
+      await controller.toggleWatchlistMarket(...args);
       expect(controller.getWatchlistMarkets()).toStrictEqual(['ETH']);
-      expect(controller.isWatchlistMarket('BTC', 'BTC')).toBe(false);
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
 
-      await controller.toggleWatchlistMarket('BTC', 'BTC');
+      await controller.toggleWatchlistMarket(...args);
       expect(controller.getWatchlistMarkets()).toStrictEqual([
         'ETH',
-        'market-key:BTC',
+        'market-key:BTC-USD',
       ]);
     });
 
-    it('keeps a HyperLiquid favorite separate from an unrelated Lighter-only market', async () => {
+    it('keeps the original favorite when a distinct Lighter group key equals its symbol', async () => {
+      const [legacy, lighter] = groupMarketsByMarketKey(
+        [
+          {
+            ...market,
+            symbol: 'xyz:TSLA',
+            name: 'Tesla',
+            providerId: 'hyperliquid',
+          },
+          {
+            ...market,
+            symbol: 'TSLA',
+            name: 'Tesla',
+            providerId: 'lighter',
+            marketKey: 'xyz:TSLA',
+            priceScale: 1,
+          },
+        ],
+        'lighter',
+      );
+      expect(legacy.rowId).not.toBe(lighter.rowId);
+      const args = [lighter.symbol, lighter.marketKey, lighter.venues] as const;
       controller.testUpdate((state) => {
         state.activeProvider = 'aggregated';
-        state.watchlistMarkets.mainnet = ['BTC'];
+        state.watchlistMarkets.mainnet = ['xyz:TSLA'];
       });
 
-      expect(controller.isWatchlistMarket('BTC', 'lighter:BTC')).toBe(false);
-      await controller.toggleWatchlistMarket('BTC', 'lighter:BTC');
+      expect(controller.isWatchlistMarket(...args)).toBe(false);
+      await controller.toggleWatchlistMarket(...args);
       expect(controller.getWatchlistMarkets()).toStrictEqual([
-        'BTC',
-        'market-key:lighter:BTC',
+        'xyz:TSLA',
+        'market-key:xyz:TSLA',
       ]);
+      await controller.toggleWatchlistMarket(...args);
+      expect(controller.getWatchlistMarkets()).toStrictEqual(['xyz:TSLA']);
     });
   });
 

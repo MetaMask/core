@@ -5,6 +5,7 @@ import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../providers/AggregatedPerpsProvider.js';
+import type { VenueMarketData } from '../providers/AggregatedPerpsProvider.js';
 import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
 import type {
   PerpsProvider,
@@ -851,13 +852,13 @@ export class MarketDataService {
    * @param provider - The venue's provider.
    * @param globalSnapshot - The venue's snapshot context, if any.
    * @param useTerminalApi - Whether to add legacy Terminal metadata.
-   * @returns The venue's market rows.
+   * @returns Venue rows with their expiry and fallback when a snapshot was applied.
    */
   async #readVenueMarketData(
     provider: PerpsProvider,
     globalSnapshot: GlobalSnapshotContext | undefined,
     useTerminalApi = false,
-  ): Promise<PerpsMarketData[]> {
+  ): Promise<VenueMarketData> {
     const { terminalMarketService } = this.#deps;
     if (!globalSnapshot || !terminalMarketService?.fetchGlobalSnapshot) {
       // Fetch Terminal metadata before provider data. It enriches the
@@ -890,9 +891,14 @@ export class MarketDataService {
         this.#readCurrentGlobalSnapshot(globalSnapshot, logMethod),
       ]);
       this.#assertSnapshotCurrent(globalSnapshot);
-      return this.#isGlobalSnapshotFresh(snapshot)
-        ? this.#mergeSnapshotMetadata(markets, snapshot.markets)
-        : markets;
+      if (!this.#isGlobalSnapshotFresh(snapshot)) {
+        return markets;
+      }
+      return {
+        markets: this.#mergeSnapshotMetadata(markets, snapshot.markets),
+        expiresAt: snapshot.expiresAt,
+        getFallback: async (): Promise<PerpsMarketData[]> => markets,
+      };
     }
 
     // A rejected HyperLiquid snapshot has one fallback to the provider and
@@ -902,9 +908,18 @@ export class MarketDataService {
       logMethod,
     );
     if (snapshot && snapshot.markets.length > 0) {
-      return snapshot.markets.filter((market) =>
-        globalSnapshot.isMarketAllowed(market.symbol),
-      );
+      return {
+        markets: snapshot.markets.filter((market) =>
+          globalSnapshot.isMarketAllowed(market.symbol),
+        ),
+        expiresAt: snapshot.expiresAt,
+        getFallback: async (): Promise<PerpsMarketData[]> => {
+          this.#assertSnapshotCurrent(globalSnapshot);
+          const markets = await provider.getMarketDataWithPrices();
+          this.#assertSnapshotCurrent(globalSnapshot);
+          return markets;
+        },
+      };
     }
     const markets = await provider.getMarketDataWithPrices();
     this.#assertSnapshotCurrent(globalSnapshot);
@@ -1285,11 +1300,19 @@ export class MarketDataService {
           throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
         }
       } else {
-        markets = await this.#readVenueMarketData(
+        const read = await this.#readVenueMarketData(
           provider,
           this.#snapshotContextFor(context, provider.protocolId),
           useTerminalApi,
         );
+        if (Array.isArray(read)) {
+          markets = read;
+        } else {
+          markets =
+            Date.now() < read.expiresAt
+              ? read.markets
+              : await read.getFallback();
+        }
       }
 
       const filtered = applyMarketFilters(markets, params);
