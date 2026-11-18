@@ -860,6 +860,76 @@ describe('ProfileMetricsService', () => {
     );
   });
 
+  describe('resetCircuitBreakers', () => {
+    const policyOptions = { maxRetries: 0, maxConsecutiveFailures: 1 };
+    const circuitOpenMessage =
+      'Execution prevented because the circuit breaker is open';
+
+    it('closes an open submitMetrics circuit breaker', async () => {
+      nock(defaultBaseEndpoint).put('/profile/accounts').once().reply(500);
+      const { service, rootMessenger } = getService({
+        options: { policyOptions },
+      });
+      await expect(
+        rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).rejects.toThrow('failed with status');
+      await expect(
+        rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).rejects.toThrow(circuitOpenMessage);
+
+      service.resetCircuitBreakers();
+
+      nock(defaultBaseEndpoint).put('/profile/accounts').once().reply(200);
+      expect(
+        await rootMessenger.call(
+          'ProfileMetricsService:submitMetrics',
+          createMockRequest(),
+        ),
+      ).toBeUndefined();
+    });
+
+    it('closes an open fetchNonces circuit breaker', async () => {
+      nock(defaultBaseEndpoint).post('/nonce/batch').once().reply(500);
+      const { service, rootMessenger } = getService({
+        options: { policyOptions },
+      });
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).rejects.toThrow('failed with status');
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).rejects.toThrow(circuitOpenMessage);
+
+      service.resetCircuitBreakers();
+
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .once()
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+          },
+        ]);
+      expect(
+        await rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).toStrictEqual({ '0xAddressOne': 'nonce-for-one' });
+    });
+  });
+
   describe('fetchNonces', () => {
     it('does the same thing as the messenger action', async () => {
       const identifiers = ['0xAddressOne'];

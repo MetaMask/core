@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `ProfileMetricsService.resetCircuitBreakers` method, which closes the nonce and metrics circuit breakers so clients can call it next to `clearState` on wallet reset ([#11632](https://github.com/MetaMask/core/pull/11632))
 - Add `ProfileMetricsController.clearState` method and `ProfileMetricsController:clearState` messenger action, which reset the controller to its default state so clients can clear the sync queue and reported accounts on wallet reset ([#11632](https://github.com/MetaMask/core/pull/11632))
 
 ### Changed

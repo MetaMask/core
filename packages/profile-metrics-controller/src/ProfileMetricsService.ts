@@ -436,6 +436,15 @@ export class ProfileMetricsService {
   }
 
   /**
+   * Close the circuit breakers of the nonce and metrics policies, so requests
+   * are attempted again right away instead of after the circuit break duration.
+   */
+  resetCircuitBreakers(): void {
+    this.#fetchNoncesPolicy.reset();
+    this.#submitMetricsPolicy.reset();
+  }
+
+  /**
    * Submit metrics to the API.
    *
    * @param data - The data to send in the metrics update request.
