@@ -281,6 +281,7 @@ describe('lighterAdapter', () => {
       expect(state.marginUsed).toBe('2000');
       expect(state.unrealizedPnl).toBe('500');
       expect(state.providerId).toBe('lighter');
+      expect(state.spotCollateral).toBe('0');
     });
 
     it('returns account returnOnEquity in percent, like Hyperliquid account state', () => {
@@ -471,6 +472,12 @@ describe('lighterAdapter', () => {
       marginUsage: '40',
       buyingPower: '0',
     };
+
+    it('reports no extra spot collateral for a known account', () => {
+      expect(adaptAccountStateFromLighterUserStats(stats).spotCollateral).toBe(
+        '0',
+      );
+    });
 
     it.each([
       ['collateral', { collateral: '10000USD' }],

@@ -8,6 +8,7 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { prefixError } from '../../utils/error-prefix.js';
+import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getFiatQuotes } from './fiat-quotes.js';
 import { resumeFiatDirectMusd } from './fiat-resume.js';
 import { submitFiatQuotes } from './fiat-submit.js';
@@ -16,6 +17,10 @@ import type { FiatQuote } from './types.js';
 const ERROR_PREFIX = 'Fiat: ';
 
 export class FiatStrategy implements PayStrategy<FiatQuote> {
+  supports(request: PayStrategyGetQuotesRequest): boolean {
+    return request.requests.every(isEvmQuoteRequest);
+  }
+
   async getQuotes(
     request: PayStrategyGetQuotesRequest,
   ): Promise<TransactionPayQuote<FiatQuote>[]> {
