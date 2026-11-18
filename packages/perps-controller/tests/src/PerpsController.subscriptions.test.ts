@@ -805,6 +805,47 @@ describe('PerpsController', () => {
       expect(controller.state.perpsBalances).toStrictEqual({});
     });
 
+    it('refreshes balances when selected-group membership changes without a new selection', () => {
+      setupAggregatedMode();
+      const groupWallet = '0x00000000000000000000000000000000000000bb';
+      let groupHasEvm = false;
+      (mockMessenger.call as Mock).mockImplementation((action) => {
+        if (action === 'AccountsController:getSelectedAccount') {
+          return { address: selectedEvmAddress, type: 'eip155:eoa' };
+        }
+        if (
+          action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+        ) {
+          const solanaAccount = {
+            address: 'solana-address',
+            type: 'solana:data-account',
+          };
+          return groupHasEvm
+            ? [solanaAccount, { address: groupWallet, type: 'eip155:eoa' }]
+            : [solanaAccount];
+        }
+        return undefined;
+      });
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) =>
+            event === 'AccountTreeController:selectedAccountGroupChange',
+        )
+        .forEach(([, handler]) => handler('selected-group', 'previous-group'));
+
+      groupHasEvm = true;
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const callback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      callback(accountState('200'));
+      expect(controller.state.accountState?.totalBalance).toBe('200');
+
+      groupHasEvm = false;
+      callback(accountState('300'));
+      expect(controller.state.accountState).toBeNull();
+      expect(controller.state.perpsBalances).toStrictEqual({});
+    });
+
     it('uses the selected group EVM wallet when the selected account is on Solana', () => {
       setupAggregatedMode();
       controller.subscribeToAccount({ callback: vi.fn() });
@@ -858,6 +899,30 @@ describe('PerpsController', () => {
         service.getAccountState.bind(service),
       );
     };
+
+    it('adopts an in-flight REST response after a repeat selection notification', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      await useRealAccountRead();
+      let resolveAccount!: (state: AccountState) => void;
+      mockProvider.getAccountState.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveAccount = resolve;
+        }),
+      );
+      const currentRead = controller.getAccountState();
+      (mockMessenger.subscribe as Mock).mock.calls
+        .filter(
+          ([event]) =>
+            event === 'AccountTreeController:selectedAccountGroupChange',
+        )
+        .forEach(([, handler]) => handler('group-1', 'group-1'));
+      const currentAccount = accountState('200');
+      resolveAccount(currentAccount);
+
+      await expect(currentRead).resolves.toStrictEqual(currentAccount);
+      expect(controller.state.accountState).toStrictEqual(currentAccount);
+    });
 
     it('keeps a REST response for the previous wallet out of selected state', async () => {
       markControllerAsInitialized();

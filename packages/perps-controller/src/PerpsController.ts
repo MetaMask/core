@@ -206,7 +206,6 @@ import {
 import { buildAggregatedAccountState } from './utils/accountAggregation.js';
 import {
   getCaipAccountAddress,
-  getEvmAccountFromAccountGroup,
   getSelectedEvmAccountFromMessenger,
 } from './utils/accountUtils.js';
 import {
@@ -1553,22 +1552,12 @@ export class PerpsController extends BaseController<
         typeof getSelectedEvmAccountFromMessenger
       > | null,
     ): void => {
-      this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
-      const nextAddress =
+      this.#setSelectedTradingAddress(
         switchedAccount === null
           ? null
-          : switchedAccount?.address.toLowerCase();
-      // The account tree can re-emit its current selection on reinitialization.
-      // An unchanged wallet already has live balances, and the stream may dedupe
-      // its next update.
-      if (!nextAddress || nextAddress !== this.#selectedTradingAddress) {
-        this.#selectedTradingAddress = nextAddress;
-        this.update((draft) => {
-          draft.accountState = null;
-          draft.perpsBalances = {};
-        });
-      }
+          : switchedAccount?.address.toLowerCase(),
+      );
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
       // would otherwise be attributed to nothing, so the new address announces
@@ -1584,16 +1573,10 @@ export class PerpsController extends BaseController<
           });
       }
     };
-    this.messenger.subscribe(
-      'AccountsController:selectedAccountChange',
-      (account) =>
-        updateSelectedTradingAccount(
-          account
-            ? (getEvmAccountFromAccountGroup([account]) ??
-                getSelectedEvmAccountFromMessenger(this.messenger) ??
-                null)
-            : getSelectedEvmAccountFromMessenger(this.messenger),
-        ),
+    this.messenger.subscribe('AccountsController:selectedAccountChange', () =>
+      updateSelectedTradingAccount(
+        getSelectedEvmAccountFromMessenger(this.messenger),
+      ),
     );
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
@@ -1601,7 +1584,7 @@ export class PerpsController extends BaseController<
         updateSelectedTradingAccount(
           groupId === ''
             ? null
-            : (getSelectedEvmAccountFromMessenger(this.messenger) ?? null),
+            : getSelectedEvmAccountFromMessenger(this.messenger),
         ),
     );
 
@@ -5457,27 +5440,20 @@ export class PerpsController extends BaseController<
     }
 
     const provider = this.getActiveProvider();
-    const selectedAddress = getSelectedEvmAccountFromMessenger(
-      this.messenger,
-    )?.address.toLowerCase();
+    const selectedAddress = this.#getCurrentAccountStateAddress();
     const requestAddress =
       params?.accountId === undefined
         ? selectedAddress
         : getCaipAccountAddress(params.accountId);
-    const selectedAccountGeneration = this.#selectedAccountGeneration;
     if (
       this.#selectedTradingAddress === undefined &&
       selectedAddress &&
       requestAddress === selectedAddress
     ) {
-      // Establish the wallet before the first selected-wallet refresh so a
-      // later startup selection event can keep the fresh account snapshot.
-      this.#selectedTradingAddress = selectedAddress;
-      this.update((state) => {
-        state.accountState = null;
-        state.perpsBalances = {};
-      });
+      // Invalidate restored balances before the first selected-wallet refresh.
+      this.#setSelectedTradingAddress(selectedAddress);
     }
+    const selectedAccountGeneration = this.#selectedAccountGeneration;
     return this.#marketDataService.getAccountState({
       provider,
       params,
@@ -5494,14 +5470,11 @@ export class PerpsController extends BaseController<
           // matched against the active venue, so a response from a previous
           // venue is dropped when the route changed while it was in flight.
           isCurrent: (accountState) => {
+            const currentAddress = this.#getCurrentAccountStateAddress();
             if (
-              this.#selectedTradingAddress === null ||
               requestAddress === undefined ||
-              this.#selectedAccountGeneration !== selectedAccountGeneration ||
-              requestAddress !==
-                getSelectedEvmAccountFromMessenger(
-                  this.messenger,
-                )?.address.toLowerCase()
+              requestAddress !== currentAddress ||
+              this.#selectedAccountGeneration !== selectedAccountGeneration
             ) {
               return false;
             }
@@ -7784,6 +7757,46 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Refresh the live balance owner if the selected group's membership changed.
+   * Alignment does not always emit a new selection event.
+   *
+   * @returns The current trading address, if selected.
+   */
+  #getCurrentAccountStateAddress(): string | undefined {
+    if (this.#selectedTradingAddress === null) {
+      return undefined;
+    }
+    const address = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
+    if (
+      this.#selectedTradingAddress !== undefined &&
+      this.#selectedTradingAddress !== address
+    ) {
+      this.#setSelectedTradingAddress(address);
+    }
+    return address;
+  }
+
+  /**
+   * Clear balances when the wallet changes or restored ownership is unknown.
+   * Account tree reinitialization may repeat a valid selection.
+   *
+   * @param address - Resolved wallet address, or null for explicit deselection.
+   */
+  #setSelectedTradingAddress(address: string | null | undefined): void {
+    if (address !== undefined && address === this.#selectedTradingAddress) {
+      return;
+    }
+    this.#selectedTradingAddress = address;
+    this.#selectedAccountGeneration += 1;
+    this.update((state) => {
+      state.accountState = null;
+      state.perpsBalances = {};
+    });
+  }
+
+  /**
    * Subscribe to live account updates.
    * Updates controller state (Redux) when new account data arrives so consumers
    * like usePerpsBalanceTokenFilter (PayWithModal) see the latest balance.
@@ -7808,9 +7821,7 @@ export class PerpsController extends BaseController<
           // A malformed explicit id names no account and never owns state.
           const streamAddress =
             params.accountId === undefined
-              ? getSelectedEvmAccountFromMessenger(
-                  this.messenger,
-                )?.address.toLowerCase()
+              ? this.#getCurrentAccountStateAddress()
               : getCaipAccountAddress(params.accountId);
           return nextProvider.subscribeToAccount({
             ...params,
@@ -7818,12 +7829,7 @@ export class PerpsController extends BaseController<
               const ownsState =
                 this.activeProviderInstance === nextProvider &&
                 streamAddress !== undefined &&
-                (this.#selectedTradingAddress === undefined ||
-                  this.#selectedTradingAddress === streamAddress) &&
-                streamAddress ===
-                  getSelectedEvmAccountFromMessenger(
-                    this.messenger,
-                  )?.address.toLowerCase();
+                streamAddress === this.#getCurrentAccountStateAddress();
               if (ownsState && account) {
                 const sameWallet =
                   streamAddress === this.#selectedTradingAddress;
