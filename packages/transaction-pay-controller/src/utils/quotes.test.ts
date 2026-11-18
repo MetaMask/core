@@ -2906,7 +2906,7 @@ describe('Quotes Utils', () => {
       ).toBe(false);
     });
 
-    it('returns true for pending max post-quote with tokens but no requests', () => {
+    it('returns true for pending max post-quote with zero-amount tokens', () => {
       expect(
         QuoteRoutingHelper.shouldSkipNoOpQuote({
           isPostQuote: true,
@@ -2915,6 +2915,41 @@ describe('Quotes Utils', () => {
           tokens: [mockToken],
         }),
       ).toBe(true);
+    });
+
+    it('returns false for direct route max post-quote with non-zero amount tokens', () => {
+      const directRouteToken: TransactionPayRequiredToken = {
+        ...mockToken,
+        amountRaw: '1000000',
+        amountHuman: '1.0',
+        amountFiat: '1.0',
+        amountUsd: '1.0',
+      };
+
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [directRouteToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when tokens have mixed zero and non-zero amounts', () => {
+      const nonZeroToken: TransactionPayRequiredToken = {
+        ...mockToken,
+        amountRaw: '1000000',
+      };
+
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [mockToken, nonZeroToken],
+        }),
+      ).toBe(false);
     });
   });
 });

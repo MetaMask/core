@@ -69,6 +69,11 @@ export class QuoteRoutingHelper {
    * amountRaw '0' funded by prepended transfer), no no-op quote should be
    * returned. The UI should show a loading state until the amount is encoded.
    *
+   * However, legitimate direct routes (same-token, skipIfBalance with sufficient
+   * balance, etc.) also have tokens but no requests. These should still get a
+   * no-op quote. The distinguishing factor is that pending tokens have amountRaw
+   * '0', while direct route tokens have non-zero amounts.
+   *
    * @param context - Context for the decision.
    * @param context.isPostQuote - Whether this is a post-quote flow.
    * @param context.isMaxAmount - Whether this is a max amount transaction.
@@ -107,10 +112,14 @@ export class QuoteRoutingHelper {
       return false;
     }
 
-    // Post-quote max with tokens but no requests means the amounts are still
-    // pending (filtered out as '0'). Skip the no-op quote so the UI shows
-    // loading state until the encoded amount is available.
-    return true;
+    // Check if all tokens have zero amounts (pending case) vs non-zero amounts
+    // (legitimate direct route like same-token or skipIfBalance). Only skip
+    // the no-op quote if amounts are truly pending (all zero).
+    const allTokensHaveZeroAmount = tokens.every(
+      (token) => token.amountRaw === '0',
+    );
+
+    return allTokensHaveZeroAmount;
   }
 }
 
