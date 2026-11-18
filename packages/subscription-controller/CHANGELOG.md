@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11621](https://github.com/MetaMask/core/pull/11621))
+
 ## [15.3.0]
 
 ### Added

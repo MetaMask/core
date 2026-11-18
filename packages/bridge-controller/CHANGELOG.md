@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11621](https://github.com/MetaMask/core/pull/11621))
 
 ### Removed
 

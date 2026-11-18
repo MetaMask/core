@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `bitcoin-address-validation` from `^2.2.3` to `^4.0.0` ([#11582](https://github.com/MetaMask/core/pull/11582))
 - Bump `@metamask/snaps-sdk` from `^11.0.0` to `^11.2.0` ([#10737](https://github.com/MetaMask/core/pull/10737))
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.107.1` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11621](https://github.com/MetaMask/core/pull/11621))
 
 ### Removed
 

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - `optInToMarketing` and `optOutOfMarketing` now set `marketingConsentSyncPending` to `true` in the same state update as the consent change ([#11469](https://github.com/MetaMask/core/pull/11469))
 - `resetMarketingConsentDecision` now sets `marketingConsentSyncPending` to `false` ([#11469](https://github.com/MetaMask/core/pull/11469))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11621](https://github.com/MetaMask/core/pull/11621))
 
 ## [4.3.1]
 

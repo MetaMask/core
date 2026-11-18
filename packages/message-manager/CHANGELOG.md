@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
+- Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11621](https://github.com/MetaMask/core/pull/11621))
 
 ## [15.0.1]
 

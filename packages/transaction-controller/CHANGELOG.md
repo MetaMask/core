@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `accountOverride` property to `MetamaskPayMetadata` to persist the `InternalAccount` ID overriding the default account (output recipient when `isPostQuote` is true, funding payer when false) ([#11588](https://github.com/MetaMask/core/pull/11588))
 
+### Changed
+
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11621](https://github.com/MetaMask/core/pull/11621))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11621](https://github.com/MetaMask/core/pull/11621))
+
 ## [74.2.0]
 
 ### Added
