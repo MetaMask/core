@@ -5531,7 +5531,7 @@ describe('TradingService', () => {
     });
   });
 
-  describe('TAT-4662 analytics consistency', () => {
+  describe('analytics consistency', () => {
     it('reads add_margin from PERPS_EVENT_VALUE.ACTION at emit time', async () => {
       mockProvider.updateMargin = vi.fn().mockResolvedValue({ success: true });
       const original = PERPS_EVENT_VALUE.ACTION.ADD_MARGIN;
