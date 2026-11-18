@@ -4,14 +4,14 @@ Shared answers clients used to keep their own copies of. Each one is exported fr
 
 ## Price precision and order limits
 
-`getOrderCapabilities({ symbol, providerId })` returns two optional fields on a `ready` result. Omitted means the venue did not report it: do not substitute another venue's value.
+`getOrderCapabilities({ symbol, providerId })` can include two optional fields on a `ready` result. An omitted field means its metadata is unavailable or unusable.
 
 `pricePrecision` is the price grid the market accepts:
 
 | `type`                | Venue       | Fields                                  | A price is valid when                                                                                   |
 | --------------------- | ----------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `significant_figures` | HyperLiquid | `maxSignificantFigures`, `maxDecimals`  | it has at most `maxSignificantFigures` significant figures and `maxDecimals` decimals, or is an integer |
-| `fixed_decimals`      | Lighter     | `decimals`, `tickSize` (decimal string) | it is a multiple of `tickSize`                                                                          |
+| `fixed_decimals`      | Lighter     | `decimals`, `tickSize` (decimal string) | it is a positive multiple of `tickSize` with a wire price at most 2³² − 1                               |
 
 `orderLimits`:
 
@@ -24,7 +24,7 @@ Shared answers clients used to keep their own copies of. Each one is exported fr
 | `scaleOrderCount`     | `SCALE_ORDER_COUNT`       | `SCALE_ORDER_COUNT`       |
 | `twap`                | `HYPERLIQUID_TWAP_LIMITS` | not reported (no TWAP)    |
 
-Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighter, market and IOC orders can go down to one size step. Lighter reports `resting_limit_orders` even when maker minimums are unavailable. It omits both minimum values if either is missing or invalid, so clients should treat maker minimum validation as unavailable.
+Apply the reported minimums to the orders named by `minimumAppliesTo`. On Lighter, market and IOC orders can go down to one size step. Lighter reports `resting_limit_orders` even when maker minimums are unavailable. It omits both minimums if either is missing or invalid, if either grid is unavailable, or if the maker bounds cannot be met within the venue's wire limits. The largest base size is `(2^48 − 1) × 10^(-sizeDecimals)`, and the largest quote notional is that size times the largest wire price expressed in quote units. A valid grid remains available independently.
 
 A verified full close can qualify for an exception to the normal minimum notional. The close must still satisfy the venue's size grid. For example, a HyperLiquid batch close refuses a position whose size rounds down to zero, with `ORDER_SIZE_POSITIVE` on that row.
 

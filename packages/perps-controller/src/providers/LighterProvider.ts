@@ -8563,7 +8563,23 @@ export class LighterProvider implements PerpsProvider {
       Number.isSafeInteger(supportedPriceDecimals) &&
       supportedPriceDecimals >= 0 &&
       supportedPriceDecimals <= LIGHTER_MAX_DECIMALS;
-    const makerMinimums = getLighterMakerMinimums(market);
+    const hasSizeGrid = isLighterOrderSizeDecimals(supportedSizeDecimals);
+    let makerMinimums =
+      hasPriceGrid && hasSizeGrid ? getLighterMakerMinimums(market) : null;
+    if (makerMinimums) {
+      const maxSize = new BigNumber(LIGHTER_MAX_BASE_AMOUNT).shiftedBy(
+        -supportedSizeDecimals,
+      );
+      const maxPrice = new BigNumber(LIGHTER_MAX_WIRE_PRICE).shiftedBy(
+        -supportedPriceDecimals,
+      );
+      if (
+        maxSize.lt(makerMinimums.minBase) ||
+        maxSize.times(maxPrice).lt(makerMinimums.minQuote)
+      ) {
+        makerMinimums = null;
+      }
+    }
     return {
       ...(hasPriceGrid
         ? {
@@ -8576,7 +8592,7 @@ export class LighterProvider implements PerpsProvider {
             }),
           }
         : {}),
-      ...(isLighterOrderSizeDecimals(supportedSizeDecimals)
+      ...(hasSizeGrid
         ? {
             orderLimits: Object.freeze({
               sizeDecimals: supportedSizeDecimals,

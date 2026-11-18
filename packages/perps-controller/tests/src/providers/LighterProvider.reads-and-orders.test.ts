@@ -1585,7 +1585,7 @@ describe('LighterProvider', () => {
     it('reports an exact positive tick beyond BigNumber division precision', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBooks.mockResolvedValue([
-        { ...BTC_MARKET, supportedPriceDecimals: 21 },
+        { ...BTC_MARKET, supportedPriceDecimals: 21, minQuoteAmount: '0.01' },
       ]);
 
       const capabilities = await provider.getOrderCapabilities({
@@ -1598,10 +1598,18 @@ describe('LighterProvider', () => {
           decimals: 21,
           tickSize: '0.000000000000000000001',
         },
+        orderLimits: {
+          minOrderSize: '0.0002',
+          minOrderNotionalUsd: 0.01,
+        },
       });
     });
 
     it.each([
+      { supportedPriceDecimals: 21, minQuoteAmount: '10' },
+      { supportedPriceDecimals: 21, minQuoteAmount: '0.02' },
+      { minBaseAmount: '2814749767.10656' },
+      { supportedPriceDecimals: 1.5 },
       { minBaseAmount: '', minQuoteAmount: '10' },
       { minBaseAmount: '1e999', minQuoteAmount: '10' },
       { minBaseAmount: '0.001', minQuoteAmount: '1e999' },
