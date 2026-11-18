@@ -1117,6 +1117,13 @@ describe('PerpsController default provider', () => {
       failureCount: 0,
       results: [],
       error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      status: 'none',
+    };
+    const batchSuccess = {
+      success: true,
+      successCount: 1,
+      failureCount: 0,
+      results: [],
     };
 
     it.each([
@@ -1125,22 +1132,35 @@ describe('PerpsController default provider', () => {
         () => controller.cancelOrders({ cancelAll: true }),
         () => mockTradingServiceInstance.cancelOrders,
         batchRouteRefusal,
+        batchSuccess,
+        { ...batchSuccess, status: 'all' },
       ],
       [
         'closePositions',
         () => controller.closePositions({ closeAll: true }),
         () => mockTradingServiceInstance.closePositions,
         batchRouteRefusal,
+        batchSuccess,
+        { ...batchSuccess, status: 'all' },
       ],
       [
         'withdraw',
         () => controller.withdraw({ amount: '10' }),
         () => mockAccountServiceInstance.withdraw,
         { success: false, error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED },
+        { success: true },
+        { success: true },
       ],
     ])(
       'refuses an unrouted %s only while multiple providers are registered',
-      async (_name, invoke, getService, expectedRefusal) => {
+      async (
+        _name,
+        invoke,
+        getService,
+        expectedRefusal,
+        serviceResult,
+        expectedResult,
+      ) => {
         const service = getService();
 
         await expect(invoke()).resolves.toStrictEqual(expectedRefusal);
@@ -1148,9 +1168,9 @@ describe('PerpsController default provider', () => {
         expect(service).not.toHaveBeenCalled();
 
         aggregatedProvider.removeProvider('lighter');
-        service.mockResolvedValue({ success: true });
+        service.mockResolvedValue(serviceResult);
 
-        await expect(invoke()).resolves.toEqual({ success: true });
+        await expect(invoke()).resolves.toEqual(expectedResult);
 
         expect(service).toHaveBeenCalledTimes(1);
         expect(service.mock.calls[0][0].provider).toBe(aggregatedProvider);

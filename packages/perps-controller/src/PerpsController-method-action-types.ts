@@ -240,7 +240,7 @@ export type PerpsControllerSuspendChaseOrdersAction = {
  * Batch version of cancelOrder() that cancels multiple orders simultaneously
  *
  * @param params - The operation parameters.
- * @returns The batch cancellation results for each order.
+ * @returns Per-order results, plus `status`: `all`, `partial` or `none`.
  */
 export type PerpsControllerCancelOrdersAction = {
   type: `PerpsController:cancelOrders`;
@@ -264,7 +264,7 @@ export type PerpsControllerClosePositionAction = {
  * Batch version of closePosition() that closes multiple positions simultaneously
  *
  * @param params - The operation parameters.
- * @returns The batch close results for each position.
+ * @returns Per-position results, plus `status`: `all`, `partial` or `none`.
  */
 export type PerpsControllerClosePositionsAction = {
   type: `PerpsController:closePositions`;

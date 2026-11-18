@@ -1082,8 +1082,27 @@ export type ClosePositionsParams = {
   closeAll?: boolean; // Explicitly close all positions
 };
 
+/**
+ * Outcome of a batch cancel or close. `all`: every attempted item succeeded.
+ * `partial`: some succeeded and some failed. `none`: nothing succeeded,
+ * including when nothing matched the request. Requested items that were no
+ * longer open are not attempted and do not appear in `results`.
+ */
+export type BatchOperationStatus = 'all' | 'partial' | 'none';
+
+/**
+ * A batch result as `PerpsController` returns it, with its derived `status`.
+ */
+export type WithBatchOperationStatus<
+  Result extends ClosePositionsResult | CancelOrdersResult,
+> = Result & { status: BatchOperationStatus };
+
 export type ClosePositionsResult = {
-  success: boolean; // Overall success (true if at least one position closed)
+  /**
+   * True when at least one position closed, so it is also true on partial
+   * failure. Render from `status` instead.
+   */
+  success: boolean;
   successCount: number; // Number of positions closed successfully
   failureCount: number; // Number of positions that failed to close
   /**
@@ -1422,7 +1441,11 @@ export type CancelOrdersParams = {
 };
 
 export type CancelOrdersResult = {
-  success: boolean; // Overall success (true if at least one order cancelled)
+  /**
+   * True when at least one order cancelled, so it is also true on partial
+   * failure. Render from `status` instead.
+   */
+  success: boolean;
   successCount: number; // Number of orders cancelled successfully
   failureCount: number; // Number of orders that failed to cancel
   /**
@@ -2356,10 +2379,63 @@ export type OrderCapabilitiesUnavailableReason =
   | DirectProviderOrderCapabilitiesUnavailableReason
   | RoutedOrderCapabilitiesUnavailableReason;
 
+/**
+ * Price grid a market accepts. `significant_figures` (HyperLiquid): at most
+ * `maxSignificantFigures` significant figures and `maxDecimals` decimals;
+ * integer prices are always valid. `fixed_decimals` (Lighter): every price is
+ * a multiple of `tickSize`, which is `10^-decimals`.
+ */
+export type PerpsPricePrecision =
+  | Readonly<{
+      type: 'significant_figures';
+      maxSignificantFigures: number;
+      maxDecimals: number;
+    }>
+  | Readonly<{
+      type: 'fixed_decimals';
+      decimals: number;
+      /** Decimal string, e.g. "0.01". */
+      tickSize: string;
+    }>;
+
+/**
+ * Order limits the provider enforces for a market. Each optional field is
+ * omitted when the venue does not report it; clients must not fall back to
+ * another venue's value.
+ */
+export type PerpsOrderLimits = Readonly<{
+  /** Decimals a base-asset size may carry. */
+  sizeDecimals: number;
+  /** Minimum value of one order in USD. */
+  minOrderNotionalUsd?: number;
+  /** Minimum base-asset size of one order, as a decimal string. */
+  minOrderSize?: string;
+  /**
+   * Orders the two minimums above apply to; present with either of them.
+   * `all_orders`: every order. `resting_limit_orders`: limit-execution orders
+   * that are not IOC; market and IOC orders can go down to one size step.
+   * A full close is never refused for size.
+   */
+  minimumAppliesTo?: 'all_orders' | 'resting_limit_orders';
+  /** Rung count bounds of a Scale placement; present when Scale is supported. */
+  scaleOrderCount?: Readonly<{ min: number; max: number }>;
+  /** TWAP bounds; present when TWAP is supported. */
+  twap?: Readonly<{
+    minDurationMinutes: number;
+    maxDurationMinutes: number;
+    /** Minimum total TWAP value in USD. */
+    minNotionalUsd: number;
+  }>;
+}>;
+
 type ReadyPerpsOrderCapabilities = Readonly<{
   status: 'ready';
   providerId: PerpsProviderType;
   supportedStrategies: readonly StrategyOrderType[];
+  /** Price grid for this market. Omitted means not reported. */
+  pricePrecision?: PerpsPricePrecision;
+  /** Size, value, Scale and TWAP limits. Omitted means not reported. */
+  orderLimits?: PerpsOrderLimits;
   /**
    * Standalone stop/take-profit placements this market's provider executes.
    * Omitted means support is not reported; clients must not infer support

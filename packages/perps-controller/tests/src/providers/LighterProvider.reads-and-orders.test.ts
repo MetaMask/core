@@ -1500,6 +1500,18 @@ describe('LighterProvider', () => {
         providerId: 'lighter',
         supportedStrategies: ['scale'],
         supportedMarginModes: ['cross', 'isolated'],
+        pricePrecision: {
+          type: 'fixed_decimals',
+          decimals: 1,
+          tickSize: '0.1',
+        },
+        orderLimits: {
+          sizeDecimals: 5,
+          minOrderNotionalUsd: 10,
+          minOrderSize: '0.0002',
+          minimumAppliesTo: 'resting_limit_orders',
+          scaleOrderCount: { min: 2, max: 20 },
+        },
         attachedTpsl: {
           submission: 'native-oto-otoco',
           childCoverage: 'venue-native-zero-size',
@@ -1529,6 +1541,55 @@ describe('LighterProvider', () => {
         ],
       });
       expect(calls).toHaveLength(0);
+    });
+
+    it.each([
+      [
+        'malformed size decimals',
+        { supportedSizeDecimals: -1 },
+        { pricePrecision: true, orderLimits: false },
+      ],
+      [
+        'malformed price decimals',
+        { supportedPriceDecimals: 1.5 },
+        { pricePrecision: false, orderLimits: true },
+      ],
+    ])(
+      'omits the field its metadata does not support (%s)',
+      async (_name, override, present) => {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getOrderBooks.mockResolvedValue([
+          { ...BTC_MARKET, ...override },
+        ]);
+
+        const capabilities = await provider.getOrderCapabilities({
+          symbol: 'BTC',
+        });
+
+        expect('pricePrecision' in capabilities).toBe(present.pricePrecision);
+        expect('orderLimits' in capabilities).toBe(present.orderLimits);
+      },
+    );
+
+    it('omits minimums the market metadata does not carry', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBooks.mockResolvedValue([
+        { ...BTC_MARKET, minBaseAmount: '', minQuoteAmount: '0' },
+      ]);
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'BTC',
+      });
+
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        orderLimits: { sizeDecimals: 5, scaleOrderCount: { min: 2, max: 20 } },
+      });
+      expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
+      expect(capabilities).not.toHaveProperty(
+        'orderLimits.minOrderNotionalUsd',
+      );
+      expect(capabilities).not.toHaveProperty('orderLimits.minimumAppliesTo');
     });
 
     it('refreshes cached capability metadata before approving an inactive market', async () => {

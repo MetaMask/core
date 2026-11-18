@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `getOrderCapabilities` now reports `pricePrecision` and `orderLimits` for HyperLiquid and Lighter markets, with the new `PerpsPricePrecision` and `PerpsOrderLimits` types ([#11624](https://github.com/MetaMask/core/pull/11624))
+  - HyperLiquid: a `significant_figures` grid (5 significant figures, `6 - szDecimals` decimals), size decimals, the $10 minimum order value, Scale rung bounds and TWAP duration and value bounds
+  - Lighter: a `fixed_decimals` grid with its `tickSize`, size decimals, minimum order size and value, and Scale rung bounds
+  - `orderLimits.minimumAppliesTo` names the orders the minimums apply to: `all_orders` on HyperLiquid, `resting_limit_orders` on Lighter (market and IOC orders are exempt)
+  - Both fields are optional; omitted means the venue did not report them
+- Add `aggregateOrderBookLevels` and `groupOrderBook` to group an order book at a price step with exact decimal bucketing, plus the `GroupedOrderBook` type ([#11624](https://github.com/MetaMask/core/pull/11624))
+- Add `estimateCrossMaintenanceMargin` and `estimateCrossLiquidationPrice` for HyperLiquid cross-margin positions, plus the `CrossMarginPosition` type ([#11624](https://github.com/MetaMask/core/pull/11624))
+- Add `PERPS_ERROR_COPY` and `getPerpsErrorCopy`, a translation key and English default for every `PERPS_ERROR_CODES` value, and `PERPS_ORDER_TYPE_LABELS` for every `OrderType`, with the `PerpsErrorCopy` and `PerpsOrderTypeLabel` types ([#11624](https://github.com/MetaMask/core/pull/11624))
+- `cancelOrders` and `closePositions` now return `status: 'all' | 'partial' | 'none'`, since `success` is also true on partial failure; add `getBatchOperationStatus` and the `BatchOperationStatus` and `WithBatchOperationStatus` types ([#11624](https://github.com/MetaMask/core/pull/11624))
+- Document these in `docs/client-contract.md` ([#11624](https://github.com/MetaMask/core/pull/11624))
+
 ### Changed
 
 - Publish the `docs/` folder with the package, so clients read the docs for the controller version they install ([#11620](https://github.com/MetaMask/core/pull/11620))

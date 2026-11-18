@@ -159,6 +159,8 @@ import type {
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetOrderCapabilitiesParams,
+  PerpsOrderLimits,
+  PerpsPricePrecision,
   GetAccountStateParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -323,6 +325,7 @@ import { identifyLighterTwapParent } from '../utils/lighterTwapReconciliation.js
 import {
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  SCALE_ORDER_COUNT,
   TRIGGER_ORDER_TYPES,
 } from '../utils/orderTypes.js';
 import { assertExpectedPosition } from '../utils/positionProtection.js';
@@ -8498,6 +8501,7 @@ export class LighterProvider implements PerpsProvider {
       ),
       supportedMarginModes: Object.freeze(['cross', 'isolated'] as const),
       supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+      ...this.#getMarketPrecisionAndLimits(market),
       attachedTpsl: Object.freeze({
         submission: 'native-oto-otoco',
         childCoverage: 'venue-native-zero-size',
@@ -8523,6 +8527,56 @@ export class LighterProvider implements PerpsProvider {
         }),
       }),
     });
+  }
+
+  /**
+   * Price grid and order limits from a market's metadata. A field whose
+   * metadata is missing or malformed is omitted rather than defaulted. The
+   * size and value minimums are maker-only on Lighter.
+   *
+   * @param market - Market metadata from `orderBooks`.
+   * @returns `pricePrecision` and `orderLimits` when their metadata is valid.
+   */
+  #getMarketPrecisionAndLimits(market: LighterOrderBookMeta): {
+    pricePrecision?: PerpsPricePrecision;
+    orderLimits?: PerpsOrderLimits;
+  } {
+    const isDecimalCount = (value: number): boolean =>
+      Number.isSafeInteger(value) && value >= 0;
+    const minQuote = parseLighterStrictDecimal(market.minQuoteAmount);
+    const minBase = parseLighterStrictDecimal(market.minBaseAmount);
+    const hasMinQuote = minQuote !== null && minQuote > 0;
+    const hasMinBase = minBase !== null && minBase > 0;
+    return {
+      ...(isDecimalCount(market.supportedPriceDecimals)
+        ? {
+            pricePrecision: Object.freeze({
+              type: 'fixed_decimals',
+              decimals: market.supportedPriceDecimals,
+              tickSize: new BigNumber(10)
+                .pow(-market.supportedPriceDecimals)
+                .toFixed(),
+            }),
+          }
+        : {}),
+      ...(isDecimalCount(market.supportedSizeDecimals)
+        ? {
+            orderLimits: Object.freeze({
+              sizeDecimals: market.supportedSizeDecimals,
+              ...(hasMinQuote ? { minOrderNotionalUsd: minQuote } : {}),
+              ...(hasMinBase
+                ? { minOrderSize: new BigNumber(minBase).toFixed() }
+                : {}),
+              // Placement applies these only to maker orders
+              // (`isLighterMakerOrder`).
+              ...(hasMinQuote || hasMinBase
+                ? { minimumAppliesTo: 'resting_limit_orders' as const }
+                : {}),
+              scaleOrderCount: Object.freeze({ ...SCALE_ORDER_COUNT }),
+            }),
+          }
+        : {}),
+    };
   }
 
   /** Normalize a Scale preview without account or signer setup.

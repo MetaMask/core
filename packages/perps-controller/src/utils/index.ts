@@ -5,6 +5,7 @@
  * We use selective exports to avoid the name collision.
  */
 export * from './accountUtils.js';
+export { getBatchOperationStatus } from './batchOperationStatus.js';
 export {
   estimateCloseReceive,
   calculateNetClosedPnl,
@@ -47,8 +48,10 @@ export * from './idUtils.js';
 export * from './marketDataTransform.js';
 export * from './marketSearch.js';
 export * from './marketUtils.js';
+export * from './orderBookGrouping.js';
 export * from './orderCalculations.js';
 export * from './orderTypes.js';
+export * from './perpsClientCopy.js';
 export * from './perpsDiskPersistence.js';
 export * from './rewardsUtils.js';
 export * from './significantFigures.js';

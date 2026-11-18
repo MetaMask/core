@@ -17,6 +17,8 @@ import type {
   CancelOrderResult,
   OrderParams,
   OrderResult,
+  PerpsOrderLimits,
+  PerpsPricePrecision,
 } from '../../../src/types/index.js';
 import type { OrderType } from '../../../src/types/perps-types.js';
 import { hasFeeReductionAppliedFlag } from '../../../src/utils/subscriptionFeeWaiver.js';
@@ -86,6 +88,34 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 // Mock TradingReadinessCache - global singleton for signing operation caching
 vi.mock('../../../src/services/TradingReadinessCache');
 
+/**
+ * Price grid and order limits HyperLiquid reports for a market with
+ * `szDecimals` on mainnet.
+ *
+ * @param szDecimals - Market size decimals.
+ * @returns The capability fields derived from them.
+ */
+const hyperLiquidMarketLimits = (
+  szDecimals: number,
+): { pricePrecision: PerpsPricePrecision; orderLimits: PerpsOrderLimits } => ({
+  pricePrecision: {
+    type: 'significant_figures',
+    maxSignificantFigures: 5,
+    maxDecimals: 6 - szDecimals,
+  },
+  orderLimits: {
+    sizeDecimals: szDecimals,
+    minOrderNotionalUsd: 10,
+    minimumAppliesTo: 'all_orders',
+    scaleOrderCount: { min: 2, max: 20 },
+    twap: {
+      minDurationMinutes: 5,
+      maxDurationMinutes: 1440,
+      minNotionalUsd: 100,
+    },
+  },
+});
+
 describe('HyperLiquidProvider - strategy order types', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -136,9 +166,40 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(Object.isFrozen(capabilities)).toBe(true);
       expect(Object.isFrozen(capabilities.supportedStrategies)).toBe(true);
+    });
+
+    it('reports the price grid and order limits placement enforces', async () => {
+      useStrategyClients();
+
+      const capabilities = await provider.getOrderCapabilities({
+        symbol: 'ETH',
+      });
+
+      // ETH has szDecimals 4, so prices keep at most 6 - 4 decimals.
+      expect(capabilities).toMatchObject({
+        status: 'ready',
+        pricePrecision: {
+          type: 'significant_figures',
+          maxSignificantFigures: 5,
+          maxDecimals: 2,
+        },
+        orderLimits: {
+          sizeDecimals: 4,
+          minOrderNotionalUsd: 10,
+          minimumAppliesTo: 'all_orders',
+          scaleOrderCount: { min: 2, max: 20 },
+          twap: {
+            minDurationMinutes: 5,
+            maxDurationMinutes: 1440,
+            minNotionalUsd: 100,
+          },
+        },
+      });
+      expect(capabilities).not.toHaveProperty('orderLimits.minOrderSize');
     });
 
     it('resolves support before the asset mapping is populated', async () => {
@@ -171,6 +232,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
     });
 
@@ -203,6 +265,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(3),
       });
       expect(infoClient.meta).toHaveBeenCalledWith({ dex: 'xyz' });
     });
@@ -278,6 +341,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'take_profit_limit',
           ],
           supportedMarginModes: ['isolated'],
+          ...hyperLiquidMarketLimits(4),
         });
       },
     );
@@ -406,6 +470,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
     });
 
@@ -535,6 +600,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(0),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -570,6 +636,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -661,6 +728,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
 
       pendingSharedMeta.resolve({
@@ -694,6 +762,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -750,6 +819,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'take_profit_limit',
           ],
           supportedMarginModes: ['isolated', 'cross'],
+          ...hyperLiquidMarketLimits(3),
         },
         {
           status: 'ready',
@@ -775,6 +845,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             'take_profit_limit',
           ],
           supportedMarginModes: ['isolated', 'cross'],
+          ...hyperLiquidMarketLimits(4),
         },
       ]);
     });
@@ -884,6 +955,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -1012,6 +1084,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
@@ -1081,6 +1154,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -1130,6 +1204,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -1186,6 +1261,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
     });
@@ -1421,6 +1497,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           'take_profit_limit',
         ],
         supportedMarginModes: ['isolated', 'cross'],
+        ...hyperLiquidMarketLimits(4),
       });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
     });
