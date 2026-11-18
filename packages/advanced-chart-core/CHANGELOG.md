@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- Fix an excessive historical-data request when switching chart intervals ([#11625](https://github.com/MetaMask/core/pull/11625))
-  - Interval switches now set the visible time window and resolution atomically via `setTimeFrame`, so the initial load is bounded per interval instead of inheriting the previous interval's wide range and paginating deep into history; scroll-back still loads older bars on demand
+- Add an opt-in `atomicIntervalWindow` flag to the `SET_OHLCV_DATA` payload that bounds the initial historical-data load when switching chart intervals ([#11625](https://github.com/MetaMask/core/pull/11625))
+  - When enabled, an interval change applies the visible time window and the new resolution atomically via `setTimeFrame`, so the first data request is sized to the target window instead of inheriting the previous interval's wide range (which otherwise triggered a deep backward pagination request on coarse↔fine switches); scroll-back still loads older bars on demand
+  - Off by default: consumers that do not set the flag keep today's `setResolution` behavior
 
 ## [1.1.2]
 

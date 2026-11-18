@@ -109,6 +109,19 @@ export type SetOHLCVDataPayload = {
    * 4. else -> noData: true
    */
   slbMode?: boolean;
+  /**
+   * Opt-in. When true, an interval/resolution change sets the
+   * visible window AND the resolution atomically via `setTimeFrame`, so the
+   * first `getBars` `countBack` is sized from the target window instead of
+   * inheriting the previous interval's (wide) visible range — which otherwise
+   * triggers a deep backward pagination storm on coarse↔fine switches.
+   *
+   * Off by default: when absent or false the hot-reload branch uses plain
+   * `setResolution` exactly like today. Only consumers that have validated the
+   * atomic path (currently the extension) should opt in; Social Leaderboard
+   * and every other consumer stay on today's behavior until they do.
+   */
+  atomicIntervalWindow?: boolean;
 };
 
 export type RealtimeUpdateMessage = {

@@ -23,6 +23,7 @@ import {
   clearOhlcvPagination,
   doesLegendOwnLayoutSettle,
   getActiveStudies,
+  getAtomicIntervalWindow,
   getCurrentResolution,
   getHotReloadSeq,
   getMaStudies,
@@ -32,6 +33,7 @@ import {
   getVisibleFromMs,
   getWidget,
   isChartReady,
+  setAtomicIntervalWindow,
   setCurrentResolution,
   setLegendOwnsLayoutSettle,
   setOhlcvData,
@@ -99,6 +101,10 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
     setSlbCenteringPending(true);
   }
 
+  // Opt-in: default OFF so non-opt-in consumers keep today's plain
+  // `setResolution` interval-switch behavior.
+  setAtomicIntervalWindow(Boolean(payload.atomicIntervalWindow));
+
   if (payload.pagination) {
     setOhlcvPagination({
       nextCursor: payload.pagination.nextCursor ?? null,
@@ -131,10 +137,9 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
         applyVisibleRange(chart);
         emitLayoutSettled();
       } else {
-        // Different resolution. Apply the target window AND the new resolution
-        // atomically via `setTimeFrame` rather than `setResolution` alone.
+        // Different resolution.
         //
-        // ASSETS-4400: on a resolution change TradingView keeps the previous
+        // On a resolution change TradingView keeps the previous
         // interval's visible TIME range and sizes the first `getBars`
         // `countBack` to fill that range at the new resolution. Switching
         // between a coarse and a fine interval therefore derives an enormous
@@ -143,11 +148,19 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
         // a deep backward pagination storm. This `getBars` fires synchronously
         // inside `setResolution`, before any `setVisibleRange` can narrow the
         // view, so pre-narrowing asynchronously does not help and widening on a
-        // fine→coarse switch storms the other way. Setting the window and
-        // resolution in a single `setTimeFrame` call means `countBack` is always
-        // computed from the target window at the new resolution, eliminating the
-        // storm in both directions. History/pagination is untouched (no
-        // `noData`), so scroll-back still lazily loads older bars.
+        // fine→coarse switch storms the other way.
+        //
+        // The fix sets the target window AND the new resolution atomically in a
+        // single `setTimeFrame` call, so `countBack` is always computed from the
+        // target window at the new resolution, eliminating the storm in both
+        // directions. History/pagination is untouched (no `noData`), so
+        // scroll-back still lazily loads older bars.
+        //
+        // This atomic path is OPT-IN (`atomicIntervalWindow`) so consumers that
+        // have not validated it — e.g. Social Leaderboard — keep today's plain
+        // `setResolution` behavior. When the flag is off/absent, or there is no
+        // target window, or the library lacks `setTimeFrame`, we fall back to
+        // `setResolution` exactly like before.
         claimLegendSettleOwnership();
         const seq = bumpHotReloadSeq();
         const fromMs = getVisibleFromMs();
@@ -161,12 +174,17 @@ export function handleSetOHLCVData(payload: SetOHLCVDataPayload): void {
           emitLayoutSettled();
         };
 
-        if (fromMs === null || typeof widget.setTimeFrame !== 'function') {
-          // No target window (auto-fit), or the running charting library does
-          // not expose `setTimeFrame` — fall back to a plain resolution switch.
+        if (
+          !getAtomicIntervalWindow() ||
+          fromMs === null ||
+          typeof widget.setTimeFrame !== 'function'
+        ) {
+          // Not opted in, no target window (auto-fit), or the running charting
+          // library does not expose `setTimeFrame` — fall back to a plain
+          // resolution switch (today's behavior).
           chart.setResolution(newResolution, finishResolutionSwitch);
         } else {
-          const range = computeClampedVisibleRangeSec(fromMs);
+          const range = computeVisibleRangeSec(fromMs, { clampToOldest: true });
           try {
             widget.setTimeFrame({
               val: { type: 'time-range', from: range.from, to: range.to },
@@ -217,32 +235,40 @@ export function handleRealtimeUpdate(
 }
 
 /**
- * Compute the visible range (in whole seconds) for a requested start time,
- * pinned to the loaded data: the start is clamped so it never predates the
- * oldest loaded bar, and the end is the last loaded bar plus a 2-bar right pad.
+ * Compute the visible range (in whole seconds) for a requested start time: the
+ * end is the last loaded bar plus a 2-bar right pad, falling back to
+ * `Date.now()` when no bars are loaded.
  *
- * Clamping the start (ASSETS-4400) keeps the range inside already-loaded bars
- * so framing never asks TradingView to fill an interval older than what is in
- * memory (which would trigger network pagination). Falls back to `Date.now()`
- * for the end when no bars are loaded.
+ * When `clampToOldest` is set (opt-in), the start is clamped so it
+ * never predates the oldest loaded bar, keeping the range inside already-loaded
+ * bars so framing never asks TradingView to fill an interval older than what is
+ * in memory (which would trigger network pagination). When unset, the start is
+ * used as-is — today's non-opt-in behavior.
  *
  * @param fromMs - Requested visible-range start, in milliseconds.
- * @returns The clamped `{ from, to }` range in whole seconds.
+ * @param options - Range options.
+ * @param options.clampToOldest - Clamp the start to the oldest loaded bar.
+ * @returns The `{ from, to }` range in whole seconds.
  */
-function computeClampedVisibleRangeSec(fromMs: number): {
+function computeVisibleRangeSec(
+  fromMs: number,
+  options: { clampToOldest: boolean },
+): {
   from: number;
   to: number;
 } {
   const data = getOhlcvData();
   const lastBar = data.at(-1);
   const oldestBarMs = data[0]?.time;
-  const clampedFromMs =
-    oldestBarMs === undefined ? fromMs : Math.max(fromMs, oldestBarMs);
+  const effectiveFromMs =
+    options.clampToOldest && oldestBarMs !== undefined
+      ? Math.max(fromMs, oldestBarMs)
+      : fromMs;
   const toSec = lastBar
     ? Math.ceil(lastBar.time / 1000)
     : Math.ceil(Date.now() / 1000);
   const barPadSec = getApproxBarDurationSec(data) * 2;
-  return { from: Math.floor(clampedFromMs / 1000), to: toSec + barPadSec };
+  return { from: Math.floor(effectiveFromMs / 1000), to: toSec + barPadSec };
 }
 
 function applyVisibleRange(
@@ -267,10 +293,14 @@ function applyVisibleRange(
     return;
   }
 
-  // Strategy A / B: anchor the visible range from `visibleFromMs` (clamped to
-  // the oldest loaded bar) to the last bar + 2-bar padding. This one-sided
-  // framing works because Token Details and Perps always want the right edge
-  // near the latest candle.
+  // Strategy A / B: anchor the visible range from `visibleFromMs` to the last
+  // bar + 2-bar padding. This one-sided framing works because Token Details and
+  // Perps always want the right edge near the latest candle.
+  //
+  // Opt-in: when `atomicIntervalWindow` is set, the start is clamped to the
+  // oldest loaded bar so the pin never frames an interval older than the bars
+  // in memory. Non-opt-in consumers keep the unclamped start.
+  const clampToOldest = getAtomicIntervalWindow();
   const capturedGeneration = getOhlcvGeneration();
   const subscription = chart.onDataLoaded();
   const onLoaded = (): void => {
@@ -278,10 +308,8 @@ function applyVisibleRange(
     if (capturedGeneration !== getOhlcvGeneration()) {
       return;
     }
-    // Clamp the start to the oldest loaded bar (ASSETS-4400) so the pin never
-    // frames an interval older than the bars in memory.
     try {
-      chart.setVisibleRange(computeClampedVisibleRangeSec(fromMs), {
+      chart.setVisibleRange(computeVisibleRangeSec(fromMs, { clampToOldest }), {
         percentRightMargin: 0,
       });
     } catch (error) {
