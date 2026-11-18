@@ -21,9 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Send the `add_margin` and `remove_margin` Risk Management actions through `PERPS_EVENT_VALUE` constants instead of string literals ([#11608](https://github.com/MetaMask/core/pull/11608))
 - HyperLiquid now allows Cross margin on HIP-3 markets whose venue `marginMode` is `normal` or absent: `getOrderCapabilities` reports `supportedMarginModes` `['isolated', 'cross']` for them and Cross orders are accepted ([#11610](https://github.com/MetaMask/core/pull/11610))
   - HIP-3 markets with `marginMode` `noCross` or `strictIsolated`, or `onlyIsolated`, still report `['isolated']` and refuse Cross with `ORDER_MARGIN_MODE_UNSUPPORTED`
-  - With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position now transfers only the new order's margin instead of the whole position's
+  - With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position now transfers the new order's margin instead of the whole position's, plus the margin the existing position needs when the order lowers its leverage ([#11623](https://github.com/MetaMask/core/pull/11623))
   - `adaptMarketFromSDK` and `getMarkets` no longer return `marginMode: 'normal'`, a value outside `MarketInfo.marginMode`; a market without a restriction now has no `marginMode`, and the Terminal global snapshot no longer fails schema validation when a market sends `normal`
-- With manual HIP-3 transfers (`useUnifiedAccount: false`), adding to a Cross position at a lower leverage now also transfers the margin the existing position needs at that leverage, so the order is no longer underfunded ([#11623](https://github.com/MetaMask/core/pull/11623))
 
 ## [24.1.0]
 

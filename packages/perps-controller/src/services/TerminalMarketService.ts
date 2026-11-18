@@ -78,7 +78,7 @@ const GlobalSnapshotMarketStruct = type({
   listedAt: nullable(number()),
   trend: array(tuple([number(), string()])),
   onlyIsolated: optional(nullable(boolean())),
-  marginMode: optional(nullable(enums([...HYPERLIQUID_VENUE_MARGIN_MODES]))),
+  marginMode: optional(nullable(enums(HYPERLIQUID_VENUE_MARGIN_MODES))),
 });
 
 const GlobalSnapshotStruct = type({
