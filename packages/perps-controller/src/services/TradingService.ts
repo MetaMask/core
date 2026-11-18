@@ -1092,7 +1092,7 @@ export class TradingService {
           parseFloat(position.returnOnEquity) * 100,
       }),
       ...(params.trackingData?.totalFee !== undefined && {
-        [PERPS_EVENT_PROPERTY.FEE]: params.trackingData.totalFee,
+        [PERPS_EVENT_PROPERTY.FEES]: params.trackingData.totalFee,
       }),
       ...(params.trackingData?.metamaskFee !== undefined && {
         [PERPS_EVENT_PROPERTY.METAMASK_FEE]: params.trackingData.metamaskFee,
@@ -3000,7 +3000,9 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.EXECUTED,
           [PERPS_EVENT_PROPERTY.ASSET]: symbol,
           [PERPS_EVENT_PROPERTY.ACTION]:
-            parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
+            parseFloat(amount) > 0
+              ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
+              : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
           [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         });
@@ -3016,7 +3018,9 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
           [PERPS_EVENT_PROPERTY.ASSET]: symbol,
           [PERPS_EVENT_PROPERTY.ACTION]:
-            parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
+            parseFloat(amount) > 0
+              ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
+              : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
           [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
           [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
@@ -3054,7 +3058,9 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.ASSET]: symbol,
         [PERPS_EVENT_PROPERTY.ACTION]:
-          parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
+          parseFloat(amount) > 0
+            ? PERPS_EVENT_VALUE.ACTION.ADD_MARGIN
+            : PERPS_EVENT_VALUE.ACTION.REMOVE_MARGIN,
         [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,

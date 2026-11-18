@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
-import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
+import {
+  PERPS_EVENT_PROPERTY,
+  PERPS_EVENT_VALUE,
+} from '../../../src/constants/eventNames.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import { TradingService } from '../../../src/services/TradingService.js';
@@ -5525,6 +5528,141 @@ describe('TradingService', () => {
           perp_discovery_source: 'top_movers',
         }),
       );
+    });
+  });
+
+  describe('TAT-4662 analytics consistency', () => {
+    it('reads add_margin from PERPS_EVENT_VALUE.ACTION at emit time', async () => {
+      mockProvider.updateMargin = vi.fn().mockResolvedValue({ success: true });
+      const actionValues = PERPS_EVENT_VALUE.ACTION as unknown as Record<
+        string,
+        string
+      >;
+      const original = actionValues.ADD_MARGIN;
+      actionValues.ADD_MARGIN = 'sentinel_add_margin';
+
+      try {
+        await tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'BTC',
+          amount: '100',
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.RiskManagement,
+          expect.objectContaining({ action: 'sentinel_add_margin' }),
+        );
+      } finally {
+        actionValues.ADD_MARGIN = original;
+      }
+    });
+
+    it('reads remove_margin from PERPS_EVENT_VALUE.ACTION at emit time', async () => {
+      mockProvider.updateMargin = vi.fn().mockResolvedValue({ success: true });
+      const actionValues = PERPS_EVENT_VALUE.ACTION as unknown as Record<
+        string,
+        string
+      >;
+      const original = actionValues.REMOVE_MARGIN;
+      actionValues.REMOVE_MARGIN = 'sentinel_remove_margin';
+
+      try {
+        await tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'BTC',
+          amount: '-100',
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.RiskManagement,
+          expect.objectContaining({ action: 'sentinel_remove_margin' }),
+        );
+      } finally {
+        actionValues.REMOVE_MARGIN = original;
+      }
+    });
+
+    it('reports the trade fee under the shared FEES key', async () => {
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-1',
+        filledSize: '0.1',
+        averagePrice: '50000',
+      });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          trackingData: { totalFee: 5, marketPrice: 50000 },
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const executed = (
+        mockDeps.metrics.trackPerpsEvent as Mock
+      ).mock.calls.find(
+        ([event, props]) =>
+          event === PerpsAnalyticsEvent.TradeTransaction &&
+          props.status === PERPS_EVENT_VALUE.STATUS.EXECUTED,
+      )?.[1];
+      expect(executed).toEqual(
+        expect.objectContaining({ [PERPS_EVENT_PROPERTY.FEES]: 5 }),
+      );
+      expect(executed).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEE);
+    });
+
+    it('reports the close fee under the same shared FEES key', async () => {
+      const position: Position = {
+        symbol: 'BTC',
+        size: '0.5',
+        entryPrice: '50000',
+        liquidationPrice: '45000',
+        leverage: { type: 'cross', value: 10 },
+        marginUsed: '2500',
+        maxLeverage: 20,
+        positionValue: '25000',
+        returnOnEquity: '0.2',
+        unrealizedPnl: '5000',
+        cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+        takeProfitCount: 0,
+        stopLossCount: 0,
+      };
+      mockGetPositions.mockResolvedValue([position]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+        filledSize: '0.5',
+        averagePrice: '55000',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          trackingData: { totalFee: 7, marketPrice: 50000 },
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const executed = (
+        mockDeps.metrics.trackPerpsEvent as Mock
+      ).mock.calls.find(
+        ([event, props]) =>
+          event === PerpsAnalyticsEvent.PositionCloseTransaction &&
+          props.status === PERPS_EVENT_VALUE.STATUS.EXECUTED,
+      )?.[1];
+      expect(executed).toEqual(
+        expect.objectContaining({ [PERPS_EVENT_PROPERTY.FEES]: 7 }),
+      );
+      expect(executed).not.toHaveProperty(PERPS_EVENT_PROPERTY.FEE);
     });
   });
 });
