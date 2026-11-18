@@ -1364,6 +1364,21 @@ describe('SubscriptionDelegationService', () => {
       expect(result).toStrictEqual(STARTED_SUBSCRIPTION);
     });
 
+    it('forwards useTestClock when the caller requests a Stripe test clock', async () => {
+      const { service, mocks } = setup();
+
+      await service.startSubscriptionWithDelegation({
+        ...START_REQUEST,
+        useTestClock: true,
+      });
+
+      expect(mocks.startSubscriptionWithCrypto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          useTestClock: true,
+        }),
+      );
+    });
+
     it('reuses an active payment permission without signing or persisting it again', async () => {
       const stored = buildStoredDelegation();
       const { service, mocks } = setup({

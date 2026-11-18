@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When the balance covers the charge, it calls `SubscriptionController:updatePaymentMethod` with no `delegationHash` or `rawTransaction`, so the Subscription API reuses the stored delegation
 - Add `SubscriptionDelegationService.destroy`, which stops the periodic charge re-check ([#11612](https://github.com/MetaMask/core/pull/11612))
 - Add `isSubscriptionChargeRetryable`, which reports whether a crypto subscription is stuck on a charge a funded Money Account can unblock ([#11612](https://github.com/MetaMask/core/pull/11612))
+- Add optional `useTestClock` to `StartSubscriptionWithDelegationRequest` and forward it to `SubscriptionController:startSubscriptionWithCrypto` so Money Account checkout can attach a Stripe test clock ([#11594](https://github.com/MetaMask/core/pull/11594))
 
 ### Changed
 
@@ -22,8 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Delegate the `KeyringController:getState`, `AuthenticationController:isSignedIn` and `SubscriptionController:updatePaymentMethod` actions
   - Delegate the `KeyringController:unlock`, `SubscriptionController:stateChange` and `TransactionController:transactionConfirmed` events
 - Add dependency on `@metamask/keyring-controller` `^28.2.2` ([#11612](https://github.com/MetaMask/core/pull/11612))
-
-- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/authenticated-user-storage` from `^4.1.0` to `^4.2.0` ([#11488](https://github.com/MetaMask/core/pull/11488))
