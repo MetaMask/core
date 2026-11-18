@@ -112,6 +112,7 @@ export type TransakBuyQuote = {
   notes: { [prop: string]: string | number | boolean | null }[];
   requestedAssetId: string;
   requestedChainId: string;
+  termsIds?: string[];
 };
 
 export type TransakKycRequirement = {
@@ -124,14 +125,23 @@ export type TransakKycRequirement = {
   isAllowedToPlaceOrder: boolean;
 };
 
+export type TransakAdditionalRequirementOption = {
+  name: string;
+  value: string;
+};
+
 export type TransakAdditionalRequirement = {
   type: string;
   metadata?: {
-    options: string[];
-    documentProofOptions: string[];
-    expiresAt: string;
-    kycUrl: string;
-    workFlowRunId: string;
+    options?: string[];
+    documentProofOptions?: string[];
+    expiresAt?: string;
+    kycUrl?: string;
+    workFlowRunId?: string;
+    // MiCA/EEA specific metadata
+    sourceOfFundsTypeOptions?: TransakAdditionalRequirementOption[];
+    employmentStatusOptions?: TransakAdditionalRequirementOption[];
+    countryOfCitizenshipOptions?: TransakAdditionalRequirementOption[];
   };
 };
 
@@ -283,6 +293,17 @@ export type TransakIdProofStatus = {
   randomLogIdentifier: string;
 };
 
+export type SubmitMicaConsentRequest = {
+  consentedAt: string;
+};
+
+export type SubmitSourceOfIncomeRequest = {
+  monthlyVolume: string;
+  sourceOfFundsType: string;
+  employmentStatus: string;
+  countryOfCitizenship: string;
+};
+
 // === ENVIRONMENT ===
 
 export enum TransakEnvironment {
@@ -356,6 +377,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'cancelOrder',
   'cancelAllActiveOrders',
   'getActiveOrders',
+  'submitMicaConsent',
+  'submitSourceOfIncome',
 ] as const;
 
 /**
@@ -598,6 +621,7 @@ const BuyQuoteStruct = looseObject({
   nonce: optional(number()),
   cryptoLiquidityProvider: optional(string()),
   notes: optional(array(record(string(), any()))),
+  termsIds: optional(array(string())),
 });
 
 const KycRequirementStruct = looseObject({
@@ -1674,6 +1698,36 @@ export class TransakService extends BaseDataService<
       'getActiveOrders',
       '/api/v2/active-orders',
       ActiveOrdersStruct,
+    );
+  }
+
+  async submitMicaConsent(consentedAt: string): Promise<void> {
+    this.#ensureAccessToken();
+    await this.#transakPost(
+      'submitMicaConsent',
+      '/api/v2/user/consent',
+      any(),
+      { consentedAt },
+    );
+  }
+
+  async submitSourceOfIncome(
+    monthlyVolume: string,
+    sourceOfFundsType: string,
+    employmentStatus: string,
+    countryOfCitizenship: string,
+  ): Promise<void> {
+    this.#ensureAccessToken();
+    await this.#transakPost(
+      'submitSourceOfIncome',
+      '/api/v2/user/source-of-income',
+      any(),
+      {
+        monthlyVolume,
+        sourceOfFundsType,
+        employmentStatus,
+        countryOfCitizenship,
+      },
     );
   }
 }

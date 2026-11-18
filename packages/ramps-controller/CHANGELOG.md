@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `submitMicaConsent` method to `TransakService` (also exposed on the messenger as `TransakService:submitMicaConsent`) for submitting MiCA consent with an ISO 8601 timestamp ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+- Add `submitSourceOfIncome` method to `TransakService` (also exposed on the messenger as `TransakService:submitSourceOfIncome`) for submitting source of income details including monthly volume, source of funds type, employment status, and country of citizenship ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+- Add `TransakAdditionalRequirementOption` type for structured option lists with `name` and `value` fields ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+- Add `SubmitMicaConsentRequest` and `SubmitSourceOfIncomeRequest` types for MiCA/EEA KYC submission payloads ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+
+### Changed
+
+- **BREAKING:** `TransakAdditionalRequirement.metadata` now supports MiCA/EEA-specific fields: `sourceOfFundsTypeOptions`, `employmentStatusOptions`, and `countryOfCitizenshipOptions` as arrays of `TransakAdditionalRequirementOption` (with `name` and `value` properties). Previously, options were always `string[]`. Clients that handle `getAdditionalRequirements` responses must check whether option fields are `string[]` or `TransakAdditionalRequirementOption[]`. All metadata fields are now optional ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+- `TransakBuyQuote` now includes an optional `termsIds` field (array of strings) for MiCA/EEA disclaimer identifiers such as `MICA_EEA_BUY` and `MICA_EEA_SELL` ([#TRAM-4400](https://github.com/MetaMask/core/pull/XXXXX))
+
 ## [30.1.0]
 
 ### Added

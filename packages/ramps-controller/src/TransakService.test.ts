@@ -1184,6 +1184,59 @@ describe('TransakService', () => {
 
       expect(await promise).toBeDefined();
     });
+
+    it('returns quote with MiCA/EEA termsIds for disclaimers', async () => {
+      nockTranslation();
+
+      const quoteWithTermsIds = {
+        ...MOCK_BUY_QUOTE,
+        termsIds: ['MICA_EEA_BUY', 'MICA_EEA_SELL'],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(true)
+        .reply(200, { data: quoteWithTermsIds });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'EUR',
+        'eip155:1/slip44:60',
+        'eip155:1',
+        'credit_debit_card',
+        '100',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.termsIds).toStrictEqual(['MICA_EEA_BUY', 'MICA_EEA_SELL']);
+    });
+
+    it('returns quote without termsIds when not provided by API', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(true)
+        .reply(200, { data: MOCK_BUY_QUOTE });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'USD',
+        'eip155:1/slip44:60',
+        'eip155:1',
+        'credit_debit_card',
+        '100',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result.termsIds).toBeUndefined();
+    });
   });
 
   describe('getTranslation', () => {
@@ -1386,6 +1439,81 @@ describe('TransakService', () => {
       expect(result).toStrictEqual(MOCK_ADDITIONAL_REQUIREMENTS);
     });
 
+    it('fetches MiCA/EEA CONSENT form requirement with metadata', async () => {
+      const micaConsentRequirement = {
+        formsRequired: [
+          {
+            type: 'CONSENT',
+            metadata: {
+              expiresAt: '2025-12-31T00:00:00.000Z',
+            },
+          },
+        ],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/additional-requirements')
+        .query((query) => query['metadata[quoteId]'] === 'quote-mica-1')
+        .reply(200, { data: micaConsentRequirement });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getAdditionalRequirements('quote-mica-1');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toStrictEqual(micaConsentRequirement);
+      expect(result.formsRequired[0].type).toBe('CONSENT');
+    });
+
+    it('fetches MiCA/EEA SOURCE_OF_INCOME form requirement with option lists', async () => {
+      const sourceOfIncomeRequirement = {
+        formsRequired: [
+          {
+            type: 'SOURCE_OF_INCOME',
+            metadata: {
+              sourceOfFundsTypeOptions: [
+                { name: 'Salary', value: 'salary' },
+                { name: 'Business Income', value: 'business_income' },
+                { name: 'Savings', value: 'savings' },
+              ],
+              employmentStatusOptions: [
+                { name: 'Employed', value: 'employed' },
+                { name: 'Self-Employed', value: 'self_employed' },
+                { name: 'Unemployed', value: 'unemployed' },
+              ],
+              countryOfCitizenshipOptions: [
+                { name: 'Germany', value: 'DE' },
+                { name: 'France', value: 'FR' },
+                { name: 'Spain', value: 'ES' },
+              ],
+            },
+          },
+        ],
+      };
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/kyc/additional-requirements')
+        .query((query) => query['metadata[quoteId]'] === 'quote-eea-1')
+        .reply(200, { data: sourceOfIncomeRequirement });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getAdditionalRequirements('quote-eea-1');
+      await vi.runAllTimersAsync();
+      await flushPromises();
+      const result = await promise;
+
+      expect(result).toStrictEqual(sourceOfIncomeRequirement);
+      expect(result.formsRequired[0].type).toBe('SOURCE_OF_INCOME');
+      expect(result.formsRequired[0].metadata?.sourceOfFundsTypeOptions).toHaveLength(3);
+      expect(result.formsRequired[0].metadata?.employmentStatusOptions).toHaveLength(3);
+      expect(result.formsRequired[0].metadata?.countryOfCitizenshipOptions).toHaveLength(3);
+    });
+
     it('throws when not authenticated', async () => {
       const { service } = getService();
       await expect(service.getAdditionalRequirements('q-1')).rejects.toThrow(
@@ -1418,6 +1546,157 @@ describe('TransakService', () => {
       await expect(
         service.submitSsnDetails('111-22-3333', 'q1'),
       ).rejects.toThrow('Authentication required');
+    });
+  });
+
+  describe('submitMicaConsent', () => {
+    it('submits MiCA consent with ISO 8601 timestamp', async () => {
+      const consentedAt = '2025-01-15T10:30:00.000Z';
+
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/consent',
+          (body) => body.consentedAt === consentedAt,
+        )
+        .reply(200, { data: null });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitMicaConsent(consentedAt);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toBeUndefined();
+    });
+
+    it('submits MiCA consent with ISO 8601 timestamp with offset', async () => {
+      const consentedAt = '2025-01-15T10:30:00+01:00';
+
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/consent',
+          (body) => body.consentedAt === consentedAt,
+        )
+        .reply(200, { data: null });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitMicaConsent(consentedAt);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toBeUndefined();
+    });
+
+    it('throws when not authenticated', async () => {
+      const { service } = getService();
+      await expect(
+        service.submitMicaConsent('2025-01-15T10:30:00.000Z'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('throws when the API returns an error', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/user/consent')
+        .reply(400, { error: { code: '5001', message: 'Invalid timestamp' } });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitMicaConsent('invalid-timestamp');
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '400'");
+    });
+  });
+
+  describe('submitSourceOfIncome', () => {
+    it('submits source of income details', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/source-of-income',
+          (body) =>
+            body.monthlyVolume === '5000' &&
+            body.sourceOfFundsType === 'salary' &&
+            body.employmentStatus === 'employed' &&
+            body.countryOfCitizenship === 'DE',
+        )
+        .reply(200, { data: null });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitSourceOfIncome(
+        '5000',
+        'salary',
+        'employed',
+        'DE',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toBeUndefined();
+    });
+
+    it('submits source of income with different employment status', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/user/source-of-income',
+          (body) =>
+            body.monthlyVolume === '10000' &&
+            body.sourceOfFundsType === 'business_income' &&
+            body.employmentStatus === 'self_employed' &&
+            body.countryOfCitizenship === 'FR',
+        )
+        .reply(200, { data: null });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitSourceOfIncome(
+        '10000',
+        'business_income',
+        'self_employed',
+        'FR',
+      );
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toBeUndefined();
+    });
+
+    it('throws when not authenticated', async () => {
+      const { service } = getService();
+      await expect(
+        service.submitSourceOfIncome('5000', 'salary', 'employed', 'DE'),
+      ).rejects.toThrow('Authentication required');
+    });
+
+    it('throws when the API returns an error', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/user/source-of-income')
+        .reply(422, {
+          error: { code: '5002', message: 'Invalid source of funds type' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.submitSourceOfIncome(
+        '5000',
+        'invalid-type',
+        'employed',
+        'DE',
+      );
+      promise.catch(() => undefined);
+      await vi.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '422'");
     });
   });
 
