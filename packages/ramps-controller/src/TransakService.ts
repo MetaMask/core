@@ -138,7 +138,6 @@ export type TransakAdditionalRequirement = {
     expiresAt?: string;
     kycUrl?: string;
     workFlowRunId?: string;
-    // MiCA/EEA specific metadata
     sourceOfFundsTypeOptions?: TransakAdditionalRequirementOption[];
     employmentStatusOptions?: TransakAdditionalRequirementOption[];
     countryOfCitizenshipOptions?: TransakAdditionalRequirementOption[];
