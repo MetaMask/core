@@ -3194,7 +3194,7 @@ export class HyperLiquidSubscriptionService {
     const { callback, accountId } = params;
     const unsubscribe = this.#createSubscription(
       this.#positionSubscribers,
-      callback,
+      (positions: Position[]) => callback(positions),
     );
 
     // Increment position subscriber count

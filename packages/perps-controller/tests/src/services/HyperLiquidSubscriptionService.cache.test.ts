@@ -605,7 +605,7 @@ describe('HyperLiquidSubscriptionService', () => {
       const unsubscribeAccount = service.subscribeToAccount({
         callback: account,
       });
-      const unsubscribePositions = service.subscribeToPositions({
+      let unsubscribePositions = service.subscribeToPositions({
         callback: positions,
       });
       const onAccount = await accountFrames.promise;
@@ -646,28 +646,38 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.objectContaining({ stopLossCount: 1 }),
       ]);
 
-      const replay = vi.fn();
-      let unsubscribeReplay: (() => void) | undefined;
-      account.mockImplementationOnce(() => {
-        unsubscribeReplay = service.subscribeToPositions({ callback: replay });
+      const survivor = vi.fn();
+      const unsubscribeSurvivor = service.subscribeToPositions({
+        callback: survivor,
       });
       const callbackFailure = new Error('position listener failed');
-      positions.mockImplementationOnce(() => {
-        throw callbackFailure;
+      let callsAfterInvalidation = 0;
+      positions.mockImplementation(() => {
+        callsAfterInvalidation += 1;
+        if (callsAfterInvalidation > 1) {
+          throw callbackFailure;
+        }
       });
-      expect(() => onAccount({ dex: '', clearinghouseState: {} })).toThrow(
-        callbackFailure,
-      );
+      account.mockImplementationOnce(() => {
+        unsubscribePositions();
+        unsubscribePositions = service.subscribeToPositions({
+          callback: positions,
+        });
+      });
+      expect(() =>
+        onAccount({ dex: '', clearinghouseState: {} }),
+      ).not.toThrow();
       expect(account).toHaveBeenLastCalledWith(null);
-      expect(replay).toHaveBeenCalledOnce();
-      expect(replay).toHaveBeenLastCalledWith([
+      expect(callsAfterInvalidation).toBe(1);
+      expect(survivor).toHaveBeenLastCalledWith([
         expect.objectContaining({
           stopLossOrders: [
             expect.objectContaining({ coverageUnavailable: true }),
           ],
         }),
       ]);
-      unsubscribeReplay?.();
+      unsubscribeSurvivor();
+      positions.mockImplementation(() => undefined);
       expect(service.getFreshPositionsForAllDexs()).toBeNull();
       expect(positions).toHaveBeenLastCalledWith([
         expect.objectContaining({
