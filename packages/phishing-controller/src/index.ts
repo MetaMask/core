@@ -1,5 +1,21 @@
 export * from './PhishingController.js';
 export { findSimilarAddresses } from './address-poisoning.js';
+export { ApprovalDashboardError } from './approval-dashboard.js';
+export { SecurityAlertsApiService } from './SecurityAlertsApiService.js';
+export type {
+  SecurityAlertsApiServiceActions,
+  SecurityAlertsApiServiceEvents,
+  SecurityAlertsApiServiceMessenger,
+  SecurityAlertsApiServiceOptions,
+} from './SecurityAlertsApiService.js';
+export type { SecurityAlertsApiServiceGetApprovalDashboardAction } from './SecurityAlertsApiService-method-action-types.js';
+export type {
+  ApprovalDashboardChainResult,
+  ApprovalDashboardErrorCode,
+  ApprovalDashboardRecord,
+  ApprovalDashboardRequest,
+  ApprovalDashboardResponse,
+} from './approval-dashboard.js';
 export type {
   LegacyPhishingDetectorList,
   PhishingDetectorList,
