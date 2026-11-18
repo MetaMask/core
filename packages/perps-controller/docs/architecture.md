@@ -207,7 +207,7 @@ The controller provides the connect and disconnect primitives. The client decide
 | Account change                                                         | No reinit. User preload refreshes and the rewards address re-registers. Reconnecting the provider for the new account is the client's call.                                                                                                                                                              |
 | HIP-3 remote flag change                                               | `FeatureFlagConfigurationService` bumps `hip3ConfigVersion` and the preload watcher re-preloads. Providers get the new HIP-3 config on the next `init()`.                                                                                                                                                |
 
-`PERPS_CONSTANTS` carries the timings clients use, among them `ConnectionGracePeriodMs` (20 s), `ConnectionAttemptTimeoutMs` (30 s) and `ConnectRetryDelayMs` (200 ms).
+`PERPS_CONSTANTS` carries the default timings clients use, among them `ConnectionGracePeriodMs` (20 s), `ConnectionAttemptTimeoutMs` (30 s) and `ConnectRetryDelayMs` (200 ms). The controller does not read them; each client's connection owner does.
 
 Code: `src/PerpsController.ts` `init`, `#performInitialization`, `#beginReinitialization`, `getActiveProvider`, `reconnect`, `disconnect`, `#performDisconnect`, `toggleTestnet`, `switchProvider`; `src/services/HyperLiquidClientService.ts` `reconnect`; `src/constants/hyperLiquidConfig.ts` `HYPERLIQUID_TRANSPORT_CONFIG`; `src/constants/perpsConfig.ts` `PERPS_CONSTANTS`.
 
@@ -216,7 +216,7 @@ Code: `src/PerpsController.ts` `init`, `#performInitialization`, `#beginReinitia
 Agreed for every client ([TAT-4656](https://consensyssoftware.atlassian.net/browse/TAT-4656)). Perps review checks each line on Mobile, Extension and Terminal. Bracketed values are the current constants.
 
 - One owner per client decides when to call `init` and `disconnect`. Other components read state; they don't connect.
-- Use the `PERPS_CONSTANTS` timings (`ConnectionGracePeriodMs` 20 s, `ConnectionAttemptTimeoutMs` 30 s, `ConnectRetryDelayMs` 200 ms) instead of local values.
+- Read connection timings from one config per client. It defaults to the `PERPS_CONSTANTS` timings (`ConnectionGracePeriodMs` 20 s, `ConnectionAttemptTimeoutMs` 30 s, `ConnectRetryDelayMs` 200 ms), and an override goes in that config, not in a local literal.
 - On account change, reconnect the provider if the new account needs live data; the controller refreshes preload but does not reconnect.
 - While `initializationState` is not ready, show the loading or failed state; don't call data methods.
 - Every `subscribeTo*` call keeps its unsubscribe and calls it on teardown.

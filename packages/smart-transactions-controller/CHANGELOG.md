@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.3.0]
+
 ### Added
 
 - Add optional `accountHardwareType` to sentinel transaction metadata ([#10842](https://github.com/MetaMask/core/pull/10842))
@@ -208,7 +210,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.3.0...HEAD
+[27.3.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.3...@metamask/smart-transactions-controller@27.3.0
 [27.2.3]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.2...@metamask/smart-transactions-controller@27.2.3
 [27.2.2]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.1...@metamask/smart-transactions-controller@27.2.2
 [27.2.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.0...@metamask/smart-transactions-controller@27.2.1

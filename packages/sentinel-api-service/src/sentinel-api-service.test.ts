@@ -14,7 +14,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BASE_URL_TEMPLATE,
   ENVIRONMENT_DOMAIN,
-  NETWORK_STALE_TIME_MS,
   NETWORKS_STALE_TIME_MS,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
@@ -37,6 +36,9 @@ import {
 } from './types.js';
 import type {
   SentinelApiServiceMessenger,
+  SentinelApiServiceOptions,
+  SentinelApiServiceTraceCallback,
+  SentinelApiServiceTraceRequest,
   SentinelBatchStatusRequest,
   SentinelCancelRequest,
   SentinelGetFeesRequest,
@@ -44,6 +46,7 @@ import type {
   SentinelSimulationRequest,
   SentinelSubmitTransactionsRequest,
 } from './types.js';
+import { TRACES } from './types.js';
 
 // ============================================================
 // Fixtures
@@ -259,6 +262,7 @@ function createServiceMessenger(
  * @param options.fetch - A custom `fetch` implementation.
  * @param options.environment - The Sentinel environment to target.
  * @param options.policyOptions - Options forwarded to `createServicePolicy`.
+ * @param options.trace - Optional callback that records request traces.
  * @returns The service and its messengers.
  */
 function createService(
@@ -267,9 +271,8 @@ function createService(
     clientVersion?: string;
     fetch?: typeof fetch;
     environment?: SentinelEnvironment;
-    policyOptions?: ConstructorParameters<
-      typeof SentinelApiService
-    >[0]['policyOptions'];
+    policyOptions?: SentinelApiServiceOptions['policyOptions'];
+    trace?: SentinelApiServiceOptions['trace'];
   } = {},
 ): {
   service: SentinelApiService;
@@ -565,18 +568,18 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
-    it('caches the network configuration across calls', async () => {
+    it('requests a fresh network configuration on every call', async () => {
       const { service } = createService();
       mockNetworks();
       const scope = nock(OPTIMISM_URL)
         .get('/network')
-        .once()
+        .twice()
         .reply(200, MOCK_NETWORK);
 
-      const first = await service.getNetwork(CHAIN_ID_OPTIMISM);
-      const second = await service.getNetwork(CHAIN_ID_OPTIMISM);
-      expect(first).toStrictEqual(second);
-      scope.done();
+      await service.getNetwork(CHAIN_ID_OPTIMISM);
+      await service.getNetwork(CHAIN_ID_OPTIMISM);
+
+      expect(scope.isDone()).toBe(true);
       service.destroy();
     });
 
@@ -593,29 +596,6 @@ describe('SentinelApiService', () => {
       expect(await service.getNetwork(CHAIN_ID_OPTIMISM)).toStrictEqual(
         MOCK_NETWORK,
       );
-      service.destroy();
-    });
-
-    it('refetches the network configuration once the cache is stale', async () => {
-      const { service } = createService();
-      const now = Date.now();
-      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
-      mockNetworks(2);
-      const scope = nock(OPTIMISM_URL)
-        .get('/network')
-        .twice()
-        .reply(200, MOCK_NETWORK);
-
-      await service.getNetwork(CHAIN_ID_OPTIMISM);
-      dateNowSpy.mockReturnValue(now + NETWORK_STALE_TIME_MS - 1);
-      await service.getNetwork(CHAIN_ID_OPTIMISM);
-      expect(scope.pendingMocks()).toHaveLength(1);
-
-      dateNowSpy.mockReturnValue(now + NETWORK_STALE_TIME_MS + 1);
-      await service.getNetwork(CHAIN_ID_OPTIMISM);
-      scope.done();
-
-      dateNowSpy.mockRestore();
       service.destroy();
     });
 
@@ -868,6 +848,164 @@ describe('SentinelApiService', () => {
       expect(resultA).toStrictEqual(responseA);
       expect(resultB).toStrictEqual(responseB);
       service.destroy();
+    });
+
+    describe('tracing', () => {
+      /**
+       * Builds a trace callback that runs the provided function.
+       *
+       * @returns The trace callback spy.
+       */
+      function createTraceCallback(): SentinelApiServiceTraceCallback {
+        return vi.fn(
+          async (
+            _request: SentinelApiServiceTraceRequest,
+            fn?: () => unknown,
+          ) => {
+            return await Promise.resolve(fn?.());
+          },
+        ) as SentinelApiServiceTraceCallback;
+      }
+
+      it('traces a successful simulation', async () => {
+        const trace = createTraceCallback();
+        const { service } = createService({ trace });
+        mockNetworks();
+        nock(MAINNET_URL).post('/').reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
+
+        const result = await service.simulateTransactions(
+          CHAIN_ID_MAINNET,
+          MOCK_SIMULATION_REQUEST,
+        );
+
+        expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
+        expect(trace).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(trace).mock.calls[0]?.[0]).toStrictEqual({
+          name: TRACES.SIMULATE_TRANSACTIONS,
+          parentContext: undefined,
+          startTime: expect.any(Number),
+          data: {
+            chainId: CHAIN_ID_MAINNET,
+            transactionCount: MOCK_SIMULATION_REQUEST.transactions.length,
+            success: true,
+          },
+        });
+        service.destroy();
+      });
+
+      it('nests the trace under the trace context given by the caller', async () => {
+        const trace = createTraceCallback();
+        const { service } = createService({ trace });
+        const traceContext = { id: 'parent-span' };
+        mockNetworks();
+        nock(MAINNET_URL).post('/').reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
+
+        await service.simulateTransactions(
+          CHAIN_ID_MAINNET,
+          MOCK_SIMULATION_REQUEST,
+          { traceContext },
+        );
+
+        expect(vi.mocked(trace).mock.calls[0]?.[0].parentContext).toBe(
+          traceContext,
+        );
+        service.destroy();
+      });
+
+      it('records a failed simulation and still throws the request error', async () => {
+        const trace = createTraceCallback();
+        const { service } = createService({ trace });
+        mockNetworks();
+        nock(MAINNET_URL)
+          .post('/')
+          .reply(200, {
+            jsonrpc: '2.0',
+            id: '1',
+            error: { code: -32000, message: 'boom' },
+          });
+
+        await expect(
+          service.simulateTransactions(
+            CHAIN_ID_MAINNET,
+            MOCK_SIMULATION_REQUEST,
+          ),
+        ).rejects.toThrow(SentinelJsonRpcError);
+
+        expect(trace).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(trace).mock.calls[0]?.[0]).toStrictEqual({
+          name: TRACES.SIMULATE_TRANSACTIONS,
+          parentContext: undefined,
+          startTime: expect.any(Number),
+          data: {
+            chainId: CHAIN_ID_MAINNET,
+            transactionCount: MOCK_SIMULATION_REQUEST.transactions.length,
+            success: false,
+            errorName: 'SentinelJsonRpcError',
+          },
+        });
+        service.destroy();
+      });
+
+      it('records the error type when the request rejects with a non-error', async () => {
+        const trace = createTraceCallback();
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => MOCK_NETWORKS,
+          })
+          .mockRejectedValueOnce('boom');
+        const { service } = createService({
+          trace,
+          fetch: fetchMock as unknown as typeof fetch,
+        });
+
+        await expect(
+          service.simulateTransactions(
+            CHAIN_ID_MAINNET,
+            MOCK_SIMULATION_REQUEST,
+          ),
+        ).rejects.toBe('boom');
+
+        expect(vi.mocked(trace).mock.calls[0]?.[0].data).toStrictEqual({
+          chainId: CHAIN_ID_MAINNET,
+          transactionCount: MOCK_SIMULATION_REQUEST.transactions.length,
+          success: false,
+          errorName: 'string',
+        });
+        service.destroy();
+      });
+
+      it('returns the simulation when the trace callback throws', async () => {
+        const trace = vi.fn(() => {
+          throw new Error('trace boom');
+        }) as SentinelApiServiceTraceCallback;
+        const { service } = createService({ trace });
+        mockNetworks();
+        nock(MAINNET_URL).post('/').reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
+
+        const result = await service.simulateTransactions(
+          CHAIN_ID_MAINNET,
+          MOCK_SIMULATION_REQUEST,
+        );
+
+        expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
+        expect(trace).toHaveBeenCalledTimes(1);
+        service.destroy();
+      });
     });
   });
 
