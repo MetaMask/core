@@ -758,6 +758,53 @@ describe('PerpsController', () => {
       );
     });
 
+    it('accepts an implicit stream opened during deselection after the same wallet is selected', () => {
+      setupAggregatedMode();
+      const notifyGroupChange = (groupId: string): void => {
+        (mockMessenger.subscribe as Mock).mock.calls
+          .filter(
+            ([event]) =>
+              event === 'AccountTreeController:selectedAccountGroupChange',
+          )
+          .forEach(([, handler]) => handler(groupId, 'group-1'));
+      };
+      notifyGroupChange('');
+      controller.subscribeToAccount({ callback: vi.fn() });
+      const callback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      callback(accountState('100'));
+      expect(controller.state.accountState).toBeNull();
+
+      notifyGroupChange('group-1');
+      callback(accountState('200'));
+      expect(controller.state.accountState?.totalBalance).toBe('200');
+    });
+
+    it('keeps explicit foreign streams from reconciling selected state', () => {
+      setupAggregatedMode();
+      controller.subscribeToAccount({ callback: vi.fn() });
+      mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+        accountState('100'),
+      );
+      const consumer = vi.fn();
+      controller.subscribeToAccount({
+        accountId: 'eip155:1:0x00000000000000000000000000000000000000ff',
+        callback: consumer,
+      });
+      const previousState = controller.state;
+      selectedEvmAddress = '0x00000000000000000000000000000000000000bb';
+
+      mockProvider.subscribeToAccount.mock.calls[1][0].callback(
+        accountState('150'),
+      );
+
+      expect(controller.state).toBe(previousState);
+      expect(consumer).toHaveBeenLastCalledWith(
+        expect.objectContaining({ totalBalance: '150' }),
+        expect.any(Object),
+      );
+    });
+
     it('clears balances when a selected group has no EVM wallet', () => {
       setupAggregatedMode();
       controller.subscribeToAccount({ callback: vi.fn() });

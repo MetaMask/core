@@ -6,10 +6,12 @@ import {
   InitializationState,
   PerpsController,
 } from '../../src/PerpsController.js';
+import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
   PerpsActiveProviderMode,
+  PerpsChaseOrderOwnership,
   PerpsProvider,
   PerpsRecoveredDispatch,
   ReconcileChaseOrderCancellationParams,
@@ -84,9 +86,13 @@ type Fixture = {
  * Only the provider boundary and initialization delay are mocked.
  *
  * @param initialized - Whether to start with an already available provider.
+ * @param state - Optional persisted state to restore.
  * @returns Controller, provider calls, local outcomes and host selection.
  */
-function createFixture(initialized = true): Fixture {
+function createFixture(
+  initialized = true,
+  state: Partial<PerpsControllerState> = {},
+): Fixture {
   const host = createKeyringlessMessenger();
   host.rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
@@ -114,7 +120,7 @@ function createFixture(initialized = true): Fixture {
   }) satisfies PerpsProvider;
   const controller = new RecoveryContextController({
     messenger: host.messenger,
-    state: { ...getDefaultPerpsControllerState(), isTestnet: true },
+    state: { ...getDefaultPerpsControllerState(), isTestnet: true, ...state },
     infrastructure: createMockInfrastructure(),
     deferEligibilityCheck: true,
   });
@@ -184,6 +190,49 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
   beforeEach(() => {
     vi.mocked(wait).mockReset().mockResolvedValue(undefined);
     vi.mocked(HyperLiquidProvider).mockReset();
+  });
+
+  it('keeps a Chase ownership read current when startup refreshes restored balances', async () => {
+    const { controller, provider } = createFixture(true, {
+      perpsBalances: {
+        hyperliquid: {
+          totalBalance: '123',
+          unrealizedPnl: '0',
+          lastUpdated: 1,
+        },
+      },
+    });
+    const ownership: PerpsChaseOrderOwnership = {
+      status: 'unsupported',
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+      reason: 'No ownership history',
+    };
+    const pendingOwnership = createDeferred<PerpsChaseOrderOwnership>();
+    const entered = createDeferred<void>();
+    Object.assign(provider, {
+      getChaseOrderOwnership: vi.fn(() => {
+        entered.resolve();
+        return pendingOwnership.promise;
+      }),
+    });
+    provider.getAccountState.mockResolvedValue({
+      totalBalance: '123',
+      spendableBalance: '123',
+      withdrawableBalance: '123',
+      marginUsed: '0',
+      unrealizedPnl: '0',
+      returnOnEquity: '0',
+    });
+
+    const pendingRead = controller.getChaseOrderOwnership({
+      providerId: 'hyperliquid',
+      handle: 'original-chase',
+    });
+    await entered.promise;
+    await controller.getAccountState();
+    pendingOwnership.resolve(ownership);
+    await expect(pendingRead).resolves.toStrictEqual(ownership);
   });
 
   it.each(CONTEXT_CHANGES)(
