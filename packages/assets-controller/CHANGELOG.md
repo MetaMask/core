@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^28.2.0` to `^28.2.2` ([#11474](https://github.com/MetaMask/core/pull/11474), [#11537](https://github.com/MetaMask/core/pull/11537))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
+### Fixed
+
+- Preserve EVM token prices when requests or currency responses use different address casing ([#10063](https://github.com/MetaMask/core/pull/10063))
+- Isolate in-flight price requests after currency changes or full cache invalidation, and suppress retired subscription results before publication ([#10063](https://github.com/MetaMask/core/pull/10063))
+
 ## [20.4.1]
 
 ### Changed

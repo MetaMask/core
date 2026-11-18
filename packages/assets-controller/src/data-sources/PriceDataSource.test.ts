@@ -1,5 +1,6 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { createDeferredPromise } from '@metamask/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -697,7 +698,9 @@ describe('PriceDataSource', () => {
     );
 
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toBeDefined();
-    expect(response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeUndefined();
+    expect(
+      response.assetsPrice?.[normalizeAssetId(MOCK_TOKEN_ASSET)],
+    ).toBeUndefined();
 
     controller.destroy();
   });
@@ -1039,10 +1042,10 @@ describe('PriceDataSource', () => {
     const prices = await controller.fetchAssetPrices([MOCK_TOKEN_ASSET]);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [MOCK_TOKEN_ASSET],
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
       { currency: 'usd', includeMarketData: true },
     );
-    expect(prices[MOCK_TOKEN_ASSET]).toMatchObject({
+    expect(prices[normalizeAssetId(MOCK_TOKEN_ASSET)]).toMatchObject({
       assetPriceType: 'fungible',
       price: 1,
     });
@@ -1074,7 +1077,9 @@ describe('PriceDataSource', () => {
       [normalizeAssetId(MOCK_TOKEN_ASSET)],
       { currency: 'usd', includeMarketData: true },
     );
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+    expect(
+      context.response.assetsPrice?.[normalizeAssetId(MOCK_TOKEN_ASSET)],
+    ).toStrictEqual({
       assetPriceType: 'fungible',
       price: 1.0,
       usdPrice: 1.0,
@@ -1252,7 +1257,9 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(context.response.assetsPrice?.[anotherAsset]).toBeDefined();
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(
+      context.response.assetsPrice?.[normalizeAssetId(MOCK_TOKEN_ASSET)],
+    ).toBeDefined();
 
     controller.destroy();
   });
@@ -1392,61 +1399,385 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('coalesces parallel fetches for the same asset into a single API call', async () => {
+  it('coalesces EVM case variants without sharing middleware responses', async () => {
     vi.useFakeTimers();
-    let resolveApi: ((value: Record<string, unknown>) => void) | undefined;
-    const apiPromise = new Promise<Record<string, unknown>>((resolve) => {
-      resolveApi = resolve;
-    });
-
-    const { controller, apiClient } = setupController({
-      priceResponse: {
-        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
-      },
-    });
-
-    // Make the API call hang until we resolve manually
-    apiClient.prices.fetchV3SpotPrices.mockReturnValue(apiPromise);
-
-    const next = vi.fn().mockResolvedValue(undefined);
-    const balanceResponse = {
-      assetsBalance: {
-        'mock-account-id': {
-          [MOCK_TOKEN_ASSET]: { amount: '1' },
+    const flight = createDeferredPromise<Record<string, unknown>>();
+    const canonical = normalizeAssetId(MOCK_TOKEN_ASSET);
+    const { controller, apiClient } = setupController();
+    apiClient.prices.fetchV3SpotPrices.mockReturnValue(flight.promise);
+    const contexts = [0, 1].map(() =>
+      createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            'mock-account-id': { [canonical]: { amount: '1' } },
+          },
         },
-      },
-    };
+      }),
+    );
+    const next = vi.fn().mockResolvedValue(undefined);
+    const requests = contexts.map((context) =>
+      controller.assetsMiddleware(context, next),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    const explicitRequest = controller.fetchAssetPrices([
+      MOCK_TOKEN_ASSET,
+      canonical,
+    ]);
+    await vi.advanceTimersByTimeAsync(0);
+    flight.resolve({ [MOCK_TOKEN_ASSET]: createMockPriceData(1) });
+    await Promise.all(requests);
+    const explicitPrices = await explicitRequest;
 
-    // Fire two parallel middleware calls for the same asset
-    const context1 = createMiddlewareContext({
-      response: balanceResponse,
-    });
-    const context2 = createMiddlewareContext({
-      response: balanceResponse,
-    });
-
-    const promise1 = controller.assetsMiddleware(context1, next);
-    const promise2 = controller.assetsMiddleware(context2, next);
-
-    // Only ONE API call should have been made (second call joins inflight)
-    await vi.advanceTimersByTimeAsync(10000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
-
-    // Resolve the API
-    expect(resolveApi).toBeDefined();
-    if (resolveApi) {
-      resolveApi({ [MOCK_TOKEN_ASSET]: createMockPriceData(1.0) });
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [canonical],
+      { currency: 'usd', includeMarketData: true },
+    );
+    expect(contexts[0]?.response).not.toBe(contexts[1]?.response);
+    for (const context of contexts) {
+      expect(Object.keys(context.response.assetsPrice ?? {})).toStrictEqual([
+        canonical,
+      ]);
+      expect(context.response.assetsPrice?.[canonical]).toMatchObject({
+        price: 1,
+        usdPrice: 1,
+      });
     }
-    await Promise.all([promise1, promise2]);
-
-    // Still only one API call total
-    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
-
-    // Both contexts received the price
-    expect(context1.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
-    expect(context2.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
-
+    expect(Object.keys(explicitPrices)).toStrictEqual([canonical]);
+    expect(explicitPrices[canonical]).toMatchObject({ price: 1, usdPrice: 1 });
     controller.destroy();
+  });
+
+  it.each([false, true])(
+    'isolates partially overlapping currency requests (old completes first: %s)',
+    async (oldCompletesFirst) => {
+      vi.useFakeTimers();
+      let currency: SupportedCurrency = 'usd';
+      const oldUsd = createDeferredPromise<Record<string, unknown>>();
+      const selected = createDeferredPromise<Record<string, unknown>>();
+      const companion = createDeferredPromise<Record<string, unknown>>();
+      const { controller, apiClient } = setupController({
+        getSelectedCurrency: () => currency,
+      });
+      apiClient.prices.fetchV3SpotPrices
+        .mockReturnValueOnce(oldUsd.promise)
+        .mockImplementation((_ids, options) =>
+          options.currency === 'eur' ? selected.promise : companion.promise,
+        );
+
+      const oldRequest = controller.fetchAssetPrices([MOCK_NATIVE_ASSET]);
+      await vi.advanceTimersByTimeAsync(0);
+      currency = 'eur';
+      controller.invalidatePriceCache();
+      const currentRequest = controller.fetchAssetPrices([
+        MOCK_NATIVE_ASSET,
+        MOCK_TOKEN_ASSET,
+      ]);
+      await vi.advanceTimersByTimeAsync(0);
+      let currentCompleted = false;
+      void currentRequest.then(() => {
+        currentCompleted = true;
+      });
+      const currentIds = apiClient.prices.fetchV3SpotPrices.mock.calls[1]?.[0];
+      if (oldCompletesFirst) {
+        oldUsd.resolve({ [MOCK_NATIVE_ASSET]: createMockPriceData(100) });
+        await oldRequest;
+      }
+      selected.resolve({
+        [MOCK_NATIVE_ASSET]: createMockPriceData(90),
+        [MOCK_TOKEN_ASSET]: createMockPriceData(180),
+      });
+      companion.resolve({
+        [MOCK_NATIVE_ASSET]: createMockPriceData(100),
+        [MOCK_TOKEN_ASSET]: createMockPriceData(200),
+      });
+      // Let the current legs finish before releasing the obsolete USD request.
+      await vi.advanceTimersByTimeAsync(0);
+      const completedBeforeOldRelease = currentCompleted;
+      oldUsd.resolve({ [MOCK_NATIVE_ASSET]: createMockPriceData(100) });
+      const [oldPrices, currentPrices] = await Promise.all([
+        oldRequest,
+        currentRequest,
+      ]);
+
+      expect(completedBeforeOldRelease).toBe(true);
+      expect(currentIds).toStrictEqual([
+        MOCK_NATIVE_ASSET,
+        normalizeAssetId(MOCK_TOKEN_ASSET),
+      ]);
+      expect(oldPrices).toStrictEqual({});
+      expect(currentPrices[MOCK_NATIVE_ASSET]).toMatchObject({
+        price: 90,
+        usdPrice: 100,
+      });
+      expect(currentPrices[normalizeAssetId(MOCK_TOKEN_ASSET)]).toMatchObject({
+        price: 180,
+        usdPrice: 200,
+      });
+      controller.destroy();
+    },
+  );
+
+  it.each([false, true])(
+    'full invalidation separates pending flights (currency round trip: %s)',
+    async (roundTrip) => {
+      vi.useFakeTimers();
+      let currency: SupportedCurrency = 'usd';
+      const oldFlight = createDeferredPromise<Record<string, unknown>>();
+      const newFlight = createDeferredPromise<Record<string, unknown>>();
+      const { controller, apiClient } = setupController({
+        getSelectedCurrency: () => currency,
+      });
+      apiClient.prices.fetchV3SpotPrices
+        .mockReturnValueOnce(oldFlight.promise)
+        .mockReturnValue(newFlight.promise);
+      const oldRequest = controller.fetchAssetPrices([MOCK_NATIVE_ASSET]);
+      await vi.advanceTimersByTimeAsync(0);
+      if (roundTrip) {
+        currency = 'eur';
+        controller.invalidatePriceCache();
+        currency = 'usd';
+      }
+      controller.invalidatePriceCache();
+      const currentRequest = controller.fetchAssetPrices([MOCK_NATIVE_ASSET]);
+      await vi.advanceTimersByTimeAsync(0);
+      const callsBeforeOldCompletion =
+        apiClient.prices.fetchV3SpotPrices.mock.calls.length;
+      oldFlight.resolve({ [MOCK_NATIVE_ASSET]: createMockPriceData(100) });
+      const oldPrices = await oldRequest;
+      // Old cleanup must not detach the current flight from another joiner.
+      const joinedRequest = controller.fetchAssetPrices([MOCK_NATIVE_ASSET]);
+      await vi.advanceTimersByTimeAsync(0);
+      newFlight.resolve({ [MOCK_NATIVE_ASSET]: createMockPriceData(110) });
+      const [currentPrices, joinedPrices] = await Promise.all([
+        currentRequest,
+        joinedRequest,
+      ]);
+
+      expect(callsBeforeOldCompletion).toBe(2);
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+      expect(oldPrices).toStrictEqual({});
+      expect(currentPrices[MOCK_NATIVE_ASSET]).toMatchObject({ price: 110 });
+      expect(joinedPrices).toStrictEqual(currentPrices);
+      controller.destroy();
+    },
+  );
+
+  it.each([false, true])(
+    'pairs selected and USD rows across EVM casing (selected lowercase: %s)',
+    async (selectedLowercase) => {
+      const canonical = normalizeAssetId(MOCK_TOKEN_ASSET);
+      const { controller, apiClient } = setupController({
+        getSelectedCurrency: () => 'eur',
+      });
+      apiClient.prices.fetchV3SpotPrices.mockImplementation((_ids, options) =>
+        Promise.resolve(
+          options.currency === 'eur'
+            ? {
+                [selectedLowercase ? MOCK_TOKEN_ASSET : canonical]: {
+                  ...createMockPriceData(90),
+                  marketCap: 900,
+                  totalVolume: 9,
+                },
+                [MOCK_NATIVE_ASSET]: createMockPriceData(2),
+              }
+            : {
+                [selectedLowercase ? canonical : MOCK_TOKEN_ASSET]: {
+                  ...createMockPriceData(100),
+                  marketCap: 1000,
+                  totalVolume: 10,
+                },
+              },
+        ),
+      );
+
+      const prices = await controller.fetchAssetPrices([
+        MOCK_TOKEN_ASSET,
+        MOCK_NATIVE_ASSET,
+      ]);
+
+      expect(Object.keys(prices)).toStrictEqual([canonical]);
+      expect(prices[canonical]).toMatchObject({
+        price: 90,
+        usdPrice: 100,
+        marketCap: 900,
+        totalVolume: 9,
+      });
+      controller.destroy();
+    },
+  );
+
+  it('keeps non-EVM token references differing only in case distinct', async () => {
+    const chain = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const first =
+      `${chain}/token:So11111111111111111111111111111111111111112` as Caip19AssetId;
+    const second =
+      `${chain}/token:so11111111111111111111111111111111111111112` as Caip19AssetId;
+    const { controller, apiClient } = setupController({
+      supportedNetworks: [chain],
+      priceResponse: {
+        [first]: createMockPriceData(1),
+        [second]: createMockPriceData(2),
+      },
+    });
+
+    const prices = await controller.fetchAssetPrices([first, second]);
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [first, second],
+      { currency: 'usd', includeMarketData: true },
+    );
+    expect(Object.keys(prices)).toStrictEqual([first, second]);
+    expect(prices[first]).toMatchObject({ price: 1, usdPrice: 1 });
+    expect(prices[second]).toMatchObject({ price: 2, usdPrice: 2 });
+    controller.destroy();
+  });
+
+  it('preserves a subscription freshness cap after currency rotation', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    let currency: SupportedCurrency = 'usd';
+    const { controller, apiClient } = setupController({
+      pollInterval: 60_000,
+      getSelectedCurrency: () => currency,
+      balanceState: {
+        'mock-account-id': { [MOCK_NATIVE_ASSET]: { amount: '1' } },
+      },
+      priceResponse: { [MOCK_NATIVE_ASSET]: createMockPriceData(100) },
+    });
+    await controller.subscribe({
+      subscriptionId: 'short-interval',
+      request: createDataRequest({ updateInterval: 10_000 }),
+      isUpdate: false,
+      onAssetsUpdate: vi.fn(),
+    });
+    vi.setSystemTime(500);
+    currency = 'eur';
+    controller.invalidatePriceCache();
+    await controller.fetch(createDataRequest());
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(3);
+
+    // 9.5s after completion exceeds the effective 9s cap, not the 60s default.
+    vi.setSystemTime(10_000);
+    const response = await controller.fetch(createDataRequest());
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(5);
+    expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toBeDefined();
+    controller.destroy();
+  });
+
+  it.each(['explicit', 'fetch', 'middleware'] as const)(
+    'does not launch %s prices after invalidation during network preflight',
+    async (entry) => {
+      vi.useFakeTimers();
+      const networks = createDeferredPromise<{
+        fullSupport: string[];
+        partialSupport: { spotPricesV3: string[] };
+      }>();
+      const { controller, apiClient } = setupController({
+        balanceState: {
+          'mock-account-id': { [MOCK_NATIVE_ASSET]: { amount: '1' } },
+        },
+      });
+      apiClient.prices.fetchPriceV2SupportedNetworks.mockReturnValue(
+        networks.promise,
+      );
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            'mock-account-id': { [MOCK_NATIVE_ASSET]: { amount: '1' } },
+          },
+        },
+      });
+      const next = vi.fn().mockResolvedValue(undefined);
+      const pending =
+        entry === 'explicit'
+          ? controller.fetchAssetPrices([MOCK_NATIVE_ASSET])
+          : entry === 'fetch'
+            ? controller.fetch(createDataRequest())
+            : controller.assetsMiddleware(context, next);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(apiClient.prices.fetchPriceV2SupportedNetworks).toHaveBeenCalled();
+      controller.invalidatePriceCache();
+      networks.resolve({
+        fullSupport: [CHAIN_MAINNET],
+        partialSupport: { spotPricesV3: [] },
+      });
+      await pending;
+
+      expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+      expect(context.response.assetsPrice).toBeUndefined();
+      if (entry === 'middleware') {
+        expect(next).toHaveBeenCalledWith(context);
+      }
+      controller.destroy();
+    },
+  );
+
+  it.each([
+    { isUpdate: false, destroy: false },
+    { isUpdate: false, destroy: true },
+    { isUpdate: true, destroy: false },
+    { isUpdate: true, destroy: true },
+  ])(
+    'does not publish a subscription result retired after fetch (%j)',
+    async ({ isUpdate, destroy }) => {
+      let currency: SupportedCurrency = 'usd';
+      const { controller } = setupController({
+        getSelectedCurrency: () => currency,
+        balanceState: {
+          'mock-account-id': { [MOCK_NATIVE_ASSET]: { amount: '1' } },
+        },
+        priceResponse: { [MOCK_NATIVE_ASSET]: createMockPriceData(100) },
+      });
+      const onAssetsUpdate = vi.fn();
+      const subscription = {
+        subscriptionId: 'retired-result',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate,
+      };
+      if (isUpdate) {
+        await controller.subscribe(subscription);
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+        onAssetsUpdate.mockClear();
+        controller.invalidatePriceCache();
+      }
+      const fetch = controller.fetch.bind(controller);
+      let fetchedPrices = false;
+      vi.spyOn(controller, 'fetch').mockImplementation(async (request) => {
+        const response = await fetch(request);
+        fetchedPrices = response.assetsPrice?.[MOCK_NATIVE_ASSET] !== undefined;
+        // Exercise the publication boundary after the real fetch has completed.
+        if (destroy) {
+          controller.destroy();
+        } else {
+          currency = 'eur';
+          controller.invalidatePriceCache();
+        }
+        return response;
+      });
+
+      await controller.subscribe({ ...subscription, isUpdate });
+
+      expect(fetchedPrices).toBe(true);
+      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      controller.destroy();
+    },
+  );
+
+  it('omits pending prices after destruction', async () => {
+    vi.useFakeTimers();
+    const flight = createDeferredPromise<Record<string, unknown>>();
+    const { controller, apiClient } = setupController();
+    apiClient.prices.fetchV3SpotPrices.mockReturnValue(flight.promise);
+    const pending = controller.fetchAssetPrices([MOCK_NATIVE_ASSET]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+    controller.destroy();
+    flight.resolve({ [MOCK_NATIVE_ASSET]: createMockPriceData(100) });
+
+    expect(await pending).toStrictEqual({});
   });
 
   it('freshness is per-asset — stale assets are fetched while fresh ones are skipped', async () => {
