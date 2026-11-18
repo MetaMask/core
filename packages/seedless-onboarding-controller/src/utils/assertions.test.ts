@@ -294,7 +294,7 @@ describe('assertIdTokenMatchesUserId', () => {
     }).not.toThrow();
   });
 
-  it('should not throw when the idToken has no sub claim (defer to server-side validation)', () => {
+  it('should throw IdentityMismatch when the idToken has no sub claim', () => {
     const tokenWithoutSub = createMockIdToken();
     // Rebuild payload without sub
     const header = { alg: 'RS256', typ: 'JWT' };
@@ -308,13 +308,19 @@ describe('assertIdTokenMatchesUserId', () => {
 
     expect(() => {
       assertIdTokenMatchesUserId([token], 'any-user');
-    }).not.toThrow();
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
 
-  it('should not throw when the idToken cannot be decoded (defer to server-side validation)', () => {
+  it('should throw IdentityMismatch when the idToken cannot be decoded', () => {
     expect(() => {
       assertIdTokenMatchesUserId(['not-a-jwt'], 'user-1');
-    }).not.toThrow();
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
+  });
+
+  it('should throw IdentityMismatch when no idToken is provided', () => {
+    expect(() => {
+      assertIdTokenMatchesUserId([], 'user-1');
+    }).toThrow(SeedlessOnboardingControllerErrorMessage.IdentityMismatch);
   });
 });
 

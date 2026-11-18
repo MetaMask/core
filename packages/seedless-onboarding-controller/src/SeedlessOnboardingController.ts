@@ -2127,9 +2127,18 @@ export class SeedlessOnboardingController<
         );
 
         // Proactively rotate the refresh token now that we have vault access.
-        await this.rotateRefreshToken().catch((error) => {
-          // Rotation failure is intentionally non-fatal: the JWT refresh
-          // itself succeeded and the caller should not be blocked.
+        // IdentityMismatch must propagate: a sub/userId mismatch means the
+        // vault revoke token must not be renewed for the wrong identity.
+        await this.rotateRefreshToken(idTokens).catch((error) => {
+          if (
+            error instanceof SeedlessOnboardingError &&
+            error.message ===
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch
+          ) {
+            throw error;
+          }
+          // Other rotation failures are intentionally non-fatal: the JWT
+          // refresh itself succeeded and the caller should not be blocked.
           // However the user is now operating with a stale refresh token
           // that may be revoked server-side, so log prominently.
           log(
@@ -2260,9 +2269,16 @@ export class SeedlessOnboardingController<
    *
    * This method should be called after a successful JWT refresh.
    *
+   * When `idTokens` are provided, their `sub` claim is checked against
+   * `state.userId` before the renewal request. A mismatch throws
+   * {@link SeedlessOnboardingControllerErrorMessage.IdentityMismatch} and the
+   * vault revoke token is not renewed.
+   *
+   * @param idTokens - Id tokens from the JWT refresh. Only the first token is
+   * validated. Omit when the caller has no id token to check.
    * @returns A Promise that resolves to void.
    */
-  async rotateRefreshToken(): Promise<void> {
+  async rotateRefreshToken(idTokens?: string[]): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
     const vaultData = this.#cachedDecryptedVaultData;
@@ -2277,6 +2293,13 @@ export class SeedlessOnboardingController<
       );
     }
     const { refreshToken, userId, authConnectionId } = this.state;
+
+    // Fail before renewing the vault revoke token. A mismatched, missing, or
+    // corrupted id token must not refresh another identity's credentials.
+    if (idTokens) {
+      assertIdTokenMatchesUserId(idTokens, userId ?? '');
+    }
+
     const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
     const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
       connection: this.state.authConnection,
@@ -2284,6 +2307,17 @@ export class SeedlessOnboardingController<
     });
 
     if (newRevokeToken && newRefreshToken) {
+      // The identity may have changed while the renewal was in flight. Check
+      // before persisting so the vault does not keep the previous identity's
+      // revoke token.
+      assertIdentityUnchanged(
+        {
+          userId: this.state.userId,
+          authConnectionId: this.state.authConnectionId,
+        },
+        { userId, authConnectionId },
+      );
+
       // Persist the new revoke token to the vault first. Only update state after
       // the vault write succeeds, so state and vault stay in sync if the write fails.
       await this.#updateVault({
@@ -2294,11 +2328,8 @@ export class SeedlessOnboardingController<
         pwEncKey,
       });
 
-      // Stale-write guard: the identity may have changed while the renewal or
-      // vault update was in flight. Discard the rotation results instead of
-      // writing the previous identity's tokens over the current state. There
-      // is no `await` between this check and the `update` below, so the pair
-      // is atomic.
+      // Re-check immediately before the state write. There is no `await`
+      // between this check and the `update` below, so the pair is atomic.
       assertIdentityUnchanged(
         {
           userId: this.state.userId,

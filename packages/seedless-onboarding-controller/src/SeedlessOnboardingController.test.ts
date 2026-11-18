@@ -73,7 +73,11 @@ import {
   AuthConnection,
   SecretType,
 } from './constants.js';
-import { PasswordSyncError, RecoveryError } from './errors.js';
+import {
+  PasswordSyncError,
+  RecoveryError,
+  SeedlessOnboardingError,
+} from './errors.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import {
   SeedlessOnboardingController,
@@ -91,7 +95,7 @@ const socialLoginEmail = 'user-test@gmail.com';
 const authConnectionId = 'seedless-onboarding';
 const groupedAuthConnectionId = 'auth-server';
 const userId = 'user-test@gmail.com';
-const idTokens = ['idToken'];
+const idTokens = [createMockJWTToken({ sub: userId })];
 const refreshToken = 'refreshToken';
 const revokeToken = 'revokeToken';
 const accessToken = 'accessToken';
@@ -227,7 +231,7 @@ async function withController<ReturnValue>(
     mockSeedlessOnboardingMessenger();
 
   const mockRefreshJWTToken = vi.fn().mockResolvedValue({
-    idTokens: ['newIdToken'],
+    idTokens,
     metadataAccessToken: 'mock-metadata-access-token',
     accessToken,
   });
@@ -726,7 +730,7 @@ describe('SeedlessOnboardingController', () => {
   describe('constructor', () => {
     it('should be able to instantiate', () => {
       const mockRefreshJWTToken = vi.fn().mockResolvedValue({
-        idTokens: ['newIdToken'],
+        idTokens,
       });
       const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
       const mockRenewRefreshToken = vi.fn().mockResolvedValue({
@@ -749,7 +753,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should be able to instantiate with an encryptor', () => {
       const mockRefreshJWTToken = vi.fn().mockResolvedValue({
-        idTokens: ['newIdToken'],
+        idTokens,
       });
       const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
       const mockRenewRefreshToken = vi.fn().mockResolvedValue({
@@ -813,7 +817,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should be able to instantiate with an authenticated user', () => {
       const mockRefreshJWTToken = vi.fn().mockResolvedValue({
-        idTokens: ['newIdToken'],
+        idTokens,
       });
       const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
       const mockRenewRefreshToken = vi.fn().mockResolvedValue({
@@ -847,7 +851,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should throw an error if the password outdated cache TTL is not a valid number', () => {
       const mockRefreshJWTToken = vi.fn().mockResolvedValue({
-        idTokens: ['newIdToken'],
+        idTokens,
       });
       const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
       const mockRenewRefreshToken = vi.fn().mockResolvedValue({
@@ -1158,7 +1162,7 @@ describe('SeedlessOnboardingController', () => {
           const authResult = await baseMessenger.call(
             'SeedlessOnboardingController:authenticate',
             {
-              idTokens: [createMockJWTToken({ sub: userId })],
+              idTokens,
               authConnectionId,
               userId,
               authConnection,
@@ -6006,7 +6010,7 @@ describe('SeedlessOnboardingController', () => {
           );
           // mock token refresh
           mockRefreshJWTToken.mockResolvedValueOnce({
-            idTokens: ['newIdToken'],
+            idTokens,
             accessToken: newerAccessToken,
             metadataAccessToken: 'new-metadata-access-token',
           });
@@ -7326,7 +7330,7 @@ describe('SeedlessOnboardingController', () => {
             expect(toprfClient.authenticate).toHaveBeenCalledWith({
               authConnectionId: controller.state.authConnectionId,
               userId: controller.state.userId,
-              idTokens: ['newIdToken'],
+              idTokens,
               groupedAuthConnectionId: controller.state.groupedAuthConnectionId,
             });
           },
@@ -7371,6 +7375,72 @@ describe('SeedlessOnboardingController', () => {
               MOCK_NODE_AUTH_TOKENS,
             );
             expect(controller.state.userId).toBe(userId);
+          },
+        );
+      });
+
+      it('should throw IdentityMismatch and skip re-authentication when the refreshed idToken cannot be decoded', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['not-a-jwt'],
+              accessToken,
+              metadataAccessToken,
+            });
+            const authenticateSpy = vi
+              .spyOn(toprfClient, 'authenticate')
+              .mockResolvedValue({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:refreshAuthTokens',
+              ),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+
+            expect(authenticateSpy).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should throw IdentityMismatch and skip re-authentication when the refreshed idToken has no sub claim', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: [createMockJWTToken({ sub: '' })],
+              accessToken,
+              metadataAccessToken,
+            });
+            const authenticateSpy = vi
+              .spyOn(toprfClient, 'authenticate')
+              .mockResolvedValue({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:refreshAuthTokens',
+              ),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+
+            expect(authenticateSpy).not.toHaveBeenCalled();
           },
         );
       });
@@ -7633,7 +7703,7 @@ describe('SeedlessOnboardingController', () => {
           async ({ mockRefreshJWTToken, toprfClient, baseMessenger }) => {
             // Mock token refresh to succeed
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['new-token'],
+              idTokens,
             });
 
             // Mock authenticate to fail
@@ -7684,7 +7754,7 @@ describe('SeedlessOnboardingController', () => {
 
             // Mock refreshJWTToken to return new tokens
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['newIdToken'],
+              idTokens,
               accessToken: newAccessToken,
               metadataAccessToken: newMetadataAccessToken,
             });
@@ -7729,7 +7799,7 @@ describe('SeedlessOnboardingController', () => {
 
             // Mock refreshJWTToken to return new tokens
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['newIdToken'],
+              idTokens,
               accessToken: newAccessToken,
               metadataAccessToken: newMetadataAccessToken,
             });
@@ -7777,7 +7847,7 @@ describe('SeedlessOnboardingController', () => {
 
             // Mock refreshJWTToken to return new tokens
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['newIdToken'],
+              idTokens,
               accessToken: 'new-access-token',
               metadataAccessToken: 'new-metadata-access-token',
             });
@@ -7825,7 +7895,7 @@ describe('SeedlessOnboardingController', () => {
             mockRefreshJWTToken.mockImplementation(async () => {
               await refreshBarrier;
               return {
-                idTokens: ['newIdToken'],
+                idTokens,
                 metadataAccessToken: 'mock-metadata-access-token',
                 accessToken,
               };
@@ -7942,7 +8012,7 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ toprfClient, mockRefreshJWTToken, baseMessenger }) => {
-            const newIdTokens = ['newIdToken'];
+            const newIdTokens = idTokens;
             mockRefreshJWTToken.mockResolvedValueOnce({
               idTokens: newIdTokens,
               metadataAccessToken: 'mock-metadata-access-token',
@@ -7991,7 +8061,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['newIdToken'],
+              idTokens,
               metadataAccessToken: 'mock-metadata-access-token',
               accessToken,
             });
@@ -8054,7 +8124,7 @@ describe('SeedlessOnboardingController', () => {
             );
 
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['newIdToken'],
+              idTokens,
               metadataAccessToken: 'mock-metadata-access-token',
               accessToken,
             });
@@ -8064,9 +8134,15 @@ describe('SeedlessOnboardingController', () => {
               isNewUser: false,
             });
 
-            // Make the proactive renewal fail — the error is caught and logged.
+            // Make the proactive renewal fail with a non-identity-mismatch
+            // error — it must be caught and logged, not propagated.
             mockRenewRefreshToken.mockRejectedValueOnce(
-              new Error('renewal failed'),
+              new SeedlessOnboardingError(
+                SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+                {
+                  cause: new Error('renewal failed'),
+                },
+              ),
             );
 
             // refreshAuthTokens must still resolve even when renewal fails.
@@ -8075,6 +8151,86 @@ describe('SeedlessOnboardingController', () => {
                 'SeedlessOnboardingController:refreshAuthTokens',
               ),
             ).toBeUndefined();
+          },
+        );
+      });
+
+      it('should reject with IdentityMismatch when the identity changes while the proactive rotation is in flight', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRenewRefreshToken,
+            mockRefreshJWTToken,
+            baseMessenger,
+          }) => {
+            await baseMessenger.call(
+              'SeedlessOnboardingController:submitPassword',
+              MOCK_PASSWORD,
+            );
+
+            const originalRefreshToken = controller.state.refreshToken;
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens,
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
+            });
+
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            // Gate the renewal so we can switch the identity while the
+            // proactive rotation is in flight.
+            let releaseRenew!: (value: {
+              newRevokeToken: string;
+              newRefreshToken: string;
+            }) => void;
+            mockRenewRefreshToken.mockImplementationOnce(
+              () =>
+                new Promise((resolve) => {
+                  releaseRenew = resolve;
+                }),
+            );
+
+            const refreshPromise = baseMessenger.call(
+              'SeedlessOnboardingController:refreshAuthTokens',
+            );
+
+            // Wait until the proactive renewal is in flight.
+            await vi.waitFor(() => {
+              expect(mockRenewRefreshToken).toHaveBeenCalled();
+            });
+
+            // Simulate an identity switch while the rotation is pending.
+            // @ts-expect-error - we are forcing a concurrent update to the state
+            controller.update((state) => {
+              state.userId = 'switched-user';
+            });
+            releaseRenew({
+              newRevokeToken: 'newRevokeToken',
+              newRefreshToken: 'newRefreshToken',
+            });
+
+            // The identity mismatch raised during rotation must propagate to
+            // the caller — it must not be swallowed as a transient failure.
+            await expect(refreshPromise).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+            );
+
+            // The switched identity must not end up with the previous
+            // identity's rotated tokens.
+            expect(controller.state.refreshToken).toBe(originalRefreshToken);
           },
         );
       });
@@ -8104,7 +8260,7 @@ describe('SeedlessOnboardingController', () => {
             const originalRevokeToken = controller.state.revokeToken;
 
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['newIdToken'],
+              idTokens,
               metadataAccessToken: 'mock-metadata-access-token',
               accessToken,
             });
@@ -8156,7 +8312,7 @@ describe('SeedlessOnboardingController', () => {
             const originalRefreshToken = controller.state.refreshToken;
 
             mockRefreshJWTToken.mockResolvedValueOnce({
-              idTokens: ['newIdToken'],
+              idTokens,
               metadataAccessToken: 'mock-metadata-access-token',
               accessToken,
             });
@@ -8798,7 +8954,7 @@ describe('SeedlessOnboardingController', () => {
 
           // Mock the token refresh to return a new access token
           mockRefreshJWTToken.mockResolvedValueOnce({
-            idTokens: ['newIdToken'],
+            idTokens,
             accessToken: NEW_ACCESS_TOKEN,
             metadataAccessToken: 'newMetadataAccessToken',
           });
@@ -9083,6 +9239,57 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
+    it('should throw IdentityMismatch and skip renewal when the idToken sub does not match the userId', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, mockRenewRefreshToken, baseMessenger }) => {
+          await baseMessenger.call(
+            'SeedlessOnboardingController:submitPassword',
+            MOCK_PASSWORD,
+          );
+
+          const originalRefreshToken = controller.state.refreshToken;
+          const originalRevokeToken = controller.state.revokeToken;
+
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:rotateRefreshToken',
+              [createMockJWTToken({ sub: 'different-user' })],
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.IdentityMismatch,
+          );
+
+          expect(mockRenewRefreshToken).not.toHaveBeenCalled();
+          expect(controller.state.refreshToken).toBe(originalRefreshToken);
+          expect(controller.state.revokeToken).toBe(originalRevokeToken);
+        },
+      );
+    });
+
     it('should discard rotation results and throw IdentityMismatch when the identity changes while the renewal is in flight', async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
       const MOCK_ENCRYPTION_KEY =
@@ -9118,6 +9325,7 @@ describe('SeedlessOnboardingController', () => {
 
           const originalRefreshToken = controller.state.refreshToken;
           const originalRevokeToken = controller.state.revokeToken;
+          const originalVault = controller.state.vault;
 
           let releaseRenew!: (value: {
             newRevokeToken: string;
@@ -9157,6 +9365,11 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.refreshToken).toBe(originalRefreshToken);
           expect(controller.state.revokeToken).toBe(originalRevokeToken);
           expect(controller.state.pendingToBeRevokedTokens).toBeUndefined();
+
+          // The vault must not be persisted with the new revoke token either —
+          // otherwise the vault (and #cachedDecryptedVaultData) would hold the
+          // previous identity's revoke token while the state keeps the old one.
+          expect(controller.state.vault).toBe(originalVault);
         },
       );
     });

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SeedlessOnboardingControllerErrorMessage.IdentityMismatch`, thrown when an idToken does not belong to the user identity it is paired with ([#11531](https://github.com/MetaMask/core/pull/11531))
   - `authenticate` validates that the first idToken's `sub` claim matches the provided `userId` before making any network request
   - Token refreshes validate that the refreshed idTokens match the identity in state before re-authenticating
+  - A missing idToken, an idToken that cannot be decoded, or an idToken with no `sub` claim throws `IdentityMismatch` instead of being sent to the nodes
 
 ### Changed
 
@@ -28,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent stale identity data from being written into state when the controller identity changes while a token refresh is in flight ([#11531](https://github.com/MetaMask/core/pull/11531))
   - If the identity is switched by a new `authenticate()` call or wiped by `clearState()` while a refresh is pending, the pending refresh results are discarded and the refresh-token rotation side effects are skipped
   - These situations now throw `SeedlessOnboardingControllerErrorMessage.IdentityMismatch` instead of a generic authentication error
+  - `rotateRefreshToken` throws `IdentityMismatch` and does not renew the vault revoke token when the idToken `sub` does not match `state.userId`
+  - A refresh-token rotation that observes an identity change does not persist the new revoke token to the vault
 
 ## [12.0.0]
 
