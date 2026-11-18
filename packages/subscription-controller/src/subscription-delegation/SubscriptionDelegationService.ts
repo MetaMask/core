@@ -65,6 +65,7 @@ import type {
   ProductPrice,
   ProductType,
   PricingCryptoPaymentMethod,
+  PricingResponse,
   RecurringInterval,
   Subscription,
   SubscriptionCryptoPaymentMethod,
@@ -116,11 +117,18 @@ const MESSENGER_EXPOSED_METHODS = [
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 /**
- * How long to wait before re-checking the Money Account balance of a stuck
+ * Default wait before re-checking the Money Account balance of a stuck
  * subscription. Must stay above the `MoneyAccountBalanceService` RPC cache
  * stale time (1 minute by default) so each tick reads an uncached balance.
  */
-const CHARGE_RETRY_INTERVAL = inMilliseconds(5, Duration.Minute);
+const DEFAULT_CHARGE_RETRY_INTERVAL = inMilliseconds(5, Duration.Minute);
+
+/**
+ * Re-check after a confirmed deposit. The read right after confirmation can
+ * hit the pre-deposit `MoneyAccountBalanceService` RPC cache entry (1 minute
+ * stale time by default), so a second read waits past it.
+ */
+const DEPOSIT_RECHECK_DELAY = inMilliseconds(90, Duration.Second);
 
 const CHARGE_RETRY_TRANSACTION_TYPES: TransactionType[] = [
   TransactionType.moneyAccountDeposit,
@@ -275,6 +283,12 @@ export type SubscriptionDelegationServiceMessenger = Messenger<
  */
 export type SubscriptionDelegationServiceOptions = {
   messenger: SubscriptionDelegationServiceMessenger;
+  /**
+   * How long to wait, in milliseconds, between Money Account balance
+   * re-checks while a stuck charge stays unfunded. Keep it above the
+   * `MoneyAccountBalanceService` balance stale time. Defaults to 5 minutes.
+   */
+  chargeRetryInterval?: number;
 };
 
 type SubscriptionIntentParams = {
@@ -329,10 +343,14 @@ export class SubscriptionDelegationService {
 
   #chargeRetryTimer: ReturnType<typeof setTimeout> | undefined;
 
+  readonly #chargeRetryInterval: number;
+
   #isDestroyed = false;
 
   constructor(options: SubscriptionDelegationServiceOptions) {
     this.#messenger = options.messenger;
+    this.#chargeRetryInterval =
+      options.chargeRetryInterval ?? DEFAULT_CHARGE_RETRY_INTERVAL;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -343,6 +361,7 @@ export class SubscriptionDelegationService {
       'TransactionController:transactionConfirmed',
       (transactionMeta) => {
         if (isChargeRetryTransaction(transactionMeta)) {
+          this.#scheduleChargeRetry(DEPOSIT_RECHECK_DELAY);
           this.#requestChargeRetry();
         }
       },
@@ -363,7 +382,23 @@ export class SubscriptionDelegationService {
    */
   destroy(): void {
     this.#isDestroyed = true;
+    this.#clearChargeRetryTimer();
+  }
+
+  #scheduleChargeRetry(delay: number): void {
+    if (this.#isDestroyed) {
+      return;
+    }
+    this.#clearChargeRetryTimer();
+    this.#chargeRetryTimer = setTimeout(() => {
+      this.#chargeRetryTimer = undefined;
+      this.#requestChargeRetry();
+    }, delay);
+  }
+
+  #clearChargeRetryTimer(): void {
     clearTimeout(this.#chargeRetryTimer);
+    this.#chargeRetryTimer = undefined;
   }
 
   /**
@@ -392,24 +427,24 @@ export class SubscriptionDelegationService {
    * timer while the balance is short; never after a charge was sent.
    */
   async #reconcileSubscriptionCharge(): Promise<void> {
-    clearTimeout(this.#chargeRetryTimer);
-    this.#chargeRetryTimer = undefined;
-
     if (
       this.#isDestroyed ||
       !this.#messenger.call('KeyringController:getState').isUnlocked ||
       !this.#messenger.call('AuthenticationController:isSignedIn')
     ) {
+      this.#clearChargeRetryTimer();
       return;
     }
-    const subscription = selectMoneyAccountPlusSubscription(
-      this.#messenger.call('SubscriptionController:getState'),
+    const subscriptionState = this.#messenger.call(
+      'SubscriptionController:getState',
     );
+    const subscription = selectMoneyAccountPlusSubscription(subscriptionState);
     if (
       !subscription ||
       !isSubscriptionChargeRetryable(subscription) ||
       subscription.billingCycles === undefined
     ) {
+      this.#clearChargeRetryTimer();
       return;
     }
 
@@ -420,6 +455,7 @@ export class SubscriptionDelegationService {
       const { price } = await this.#resolveConfiguration(
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
         subscription.interval,
+        subscriptionState.pricing,
       );
       ({ hasSufficientBalance } = await this.#compareMoneyAccountBalance(
         payerAddress,
@@ -429,15 +465,14 @@ export class SubscriptionDelegationService {
       log('Failed to check Money Account balance for charge retry', error);
     }
     if (!hasSufficientBalance) {
-      if (!this.#isDestroyed) {
-        this.#chargeRetryTimer = setTimeout(
-          () => this.#requestChargeRetry(),
-          CHARGE_RETRY_INTERVAL,
-        );
+      // Keeps an earlier re-check, such as the one armed after a deposit.
+      if (!this.#chargeRetryTimer) {
+        this.#scheduleChargeRetry(this.#chargeRetryInterval);
       }
       return;
     }
 
+    this.#clearChargeRetryTimer();
     try {
       await this.#messenger.call('SubscriptionController:updatePaymentMethod', {
         paymentType: PAYMENT_TYPES.byCrypto,
@@ -1081,6 +1116,7 @@ export class SubscriptionDelegationService {
   async #resolveConfiguration(
     product: ProductType,
     recurringInterval: RecurringInterval,
+    cachedPricing?: PricingResponse,
   ): Promise<ResolvedSubscriptionDelegationConfig> {
     const { remoteFeatureFlags } = this.#messenger.call(
       'RemoteFeatureFlagController:getState',
@@ -1094,9 +1130,9 @@ export class SubscriptionDelegationService {
 
     const { chainId } = vaultConfig;
     const enforcers = resolveEnforcers(chainId);
-    const pricing = await this.#messenger.call(
-      'SubscriptionController:getPricing',
-    );
+    const pricing =
+      cachedPricing ??
+      (await this.#messenger.call('SubscriptionController:getPricing'));
     const price = pricing.products
       .find((entry) => entry.name === product)
       ?.prices?.find((entry) => entry.interval === recurringInterval);

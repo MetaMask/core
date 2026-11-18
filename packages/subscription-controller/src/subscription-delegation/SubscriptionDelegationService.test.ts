@@ -304,8 +304,10 @@ function setup(
     trialedProducts?: ProductType[];
     subscriptions?: Subscription[];
     cachedSubscriptions?: Subscription[];
+    cachedPricing?: PricingResponse;
     isUnlocked?: boolean;
     isSignedIn?: boolean;
+    chargeRetryInterval?: number;
   } = {},
 ) {
   const mocks: Mocks = {
@@ -345,6 +347,7 @@ function setup(
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
       ],
       subscriptions: options.cachedSubscriptions ?? [],
+      pricing: options.cachedPricing,
     }),
     isUserEligibleForTrial: vi
       .fn<(arg: ProductType) => Promise<boolean>>()
@@ -573,6 +576,7 @@ function setup(
 
   const service = new SubscriptionDelegationService({
     messenger,
+    chargeRetryInterval: options.chargeRetryInterval,
   });
 
   return { service, rootMessenger, messenger, mocks };
@@ -1932,6 +1936,8 @@ describe('isSubscriptionChargeRetryable', () => {
 describe('SubscriptionDelegationService charge retry', () => {
   const CHARGE_RETRY_INTERVAL = 5 * 60 * 1000;
 
+  const DEPOSIT_RECHECK_DELAY = 90 * 1000;
+
   const EXPECTED_RETRY_REQUEST = {
     paymentType: PAYMENT_TYPES.byCrypto,
     subscriptionId: 'sub_123',
@@ -2243,6 +2249,93 @@ describe('SubscriptionDelegationService charge retry', () => {
 
       expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(3);
     });
+
+    it('re-checks shortly after a deposit when the first balance read is stale', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
+      await vi.advanceTimersByTimeAsync(DEPOSIT_RECHECK_DELAY);
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the post-deposit re-check when another trigger runs first', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+      });
+      publishConfirmed(rootMessenger);
+      await flush();
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      mocks.fetchBalanceWithFallback.mockResolvedValue(SUFFICIENT_BALANCE);
+      await vi.advanceTimersByTimeAsync(DEPOSIT_RECHECK_DELAY);
+
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops the post-deposit re-check when the subscription is not stuck', async () => {
+      const { rootMessenger } = setup({
+        cachedSubscriptions: [
+          buildStuckSubscription({ status: SUBSCRIPTION_STATUSES.active }),
+        ],
+      });
+
+      publishConfirmed(rootMessenger);
+      await flush();
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('re-checks on the configured chargeRetryInterval', async () => {
+      const chargeRetryInterval = CHARGE_RETRY_INTERVAL * 2;
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        balance: INSUFFICIENT_BALANCE,
+        chargeRetryInterval,
+      });
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      await vi.advanceTimersByTimeAsync(chargeRetryInterval - 1);
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(mocks.fetchBalanceWithFallback).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('pricing', () => {
+    it('uses cached pricing without fetching it', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+        cachedPricing: PRICING,
+      });
+
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      expect(mocks.getPricing).not.toHaveBeenCalled();
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
+
+    it('fetches pricing when none is cached', async () => {
+      const { rootMessenger, mocks } = setup({
+        cachedSubscriptions: [buildStuckSubscription()],
+      });
+
+      rootMessenger.publish('KeyringController:unlock');
+      await flush();
+
+      expect(mocks.getPricing).toHaveBeenCalledTimes(1);
+      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('charge', () => {
@@ -2450,6 +2543,7 @@ describe('SubscriptionDelegationService charge retry', () => {
       publishConfirmed(rootMessenger);
       await flush();
 
+      expect(vi.getTimerCount()).toBe(0);
       expect(mocks.fetchBalanceWithFallback).not.toHaveBeenCalled();
     });
   });
