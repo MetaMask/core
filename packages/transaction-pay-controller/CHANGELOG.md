@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rate drift and fee reserve checks use the normalized quote amounts.
   - `ServerStrategy` no longer declines direct mUSD Money Account requests.
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11618](https://github.com/MetaMask/core/pull/11618))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11618](https://github.com/MetaMask/core/pull/11618))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11618](https://github.com/MetaMask/core/pull/11618))
 
 ### Fixed
 

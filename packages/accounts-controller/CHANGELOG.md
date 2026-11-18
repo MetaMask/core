@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/eth-snap-keyring` from `^24.1.1` to `^24.1.2` ([#11494](https://github.com/MetaMask/core/pull/11494))
 - Bump `@metamask/keyring-sdk` from `^4.1.0` to `^4.2.1` ([#11494](https://github.com/MetaMask/core/pull/11494))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11618](https://github.com/MetaMask/core/pull/11618))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11618](https://github.com/MetaMask/core/pull/11618))
 
 ## [40.2.0]
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11618](https://github.com/MetaMask/core/pull/11618))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11618](https://github.com/MetaMask/core/pull/11618))
+- Bump `uuid` from `^14.0.2` to `^14.0.3` ([#11618](https://github.com/MetaMask/core/pull/11618))
+
 ## [74.2.0]
 
 ### Added
