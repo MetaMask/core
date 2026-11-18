@@ -204,12 +204,12 @@ import {
   TransactionStatus,
 } from './types/transactionTypes.js';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
-import { withBatchOperationStatus } from './utils/batchOperationStatus.js';
 import {
   createLiveChaseOrderList,
   createLiveTwapOrderList,
 } from './utils/advancedOrderLists.js';
 import type { CanceledChaseOrder } from './utils/advancedOrderLists.js';
+import { withBatchOperationStatus } from './utils/batchOperationStatus.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
