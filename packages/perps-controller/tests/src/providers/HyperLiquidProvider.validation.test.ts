@@ -1373,29 +1373,43 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
-    it('rejects an infinite limit price', async () => {
-      const actualValidation = await vi.importActual<
-        typeof import('../../../src/utils/hyperLiquidValidation.js')
-      >('../../../src/utils/hyperLiquidValidation.js');
-      mockValidateOrderParams.mockImplementation(
-        actualValidation.validateOrderParams,
-      );
+    it.each([
+      [
+        { orderType: 'limit', price: 'Infinity' },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'market', currentPrice: Infinity },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'market', currentPrice: NaN },
+        PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+      ],
+      [
+        { orderType: 'stop_market', triggerPrice: 'Infinity' },
+        PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+      ],
+    ] as const)(
+      'rejects a non-finite price for %j',
+      async (priceParams, error) => {
+        const actualValidation = await vi.importActual<
+          typeof import('../../../src/utils/hyperLiquidValidation.js')
+        >('../../../src/utils/hyperLiquidValidation.js');
+        mockValidateOrderParams.mockImplementation(
+          actualValidation.validateOrderParams,
+        );
 
-      const result = await provider.validateOrder({
-        symbol: 'BTC',
-        size: '0.1',
-        isBuy: true,
-        orderType: 'limit',
-        price: 'Infinity',
-        currentPrice: 50000,
-        leverage: 10,
-      });
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size: '0.1',
+          isBuy: true,
+          ...priceParams,
+        });
 
-      expect(result).toStrictEqual({
-        isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
-      });
-    });
+        expect(result).toStrictEqual({ isValid: false, error });
+      },
+    );
 
     it('handles validation errors gracefully', async () => {
       mockValidateOrderParams.mockImplementation(() => {

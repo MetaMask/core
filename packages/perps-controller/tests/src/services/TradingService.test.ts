@@ -2207,29 +2207,6 @@ describe('TradingService', () => {
       ]);
     });
 
-    it('refuses an order ID that rests on two venues', async () => {
-      mockGetOpenOrders.mockResolvedValue([
-        { ...mockOrders[0], providerId: 'hyperliquid' },
-        { ...mockOrders[0], providerId: 'lighter' },
-      ]);
-
-      const result = await tradingService.cancelOrders({
-        provider: mockProvider,
-        params: { orderIds: ['order-1'] },
-        context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
-        withStreamPause: mockWithStreamPause,
-      });
-
-      expect(result).toStrictEqual({
-        success: false,
-        successCount: 0,
-        failureCount: 0,
-        results: [],
-        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
-      });
-      expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
-    });
-
     it('cancels only the named venue when the batch is scoped', async () => {
       mockGetOpenOrders.mockResolvedValue([
         { ...mockOrders[0], providerId: 'hyperliquid' },
@@ -4405,17 +4382,17 @@ describe('TradingService', () => {
       );
     });
 
-    it('leaves the slippage to the provider default when none is saved', async () => {
+    it('uses Core’s 300 bps default for a Lighter flip when none is saved', async () => {
       mockProvider.placeOrder.mockResolvedValue({ success: true });
 
       await tradingService.flipPosition({
         provider: mockProvider,
-        position: mockPosition,
+        position: { ...mockPosition, providerId: 'lighter' },
         context: mockContext,
       });
 
-      expect(mockProvider.placeOrder.mock.calls[0][0]).not.toHaveProperty(
-        'maxSlippageBps',
+      expect(mockProvider.placeOrder).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'lighter', maxSlippageBps: 300 }),
       );
     });
 
@@ -4500,6 +4477,7 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        maxSlippageBps: 300,
         deferProviderErrorReport: true,
       });
       expect(mockProvider.placeOrder).not.toHaveBeenCalledWith(
@@ -4692,6 +4670,7 @@ describe('TradingService', () => {
         size: '1',
         orderType: 'market',
         leverage: 10,
+        maxSlippageBps: 300,
         deferProviderErrorReport: true,
       });
     });

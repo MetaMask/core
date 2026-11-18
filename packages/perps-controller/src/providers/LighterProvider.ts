@@ -11509,7 +11509,7 @@ export class LighterProvider implements PerpsProvider {
       ) {
         return {
           success: false,
-          error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
+          error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
         };
       }
       if (isLimitExecutionOrderType(params.orderType) && !params.price) {
@@ -17471,7 +17471,7 @@ export class LighterProvider implements PerpsProvider {
     ) {
       return {
         isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
       };
     }
     await this.#validateExplicitMarginMode(

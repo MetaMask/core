@@ -7,7 +7,10 @@ import {
 } from '../constants/eventNames.js';
 import { isTPSLOrder } from '../constants/orderTypes.js';
 import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import {
+  ORDER_SLIPPAGE_CONFIG,
+  PERPS_CONSTANTS,
+} from '../constants/perpsConfig.js';
 import {
   createTpslLegReplaceUnsupportedError,
   PerpsControllerError,
@@ -2042,7 +2045,9 @@ export class TradingService {
           params.providerId === undefined
             ? openOrders
             : openOrders.filter(
-                (order) => order.providerId === params.providerId,
+                (order) =>
+                  (order.providerId ?? provider.protocolId) ===
+                  params.providerId,
               );
 
         // Filter orders based on params
@@ -2060,32 +2065,6 @@ export class TradingService {
           ordersToCancel = orders.filter((order) =>
             params.orderIds?.includes(order.orderId),
           );
-          // Order IDs are only unique per venue: an ID resting on two venues
-          // cannot say which order the caller meant.
-          const venuesByOrderId = new Map<
-            string,
-            Set<PerpsProviderType | undefined>
-          >();
-          for (const order of ordersToCancel) {
-            const venues =
-              venuesByOrderId.get(order.orderId) ??
-              new Set<PerpsProviderType | undefined>();
-            venues.add(order.providerId);
-            venuesByOrderId.set(order.orderId, venues);
-          }
-          if (
-            Array.from(venuesByOrderId.values()).some(
-              (venues) => venues.size > 1,
-            )
-          ) {
-            return {
-              success: false,
-              successCount: 0,
-              failureCount: 0,
-              results: [],
-              error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
-            };
-          }
         } else if (params.symbols && params.symbols.length > 0) {
           // Cancel orders for specific symbols
           ordersToCancel = orders.filter((order) =>
@@ -3120,7 +3099,7 @@ export class TradingService {
     provider: PerpsProvider;
     position: Position;
     trackingData?: TrackingData;
-    /** Saved max slippage; the provider's market default applies when absent. */
+    /** Saved max slippage. Core's market default applies when absent. */
     maxSlippageBps?: number;
     context: ServiceContext;
   }): Promise<OrderResult> {
@@ -3171,7 +3150,8 @@ export class TradingService {
         ...(position.providerId === undefined
           ? {}
           : { providerId: position.providerId }),
-        ...(maxSlippageBps === undefined ? {} : { maxSlippageBps }),
+        maxSlippageBps:
+          maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps,
         // Lighter placeOrder otherwise logs order_management/place_order and
         // marks the result reported, which drops this flip from flip filters.
         // Close already suppresses that provider report. One Sentry event remains.

@@ -1619,6 +1619,27 @@ describe('HyperLiquidProvider', () => {
         },
       );
 
+      it('fences writes through the public exchange client after account support expires', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          await provider.getExchangeClient();
+          const fence = takeLastFence();
+          await expect(fence()).resolves.toBeUndefined();
+
+          mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+            authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+            threshold: 1,
+          });
+          vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+
+          await expect(fence()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
       it('re-probes a supported account after the recheck interval', async () => {
         vi.useFakeTimers({ toFake: ['Date'] });
         try {

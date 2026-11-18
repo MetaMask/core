@@ -8551,10 +8551,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     accountContext: AccountSupportContext;
     exchangeClient: ExchangeClient;
   }): Promise<string> {
-    await this.#assertNoKnownUnsupportedAccount(
-      params.accountContext,
-      'Chase order submission',
-    );
+    await this.#assertAccountSupported(params.accountContext);
     const result = await params.exchangeClient.order({
       orders: this.#applySubscriptionCloid(
         [
@@ -9369,10 +9366,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (placingClient) {
       await this.#assertRollbackAccountWritable(session.accountContext);
     } else {
-      await this.#assertNoKnownUnsupportedAccount(
-        session.accountContext,
-        'Chase cancellation',
-      );
+      await this.#assertAccountSupported(session.accountContext);
     }
     const exchangeClient =
       placingClient ??
@@ -12061,6 +12055,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       const isPartialTpsl =
         takeProfitSize !== undefined || stopLossSize !== undefined;
 
+      const maxSlippageBps =
+        legScope?.maxSlippageBps ??
+        (legScope || isPartialTpsl ? undefined : params.maxSlippageBps);
+      if (
+        maxSlippageBps !== undefined &&
+        (!Number.isFinite(maxSlippageBps) ||
+          maxSlippageBps < 0 ||
+          maxSlippageBps >= BASIS_POINTS_DIVISOR)
+      ) {
+        return { success: false, error: PERPS_ERROR_CODES.SLIPPAGE_EXCEEDED };
+      }
+
       // Basic initialization only. The trading setup that can prompt a hardware
       // wallet and write the referral / builder-fee approvals is deferred until
       // every validation below has passed, so a rejected update leaves nothing
@@ -12445,28 +12451,24 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
-      // The limit HyperLiquid fills a leg at once triggered. A market leg is
-      // capped like any market trigger: its trigger moved against the closing
-      // side by the caller's slippage tolerance, else the TP/SL default.
+      // Standalone partial triggers retain their trigger as the default fill price.
       const legOrderPrice = (
         orderType: 'take_profit_market' | 'stop_market',
         triggerPrice: string,
         fillPrice: string | undefined,
       ): string =>
-        fillPrice === undefined
+        fillPrice === undefined && !isPartialTpsl
           ? calculateOrderPriceAndSize({
               orderType,
               isBuy: !isLong,
               finalPositionSize: 0,
               currentPrice: 0,
               triggerPrice,
-              maxSlippageBps: legScope
-                ? legScope.maxSlippageBps
-                : params.maxSlippageBps,
+              maxSlippageBps,
               szDecimals: assetInfo.szDecimals,
             }).formattedPrice
           : formatHyperLiquidPrice({
-              price: parseFloat(fillPrice),
+              price: parseFloat(fillPrice ?? triggerPrice),
               szDecimals: assetInfo.szDecimals,
             });
 
@@ -12516,6 +12518,16 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         };
         orders.push(slOrder);
+      }
+
+      for (const order of orders) {
+        const price = Number(order.p);
+        if (!(Number.isFinite(price) && price > 0)) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+          };
+        }
       }
 
       const generatedCloids = new Set<string>();
@@ -15892,6 +15904,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         return basicValidation;
       }
 
+      if (
+        params.currentPrice !== undefined &&
+        !Number.isFinite(params.currentPrice)
+      ) {
+        return {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE,
+        };
+      }
+
       // Leverage 0 and NaN are falsy, so they must be refused explicitly
       // rather than skipping the range check below.
       if (
@@ -16019,6 +16041,13 @@ export class HyperLiquidProvider implements PerpsProvider {
             calculatedUsd: orderValueUSD,
             minimumRequired: minimumOrderSize,
           });
+        }
+
+        if (!Number.isFinite(orderValueUSD)) {
+          return {
+            isValid: false,
+            error: PERPS_ERROR_CODES.ORDER_MAX_VALUE_EXCEEDED,
+          };
         }
 
         // Validate minimum order size
@@ -17894,18 +17923,16 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Escape hatch for agentic validation flows and test harnesses that drive
-   * HL mutations directly. NOT part of the PerpsProvider interface.
-   * Production code paths must go through the provider's own methods.
+   * Provide fixture flows an SDK client fenced to the selected account.
    *
-   * @returns A promise resolving to the underlying HyperLiquid SDK
-   * ExchangeClient. Promise shape matches the existing agentic flows
-   * (hl-provision-fixture) that chain `.then` on the result.
+   * @returns A promise resolving to a guarded HyperLiquid SDK ExchangeClient.
    */
   public async getExchangeClient(): Promise<ExchangeClient> {
-    // Initialized here so the client signs through this provider's wallet.
     await this.#ensureClientsInitialized();
-    return this.#clientService.getExchangeClient();
+    const accountContext = await this.#assertAccountSupported();
+    return this.#clientService.getExchangeClient(async () => {
+      await this.#assertAccountSupported(accountContext);
+    });
   }
 
   /**

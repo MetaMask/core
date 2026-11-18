@@ -3641,8 +3641,8 @@ export class PerpsController extends BaseController<
   /**
    * Structured refusal for an aggregated-mode batch write.
    *
-   * Batch close cannot name a venue, so while multiple venues are registered
-   * it is refused instead of being sent to the default venue.
+   * Batch close and ID-only batch cancel need an explicit route while
+   * multiple venues are registered.
    *
    * @param provider - Resolved provider, when initialization has settled.
    * @returns The batch refusal result, or undefined when the batch may proceed.
@@ -4015,15 +4015,30 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
-    // Each open order carries its venue, so the aggregated provider routes
-    // every cancel without an explicit route here.
     const provider = await this.#getActiveProviderWhenReady();
+    if (
+      !params.cancelAll &&
+      params.orderIds?.length &&
+      params.providerId === undefined
+    ) {
+      // A partial open-order snapshot cannot establish ownership of a venue-local ID.
+      const refusal = this.#getUnroutedAggregatedBatchRefusal(provider);
+      if (refusal) {
+        return refusal;
+      }
+    }
 
     return this.#tradingService.cancelOrders({
       provider,
       params,
       context: this.#createServiceContext('cancelOrders', {
-        getOpenOrders: () => this.getOpenOrders(),
+        getOpenOrders: async () => {
+          const orders = await this.getOpenOrders();
+          if (this.getActiveProviderOrNull() !== provider) {
+            throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+          }
+          return orders;
+        },
       }),
       withStreamPause: <TResult>(
         operation: () => Promise<TResult>,

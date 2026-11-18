@@ -906,7 +906,7 @@ export function validateOrderParams(
     }
 
     const triggerPrice = parseFloat(params.triggerPrice);
-    if (isNaN(triggerPrice) || triggerPrice <= 0) {
+    if (!(Number.isFinite(triggerPrice) && triggerPrice > 0)) {
       return {
         isValid: false,
         error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,

@@ -2897,6 +2897,28 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it.each([NaN, Infinity, -Infinity, -1, 10_000])(
+      'keeps existing protection when the whole-position slippage cap is %s',
+      async (maxSlippageBps) => {
+        setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+        await expect(
+          provider.updatePositionTPSL({
+            symbol: 'BTC',
+            stopLossPrice: '44000',
+            maxSlippageBps,
+          }),
+        ).resolves.toMatchObject({ success: false });
+
+        expect(
+          mockClientService.getExchangeClient().cancel,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
     it('keeps updatePositionTPSL sweeping both legs', async () => {
       setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
 
@@ -2953,6 +2975,7 @@ describe('HyperLiquidProvider', () => {
         expect(request.orders[0].s).toBe('0.04');
         expect(request.orders[0].r).toBe(true);
         expect(request.orders[1].s).toBe('0.06');
+        expect(request.orders[1].p).toBe(request.orders[1].t.trigger.triggerPx);
         expect(request.orders[1].r).toBe(true);
       },
     );

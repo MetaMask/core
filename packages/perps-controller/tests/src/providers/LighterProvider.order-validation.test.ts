@@ -579,11 +579,11 @@ describe('LighterProvider', () => {
 
       expect(await provider.validateOrder(marketOrder)).toStrictEqual({
         isValid: false,
-        error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
       });
       expect(await provider.placeOrder(marketOrder)).toMatchObject({
         success: false,
-        error: PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
+        error: PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN,
       });
       expect(calls).toHaveLength(0);
     });
@@ -599,9 +599,7 @@ describe('LighterProvider', () => {
         reduceOnly: true,
       });
 
-      expect(validation.error).not.toBe(
-        PERPS_ERROR_CODES.ORDER_MARKET_INACTIVE,
-      );
+      expect(validation.error).not.toBe(PERPS_ERROR_CODES.ORDER_UNKNOWN_COIN);
     });
   });
 

@@ -1142,6 +1142,24 @@ describe('PerpsController default provider', () => {
       ).toBe(aggregatedProvider);
     });
 
+    it('refuses ID-only cancellation when the intended venue order is missing', async () => {
+      const getOpenOrders = vi
+        .spyOn(controller, 'getOpenOrders')
+        .mockResolvedValue([
+          { orderId: '123', symbol: 'BTC', providerId: 'lighter' } as never,
+        ]);
+
+      try {
+        await expect(
+          controller.cancelOrders({ orderIds: ['123'] }),
+        ).resolves.toStrictEqual(batchRouteRefusal);
+        expect(getOpenOrders).not.toHaveBeenCalled();
+        expect(mockTradingServiceInstance.cancelOrders).not.toHaveBeenCalled();
+      } finally {
+        getOpenOrders.mockRestore();
+      }
+    });
+
     it.each([
       [
         'closePositions',

@@ -893,6 +893,43 @@ describe('PerpsController', () => {
       );
     });
 
+    it.each([
+      ['hyperliquid', true],
+      ['lighter', false],
+    ] as const)(
+      'matches a direct Hyperliquid order for scope %s',
+      async (providerId, success) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        const { TradingService } = await vi.importActual<
+          typeof tradingServiceModule
+        >('../../src/services/TradingService.js');
+        const service = new TradingService(mockInfrastructure);
+        const cancelOrders = vi.fn().mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [{ symbol: 'BTC', orderId: '123', success: true }],
+        });
+        mockProvider.cancelOrders = cancelOrders;
+        mockTradingServiceInstance.cancelOrders.mockImplementation(
+          service.cancelOrders.bind(service),
+        );
+        const getOpenOrders = vi
+          .spyOn(controller, 'getOpenOrders')
+          .mockResolvedValue([{ symbol: 'BTC', orderId: '123' } as never]);
+
+        try {
+          await expect(
+            controller.cancelOrders({ providerId, orderIds: ['123'] }),
+          ).resolves.toMatchObject({ success });
+          expect(cancelOrders).toHaveBeenCalledTimes(success ? 1 : 0);
+        } finally {
+          getOpenOrders.mockRestore();
+        }
+      },
+    );
+
     it('resumes streams even when operation throws error', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

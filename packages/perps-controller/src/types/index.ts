@@ -1422,9 +1422,8 @@ export type CancelOrdersParams = {
   orderIds?: string[]; // Optional: specific order IDs (omit to cancel all orders for specified coins)
   cancelAll?: boolean; // Explicitly cancel all orders
   /**
-   * Restrict the batch to one venue. Required when an `orderIds` entry rests
-   * on more than one venue; such a batch is refused with
-   * `PROVIDER_ROUTE_REQUIRED`.
+   * Restrict the batch to one venue. Required for filtered `orderIds` batches
+   * when more than one venue is active.
    */
   providerId?: PerpsProviderType;
 };
@@ -1437,7 +1436,7 @@ export type CancelOrdersResult = {
    * Batch-level operation error.
    *
    * Set when the cancel is refused as a whole before any order is submitted,
-   * such as `PROVIDER_ROUTE_REQUIRED` for an order ID found on two venues.
+   * such as `PROVIDER_ROUTE_REQUIRED` for an unrouted multi-venue ID batch.
    */
   error?: string;
   results: {
@@ -2719,7 +2718,7 @@ export type UpdatePositionTPSLParams = {
   /** Pair-only opt-in for partial position coverage; omission keeps the provider default. */
   partialPairLinkage?: 'equal-quantity-oco' | 'independent';
   /**
-   * HyperLiquid: max slippage in basis points for a market-executed leg. Omit
+   * HyperLiquid: max slippage in basis points for a whole-position market leg. Omit
    * to use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
    */
   maxSlippageBps?: number;
