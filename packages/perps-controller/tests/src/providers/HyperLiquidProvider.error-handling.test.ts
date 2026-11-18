@@ -13,6 +13,7 @@ import {
 import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../../../src/constants/transactionsHistoryConfig.js';
 import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
@@ -25,6 +26,8 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
+  PerpsProvider,
+  PerpsProviderType,
 } from '../../../src/types/index.js';
 import {
   getProviderErrorCause,
@@ -1442,6 +1445,149 @@ describe('HyperLiquidProvider', () => {
         await expect(positions).rejects.toHaveProperty(
           'cause.message',
           'xyz DEX unavailable',
+        );
+      });
+
+      // HIP-3 enabled with an `xyz` DEX whose clearinghouse read fails while
+      // the main DEX and spot reads succeed.
+      const createHip3ProviderWithFailingXyzDex = (): HyperLiquidProvider => {
+        const hip3Provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+        });
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            perpDexs: vi
+              .fn()
+              .mockResolvedValue([
+                null,
+                { name: 'xyz', url: 'https://xyz.com' },
+              ]),
+            clearinghouseState: vi
+              .fn()
+              .mockImplementation((params?: { dex?: string }) => {
+                if (params?.dex === 'xyz') {
+                  return Promise.reject(new Error('xyz DEX unavailable'));
+                }
+
+                return Promise.resolve({
+                  marginSummary: {
+                    totalMarginUsed: '500',
+                    accountValue: '10500',
+                  },
+                  withdrawable: '9500',
+                  assetPositions: [],
+                  crossMarginSummary: {
+                    accountValue: '10500',
+                    totalMarginUsed: '500',
+                  },
+                });
+              }),
+            spotClearinghouseState: vi.fn().mockResolvedValue({
+              balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
+            }),
+          }),
+        );
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+        return hip3Provider;
+      };
+
+      it('rejects a partial HIP-3 account read when throwOnUnavailable is set', async () => {
+        const hip3Provider = createHip3ProviderWithFailingXyzDex();
+
+        await expect(
+          hip3Provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(
+          'Failed to fetch account state (failedDexs=[xyz], spotError=none)',
+        );
+      });
+
+      it('reports the aggregate as partial when one HyperLiquid DEX read fails', async () => {
+        const lighterProvider = {
+          protocolId: 'lighter',
+          getAccountState: vi.fn().mockResolvedValue({
+            totalBalance: '250',
+            spendableBalance: '250',
+            withdrawableBalance: '250',
+            marginUsed: '0',
+            unrealizedPnl: '0',
+            returnOnEquity: '0',
+          }),
+        } as unknown as PerpsProvider;
+        const aggregatedProvider = new AggregatedPerpsProvider({
+          providers: new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', createHip3ProviderWithFailingXyzDex()],
+            ['lighter', lighterProvider],
+          ]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockPlatformDependencies,
+        });
+
+        const account = await aggregatedProvider.getAccountState();
+
+        // The reachable DEXs alone must not count as HyperLiquid's balance.
+        expect(account.aggregate).toStrictEqual({
+          status: 'partial',
+          availableProviders: ['lighter'],
+          unavailableProviders: ['hyperliquid'],
+        });
+        expect(account.providerStates?.hyperliquid?.status).toBe('unavailable');
+        expect(account.totalBalance).toBe('250');
+      });
+
+      it('keeps a perps-only total when the spot read fails', async () => {
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: {
+                totalMarginUsed: '500',
+                accountValue: '10500',
+              },
+              withdrawable: '9500',
+              assetPositions: [],
+              crossMarginSummary: {
+                accountValue: '10500',
+                totalMarginUsed: '500',
+              },
+            }),
+            spotClearinghouseState: vi
+              .fn()
+              .mockRejectedValue(new Error('spot clearinghouse down')),
+          }),
+        );
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+        const accountState = await provider.getAccountState();
+
+        expect(accountState.totalBalance).toBe('10500');
+      });
+
+      it('rejects a failed spot read when throwOnUnavailable is set', async () => {
+        mockClientService.getInfoClient = vi.fn().mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: vi.fn().mockResolvedValue({
+              marginSummary: {
+                totalMarginUsed: '500',
+                accountValue: '10500',
+              },
+              withdrawable: '9500',
+              assetPositions: [],
+              crossMarginSummary: {
+                accountValue: '10500',
+                totalMarginUsed: '500',
+              },
+            }),
+            spotClearinghouseState: vi
+              .fn()
+              .mockRejectedValue(new Error('spot clearinghouse down')),
+          }),
+        );
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+        await expect(
+          provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(
+          'Failed to fetch account state (failedDexs=[], spotError=spot clearinghouse down)',
         );
       });
     });

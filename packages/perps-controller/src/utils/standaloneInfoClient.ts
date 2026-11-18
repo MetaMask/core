@@ -50,24 +50,32 @@ export type StandaloneClearinghouseStatesResult = {
  * @param infoClient - The HyperLiquid InfoClient instance to use for queries.
  * @param userAddress - The user's wallet address to query state for.
  * @param dexs - The array of DEX identifiers to query (null for main DEX).
+ * @param throwOnUnavailable - Reject any failed DEX read instead of returning partial data.
  * @returns The answered states and the DEXs that failed.
  */
 export const queryStandaloneClearinghouseStates = async (
   infoClient: InfoClient,
   userAddress: string,
   dexs: (string | null)[],
+  throwOnUnavailable = false,
 ): Promise<StandaloneClearinghouseStatesResult> => {
-  const results = await Promise.allSettled(
-    dexs.map(async (dex) => {
-      const queryParams: { user: string; dex?: string } = {
-        user: userAddress,
-      };
-      if (dex) {
-        queryParams.dex = dex;
-      }
-      return infoClient.clearinghouseState(queryParams);
-    }),
-  );
+  const requests = dexs.map(async (dex) => {
+    const queryParams: { user: string; dex?: string } = {
+      user: userAddress,
+    };
+    if (dex) {
+      queryParams.dex = dex;
+    }
+    return infoClient.clearinghouseState(queryParams);
+  });
+  if (throwOnUnavailable) {
+    const results = await Promise.all(requests);
+    return {
+      results: results.map((data, index) => ({ dex: dexs[index], data })),
+      failedDexs: [],
+    };
+  }
+  const results = await Promise.allSettled(requests);
 
   const outcome: StandaloneClearinghouseStatesResult = {
     results: [],
@@ -91,24 +99,28 @@ export const queryStandaloneClearinghouseStates = async (
  * @param infoClient - The HyperLiquid InfoClient instance to use for queries.
  * @param userAddress - The user's wallet address to query orders for.
  * @param dexs - The array of DEX identifiers to query (null for main DEX).
+ * @param throwOnUnavailable - Reject any failed DEX read instead of returning partial data.
  * @returns A promise that resolves to an array of frontend open orders responses.
  */
 export const queryStandaloneOpenOrders = async (
   infoClient: InfoClient,
   userAddress: string,
   dexs: (string | null)[],
+  throwOnUnavailable = false,
 ): Promise<FrontendOpenOrdersResponse[]> => {
-  const results = await Promise.allSettled(
-    dexs.map(async (dex) => {
-      const queryParams: { user: string; dex?: string } = {
-        user: userAddress,
-      };
-      if (dex) {
-        queryParams.dex = dex;
-      }
-      return infoClient.frontendOpenOrders(queryParams);
-    }),
-  );
+  const requests = dexs.map(async (dex) => {
+    const queryParams: { user: string; dex?: string } = {
+      user: userAddress,
+    };
+    if (dex) {
+      queryParams.dex = dex;
+    }
+    return infoClient.frontendOpenOrders(queryParams);
+  });
+  if (throwOnUnavailable) {
+    return Promise.all(requests);
+  }
+  const results = await Promise.allSettled(requests);
 
   return results
     .filter(

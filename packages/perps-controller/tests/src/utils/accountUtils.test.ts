@@ -10,10 +10,32 @@ import {
   calculateAccountSummary,
   calculateWeightedReturnOnEquity,
   getCrossCollateral,
+  getCaipAccountAddress,
   getCrossMarginSpotCollateral,
   getSpotBalance,
   sumCrossMarginSummaries,
 } from '../../../src/utils/accountUtils.js';
+
+describe('getCaipAccountAddress', () => {
+  it('returns the lowercased address of a CAIP-10 account id', () => {
+    expect(
+      getCaipAccountAddress(
+        'eip155:1:0xAbCdEf0123456789aBcDeF0123456789AbCdEf01',
+      ),
+    ).toBe('0xabcdef0123456789abcdef0123456789abcdef01');
+  });
+
+  it.each([
+    '0xabcdef0123456789abcdef0123456789abcdef01',
+    'eip155:1',
+    'eip155:1:0xabc:extra',
+    '',
+  ])('returns undefined for a malformed account id: %j', (accountId) => {
+    expect(
+      getCaipAccountAddress(accountId as `${string}:${string}:${string}`),
+    ).toBeUndefined();
+  });
+});
 
 describe('aggregateAccountStates', () => {
   it('throws ACCOUNT_STATE_FAILED instead of returning placeholders when given an empty array', () => {
@@ -187,6 +209,32 @@ describe('aggregateAccountStates', () => {
     expect(parseFloat(result.totalBalance)).toBeCloseTo(351, 0);
     expect(parseFloat(result.marginUsed)).toBeCloseTo(81, 0);
     expect(parseFloat(result.unrealizedPnl)).toBeCloseTo(17, 0);
+  });
+
+  it('uses exact decimals for margin, PnL and the combined RoE', () => {
+    const state: AccountState = {
+      totalBalance: '1',
+      spendableBalance: '1',
+      withdrawableBalance: '1',
+      marginUsed: '0.1',
+      unrealizedPnl: '0.01',
+      returnOnEquity: '10',
+    };
+    expect(
+      aggregateAccountStates([
+        state,
+        {
+          ...state,
+          marginUsed: '0.2',
+          unrealizedPnl: '0.08',
+          returnOnEquity: '40',
+        },
+      ]),
+    ).toMatchObject({
+      marginUsed: '0.3',
+      unrealizedPnl: '0.09',
+      returnOnEquity: '30',
+    });
   });
 
   it('preserves the exact subtotal when aggregating DEX states', () => {

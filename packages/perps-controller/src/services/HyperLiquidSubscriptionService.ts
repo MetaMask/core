@@ -2910,6 +2910,28 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Whether the aggregated account covers the whole venue: every DEX the
+   * current configuration requires has published an account slice on the
+   * live connection, and the spot balance has loaded. A failed DEX
+   * subscription or spot read leaves the account incomplete, and so does a
+   * reconnect: per-DEX slices survive it, but until each DEX republishes they
+   * describe the previous connection.
+   *
+   * @returns True when the aggregated account is the venue's full balance.
+   */
+  #isAccountSnapshotComplete(): boolean {
+    return (
+      this.#cachedSpotState !== null &&
+      this.#positionSnapshotDexs.size > 0 &&
+      Array.from(this.#positionSnapshotDexs).every(
+        (dexName) =>
+          this.#dexAccountCache.has(dexName) &&
+          this.#isPositionDexFresh(dexName),
+      )
+    );
+  }
+
+  /**
    * Aggregate data from all DEX caches and notify subscribers if data changed
    * Used by both webData3 callback and fallback subscription callbacks
    */
@@ -3016,6 +3038,12 @@ export class HyperLiquidSubscriptionService {
     };
   }
 
+  #hashAccountAvailability(account: AccountState): string {
+    return `${this.#hashAccountState(account)}:${
+      this.#isAccountSnapshotComplete() ? 'complete' : 'incomplete'
+    }`;
+  }
+
   #notifyAccountSubscribers(): void {
     const account = this.#aggregateAccountStates();
     if (!account) {
@@ -3025,7 +3053,7 @@ export class HyperLiquidSubscriptionService {
       }
       return;
     }
-    const hash = this.#hashAccountState(account);
+    const hash = this.#hashAccountAvailability(account);
     if (hash !== this.#cachedAccountHash) {
       this.#cachedAccountHash = hash;
       this.#accountSubscribers.forEach((callback) => callback(account));
@@ -3832,10 +3860,16 @@ export class HyperLiquidSubscriptionService {
    * @returns A cleanup function to unsubscribe from account updates.
    */
   public subscribeToAccount(params: SubscribeAccountParams): () => void {
-    const { callback, accountId } = params;
+    const { callback, accountId, requireCompleteAccount } = params;
+    // A strict subscriber gets null rather than a total that is missing a
+    // configured DEX or the spot balance, so it never reads as complete.
+    const deliver = requireCompleteAccount
+      ? (account: AccountState | null): void =>
+          callback(this.#isAccountSnapshotComplete() ? account : null)
+      : callback;
     const unsubscribe = this.#createSubscription(
       this.#accountSubscribers,
-      callback,
+      deliver,
     );
 
     // Increment account subscriber count
@@ -3849,9 +3883,11 @@ export class HyperLiquidSubscriptionService {
     const account = this.#aggregateAccountStates();
     if (account) {
       if (this.#accountSubscribers.size === 1) {
-        this.#cachedAccountHash = this.#hashAccountState(account);
+        this.#cachedAccountHash = this.#hashAccountAvailability(account);
       }
-      callback(account);
+      deliver(account);
+    } else if (requireCompleteAccount && this.#cachedAccountHash) {
+      deliver(null);
     }
 
     this.#ensureSpotState(accountId).catch((error) => {
