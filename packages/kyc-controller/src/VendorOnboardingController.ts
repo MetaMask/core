@@ -49,18 +49,19 @@ export const vendorOnboardingControllerName = 'VendorOnboardingController';
 /**
  * What the phone keeps for one vendor. Everything else is decided by kyc-api,
  * so nothing here can disagree with it: the step is a copy for the first
- * paint, and the session id is only a handle.
+ * paint, and the session id is only a handle. `step` and `status` are `null`
+ * until kyc-api has answered, so a saved session id never reads as a step.
  */
 export type OnboardingVendorState = {
-  /** The last step kyc-api answered with. */
-  step: KycStep;
+  /** The last step kyc-api answered with, or `null` before it has answered. */
+  step: KycStep | null;
   /**
    * How verification is going, as of that answer. Separate from the step: a
    * user asked to redo the identity provider is on the same step as one
    * doing it the first time, so this is what a "we need another look"
-   * banner keys off.
+   * banner keys off. `null` until kyc-api has answered.
    */
-  status: KycStepStatus;
+  status: KycStepStatus | null;
   /** The vendor's UKYC session id, once one exists. */
   sessionId: string | null;
 };
@@ -809,8 +810,8 @@ export class VendorOnboardingController extends BaseController<
   ): void {
     this.update((state) => {
       const entry = state.vendors[vendor] ?? {
-        step: 'vendor_terms' as KycStep,
-        status: 'none' as KycStepStatus,
+        step: null,
+        status: null,
         sessionId: null,
       };
       state.vendors[vendor] = { ...entry, ...patch };

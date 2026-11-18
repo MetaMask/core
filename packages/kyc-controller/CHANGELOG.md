@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `VendorOnboardingController`, which follows the onboarding step kyc-api decides for a vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
-  - State is `vendors[vendor] = { step, status, sessionId }`. Terms, consents and account link state stay on the server
+  - State is `vendors[vendor] = { step, status, sessionId }`. Terms, consents and account link state stay on the server. `step` and `status` are `null` until kyc-api has answered, so a saved session id never reads as a step
   - Actions: `refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`, `startSession`, `fetchSessionDisclaimers`, `acceptSessionDisclaimers`, `launchProviderFlow`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`, `resendEmailCode` and `reset`
   - The device-signed account link calls are supplied by the client through the `accountLinkAdapters` option
   - `acceptSessionDisclaimers` records the idOS and identity provider consents with kyc-api at once. `credentialReusabilityConsentGiven` is an argument, never stored or defaulted

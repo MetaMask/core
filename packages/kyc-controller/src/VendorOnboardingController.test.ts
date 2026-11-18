@@ -123,6 +123,29 @@ describe('VendorOnboardingController', () => {
       });
     });
 
+    it('leaves the step unknown while only a session id is saved', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue({
+          ...SESSION_STATUS,
+          id: 'sid-1',
+        });
+        handlers.getStep.mockRejectedValue(new Error('step unavailable'));
+
+        await expect(
+          controller.fetchSessionDisclaimers({ vendor: 'kalshi' }),
+        ).resolves.toBeDefined();
+        await expect(
+          controller.refreshStep({ vendor: 'kalshi' }),
+        ).rejects.toThrow('step unavailable');
+
+        expect(controller.state.vendors.kalshi).toStrictEqual({
+          step: null,
+          status: null,
+          sessionId: 'sid-1',
+        });
+      });
+    });
+
     it('replaces a step saved earlier, and keeps the session id', async () => {
       await withController(
         {
