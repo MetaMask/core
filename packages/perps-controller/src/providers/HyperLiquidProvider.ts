@@ -28,6 +28,7 @@ import {
   HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
+  isUnrestrictedMarginMode,
   REFERRAL_CONFIG,
   TRADING_DEFAULTS,
   USDC_DECIMALS,
@@ -2069,10 +2070,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     onlyIsolated?: boolean;
     marginMode?: string;
   }): boolean {
-    return (
-      !asset.onlyIsolated &&
-      (asset.marginMode === undefined || asset.marginMode === 'normal')
-    );
+    return !asset.onlyIsolated && isUnrestrictedMarginMode(asset.marginMode);
   }
 
   /**
@@ -6172,8 +6170,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Calculate required margin for HIP-3 order based on existing position
    * Handles three scenarios:
    * 1. Increasing an isolated position - requires TOTAL margin (temporary over-funding)
-   * 2. Reducing/flipping position - requires margin for new order only
-   * 3. New position - requires margin for new order only
+   * 2. Increasing a Cross position - requires the new order's margin plus any
+   * shortfall from re-margining the existing position at the order's leverage
+   * 3. Reducing/flipping a position, or opening a new one - requires margin for
+   * new order only
    *
    * @param params - The operation parameters.
    * @param params.symbol - The trading pair symbol.
@@ -6205,16 +6205,43 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // HyperLiquid validates isolated margin by checking if available balance >= TOTAL position margin
     // When increasing a position, we need to ensure enough funds are available for the TOTAL combined size.
-    // A Cross position's margin already sits in the DEX's cross balance, so
-    // increasing it needs only the new order's margin.
+    // A Cross position's margin already sits in the DEX's cross balance, but
+    // the order's leverage applies to the whole position, so a lower leverage
+    // raises the existing size's requirement too.
     if (existingPosition) {
       const existingIsLong = parseFloat(existingPosition.size) > 0;
       const orderIsLong = isBuy;
+      const isIncrease = existingIsLong === orderIsLong;
 
-      if (
-        existingIsLong === orderIsLong &&
-        existingPosition.leverage.type !== 'cross'
-      ) {
+      if (isIncrease && existingPosition.leverage.type === 'cross') {
+        // Increasing a Cross position - the venue re-margins the existing size
+        // at the new leverage. Fund the new order plus any shortfall against
+        // the margin the position already holds (none when leverage is kept or raised).
+        const newOrderMargin = (positionSize * orderPrice) / leverage;
+        const existingMargin = parseFloat(existingPosition.marginUsed);
+        const existingRequiredMargin =
+          parseFloat(existingPosition.positionValue) / leverage;
+        const existingShortfall = Math.max(
+          0,
+          existingRequiredMargin - existingMargin,
+        );
+        requiredMarginWithBuffer =
+          (newOrderMargin + existingShortfall) *
+          HIP3_MARGIN_CONFIG.BufferMultiplier;
+
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: HIP-3 margin calculation (Cross increase)',
+          {
+            symbol,
+            dex: dexName,
+            leverage,
+            newOrderMargin: newOrderMargin.toFixed(2),
+            existingMargin: existingMargin.toFixed(2),
+            existingRequiredMargin: existingRequiredMargin.toFixed(2),
+            requiredMarginWithBuffer: requiredMarginWithBuffer.toFixed(2),
+          },
+        );
+      } else if (isIncrease) {
         // Increasing position - HyperLiquid validates spendableBalance >= totalRequiredMargin
         // BEFORE reallocating existing locked margin. Must transfer TOTAL margin temporarily.
         const existingSize = Math.abs(parseFloat(existingPosition.size));
@@ -6244,7 +6271,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           },
         );
       } else {
-        // Reducing or flipping position, or adding to a Cross position - just need margin for new order
+        // Reducing or flipping position - just need margin for new order
         const notionalValue = positionSize * orderPrice;
         const requiredMargin = notionalValue / leverage;
         requiredMarginWithBuffer =

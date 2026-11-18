@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getSupportedAssets,
   HIP3_ASSET_MARKET_TYPES,
+  isUnrestrictedMarginMode,
 } from '../../../src/constants/hyperLiquidConfig.js';
 import { MarketCategory, MARKET_CATEGORIES } from '../../../src/types/index.js';
 import type { MarketType, MarketTypeFilter } from '../../../src/types/index.js';
@@ -19,6 +20,19 @@ describe('getSupportedAssets', () => {
       'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831/default',
     ]);
   });
+});
+
+describe('isUnrestrictedMarginMode', () => {
+  it.each([undefined, null, 'normal'])('treats %s as unrestricted', (mode) => {
+    expect(isUnrestrictedMarginMode(mode)).toBe(true);
+  });
+
+  it.each(['strictIsolated', 'noCross', 'someFutureMode'])(
+    'treats %s as a restriction',
+    (mode) => {
+      expect(isUnrestrictedMarginMode(mode)).toBe(false);
+    },
+  );
 });
 
 describe('HIP3_ASSET_MARKET_TYPES', () => {
