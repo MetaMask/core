@@ -10,6 +10,7 @@ export default mergeConfig(
       name: basename(import.meta.dirname),
 
       coverage: {
+        exclude: ['src/**/*.test-d.ts'],
         thresholds: {
           branches: 100,
           functions: 100,
