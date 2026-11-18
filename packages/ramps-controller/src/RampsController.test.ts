@@ -12998,6 +12998,90 @@ describe('RampsController', () => {
       });
     });
 
+    it('persists a polled status when the fetched order id carries a different code than the stored order', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        const storedOrder = createMockOrder({
+          id: '/providers/transak/orders/stored-1',
+          providerOrderId: 'stored-1',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', storedOrder);
+
+        const fetchedOrder = {
+          ...storedOrder,
+          id: '/providers/transak/orders/alias-1',
+          providerOrderId: 'native-1',
+          status: RampsOrderStatus.Completed,
+        };
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => fetchedOrder,
+        );
+
+        const statusChangedListener = vi.fn();
+        messenger.subscribe(
+          'RampsController:orderStatusChanged',
+          statusChangedListener,
+        );
+
+        rootMessenger.call('RampsController:startOrderPolling');
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]).toMatchObject({
+          id: '/providers/transak/orders/stored-1',
+          providerOrderId: 'stored-1',
+          status: RampsOrderStatus.Completed,
+        });
+        expect(statusChangedListener).toHaveBeenCalledTimes(1);
+
+        rootMessenger.call('RampsController:stopOrderPolling');
+      });
+    });
+
+    it('does not publish orderStatusChanged when the polled order was removed mid-request', async () => {
+      await withController(async ({ rootMessenger, messenger }) => {
+        const storedOrder = createMockOrder({
+          id: '/providers/transak/orders/removed-1',
+          providerOrderId: 'removed-1',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', storedOrder);
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => {
+            rootMessenger.call('RampsController:removeOrder', 'removed-1');
+            return { ...storedOrder, status: RampsOrderStatus.Completed };
+          },
+        );
+
+        const statusChangedListener = vi.fn();
+        messenger.subscribe(
+          'RampsController:orderStatusChanged',
+          statusChangedListener,
+        );
+
+        rootMessenger.call('RampsController:startOrderPolling');
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(statusChangedListener).not.toHaveBeenCalled();
+
+        rootMessenger.call('RampsController:stopOrderPolling');
+      });
+    });
+
     it('removes polling metadata when order reaches terminal status', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const pendingOrder = createMockOrder({

@@ -4908,9 +4908,19 @@ export class RampsController extends BaseController<
       meta.lastTimeFetched = Date.now();
       this.#orderPollingMeta.set(order.providerOrderId, meta);
 
+      // Publish only a transition that is now stored. A transition the
+      // controller could not write (for example the order was removed while the
+      // request was in flight) would otherwise be republished on every poll.
+      const storedStatus = this.state.orders.find(
+        (existingOrder) =>
+          getInternalOrderCode(existingOrder) ===
+          getInternalOrderCode(updatedOrder),
+      )?.status;
+
       if (
         previousStatus !== updatedOrder.status &&
-        previousStatus !== undefined
+        previousStatus !== undefined &&
+        storedStatus === updatedOrder.status
       ) {
         this.messenger.publish('RampsController:orderStatusChanged', {
           order: updatedOrder,
@@ -5162,15 +5172,32 @@ export class RampsController extends BaseController<
     );
 
     const healedWalletAddress = order.walletAddress || wallet;
-    const internalOrderCode = getInternalOrderCode({
+    const requestedOrderCode = getInternalOrderCode(orderCode);
+    const storedOrder = this.state.orders.find(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === requestedOrderCode,
+    );
+    const fetchedOrderCode = getInternalOrderCode({
       id: order.id,
       providerOrderId: orderCode,
     });
+
+    // The order was requested by the code it is stored under, so the response
+    // is that order even when its canonical `id` carries a different code.
+    // Keep the stored identity so the write below updates the stored row.
+    // Re-keying it would leave the stored row at its old status, and polling
+    // would republish the same transition on every cycle.
+    const keepsStoredIdentity =
+      storedOrder !== undefined && fetchedOrderCode !== requestedOrderCode;
     const healedOrder = {
       ...order,
       walletAddress: healedWalletAddress,
-      providerOrderId: internalOrderCode,
+      ...(keepsStoredIdentity ? { id: storedOrder.id } : {}),
+      providerOrderId: keepsStoredIdentity
+        ? requestedOrderCode
+        : fetchedOrderCode,
     };
+    const internalOrderCode = getInternalOrderCode(healedOrder);
 
     const orderStillExists = this.state.orders.some(
       (existingOrder) =>
