@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1431.0.0 ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Release 1422.0.0 ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Release/1406.0.0 ([#11390](https://github.com/MetaMask/core/pull/11390))
+- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
+- Release 1392.0.0 ([#11300](https://github.com/MetaMask/core/pull/11300))
+- Release 1390.0.0 ([#11289](https://github.com/MetaMask/core/pull/11289))
+- test: turn coverage off by default and add test:coverage ([#11061](https://github.com/MetaMask/core/pull/11061))
+
 ### Added
 
 - Whitelist CHOMP's successor association message for `chompSignInDomain`, so migrating to the MPC Money Account no longer asks for MFA ([#11310](https://github.com/MetaMask/core/pull/11310))
