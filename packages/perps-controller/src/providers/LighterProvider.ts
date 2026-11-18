@@ -10185,7 +10185,7 @@ export class LighterProvider implements PerpsProvider {
     // account.
     await this.#ensureMarketMargins();
     try {
-      const accountIndex = await this.#ensureAccountIndex();
+      const accountIndex = await this.#readAccountIndex(generation);
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
       this.#assertSession(generation);
@@ -10285,6 +10285,21 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
+   * Confirm the lookup still belongs to the read's session, including when
+   * the venue rejects it. Only the current wallet can have no account.
+   *
+   * @param generation - Session that initiated the read.
+   * @returns The current account index.
+   */
+  async #readAccountIndex(generation: number): Promise<number> {
+    try {
+      return await this.#ensureAccountIndex();
+    } finally {
+      this.#assertSession(generation);
+    }
+  }
+
+  /**
    * Error for a failed read. A read the wallet's account switch cancelled is
    * stale (`PROVIDER_LIFECYCLE_STALE`): its data belonged to the previous
    * account. Any other failure gets `code`. The cause is attached.
@@ -10307,7 +10322,7 @@ export class LighterProvider implements PerpsProvider {
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
-      const accountIndex = await this.#ensureAccountIndex();
+      const accountIndex = await this.#readAccountIndex(generation);
       const response =
         await this.#clientService.getAccountByIndex(accountIndex);
       // A delayed response for the previous account must never surface as
@@ -10456,7 +10471,7 @@ export class LighterProvider implements PerpsProvider {
   readonly #readOpenOrdersStrict = async (): Promise<Order[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
-    const accountIndex = await this.#ensureAccountIndex();
+    const accountIndex = await this.#readAccountIndex(generation);
     const authToken = await this.#getAuthToken();
     // The index and the token must belong to the SAME session — never
     // pair the previous account's index with the new account's token.
@@ -10497,7 +10512,7 @@ export class LighterProvider implements PerpsProvider {
     try {
       this.#ensureSessionBinding();
       const generation = this.#sessionGeneration;
-      const accountIndex = await this.#ensureAccountIndex();
+      const accountIndex = await this.#readAccountIndex(generation);
       const authToken = await this.#getAuthToken();
       this.#assertSession(generation);
       await this.#ensureMarkets();

@@ -1644,32 +1644,35 @@ describe('HyperLiquidProvider', () => {
       expect(mockClientService.getInfoClient).not.toHaveBeenCalled();
     });
 
-    it('falls back to REST when atomic cache getter returns null', async () => {
+    it('reads REST open orders once when the cache is unavailable', async () => {
       // Arrange - atomic getter returns null (cache not initialized or race condition)
       mockSubscriptionService.getOrdersCacheIfInitialized = vi
         .fn()
         .mockReturnValue(null);
 
-      const mockFrontendOpenOrders = vi.fn().mockResolvedValue([
-        {
-          coin: 'ETH',
-          side: 'B',
-          limitPx: '3000',
-          sz: '1.0',
-          oid: 501,
-          timestamp: Date.now(),
-          origSz: '1.0',
-          triggerCondition: '',
-          isTrigger: false,
-          triggerPx: '',
-          children: [],
-          isPositionTpsl: false,
-          reduceOnly: false,
-          orderType: 'Limit',
-          tif: 'Gtc',
-          cloid: null,
-        },
-      ]);
+      const mockFrontendOpenOrders = vi
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            coin: 'ETH',
+            side: 'B',
+            limitPx: '3000',
+            sz: '1.0',
+            oid: 501,
+            timestamp: Date.now(),
+            origSz: '1.0',
+            triggerCondition: '',
+            isTrigger: false,
+            triggerPx: '',
+            children: [],
+            isPositionTpsl: false,
+            reduceOnly: false,
+            orderType: 'Limit',
+            tif: 'Gtc',
+            cloid: null,
+          },
+        ])
+        .mockRejectedValueOnce(new Error('unexpected repeat request'));
 
       mockClientService.getInfoClient = vi.fn().mockReturnValue({
         maxBuilderFee: vi.fn().mockResolvedValue(1),
@@ -1694,7 +1697,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.getOpenOrders();
 
       // Assert - should fall back to REST API
-      expect(mockFrontendOpenOrders).toHaveBeenCalled();
+      expect(mockFrontendOpenOrders).toHaveBeenCalledOnce();
       expect(result.length).toBe(1);
       expect(result[0].orderId).toBe('501');
     });

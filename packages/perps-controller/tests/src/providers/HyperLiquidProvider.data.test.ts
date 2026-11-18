@@ -37,6 +37,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -1024,6 +1025,22 @@ describe('HyperLiquidProvider', () => {
           fundingRate: 0.000000059,
         }),
       ]);
+    });
+
+    it('checks TP/SL orders before using a nonempty position cache', async () => {
+      mockSubscriptionService.getFreshPositionsForAllDexs.mockReturnValue([
+        createMockPosition(),
+      ]);
+      mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue(null);
+      const infoClient = mockClientService.getInfoClient();
+      const cause = new Error('TP/SL orders unavailable');
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValueOnce(cause);
+
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
 
     it('rejects when the position request fails', async () => {

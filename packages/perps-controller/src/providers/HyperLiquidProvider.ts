@@ -13818,6 +13818,26 @@ export class HyperLiquidProvider implements PerpsProvider {
     const userAddress = await this.#walletService.getUserAddressWithDefault();
     const enabledDexs = await this.#getValidatedDexsStrict();
 
+    return await this.#fetchPositionContext(
+      infoClient,
+      userAddress,
+      enabledDexs,
+    );
+  }
+
+  /**
+   * Read a complete position snapshot without fetching TP/SL orders.
+   *
+   * @param infoClient - Already initialized Hyperliquid info client.
+   * @param userAddress - Account whose positions are needed.
+   * @param enabledDexs - Verified DEX list for this read.
+   * @returns Positions from all requested DEXs.
+   */
+  async #fetchPositionContext(
+    infoClient: ReturnType<HyperLiquidClientService['getInfoClient']>,
+    userAddress: string,
+    enabledDexs: (string | null)[],
+  ): Promise<Position[]> {
     const { results, failedDexs } = await this.#queryUserDataAcrossDexs(
       { user: userAddress },
       (userParam) => infoClient.clearinghouseState(userParam),
@@ -13833,7 +13853,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           ),
         },
       );
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE, {
+        cause: failedDexs[0].error,
+      });
     }
 
     if (results.some(({ data }) => !Array.isArray(data.assetPositions))) {
@@ -13962,7 +13984,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (!params?.skipCache && params?.accountId === undefined) {
         const cachedPositions =
           this.#subscriptionService.getFreshPositionsForAllDexs();
-        if (cachedPositions !== null) {
+        if (
+          cachedPositions !== null &&
+          (cachedPositions.length === 0 ||
+            this.#subscriptionService.getOrdersCacheIfInitialized(true) !==
+              null)
+        ) {
           return cachedPositions;
         }
       }
@@ -14523,7 +14550,21 @@ export class HyperLiquidProvider implements PerpsProvider {
         return [];
       }
 
-      const positions = await this.getPositions(params);
+      let positions: Position[] = [];
+      if (
+        rawOrders.some(
+          (order) =>
+            order.isPositionTpsl && parseFloat(order.origSz || order.sz) === 0,
+        )
+      ) {
+        const cachedPositions =
+          !params?.skipCache && params?.accountId === undefined
+            ? this.#subscriptionService.getFreshPositionsForAllDexs()
+            : null;
+        positions =
+          cachedPositions ??
+          (await this.#fetchPositionContext(infoClient, userAddress, dexs));
+      }
 
       this.#deps.debugLogger.log('Currently open orders received (all DEXs):', {
         count: rawOrders.length,

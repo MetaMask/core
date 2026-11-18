@@ -5527,16 +5527,18 @@ export class HyperLiquidSubscriptionService {
       this.#accountSubscribers.size > 0 ||
       this.#oiCapSubscribers.size > 0
     ) {
-      // Clear existing subscription references (they're dead after reconnection)
+      // Retire pending opens as well as subscriptions on the old transport.
+      const address = this.#userDataBinding?.address;
+      this.#userDataBinding =
+        address === undefined ? undefined : { address, discoveringDexs: false };
+      this.#finishDexDiscoveryWait();
       this.#webData3Subscriptions.clear();
       this.#webData3SubscriptionPromise = undefined;
-
-      // Clear individual subscriptions (clearinghouseState + openOrders)
       this.#clearinghouseStateSubscriptions.clear();
       this.#openOrdersSubscriptions.clear();
+      this.#pendingClearinghouseSubscriptions.clear();
+      this.#pendingOpenOrdersSubscriptions.clear();
 
-      // Re-establish the subscription (will use current account)
-      // This sets up per-DEX clearinghouseState + openOrders subscriptions plus webData3 (OI caps only)
       await this.#ensureSharedWebData3Subscription();
     }
 
@@ -5680,6 +5682,8 @@ export class HyperLiquidSubscriptionService {
     this.#isClearing = true;
     this.#userDataBinding = undefined;
     this.#finishDexDiscoveryWait();
+    this.#pendingClearinghouseSubscriptions.clear();
+    this.#pendingOpenOrdersSubscriptions.clear();
 
     // Bump every TWAP account's generation before anything is cleared, so an
     // in-flight open discards its subscription instead of rehydrating a

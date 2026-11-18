@@ -1161,15 +1161,44 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribeSecond();
     });
 
+    it('restores DEX subscriptions without waiting for a retired transport', async () => {
+      const pending = createDeferred<MockSubscription>();
+      const replacement = {
+        ...mockSubscriptionClient,
+        clearinghouseState: vi.fn().mockResolvedValue({
+          unsubscribe: vi.fn().mockResolvedValue(undefined),
+        }),
+      };
+      mockSubscriptionClient.clearinghouseState.mockReturnValueOnce(
+        pending.promise,
+      );
+      const unsubscribe = service.subscribeToPositions({ callback: vi.fn() });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledOnce();
+
+      vi.mocked(mockClientService.getSubscriptionClient).mockReturnValue(
+        replacement,
+      );
+      await service.restoreSubscriptions();
+      expect(replacement.clearinghouseState).toHaveBeenCalledOnce();
+
+      pending.reject(new Error('retired socket'));
+      await vi.advanceTimersByTimeAsync(0);
+      unsubscribe();
+    });
+
     it('reopens the account stream after clearing the provider for reinitialization', async () => {
-      const unsubscribeBefore = service.subscribeToAccount({
+      const pending = createDeferred<MockSubscription>();
+      mockSubscriptionClient.clearinghouseState.mockReturnValueOnce(
+        pending.promise,
+      );
+      service.subscribeToAccount({
         callback: vi.fn(),
       });
       await vi.advanceTimersByTimeAsync(0);
       expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledTimes(
         1,
       );
-      unsubscribeBefore();
       service.clearAll();
 
       const unsubscribeAfter = service.subscribeToAccount({

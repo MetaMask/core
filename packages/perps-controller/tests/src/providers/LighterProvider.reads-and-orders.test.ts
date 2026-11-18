@@ -38,7 +38,10 @@ import {
   createMockHyperLiquidProvider,
   createMockOrder,
 } from '../../helpers/providerMocks.js';
-import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+} from '../../helpers/serviceMocks.js';
 
 vi.mock(
   import('../../../src/services/LighterClientService'),
@@ -1138,6 +1141,35 @@ describe('LighterProvider', () => {
       expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
       expect(clientInstance.getInactiveOrders).not.toHaveBeenCalled();
     });
+
+    it.each([
+      'getOpenOrders',
+      'getOrders',
+      'getPositions',
+      'getAccountState',
+    ] as const)(
+      '%s rejects a no-account response from a disconnected session',
+      async (read) => {
+        const { provider, clientInstance } = buildProvider({
+          configuredAccountIndex: null,
+        });
+        const lookup = createDeferred<never>();
+        const started = createDeferred<void>();
+        clientInstance.getAccountsByL1Address.mockImplementationOnce(() => {
+          started.resolve();
+          return lookup.promise;
+        });
+
+        const result = provider[read]();
+        await started.promise;
+        await provider.disconnect();
+        lookup.reject(new LighterApiError('account not found', 21100));
+
+        await expect(result).rejects.toThrow(
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        );
+      },
+    );
 
     it('returns open orders through the auth-token path', async () => {
       const { provider, clientInstance } = buildProvider();
