@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HyperLiquid `getChaseOrders` lists only chases placed by the current account on the current network, so a chase started under another account no longer shows, with its cancel action, after the account or network changes ([#11592](https://github.com/MetaMask/core/pull/11592))
 - HyperLiquid counts the chase cap per account and network, the scope `getChaseOrders` lists, so chases still running for another account or network no longer refuse a placement with `ORDER_CHASE_LIMIT_REACHED` after `checkChasePlacement` allowed it ([#11592](https://github.com/MetaMask/core/pull/11592))
 - HyperLiquid TWAP reads raise `executedSize`, `remainingSize`, `executedNotional`, `averagePrice` and `fillProgressBps` from slice fills, so they rise while a TWAP runs instead of staying at the venue's stale 0 ([#11592](https://github.com/MetaMask/core/pull/11592))
+- Send the `add_margin` and `remove_margin` Risk Management actions through `PERPS_EVENT_VALUE` constants instead of string literals ([#11608](https://github.com/MetaMask/core/pull/11608))
 
 ## [24.1.0]
 
