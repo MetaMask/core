@@ -967,7 +967,7 @@ describe('PerpsController', () => {
       const currentAccount = accountState('200');
       resolveAccount(currentAccount);
 
-      await expect(currentRead).resolves.toStrictEqual(currentAccount);
+      expect(await currentRead).toStrictEqual(currentAccount);
       expect(controller.state.accountState).toStrictEqual(currentAccount);
     });
 
@@ -991,7 +991,7 @@ describe('PerpsController', () => {
       const previousAccount = accountState('100');
       resolveAccount(previousAccount);
 
-      await expect(previousRead).resolves.toStrictEqual(previousAccount);
+      expect(await previousRead).toStrictEqual(previousAccount);
       expect(controller.state.accountState).toBeNull();
     });
 
@@ -1003,9 +1003,9 @@ describe('PerpsController', () => {
       mockProvider.getAccountState.mockResolvedValueOnce(otherAccount);
       const accountId = 'eip155:1:0x00000000000000000000000000000000000000bb';
 
-      await expect(
-        controller.getAccountState({ accountId }),
-      ).resolves.toStrictEqual(otherAccount);
+      expect(await controller.getAccountState({ accountId })).toStrictEqual(
+        otherAccount,
+      );
       expect(mockProvider.getAccountState).toHaveBeenCalledWith({ accountId });
       expect(controller.state.accountState).toBeNull();
     });

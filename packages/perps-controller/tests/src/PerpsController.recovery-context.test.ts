@@ -232,7 +232,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     await entered.promise;
     await controller.getAccountState();
     pendingOwnership.resolve(ownership);
-    await expect(pendingRead).resolves.toStrictEqual(ownership);
+    expect(await pendingRead).toStrictEqual(ownership);
   });
 
   it.each(CONTEXT_CHANGES)(

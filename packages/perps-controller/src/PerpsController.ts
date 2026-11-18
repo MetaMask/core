@@ -13,7 +13,7 @@ import type { StateChangeListener } from '@metamask/base-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { hasProperty } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
+import type { CaipAccountId, Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
