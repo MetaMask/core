@@ -58,6 +58,7 @@ import type {
   GetOrderFillsParams,
   GetPublicTradesParams,
   GetOrdersParams,
+  BatchOpenOrdersOptions,
   GetOrFetchFillsParams,
   GetPositionsParams,
   GetSupportedPathsParams,
@@ -749,14 +750,31 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#extractSuccessfulResults(results, 'getOrders').flat();
   }
 
-  async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
-    const results = await Promise.allSettled(
-      this.#getActiveProviders().map(async ([id, provider]) => {
-        const orders = await provider.getOpenOrders(params);
-        return orders.map((order) => ({ ...order, providerId: id }));
-      }),
-    );
+  async getOpenOrders(
+    params?: GetOrdersParams,
+    options?: BatchOpenOrdersOptions,
+  ): Promise<Order[]> {
+    const providers = options?.providerId
+      ? [this.#getProviderOrDefault(options.providerId)]
+      : this.#getActiveProviders();
+    const reads = providers.map(async ([id, provider]) => {
+      const orders = options
+        ? await provider.getOpenOrders(params, options)
+        : await provider.getOpenOrders(params);
+      return orders.map((order) => ({ ...order, providerId: id }));
+    });
+    if (options?.requireComplete) {
+      const orders = await Promise.all(reads);
+      if (
+        (!options.providerId && providers.length !== this.#providers.size) ||
+        providers.some(([id, provider]) => this.#providers.get(id) !== provider)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+      return orders.flat();
+    }
 
+    const results = await Promise.allSettled(reads);
     return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
   }
 

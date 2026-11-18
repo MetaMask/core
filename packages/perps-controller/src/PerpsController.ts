@@ -4015,13 +4015,39 @@ export class PerpsController extends BaseController<
    * @returns The batch cancellation results for each order.
    */
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
-    const provider = await this.#getActiveProviderWhenReady();
-    if (
-      !params.cancelAll &&
-      params.orderIds?.length &&
-      params.providerId === undefined
-    ) {
-      // A partial open-order snapshot cannot establish ownership of a venue-local ID.
+    const request = {
+      ...params,
+      ...(params.orderIds && { orderIds: params.orderIds.slice() }),
+      ...(params.symbols && { symbols: params.symbols.slice() }),
+    };
+    const { cancelAll, providerId, orderIds, symbols } = request;
+    if (cancelAll !== true && (orderIds ?? symbols)?.length === 0) {
+      return { success: false, successCount: 0, failureCount: 0, results: [] };
+    }
+
+    const issuedContext = this.#getActionContext();
+    const issuedGeneration = this.#lifecycleGeneration;
+    const issuedAccountGeneration = this.#selectedAccountGeneration;
+    const issuedInstance = this.activeProviderInstance;
+    const assertCurrent = (provider = issuedInstance): void => {
+      if (
+        issuedContext !== this.#getActionContext() ||
+        issuedGeneration !== this.#lifecycleGeneration ||
+        issuedAccountGeneration !== this.#selectedAccountGeneration ||
+        (provider !== null && this.activeProviderInstance !== provider)
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+    };
+
+    let provider: PerpsProvider;
+    try {
+      provider = await this.#getActiveProviderWhenReady();
+    } finally {
+      assertCurrent();
+    }
+    if (cancelAll !== true && orderIds?.length && providerId === undefined) {
+      // A snapshot cannot establish ownership of a venue-local ID.
       const refusal = this.#getUnroutedAggregatedBatchRefusal(provider);
       if (refusal) {
         return refusal;
@@ -4030,14 +4056,19 @@ export class PerpsController extends BaseController<
 
     return this.#tradingService.cancelOrders({
       provider,
-      params,
+      params: request,
+      assertCurrent: () => assertCurrent(provider),
       context: this.#createServiceContext('cancelOrders', {
         getOpenOrders: async () => {
-          const orders = await this.getOpenOrders();
-          if (this.getActiveProviderOrNull() !== provider) {
-            throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+          assertCurrent(provider);
+          try {
+            return await provider.getOpenOrders(undefined, {
+              requireComplete: true,
+              providerId,
+            });
+          } finally {
+            assertCurrent(provider);
           }
-          return orders;
         },
       }),
       withStreamPause: <TResult>(

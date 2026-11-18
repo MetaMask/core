@@ -278,6 +278,7 @@ export type {
   CancelOrderParams,
   CancelOrderResult,
   BatchCancelOrdersParams,
+  BatchOpenOrdersOptions,
   CancelOrdersParams,
   CancelOrdersResult,
   EditOrderParams,

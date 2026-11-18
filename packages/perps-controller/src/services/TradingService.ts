@@ -1996,6 +1996,7 @@ export class TradingService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
+   * @param options.assertCurrent - Verifies the issuing account and provider before writes.
    * @param options.withStreamPause - The with stream pause value.
    * @returns The result of the operation.
    */
@@ -2003,6 +2004,7 @@ export class TradingService {
     provider: PerpsProvider;
     params: CancelOrdersParams;
     context: ServiceContext;
+    assertCurrent?: () => void;
     withStreamPause: <TResult>(
       operation: () => Promise<TResult>,
       channels: string[],
@@ -2060,12 +2062,12 @@ export class TradingService {
           ordersToCancel = orders.filter(
             (order) => !isTPSLOrder(order.detailedOrderType),
           );
-        } else if (params.orderIds && params.orderIds.length > 0) {
+        } else if (params.orderIds !== undefined) {
           // Cancel specific order IDs
           ordersToCancel = orders.filter((order) =>
             params.orderIds?.includes(order.orderId),
           );
-        } else if (params.symbols && params.symbols.length > 0) {
+        } else if (params.symbols !== undefined) {
           // Cancel orders for specific symbols
           ordersToCancel = orders.filter((order) =>
             params.symbols?.includes(order.symbol),
@@ -2081,6 +2083,7 @@ export class TradingService {
           };
         }
 
+        options.assertCurrent?.();
         // Use batch cancel if provider supports it
         if (provider.cancelOrders) {
           return await provider.cancelOrders(
@@ -2227,6 +2230,7 @@ export class TradingService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
+   * @param options.assertCurrent - Verifies the issuing account and provider before writes.
    * @param options.reportOrderToDataLake - The report order to data lake value.
    * @param options.bulkActionId - Optional batch correlation id.
    * @returns The result of the operation.

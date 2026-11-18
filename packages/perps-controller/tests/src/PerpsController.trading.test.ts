@@ -11,6 +11,7 @@ import type { Mock, Mocked, MockedClass } from 'vitest';
 
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
@@ -23,6 +24,8 @@ import {
   InitializationState,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import * as accountServiceModule from '../../src/services/AccountService.js';
 import * as dataLakeServiceModule from '../../src/services/DataLakeService.js';
@@ -32,6 +35,7 @@ import * as featureFlagConfigurationServiceModule from '../../src/services/Featu
 import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
 import * as tradingServiceModule from '../../src/services/TradingService.js';
 import type {
+  Order,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
@@ -344,6 +348,7 @@ class TestablePerpsController extends PerpsController {
 describe('PerpsController', () => {
   let controller: TestablePerpsController;
   let mockProvider: Mocked<HyperLiquidProvider>;
+  let selectedAddress: string;
   let mockInfrastructure: Mocked<PerpsPlatformDependencies>;
 
   // Helper to mark controller as initialized for tests
@@ -513,6 +518,7 @@ describe('PerpsController', () => {
       return mockProvider;
     });
 
+    selectedAddress = '0x1234567890123456789012345678901234567890';
     const mockCall = vi.fn().mockImplementation((action: string) => {
       if (action === 'RemoteFeatureFlagController:getState') {
         return {
@@ -528,7 +534,7 @@ describe('PerpsController', () => {
       ) {
         return [
           {
-            address: '0x1234567890123456789012345678901234567890',
+            address: selectedAddress,
             type: 'eip155:eoa',
             id: 'account-1',
             options: {},
@@ -847,6 +853,103 @@ describe('PerpsController', () => {
   });
 
   describe('cancelOrders', () => {
+    const order = { symbol: 'BTC', orderId: '123' } as Order;
+    const protection = {
+      ...order,
+      orderId: '124',
+      detailedOrderType: 'Stop Market',
+    } as Order;
+
+    const useRealBatchService = async (): Promise<void> => {
+      const { TradingService } = await vi.importActual<
+        typeof tradingServiceModule
+      >('../../src/services/TradingService.js');
+      const service = new TradingService(mockInfrastructure);
+      mockTradingServiceInstance.cancelOrders.mockImplementation(
+        service.cancelOrders.bind(service),
+      );
+    };
+
+    it.each([{ orderIds: [] }, { symbols: [] }])(
+      'leaves orders and protection untouched for %j',
+      async (params) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        await useRealBatchService();
+        mockProvider.getOpenOrders.mockResolvedValue([order, protection]);
+
+        const result = await controller.cancelOrders(params);
+
+        expect(result).toStrictEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 0,
+          results: [],
+        });
+        expect(mockProvider.getOpenOrders).not.toHaveBeenCalled();
+        expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects an outstanding batch snapshot across an account switch on the same provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      await useRealBatchService();
+      const entered = createDeferred<void>();
+      const hold = createDeferred<Order[]>();
+      mockProvider.getOpenOrders.mockImplementationOnce(async () => {
+        entered.resolve();
+        return hold.promise;
+      });
+      const result = controller.cancelOrders({ cancelAll: true });
+      const refusal = expect(result).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+      await entered.promise;
+      selectedAddress = '0x9999999999999999999999999999999999999999';
+      hold.resolve([order]);
+
+      await refusal;
+      expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+    });
+
+    it('fails closed on a venue read failure while allowing an explicitly scoped healthy venue', async () => {
+      markControllerAsInitialized();
+      await useRealBatchService();
+      const lighter = createMockHyperLiquidProvider();
+      lighter.getOpenOrders.mockRejectedValue(
+        new Error('Lighter read unavailable'),
+      );
+      mockProvider.getOpenOrders.mockResolvedValue([order]);
+      mockProvider.cancelOrders.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ ...order, success: true }],
+      });
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', aggregated]]));
+      await expect(
+        controller.cancelOrders({ cancelAll: true }),
+      ).rejects.toThrow('Lighter read unavailable');
+      expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      expect(lighter.cancelOrders).not.toHaveBeenCalled();
+
+      const result = await controller.cancelOrders({
+        cancelAll: true,
+        providerId: 'hyperliquid',
+      });
+      expect(result.successCount).toBe(1);
+      expect(lighter.getOpenOrders).toHaveBeenCalledTimes(1);
+    });
+
     it('delegates to TradingService with withStreamPause callback', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -915,18 +1018,14 @@ describe('PerpsController', () => {
         mockTradingServiceInstance.cancelOrders.mockImplementation(
           service.cancelOrders.bind(service),
         );
-        const getOpenOrders = vi
-          .spyOn(controller, 'getOpenOrders')
-          .mockResolvedValue([{ symbol: 'BTC', orderId: '123' } as never]);
+        mockProvider.getOpenOrders.mockResolvedValue([order]);
 
-        try {
-          await expect(
-            controller.cancelOrders({ providerId, orderIds: ['123'] }),
-          ).resolves.toMatchObject({ success });
-          expect(cancelOrders).toHaveBeenCalledTimes(success ? 1 : 0);
-        } finally {
-          getOpenOrders.mockRestore();
-        }
+        const result = await controller.cancelOrders({
+          providerId,
+          orderIds: ['123'],
+        });
+        expect(result.success).toBe(success);
+        expect(cancelOrders).toHaveBeenCalledTimes(success ? 1 : 0);
       },
     );
 

@@ -1640,6 +1640,28 @@ describe('HyperLiquidProvider', () => {
         }
       });
 
+      it.each([
+        { answer: multiSigStatus },
+        { answer: { status: 'err', response: 'Multi-sig required' } },
+        { error: new Error('Multi-sig required') },
+      ])(
+        'corrects a positive account probe after an SDK venue rejection %j',
+        async (outcome) => {
+          const getExchangeClient = mockClientService.getExchangeClient;
+          await provider.getExchangeClient();
+          const [, hooks] = getExchangeClient.mock.lastCall ?? [];
+          expect(hooks?.beforeSign).toBeDefined();
+          await hooks?.beforeSign?.();
+
+          hooks?.onExchangeResult?.(outcome);
+
+          await expect(hooks?.beforeSign?.()).rejects.toThrow(
+            PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          );
+          expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+        },
+      );
+
       it('re-probes a supported account after the recheck interval', async () => {
         vi.useFakeTimers({ toFake: ['Date'] });
         try {

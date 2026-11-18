@@ -116,6 +116,7 @@ import type {
   GetOrderFillsParams,
   GetPublicTradesParams,
   GetOrdersParams,
+  BatchOpenOrdersOptions,
   GetOrFetchFillsParams,
   GetPositionsParams,
   GetSupportedPathsParams,
@@ -3226,6 +3227,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     );
   }
 
+  async #captureAccountContext(): Promise<AccountSupportContext> {
+    return {
+      lifecycleGeneration: this.#lifecycleGeneration,
+      network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+      userAddress: await this.#walletService.getUserAddressWithDefault(),
+    };
+  }
+
   /**
    * Stop an action before signing when Hyperliquid reports a native multi-sig
    * signer set for the active account.
@@ -3237,13 +3246,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #assertAccountSupported(
     expectedContext?: AccountSupportContext,
   ): Promise<AccountSupportContext> {
-    const context =
-      expectedContext ??
-      ({
-        lifecycleGeneration: this.#lifecycleGeneration,
-        network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
-        userAddress: await this.#walletService.getUserAddressWithDefault(),
-      } satisfies AccountSupportContext);
+    const context = expectedContext ?? (await this.#captureAccountContext());
     const support = await this.#getAccountSupportForContext(context);
     await this.#assertAccountContextCurrent(context, 'Account support check');
     if (!support.isSupported) {
@@ -11333,6 +11336,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     const chaseIndexes = new Set(chaseRoutes.map(({ index }) => index));
 
     try {
+      const issuedAccount = await this.#captureAccountContext();
+      await this.#assertAccountContextCurrent(
+        issuedAccount,
+        'Batch order cancellation',
+      );
       for (const handle of new Set(chaseRoutes.map((route) => route.handle))) {
         this.#stopChaseSession(handle);
       }
@@ -11361,6 +11369,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         // fee approval that the action cannot use.
         const { accountContext } = await this.#ensureReadyForTrading({
           requiresBuilderFee: false,
+          accountContext: issuedAccount,
         });
         const cancelRequests = await Promise.all(
           ordinaryOrders.map(async ({ order }) => {
@@ -14410,14 +14419,22 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Aggregates orders from all enabled DEXs (main + HIP-3)
    *
    * @param params - The operation parameters.
+   * @param options - Require a fresh, complete list for cancellation.
    * @returns A promise that resolves to the result.
    */
-  async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
+  async getOpenOrders(
+    params?: GetOrdersParams,
+    options?: BatchOpenOrdersOptions,
+  ): Promise<Order[]> {
     try {
       // Path 0: Standalone mode for lightweight open order queries
       // Creates a standalone InfoClient without requiring full initialization
       // No wallet, WebSocket, or account setup needed - just HTTP API call
-      if (params?.standalone && params.userAddress) {
+      if (
+        !options?.requireComplete &&
+        params?.standalone &&
+        params.userAddress
+      ) {
         const { userAddress } = params;
         this.#deps.debugLogger.log(
           'HyperLiquidProvider: Getting open orders in standalone mode',
@@ -14449,7 +14466,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Try WebSocket cache first (unless explicitly bypassed)
       // Use atomic getter to prevent race condition between check and get
-      if (!params?.skipCache) {
+      if (!options?.requireComplete && !params?.skipCache) {
         const cachedOrders =
           this.#subscriptionService.getOrdersCacheIfInitialized();
         if (cachedOrders !== null) {
@@ -14487,6 +14504,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
 
       if (failedDexs.length > 0) {
+        if (options?.requireComplete) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE, {
+            cause: failedDexs[0]?.error,
+          });
+        }
+
         this.#deps.debugLogger.log(
           'Partial multi-DEX open order fetch completed with failures',
           {
@@ -14517,6 +14540,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#restoreScaleOrderGroups(orders);
       return orders;
     } catch (error) {
+      if (options?.requireComplete) {
+        throw error;
+      }
       this.#deps.debugLogger.log('Error getting currently open orders:', error);
       return [];
     }
@@ -17928,10 +17954,40 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise resolving to a guarded HyperLiquid SDK ExchangeClient.
    */
   public async getExchangeClient(): Promise<ExchangeClient> {
+    const accountContext = await this.#captureAccountContext();
     await this.#ensureClientsInitialized();
-    const accountContext = await this.#assertAccountSupported();
-    return this.#clientService.getExchangeClient(async () => {
+    await this.#assertAccountSupported(accountContext);
+    const assertWritable = async (): Promise<void> => {
       await this.#assertAccountSupported(accountContext);
+    };
+    return this.#clientService.getExchangeClient(assertWritable, {
+      beforeSign: assertWritable,
+      onExchangeResult: (outcome) => {
+        if ('error' in outcome) {
+          this.#recordUnsupportedAccountFromError(
+            outcome.error,
+            accountContext,
+          );
+        }
+        const answer =
+          'answer' in outcome ? outcome.answer : getVenueAnswer(outcome.error);
+        if (isStatusObject(answer)) {
+          const { response } = answer;
+          if (answer.status === 'err' && typeof response === 'string') {
+            this.#recordUnsupportedAccountFromError(response, accountContext);
+          } else if (
+            isStatusObject(response) &&
+            isStatusObject(response.data) &&
+            Array.isArray(response.data.statuses)
+          ) {
+            this.#recordUnsupportedAccountFromStatuses(
+              response.data.statuses,
+              answer,
+              accountContext,
+            );
+          }
+        }
+      },
     });
   }
 

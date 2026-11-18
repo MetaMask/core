@@ -1418,8 +1418,8 @@ export type BatchCancelOrdersParams = {
 }[];
 
 export type CancelOrdersParams = {
-  symbols?: string[]; // Optional: specific symbols (omit to cancel all orders)
-  orderIds?: string[]; // Optional: specific order IDs (omit to cancel all orders for specified coins)
+  symbols?: string[]; // Optional symbol selection. An empty selection cancels nothing.
+  orderIds?: string[]; // Optional ID selection. An empty selection cancels nothing.
   cancelAll?: boolean; // Explicitly cancel all orders
   /**
    * Restrict the batch to one venue. Required for filtered `orderIds` batches
@@ -1827,6 +1827,15 @@ export type GetOrdersParams = {
   skipCache?: boolean; // Optional: bypass WebSocket cache and force API call (default: false)
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
   userAddress?: string; // Optional: required when standalone is true - user address to query orders for
+};
+
+/**
+ * Fresh order discovery for a cancellation. An unavailable venue must reject
+ * the read. An explicit route limits discovery to that venue.
+ */
+export type BatchOpenOrdersOptions = {
+  requireComplete: true;
+  providerId?: PerpsProviderType;
 };
 
 /**
@@ -3014,7 +3023,10 @@ export type PerpsProvider = {
    * Different from getOrders() which returns complete historical order lifecycle.
    * Example: Shows only orders that are actually open right now in the exchange.
    */
-  getOpenOrders(params?: GetOrdersParams): Promise<Order[]>;
+  getOpenOrders(
+    params?: GetOrdersParams,
+    options?: BatchOpenOrdersOptions,
+  ): Promise<Order[]>;
 
   /**
    * Historical funding payments - periodic costs/rewards for holding positions.

@@ -167,6 +167,7 @@ import type {
   GetOrderFillsParams,
   GetPublicTradesParams,
   GetOrdersParams,
+  BatchOpenOrdersOptions,
   GetOrFetchFillsParams,
   GetPositionsParams,
   GetSupportedPathsParams,
@@ -10441,7 +10442,14 @@ export class LighterProvider implements PerpsProvider {
     return this.#adaptScaleOrders(response.orders, accountIndex, generation);
   };
 
-  async getOpenOrders(_params?: GetOrdersParams): Promise<Order[]> {
+  async getOpenOrders(
+    _params?: GetOrdersParams,
+    options?: BatchOpenOrdersOptions,
+  ): Promise<Order[]> {
+    if (options?.requireComplete) {
+      return await this.#readOpenOrdersStrict();
+    }
+
     // Public reads re-kick pending journal recovery (deduped, detached).
     this.#kickTpslRecovery();
     try {
