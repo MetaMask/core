@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ServerStrategy` no longer declines direct mUSD Money Account requests.
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
 
+### Fixed
+
+- Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds ([#11566](https://github.com/MetaMask/core/pull/11566))
+  - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
+
 ## [32.0.0]
 
 ### Added
@@ -45,11 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Checks both `transaction.txParams.from` and `request.refundTo`. For Perps and Predict deposits, the Money Account is on `refundTo` and signs the delegation inside the payment-override callback.
 - Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
 - Bump `@metamask/sentinel-api-service` from `^2.1.0` to `^2.3.0` ([#11546](https://github.com/MetaMask/core/pull/11546), [#11590](https://github.com/MetaMask/core/pull/11590))
-
-### Fixed
-
-- Skip quoting a max post-quote withdrawal while the encoded transfer amount is `0`, so Relay is not asked to deposit more than that transfer funds ([#11566](https://github.com/MetaMask/core/pull/11566))
-  - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
 
 ## [31.3.0]
 

@@ -1060,7 +1060,7 @@ describe('Source Amounts Utils', () => {
               sourceBalanceRaw: '21046127',
               sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
               sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
-              targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+              targetTokenAddress: DESTINATION_TOKEN_ADDRESS_MOCK,
             },
           ]);
         },

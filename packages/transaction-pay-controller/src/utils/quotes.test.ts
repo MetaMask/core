@@ -12,6 +12,7 @@ import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
   GetBalanceCallback,
+  QuoteRequest,
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayControllerGetStateAction,
@@ -158,6 +159,9 @@ const TOTALS_MOCK = {
 const BATCH_TRANSACTION_MOCK = {
   to: '0xdef' as Hex,
 } as BatchTransaction;
+
+// Import the helper for testing
+import { QuoteRoutingHelper } from './quotes.js';
 
 describe('Quotes Utils', () => {
   const { messenger, getControllerStateMock, getKeyringControllerStateMock } =
@@ -374,6 +378,111 @@ describe('Quotes Utils', () => {
 
       expect(transactionDataMock).toMatchObject({
         quotes: [],
+      });
+    });
+
+    it('does not store no-op quote for pending max post-quote with zero amount', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isPostQuote: true,
+          isMaxAmount: true,
+          sourceAmounts: [],
+          tokens: [
+            {
+              address: '0x789',
+              amountRaw: '0',
+              chainId: '0x1',
+            } as TransactionPayRequiredToken,
+          ],
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+      });
+    });
+
+    it('stores no-op quote for genuine direct route in post-quote non-max flow', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isPostQuote: true,
+          isMaxAmount: false,
+          sourceAmounts: undefined,
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
+      });
+    });
+
+    it('fetches real quote once amount is encoded for post-quote max flow', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isPostQuote: true,
+          isMaxAmount: true,
+          sourceAmounts: [
+            {
+              sourceAmountRaw: '1000000',
+              sourceBalanceRaw: '2000000',
+              sourceChainId: '0x1',
+              sourceTokenAddress: '0x789',
+              targetTokenAddress: '0x123',
+            } as TransactionPaySourceAmount,
+          ],
+          tokens: [
+            {
+              address: '0x789',
+              amountRaw: '1000000',
+              chainId: '0x1',
+            } as TransactionPayRequiredToken,
+          ],
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: expect.arrayContaining([
+            expect.objectContaining({
+              sourceTokenAmount: '1000000',
+            }),
+          ]),
+        }),
+      );
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [QUOTE_MOCK],
       });
     });
 
@@ -2682,6 +2791,73 @@ describe('Quotes Utils', () => {
 
       // When no matching sourceAmount is found, requests array is empty
       expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('QuoteRoutingHelper.shouldSkipNoOpQuote', () => {
+    it('returns false for non-post-quote flows', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: false,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [{ address: '0x123' } as TransactionPayRequiredToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false for non-max post-quote flows', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: false,
+          requests: [],
+          tokens: [{ address: '0x123' } as TransactionPayRequiredToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when requests are present', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [
+            {
+              sourceTokenAmount: '1000000',
+            } as QuoteRequest,
+          ],
+          tokens: [{ address: '0x123' } as TransactionPayRequiredToken],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when no tokens present', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true for pending max post-quote with tokens but no requests', () => {
+      expect(
+        QuoteRoutingHelper.shouldSkipNoOpQuote({
+          isPostQuote: true,
+          isMaxAmount: true,
+          requests: [],
+          tokens: [
+            {
+              address: '0x123',
+              amountRaw: '0',
+              chainId: '0x1',
+            } as TransactionPayRequiredToken,
+          ],
+        }),
+      ).toBe(true);
     });
   });
 });
