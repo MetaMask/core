@@ -16,7 +16,8 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "docs/"
   ],
   "type": "module",
   "sideEffects": false,
