@@ -543,6 +543,48 @@ describe('server-quotes', () => {
     );
   });
 
+  it('keeps the authorizationList on the quote when the calls are embedded', async () => {
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: COMPLEX_TRANSACTION_META_MOCK,
+    });
+
+    expect(result[0].original.authorizationList).toStrictEqual([
+      {
+        address: DELEGATION_RESULT_MOCK.authorizationList?.[0].address,
+        chainId: 1,
+        nonce: 2,
+        r: '0x3',
+        s: '0x4',
+        yParity: 1,
+      },
+    ]);
+  });
+
+  it('omits the authorizationList from the quote when the calls are deferred', async () => {
+    fetchServerQuoteMock.mockResolvedValue({
+      results: [
+        {
+          ...FULFILLED_RESULT_MOCK,
+          quote: { ...FULFILLED_RESULT_MOCK.quote, callsDeferred: true },
+        },
+      ],
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: COMPLEX_TRANSACTION_META_MOCK,
+    });
+
+    expect(result[0].original).not.toHaveProperty('authorizationList');
+  });
+
   it('does not build delegation calls for Hypercore transactions', async () => {
     await getServerQuotes({
       accountSupports7702: true,

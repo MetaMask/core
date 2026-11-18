@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HyperLiquid, Polymarket deposit-wallet, and payment-override max quotes are unchanged.
 - Skip the gas station in server strategy quotes when the account does not support EIP-7702, matching the Relay strategy ([#11615](https://github.com/MetaMask/core/pull/11615))
 - Refresh server strategy max amount quotes at the configured `maxBalanceRefreshInterval`, matching the Relay strategy ([#11614](https://github.com/MetaMask/core/pull/11614))
+- Include EIP-7702 authorizations when submitting same-chain server strategy quotes with embedded calls through `TransactionController`, matching the Relay strategy ([#11617](https://github.com/MetaMask/core/pull/11617))
+  - A single transaction includes the authorization address so `TransactionController` signs it, and a batch with an account override includes the pre-signed authorizations.
 
 ## [32.0.0]
 
