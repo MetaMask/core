@@ -1234,8 +1234,18 @@ describe('AggregatedPerpsProvider', () => {
         successCount: 2,
         failureCount: 0,
         results: [
-          { orderId: 'hl-1', symbol: 'BTC', success: true },
-          { orderId: 'lt-1', symbol: 'ETH', success: true },
+          {
+            orderId: 'hl-1',
+            symbol: 'BTC',
+            success: true,
+            providerId: 'hyperliquid',
+          },
+          {
+            orderId: 'lt-1',
+            symbol: 'ETH',
+            success: true,
+            providerId: 'lighter',
+          },
         ],
       });
     });
@@ -1252,8 +1262,19 @@ describe('AggregatedPerpsProvider', () => {
       ]);
 
       expect(result.results).toStrictEqual([
-        { orderId: 'lt-1', symbol: 'ETH', success: true },
-        { orderId: 'lt-2', symbol: 'ETH', success: false, error: 'timeout' },
+        {
+          orderId: 'lt-1',
+          symbol: 'ETH',
+          success: true,
+          providerId: 'lighter',
+        },
+        {
+          orderId: 'lt-2',
+          symbol: 'ETH',
+          success: false,
+          error: 'timeout',
+          providerId: 'lighter',
+        },
       ]);
     });
 
@@ -1268,12 +1289,12 @@ describe('AggregatedPerpsProvider', () => {
       expect(lighterCancelOrders).not.toHaveBeenCalled();
     });
 
-    it('fails only the orders of a venue that throws', async () => {
+    it('identifies the failed venue when both venues have the same symbol and order ID', async () => {
       lighterCancelOrders.mockRejectedValue(new Error('venue down'));
 
       const result = await aggregatedProvider.cancelOrders([
         { orderId: 'hl-1', symbol: 'BTC', providerId: 'hyperliquid' },
-        { orderId: 'lt-1', symbol: 'ETH', providerId: 'lighter' },
+        { orderId: 'hl-1', symbol: 'BTC', providerId: 'lighter' },
       ]);
 
       expect(result).toStrictEqual({
@@ -1281,12 +1302,18 @@ describe('AggregatedPerpsProvider', () => {
         successCount: 1,
         failureCount: 1,
         results: [
-          { orderId: 'hl-1', symbol: 'BTC', success: true },
           {
-            orderId: 'lt-1',
-            symbol: 'ETH',
+            orderId: 'hl-1',
+            symbol: 'BTC',
+            success: true,
+            providerId: 'hyperliquid',
+          },
+          {
+            orderId: 'hl-1',
+            symbol: 'BTC',
             success: false,
             error: 'venue down',
+            providerId: 'lighter',
           },
         ],
       });
@@ -1309,6 +1336,7 @@ describe('AggregatedPerpsProvider', () => {
             symbol: 'ETH',
             success: false,
             error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+            providerId: 'lighter',
           },
         ],
       });

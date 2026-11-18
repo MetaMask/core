@@ -2148,6 +2148,29 @@ describe('LighterProvider', () => {
       expect(marketPlacement.success).toBe(true);
     });
 
+    it('reads a confirmed missing account as empty without swallowing outages', async () => {
+      const { provider, clientInstance } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValueOnce({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+      const options = { requireComplete: true } as const;
+
+      expect(await provider.getOpenOrders(undefined, options)).toStrictEqual(
+        [],
+      );
+      clientInstance.getAccountsByL1Address.mockRejectedValueOnce(
+        new Error('lookup offline'),
+      );
+      await expect(provider.getOpenOrders(undefined, options)).rejects.toThrow(
+        'lookup offline',
+      );
+      expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
+    });
+
     it('preserves subscriber state when channel setup hits a capability gate', async () => {
       const { provider, clientInstance, getUserAddressMock } = buildProvider({
         webSocketCtor: fakeStreamCtor,

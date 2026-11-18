@@ -10424,12 +10424,25 @@ export class LighterProvider implements PerpsProvider {
    * flows (TP/SL replacement/removal) must use this — treating a swallowed
    * [] as authoritative would let them "succeed" while cancelling nothing.
    *
+   * @param allowMissingAccount - Whether venue-confirmed absence is an empty snapshot.
    * @returns Adapted open orders.
    */
-  readonly #readOpenOrdersStrict = async (): Promise<Order[]> => {
+  readonly #readOpenOrdersStrict = async (
+    allowMissingAccount = false,
+  ): Promise<Order[]> => {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
-    const accountIndex = await this.#ensureAccountIndex();
+    let accountIndex: number;
+    try {
+      accountIndex = await this.#ensureAccountIndex();
+    } catch (error) {
+      if (allowMissingAccount && error instanceof LighterAccountNotFoundError) {
+        this.#assertSession(generation);
+        return [];
+      }
+      throw error;
+    }
+    this.#assertSession(generation);
     const authToken = await this.#getAuthToken();
     // The index and the token must belong to the SAME session — never
     // pair the previous account's index with the new account's token.
@@ -10447,7 +10460,7 @@ export class LighterProvider implements PerpsProvider {
     options?: BatchOpenOrdersOptions,
   ): Promise<Order[]> {
     if (options?.requireComplete) {
-      return await this.#readOpenOrdersStrict();
+      return await this.#readOpenOrdersStrict(true);
     }
 
     // Public reads re-kick pending journal recovery (deduped, detached).

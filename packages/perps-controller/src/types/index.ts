@@ -1418,6 +1418,10 @@ export type BatchCancelOrdersParams = {
 }[];
 
 export type CancelOrdersParams = {
+  /** Exact selection across venues. Takes precedence over IDs and symbols unless cancelAll is true. */
+  orders?: (BatchCancelOrdersParams[number] & {
+    providerId: PerpsProviderType;
+  })[];
   symbols?: string[]; // Optional symbol selection. An empty selection cancels nothing.
   orderIds?: string[]; // Optional ID selection. An empty selection cancels nothing.
   cancelAll?: boolean; // Explicitly cancel all orders
@@ -1443,6 +1447,7 @@ export type CancelOrdersResult = {
     orderId: string;
     symbol: string;
     success: boolean;
+    providerId?: PerpsProviderType;
     error?: string;
   }[];
 };
@@ -1836,6 +1841,7 @@ export type GetOrdersParams = {
 export type BatchOpenOrdersOptions = {
   requireComplete: true;
   providerId?: PerpsProviderType;
+  providerIds?: readonly PerpsProviderType[];
 };
 
 /**

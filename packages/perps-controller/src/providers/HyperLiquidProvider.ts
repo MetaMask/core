@@ -3227,6 +3227,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     );
   }
 
+  /**
+   * Capture a cleanup client before placement so it can retract orders after
+   * teardown, provided the issuing account is still selected on that network.
+   *
+   * @param accountContext - Owner of the placement and rollback.
+   * @returns The exchange client for compensating cancellation.
+   */
+  #getRollbackExchangeClient(
+    accountContext: AccountSupportContext,
+  ): ExchangeClient {
+    return this.#clientService.getExchangeClient(async () => {
+      await this.#assertRollbackAccountWritable(accountContext);
+    });
+  }
+
   async #captureAccountContext(): Promise<AccountSupportContext> {
     return {
       lifecycleGeneration: this.#lifecycleGeneration,
@@ -4382,8 +4397,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       return [null];
     }
 
-    if (this.#dexDiscoveryCache.state?.validated) {
-      return this.#dexDiscoveryCache.state.validated;
+    const isComplete = (dexs: unknown): boolean =>
+      Array.isArray(dexs) &&
+      dexs[0] === null &&
+      dexs
+        .slice(1)
+        .every(
+          (dex: unknown) =>
+            isStatusObject(dex) &&
+            typeof dex.name === 'string' &&
+            dex.name.trim().length > 0,
+        );
+    const cached = this.#dexDiscoveryCache.state;
+    if (cached && isComplete(cached.raw)) {
+      return cached.validated;
     }
 
     const lifecycleGeneration = this.#lifecycleGeneration;
@@ -4395,7 +4422,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
 
-    if (!Array.isArray(allDexs)) {
+    if (!isComplete(allDexs)) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
 
@@ -7817,6 +7844,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       accountContext,
       'TWAP order dispatch',
     );
+    const rollbackClient = this.#getRollbackExchangeClient(accountContext);
 
     this.#deps.debugLogger.log('Submitting TWAP order', {
       symbol: params.symbol,
@@ -7867,7 +7895,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       let remainsLive = true;
       try {
         await this.#assertRollbackAccountWritable(accountContext);
-        const cancelResult = await exchangeClient.twapCancel({
+        const cancelResult = await rollbackClient.twapCancel({
           a: assetId,
           t: running.twapId,
         });
@@ -7982,6 +8010,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       accountContext,
       'Scale order dispatch',
     );
+    const rollbackClient = this.#getRollbackExchangeClient(accountContext);
     let result: ScaleBulkOrderResponse;
     let thrownBulkOrderError: HyperliquidError | undefined;
     try {
@@ -8124,14 +8153,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       const [orderIds, pendingClientOrderIds] = await Promise.all([
         this.#cancelOrderRequests(
-          exchangeClient,
+          rollbackClient,
           restingChildOrderIds.map((orderId) => ({
             a: assetId,
             o: Number(orderId),
           })),
         ),
         this.#cancelOrderCloidRequests(
-          exchangeClient,
+          rollbackClient,
           cleanupClientOrderIds.map((clientOrderId) => ({
             asset: assetId,
             cloid: clientOrderId,
@@ -8312,10 +8341,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     // instance signed the order and can still cancel it as that account.
     // Its fence skips the lifecycle check so that post-teardown retraction
     // still dispatches, while refusing a changed or known-unsupported account.
-    const placingClient = this.#clientService.getExchangeClient(
-      async (): Promise<void> =>
-        await this.#assertRollbackAccountWritable(accountContext),
-    );
+    const placingClient = this.#getRollbackExchangeClient(accountContext);
 
     let orderId: string | undefined;
     for (
@@ -14491,7 +14517,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       await this.#ensureClientsInitialized();
       this.#clientService.ensureInitialized();
 
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = options?.requireComplete
+        ? this.#clientService.getInfoClient({ useHttp: true })
+        : this.#clientService.getInfoClient();
       const userAddress = await this.#walletService.getUserAddressWithDefault(
         params?.accountId,
       );
@@ -14501,6 +14529,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         await this.#queryUserDataAcrossDexs(
           { user: userAddress },
           (userParam) => infoClient.frontendOpenOrders(userParam),
+          options?.requireComplete
+            ? await this.#getValidatedDexsStrict()
+            : undefined,
         );
 
       if (failedDexs.length > 0) {
@@ -15951,18 +15982,22 @@ export class HyperLiquidProvider implements PerpsProvider {
           error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
         };
       }
-      // The USD amount is the sizing source when present; otherwise the size.
-      // An empty or zero amount is left to the minimum-size check below.
-      let sizeSource = params.size || '0';
-      if (params.usdAmount) {
-        sizeSource = params.usdAmount;
-      }
-      const parsedSize = parseFloat(sizeSource);
-      if (!(Number.isFinite(parsedSize) && parsedSize >= 0)) {
-        return {
-          isValid: false,
-          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
-        };
+      const coinSize = params.size ? parseFloat(params.size) : undefined;
+      const usdSize = params.usdAmount
+        ? parseFloat(params.usdAmount)
+        : undefined;
+      // USD sizing still consumes the caller's coin size as a reduce-only cap.
+      if (
+        (usdSize !== undefined &&
+          !(Number.isFinite(usdSize) && usdSize >= 0)) ||
+        (coinSize !== undefined &&
+          !(Number.isFinite(coinSize) && coinSize >= 0)) ||
+        (params.reduceOnly === true &&
+          usdSize !== undefined &&
+          usdSize > 0 &&
+          coinSize === 0)
+      ) {
+        return { isValid: false, error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE };
       }
 
       if (params.marginMode !== undefined) {
@@ -17977,11 +18012,11 @@ export class HyperLiquidProvider implements PerpsProvider {
             this.#recordUnsupportedAccountFromError(response, accountContext);
           } else if (
             isStatusObject(response) &&
-            isStatusObject(response.data) &&
-            Array.isArray(response.data.statuses)
+            isStatusObject(response.data)
           ) {
+            const { status, statuses } = response.data;
             this.#recordUnsupportedAccountFromStatuses(
-              response.data.statuses,
+              Array.isArray(statuses) ? statuses : [status],
               answer,
               accountContext,
             );

@@ -2056,11 +2056,27 @@ export class TradingService {
         let ordersToCancel = orders;
         if (
           params.cancelAll === true ||
-          (!params.symbols && !params.orderIds)
+          (!params.orders && !params.symbols && !params.orderIds)
         ) {
           // Cancel all orders (excluding TP/SL orders for positions)
           ordersToCancel = orders.filter(
             (order) => !isTPSLOrder(order.detailedOrderType),
+          );
+        } else if (params.orders !== undefined) {
+          const identity = (
+            venue: string,
+            symbol: string,
+            id: string,
+          ): string => JSON.stringify([venue, symbol, id]);
+          const selected = new Set(
+            params.orders.map(({ providerId, symbol, orderId }) =>
+              identity(providerId, symbol, orderId),
+            ),
+          );
+          ordersToCancel = orders.filter(({ providerId, symbol, orderId }) =>
+            selected.has(
+              identity(providerId ?? provider.protocolId, symbol, orderId),
+            ),
           );
         } else if (params.orderIds !== undefined) {
           // Cancel specific order IDs
@@ -2230,7 +2246,6 @@ export class TradingService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
-   * @param options.assertCurrent - Verifies the issuing account and provider before writes.
    * @param options.reportOrderToDataLake - The report order to data lake value.
    * @param options.bulkActionId - Optional batch correlation id.
    * @returns The result of the operation.

@@ -4017,11 +4017,18 @@ export class PerpsController extends BaseController<
   async cancelOrders(params: CancelOrdersParams): Promise<CancelOrdersResult> {
     const request = {
       ...params,
+      ...(params.orders && {
+        orders: params.orders.map((order) => ({ ...order })),
+      }),
       ...(params.orderIds && { orderIds: params.orderIds.slice() }),
       ...(params.symbols && { symbols: params.symbols.slice() }),
     };
-    const { cancelAll, providerId, orderIds, symbols } = request;
-    if (cancelAll !== true && (orderIds ?? symbols)?.length === 0) {
+    const { cancelAll, providerId, orderIds, symbols, orders } = request;
+    const selection = cancelAll === true ? undefined : orders;
+    if (
+      cancelAll !== true &&
+      (selection ?? orderIds ?? symbols)?.length === 0
+    ) {
       return { success: false, successCount: 0, failureCount: 0, results: [] };
     }
 
@@ -4046,7 +4053,12 @@ export class PerpsController extends BaseController<
     } finally {
       assertCurrent();
     }
-    if (cancelAll !== true && orderIds?.length && providerId === undefined) {
+    if (
+      cancelAll !== true &&
+      !selection &&
+      orderIds?.length &&
+      providerId === undefined
+    ) {
       // A snapshot cannot establish ownership of a venue-local ID.
       const refusal = this.#getUnroutedAggregatedBatchRefusal(provider);
       if (refusal) {
@@ -4054,6 +4066,16 @@ export class PerpsController extends BaseController<
       }
     }
 
+    const providerIds = selection && [
+      ...new Set(
+        selection
+          .filter(
+            (order) =>
+              providerId === undefined || order.providerId === providerId,
+          )
+          .map((order) => order.providerId),
+      ),
+    ];
     return this.#tradingService.cancelOrders({
       provider,
       params: request,
@@ -4065,6 +4087,7 @@ export class PerpsController extends BaseController<
             return await provider.getOpenOrders(undefined, {
               requireComplete: true,
               providerId,
+              ...(providerIds && { providerIds }),
             });
           } finally {
             assertCurrent(provider);

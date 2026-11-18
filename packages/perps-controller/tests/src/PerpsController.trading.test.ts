@@ -913,6 +913,58 @@ describe('PerpsController', () => {
       expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
     });
 
+    it('cancels one qualified selection across venues with a colliding local ID', async () => {
+      markControllerAsInitialized();
+      await useRealBatchService();
+      const lighter = createMockHyperLiquidProvider();
+      mockProvider.getOpenOrders.mockResolvedValue([order, protection]);
+      lighter.getOpenOrders.mockResolvedValue([order]);
+      mockProvider.cancelOrders.mockResolvedValue({
+        success: true,
+        successCount: 1,
+        failureCount: 0,
+        results: [{ ...order, success: true }],
+      });
+      lighter.cancelOrders.mockRejectedValue(new Error('refused'));
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighter],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      controller.testSetProviders(new Map([['hyperliquid', aggregated]]));
+
+      const result = await controller.cancelOrders({
+        orders: [
+          { orderId: '123', symbol: 'BTC', providerId: 'hyperliquid' },
+          { orderId: '123', symbol: 'BTC', providerId: 'lighter' },
+        ],
+      });
+
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toStrictEqual([
+        {
+          orderId: '123',
+          symbol: 'BTC',
+          providerId: 'hyperliquid',
+          success: true,
+        },
+        {
+          orderId: '123',
+          symbol: 'BTC',
+          providerId: 'lighter',
+          success: false,
+          error: 'refused',
+        },
+      ]);
+      expect(mockProvider.cancelOrders).toHaveBeenCalledWith([
+        { orderId: '123', symbol: 'BTC', providerId: 'hyperliquid' },
+      ]);
+    });
+
     it('fails closed on a venue read failure while allowing an explicitly scoped healthy venue', async () => {
       markControllerAsInitialized();
       await useRealBatchService();

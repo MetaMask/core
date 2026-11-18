@@ -1586,6 +1586,32 @@ describe('HyperLiquidProvider', () => {
   });
 
   describe('getOpenOrders additional coverage', () => {
+    it.each([
+      new Error('DEX discovery offline'),
+      { invalid: true },
+      [null, {}],
+    ])(
+      'refuses an incomplete HIP-3 snapshot with a healthy main DEX (%j)',
+      async (failure) => {
+        const hip3Provider = createTestProvider({ hip3Enabled: true });
+        const frontendOpenOrders = vi.fn().mockResolvedValue([]);
+        const perpDexs =
+          failure instanceof Error
+            ? vi.fn().mockRejectedValue(failure)
+            : vi.fn().mockResolvedValue(failure);
+        mockClientService.getInfoClient = vi.fn().mockReturnValue({
+          ...mockClientService.getInfoClient(),
+          perpDexs,
+          frontendOpenOrders,
+        });
+
+        await expect(
+          hip3Provider.getOpenOrders(undefined, { requireComplete: true }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        expect(frontendOpenOrders).not.toHaveBeenCalled();
+      },
+    );
+
     it('returns empty array when frontendOpenOrders throws error', async () => {
       // Arrange
       mockClientService.getInfoClient = vi.fn().mockReturnValue({

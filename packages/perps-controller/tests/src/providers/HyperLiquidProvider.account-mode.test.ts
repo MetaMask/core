@@ -1642,6 +1642,12 @@ describe('HyperLiquidProvider', () => {
 
       it.each([
         { answer: multiSigStatus },
+        {
+          answer: {
+            status: 'ok',
+            response: { data: { status: { error: 'Multi-sig required' } } },
+          },
+        },
         { answer: { status: 'err', response: 'Multi-sig required' } },
         { error: new Error('Multi-sig required') },
       ])(

@@ -754,8 +754,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     params?: GetOrdersParams,
     options?: BatchOpenOrdersOptions,
   ): Promise<Order[]> {
-    const providers = options?.providerId
-      ? [this.#getProviderOrDefault(options.providerId)]
+    const routes =
+      options?.providerIds ??
+      (options?.providerId ? [options.providerId] : undefined);
+    const providers = routes
+      ? routes.map((route) => this.#getProviderOrDefault(route))
       : this.#getActiveProviders();
     const reads = providers.map(async ([id, provider]) => {
       const orders = options
@@ -766,7 +769,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (options?.requireComplete) {
       const orders = await Promise.all(reads);
       if (
-        (!options.providerId && providers.length !== this.#providers.size) ||
+        (!routes && providers.length !== this.#providers.size) ||
         providers.some(([id, provider]) => this.#providers.get(id) !== provider)
       ) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
@@ -1070,8 +1073,11 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     const resultsByProvider = await Promise.all(
       Array.from(ordersByProvider, async ([providerId, orders]) => {
         try {
-          return (await this.#cancelOrdersOnProvider(providerId, orders))
-            .results;
+          const { results } = await this.#cancelOrdersOnProvider(
+            providerId,
+            orders,
+          );
+          return results.map((result) => ({ ...result, providerId }));
         } catch (caughtError) {
           const error = ensureError(
             caughtError,
@@ -1081,6 +1087,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
             orderId,
             symbol,
             success: false,
+            providerId,
             error,
           }));
         }

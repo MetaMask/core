@@ -1354,6 +1354,25 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each(['Infinity', '0', '-1'])(
+      'rejects an invalid reduce-only size cap %s alongside a valid USD amount',
+      async (size) => {
+        const result = await provider.validateOrder({
+          symbol: 'BTC',
+          size,
+          isBuy: false,
+          orderType: 'market',
+          reduceOnly: true,
+          currentPrice: 50000,
+          usdAmount: '100',
+        });
+        expect(result).toStrictEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        });
+      },
+    );
+
     it.each(['abc', 'Infinity', '-1'])(
       'rejects size %s when no USD amount is given',
       async (size) => {
