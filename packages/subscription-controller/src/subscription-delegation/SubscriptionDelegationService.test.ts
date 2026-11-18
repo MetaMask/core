@@ -1843,6 +1843,41 @@ describe('isSubscriptionChargeRetryable', () => {
     ).toBe(false);
   });
 
+  it('returns true for paused with a balance-failed invoice', () => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          lastInvoice: BALANCE_FAILED_INVOICE,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      'with a processing invoice',
+      {
+        ...BALANCE_FAILED_INVOICE,
+        status: INVOICE_PAYMENT_STATUSES.PROCESSING,
+      },
+    ],
+    [
+      'with a non-balance failure',
+      {
+        ...BALANCE_FAILED_INVOICE,
+        errorCode: CRYPTO_PAYMENT_ERRORS.EXCEEDS_DELEGATION_ALLOWANCE,
+      },
+    ],
+  ])('returns false for paused %s', (_, lastInvoice) => {
+    expect(
+      isSubscriptionChargeRetryable(
+        buildStuckSubscription({
+          lastInvoice,
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it('returns false when cancelAtPeriodEnd is set', () => {
     expect(
       isSubscriptionChargeRetryable({
@@ -2247,57 +2282,63 @@ describe('SubscriptionDelegationService charge retry', () => {
       expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(2);
     });
 
-    it('does not charge again when a state change follows the charge', async () => {
-      const { rootMessenger, mocks } = setup({
-        cachedSubscriptions: [
-          buildStuckSubscription({
-            status: SUBSCRIPTION_STATUSES.pastDue,
-            lastInvoice: BALANCE_FAILED_INVOICE,
-          }),
-        ],
-      });
-      publishConfirmed(rootMessenger);
-      await flush();
+    it.each([SUBSCRIPTION_STATUSES.pastDue, SUBSCRIPTION_STATUSES.paused])(
+      'does not charge again when a state change follows the charge (%s)',
+      async (status) => {
+        const { rootMessenger, mocks } = setup({
+          cachedSubscriptions: [
+            buildStuckSubscription({
+              status,
+              lastInvoice: BALANCE_FAILED_INVOICE,
+            }),
+          ],
+        });
+        publishConfirmed(rootMessenger);
+        await flush();
 
-      const collecting = buildStuckSubscription({
-        status: SUBSCRIPTION_STATUSES.pastDue,
-        lastInvoice: {
-          ...BALANCE_FAILED_INVOICE,
-          status: INVOICE_PAYMENT_STATUSES.PROCESSING,
-        },
-      });
-      setCachedSubscriptions(mocks, [collecting]);
-      publishSubscriptionState(rootMessenger, [collecting]);
-      await flush();
+        const collecting = buildStuckSubscription({
+          status,
+          lastInvoice: {
+            ...BALANCE_FAILED_INVOICE,
+            status: INVOICE_PAYMENT_STATUSES.PROCESSING,
+          },
+        });
+        setCachedSubscriptions(mocks, [collecting]);
+        publishSubscriptionState(rootMessenger, [collecting]);
+        await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
-    });
+        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      },
+    );
 
-    it('does not charge again when collection fails for a non-balance reason', async () => {
-      const { rootMessenger, mocks } = setup({
-        cachedSubscriptions: [
-          buildStuckSubscription({
-            status: SUBSCRIPTION_STATUSES.pastDue,
-            lastInvoice: BALANCE_FAILED_INVOICE,
-          }),
-        ],
-      });
-      publishConfirmed(rootMessenger);
-      await flush();
+    it.each([SUBSCRIPTION_STATUSES.pastDue, SUBSCRIPTION_STATUSES.paused])(
+      'does not charge again when collection fails for a non-balance reason (%s)',
+      async (status) => {
+        const { rootMessenger, mocks } = setup({
+          cachedSubscriptions: [
+            buildStuckSubscription({
+              status,
+              lastInvoice: BALANCE_FAILED_INVOICE,
+            }),
+          ],
+        });
+        publishConfirmed(rootMessenger);
+        await flush();
 
-      const failed = buildStuckSubscription({
-        status: SUBSCRIPTION_STATUSES.pastDue,
-        lastInvoice: {
-          ...BALANCE_FAILED_INVOICE,
-          errorCode: CRYPTO_PAYMENT_ERRORS.INTERNAL_SERVER_ERROR,
-        },
-      });
-      setCachedSubscriptions(mocks, [failed]);
-      publishSubscriptionState(rootMessenger, [failed]);
-      await flush();
+        const failed = buildStuckSubscription({
+          status,
+          lastInvoice: {
+            ...BALANCE_FAILED_INVOICE,
+            errorCode: CRYPTO_PAYMENT_ERRORS.EXCEEDS_DELEGATION_ALLOWANCE,
+          },
+        });
+        setCachedSubscriptions(mocks, [failed]);
+        publishSubscriptionState(rootMessenger, [failed]);
+        await flush();
 
-      expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
-    });
+        expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 
   describe('errors', () => {

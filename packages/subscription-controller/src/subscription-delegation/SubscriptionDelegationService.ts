@@ -181,6 +181,14 @@ export function isSubscriptionChargeRetryable(
   ) {
     return false;
   }
+  // Above the paused return: a later poll re-sends the charge otherwise.
+  if (
+    lastInvoice?.status === INVOICE_PAYMENT_STATUSES.PROCESSING ||
+    (lastInvoice?.status === INVOICE_PAYMENT_STATUSES.FAILED &&
+      lastInvoice.errorCode !== CRYPTO_PAYMENT_ERRORS.INSUFFICIENT_BALANCE)
+  ) {
+    return false;
+  }
   if (status === SUBSCRIPTION_STATUSES.paused) {
     return true;
   }
