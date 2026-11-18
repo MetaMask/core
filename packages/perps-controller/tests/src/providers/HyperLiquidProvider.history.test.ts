@@ -25,6 +25,7 @@ import type {
   PerpsPlatformDependencies,
   LiveDataConfig,
   OrderParams,
+  Position,
 } from '../../../src/types/index.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
@@ -2016,6 +2017,71 @@ describe('HyperLiquidProvider', () => {
           expect.objectContaining({
             providerId: 'hyperliquid',
             error: expect.stringContaining('xyz: xyz dex outage'),
+          }),
+        ],
+      });
+    });
+
+    it('resolves a whole-position TP/SL size from positions under partial strict discovery', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 1],
+        ],
+      });
+      mockSubscriptionService.getOrdersCacheIfInitialized = vi
+        .fn()
+        .mockReturnValue(null);
+      // HyperLiquid encodes "the whole position" as size 0 on a
+      // position-bound TP/SL; the position supplies the real size.
+      vi.spyOn(hip3Provider, 'getPositions').mockResolvedValue([
+        { symbol: 'BTC', size: '-0.75' } as Position,
+      ]);
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        frontendOpenOrders: vi
+          .fn()
+          .mockImplementation((params: { user: string; dex?: string }) =>
+            params.dex === 'xyz'
+              ? Promise.reject(new Error('xyz dex outage'))
+              : Promise.resolve([
+                  {
+                    coin: 'BTC',
+                    side: 'B',
+                    limitPx: '0',
+                    sz: '0',
+                    oid: 403,
+                    timestamp: Date.now(),
+                    origSz: '0',
+                    triggerCondition: 'Price above 60000',
+                    isTrigger: true,
+                    triggerPx: '60000',
+                    children: [],
+                    isPositionTpsl: true,
+                    reduceOnly: true,
+                    orderType: 'Take Profit Market',
+                    tif: null,
+                    cloid: null,
+                  },
+                ]),
+          ),
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+      });
+
+      const read = hip3Provider.getOpenOrders({
+        skipCache: true,
+        throwOnUnavailable: true,
+      });
+
+      await expect(read).rejects.toMatchObject({
+        orders: [
+          expect.objectContaining({
+            orderId: '403',
+            size: '0.75',
+            originalSize: '0.75',
           }),
         ],
       });

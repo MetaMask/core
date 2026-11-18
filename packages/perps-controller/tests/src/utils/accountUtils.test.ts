@@ -10,10 +10,32 @@ import {
   calculateAccountSummary,
   calculateWeightedReturnOnEquity,
   getCrossCollateral,
+  getCaipAccountAddress,
   getCrossMarginSpotCollateral,
   getSpotBalance,
   sumCrossMarginSummaries,
 } from '../../../src/utils/accountUtils.js';
+
+describe('getCaipAccountAddress', () => {
+  it('returns the lowercased address of a CAIP-10 account id', () => {
+    expect(
+      getCaipAccountAddress(
+        'eip155:1:0xAbCdEf0123456789aBcDeF0123456789AbCdEf01',
+      ),
+    ).toBe('0xabcdef0123456789abcdef0123456789abcdef01');
+  });
+
+  it.each([
+    '0xabcdef0123456789abcdef0123456789abcdef01',
+    'eip155:1',
+    'eip155:1:0xabc:extra',
+    '',
+  ])('returns undefined for a malformed account id: %j', (accountId) => {
+    expect(
+      getCaipAccountAddress(accountId as `${string}:${string}:${string}`),
+    ).toBeUndefined();
+  });
+});
 
 describe('aggregateAccountStates', () => {
   const fallback: AccountState = {

@@ -3,6 +3,7 @@
  * Handles account selection and EVM account filtering
  */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { isCaipAccountId, parseCaipAccountId } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
@@ -20,6 +21,23 @@ import type {
 import { aggregateAccountTotals } from './accountAggregation.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
+
+/**
+ * Read the account address from a CAIP-10 account id.
+ *
+ * The value is validated, not split: a bare address or an id with extra
+ * segments names no account, so it can never be mistaken for the selected
+ * wallet because its last segment happens to match.
+ *
+ * @param accountId - Account id from a caller; may be malformed at runtime.
+ * @returns The lowercased address, or undefined when the id is not CAIP-10.
+ */
+export function getCaipAccountAddress(accountId: string): string | undefined {
+  if (!isCaipAccountId(accountId)) {
+    return undefined;
+  }
+  return parseCaipAccountId(accountId).address.toLowerCase();
+}
 
 function isEvmAccountType(type: string): boolean {
   return EVM_ACCOUNT_TYPES.has(type);

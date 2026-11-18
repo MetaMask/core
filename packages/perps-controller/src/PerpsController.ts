@@ -202,7 +202,10 @@ import {
   LastTransactionResult,
   TransactionStatus,
 } from './types/transactionTypes.js';
-import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils.js';
+import {
+  getCaipAccountAddress,
+  getSelectedEvmAccountFromMessenger,
+} from './utils/accountUtils.js';
 import {
   createLiveChaseOrderList,
   createLiveTwapOrderList,
@@ -7722,13 +7725,23 @@ export class PerpsController extends BaseController<
       // accountState and perpsBalances belong to the selected account. A
       // stream for another wallet only feeds its own consumer: it must neither
       // write nor clear the selected account's snapshot or balances.
-      const streamAddress = params.accountId?.split(':').at(-1)?.toLowerCase();
-      const isSelectedAccountStream = (): boolean =>
-        streamAddress === undefined ||
-        streamAddress ===
-          getSelectedEvmAccountFromMessenger(
-            this.messenger,
-          )?.address.toLowerCase();
+      const streamAddress =
+        params.accountId === undefined
+          ? undefined
+          : getCaipAccountAddress(params.accountId);
+      const isSelectedAccountStream = (): boolean => {
+        if (params.accountId === undefined) {
+          return true;
+        }
+        // A malformed id names no account, so it never owns selected state.
+        return (
+          streamAddress !== undefined &&
+          streamAddress ===
+            getSelectedEvmAccountFromMessenger(
+              this.messenger,
+            )?.address.toLowerCase()
+        );
+      };
       return this.#trackProviderSubscription(
         provider,
         (nextProvider) =>

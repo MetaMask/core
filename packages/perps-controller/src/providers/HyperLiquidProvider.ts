@@ -14391,6 +14391,33 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Adapt raw open orders with their position context and restore Scale groups.
+   *
+   * Position-bound TP/SL orders report size 0 for "the whole position"; the
+   * matching position supplies the real size. Both the complete and the
+   * partial strict-discovery paths use this, so a partial read never reports
+   * a size the complete read would have resolved.
+   *
+   * @param rawOrders - Orders from every DEX that answered.
+   * @returns The adapted orders.
+   */
+  async #adaptOpenOrdersWithPositions(
+    rawOrders: FrontendOrder[],
+  ): Promise<Order[]> {
+    // Positions are already multi-DEX aware. Raw orders use `coin`, adapted
+    // positions use `symbol`.
+    const positions = await this.getPositions();
+    const orders = rawOrders.map((order) =>
+      adaptOrderFromSDK(
+        order,
+        positions.find((position) => position.symbol === order.coin),
+      ),
+    );
+    this.#restoreScaleOrderGroups(orders);
+    return orders;
+  }
+
+  /**
    * Get currently open orders (real-time status)
    * Uses frontendOpenOrders API to get only currently active orders
    * Aggregates orders from all enabled DEXs (main + HIP-3)
@@ -14478,10 +14505,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           // Strict discovery must preserve the orders it did fetch: an
           // unrelated HIP-3 DEX outage must not block cancels on the main
           // DEX (or other reachable DEXs).
-          const partialOrders = orderResults
-            .flatMap((result) => result.data)
-            .map((order) => adaptOrderFromSDK(order, undefined));
-          this.#restoreScaleOrderGroups(partialOrders);
+          const partialOrders = await this.#adaptOpenOrdersWithPositions(
+            orderResults.flatMap((result) => result.data),
+          );
           throw new OrderDiscoveryError({
             orders: partialOrders,
             failures: [
@@ -14507,22 +14533,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Combine all orders from all DEXs
       const rawOrders = orderResults.flatMap((result) => result.data);
 
-      // Get positions for order context (already multi-DEX aware)
-      const positions = await this.getPositions();
-
       this.#deps.debugLogger.log('Currently open orders received (all DEXs):', {
         count: rawOrders.length,
       });
 
-      // Transform HyperLiquid open orders to abstract Order type using adapter
-      // Raw SDK orders use 'coin', adapted positions use 'symbol'
-      const orders: Order[] = (rawOrders || []).map((order) => {
-        const position = positions.find((pos) => pos.symbol === order.coin);
-        return adaptOrderFromSDK(order, position);
-      });
-
-      this.#restoreScaleOrderGroups(orders);
-      return orders;
+      return await this.#adaptOpenOrdersWithPositions(rawOrders);
     } catch (error) {
       if (params?.throwOnUnavailable) {
         throw error;

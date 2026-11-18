@@ -813,6 +813,29 @@ describe('PerpsController', () => {
         },
       );
 
+      it('does not treat a malformed account id that ends with the selected address as the selected account', () => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        persistSelectedBalances();
+        const persisted = controller.state.perpsBalances;
+        const selectedSnapshot = accountState('90');
+        controller.testUpdate((state) => {
+          state.accountState = selectedSnapshot;
+        });
+        controller.subscribeToAccount({
+          callback: vi.fn(),
+          // A bare address is not a CAIP-10 account id.
+          accountId: selectedEvmAddress as `${string}:${string}:${string}`,
+        });
+
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback(
+          accountState('250'),
+        );
+
+        expect(controller.state.accountState).toStrictEqual(selectedSnapshot);
+        expect(controller.state.perpsBalances).toStrictEqual(persisted);
+      });
+
       it('writes balances when the explicit account is the selected one', () => {
         markControllerAsInitialized();
         controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));

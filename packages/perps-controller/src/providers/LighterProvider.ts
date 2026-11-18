@@ -252,6 +252,7 @@ import type {
   LighterWsMarketStat,
   LighterWsMarketStatsMessage,
 } from '../types/lighter-types.js';
+import { getCaipAccountAddress } from '../utils/accountUtils.js';
 import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
@@ -10298,10 +10299,13 @@ export class LighterProvider implements PerpsProvider {
     // This adapter reads through the selected wallet's session. A different
     // scope must be unavailable, not a successful balance for that wallet.
     // Keep this outside the lenient read fallback so it cannot become zeros.
-    const requestedAddresses = [
-      params?.accountId?.split(':').at(-1),
-      params?.userAddress,
-    ];
+    // A malformed accountId names no account; the empty string can never
+    // match the selected wallet, so it is rejected below.
+    const accountIdAddress =
+      params?.accountId === undefined
+        ? undefined
+        : (getCaipAccountAddress(params.accountId) ?? '');
+    const requestedAddresses = [accountIdAddress, params?.userAddress];
     if (requestedAddresses.some((address) => address !== undefined)) {
       const selectedAddress = this.#walletService
         .getUserAddress()

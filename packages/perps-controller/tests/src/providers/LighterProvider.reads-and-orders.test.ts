@@ -985,6 +985,30 @@ describe('LighterProvider', () => {
         expect(state.totalBalance).toBe('10500');
       });
 
+      it.each([
+        ['a bare address', (address: string): string => address],
+        [
+          'an id with an extra segment',
+          (address: string): string => `eip155:1:x:${address}`,
+        ],
+      ])(
+        'rejects %s as accountId even when it ends with the selected wallet',
+        async (_label, toAccountId) => {
+          const { provider, clientInstance, getUserAddressMock } =
+            buildProvider();
+          await expect(
+            provider.getAccountState({
+              accountId: toAccountId(
+                String(getUserAddressMock()),
+              ) as `${string}:${string}:${string}`,
+            }),
+          ).rejects.toThrow(
+            'Lighter account state can only query the selected wallet account',
+          );
+          expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+        },
+      );
+
       it('rejects a conflicting userAddress even when accountId matches the selected wallet', async () => {
         const { provider, getUserAddressMock } = buildProvider();
         await expect(
