@@ -31,19 +31,20 @@ Code: `src/PerpsController.ts` `PerpsController`; `src/types/index.ts` `PerpsPro
 
 ## What the controller owns
 
-| Concern                             | Where it lives                                                                                                                                                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Order, TP/SL, close and margin math | `src/utils/orderCalculations.ts`, `tpslCalculations.ts`, `closeCalculations.ts`, `marginAdjustment.ts`, `positionProtection.ts`; actions `calculateFees`, `calculateLiquidationPrice`, `calculateMaintenanceMargin` |
-| Fee resolution                      | `src/services/RewardsIntegrationService.ts`, `src/utils/subscriptionFeeWaiver.ts`                                                                                                                                   |
-| Display formatting                  | `src/utils/perpsFormatters.ts`; locale number formatting injected as `marketDataFormatters`                                                                                                                         |
-| Venue adapters and validation       | `src/utils/hyperLiquidAdapter.ts`, `hyperLiquidOrderBookProcessor.ts`, `hyperLiquidValidation.ts`, `marketDataTransform.ts`, `marketUtils.ts`, `sortMarkets.ts`, `idUtils.ts`, `standaloneInfoClient.ts`            |
-| Request reliability                 | `src/utils/providerHealth.ts`, `coalescePerpsRestRequest.ts`, `guardedHyperLiquidClient.ts`                                                                                                                         |
-| Constants                           | `src/constants/` (`perpsConfig.ts` `PERPS_CONSTANTS`, `hyperLiquidConfig.ts`, `lighterConfig.ts` and others)                                                                                                        |
-| Connection primitives               | `PerpsController` `init`, `disconnect`, `reconnect`, `toggleTestnet`, `switchProvider`                                                                                                                              |
-| State                               | `PerpsControllerState`, `getDefaultPerpsControllerState`; selectors in `src/selectors.ts`                                                                                                                           |
-| Messenger events                    | `PerpsControllerEvents`                                                                                                                                                                                             |
-| Analytics properties                | `src/constants/eventNames.ts` `PERPS_EVENT_PROPERTY`, `PERPS_EVENT_VALUE`; sent through the injected `metrics`                                                                                                      |
-| Errors                              | `src/perpsErrorCodes.ts`, `src/errors.ts`                                                                                                                                                                           |
+| Concern                              | Where it lives                                                                                                                                                                                                                                  |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Order, TP/SL, close and margin math  | `src/utils/orderCalculations.ts`, `tpslCalculations.ts`, `closeCalculations.ts`, `marginAdjustment.ts`, `positionProtection.ts`; actions `calculateFees`, `calculateLiquidationPrice`, `calculateMaintenanceMargin`                             |
+| Fee resolution                       | `src/services/RewardsIntegrationService.ts`, `src/utils/subscriptionFeeWaiver.ts`                                                                                                                                                               |
+| Advanced orders (TWAP, chase, scale) | `src/utils/advancedOrders.ts` (rules from `getOrderCapabilities().strategyRules`, validation, previews, ladder sizing, price warnings), `advancedOrderLists.ts` (live lists); actions `subscribeToLiveTwapOrders`, `subscribeToChaseOrderLists` |
+| Display formatting                   | `src/utils/perpsFormatters.ts`; locale number formatting injected as `marketDataFormatters`                                                                                                                                                     |
+| Venue adapters and validation        | `src/utils/hyperLiquidAdapter.ts`, `hyperLiquidOrderBookProcessor.ts`, `hyperLiquidValidation.ts`, `marketDataTransform.ts`, `marketUtils.ts`, `sortMarkets.ts`, `idUtils.ts`, `standaloneInfoClient.ts`                                        |
+| Request reliability                  | `src/utils/providerHealth.ts`, `coalescePerpsRestRequest.ts`, `guardedHyperLiquidClient.ts`                                                                                                                                                     |
+| Constants                            | `src/constants/` (`perpsConfig.ts` `PERPS_CONSTANTS`, `hyperLiquidConfig.ts`, `lighterConfig.ts` and others)                                                                                                                                    |
+| Connection primitives                | `PerpsController` `init`, `disconnect`, `reconnect`, `toggleTestnet`, `switchProvider`                                                                                                                                                          |
+| State                                | `PerpsControllerState`, `getDefaultPerpsControllerState`; selectors in `src/selectors.ts`                                                                                                                                                       |
+| Messenger events                     | `PerpsControllerEvents`                                                                                                                                                                                                                         |
+| Analytics properties                 | `src/constants/eventNames.ts` `PERPS_EVENT_PROPERTY`, `PERPS_EVENT_VALUE`; sent through the injected `metrics`                                                                                                                                  |
+| Errors                               | `src/perpsErrorCodes.ts`, `src/errors.ts`                                                                                                                                                                                                       |
 
 Code: `src/utils/`, `src/constants/`, `src/selectors.ts`, `src/PerpsController.ts` `PerpsControllerState`.
 
@@ -152,7 +153,7 @@ Code: `src/types/index.ts` `PerpsPlatformDependencies`, `PerpsCacheInvalidator`,
 
 ## Messenger surface
 
-- 137 method actions named `PerpsController:<method>`, generated into `PerpsController-method-action-types.ts` from `MESSENGER_EXPOSED_METHODS`, plus `PerpsController:getState`. Handlers are registered on the first `init()`, not in the constructor.
+- 139 method actions named `PerpsController:<method>`, generated into `PerpsController-method-action-types.ts` from `MESSENGER_EXPOSED_METHODS`, plus `PerpsController:getState`. Handlers are registered on the first `init()`, not in the constructor.
 - 3 own events: `stateChange`, `stateChanged` and `chaseOrderMaxDistanceReached`.
 - 16 allowed external actions and 3 allowed external events (`RemoteFeatureFlagController:stateChange`, `AccountsController:selectedAccountChange`, `AccountTreeController:selectedAccountGroupChange`).
 
@@ -207,7 +208,7 @@ The controller provides the connect and disconnect primitives. The client decide
 | Account change                                                         | No reinit. User preload refreshes and the rewards address re-registers. Reconnecting the provider for the new account is the client's call.                                                                                                                                                              |
 | HIP-3 remote flag change                                               | `FeatureFlagConfigurationService` bumps `hip3ConfigVersion` and the preload watcher re-preloads. Providers get the new HIP-3 config on the next `init()`.                                                                                                                                                |
 
-`PERPS_CONSTANTS` carries the timings clients use, among them `ConnectionGracePeriodMs` (20 s), `ConnectionAttemptTimeoutMs` (30 s) and `ConnectRetryDelayMs` (200 ms).
+`PERPS_CONSTANTS` carries the default timings clients use, among them `ConnectionGracePeriodMs` (20 s), `ConnectionAttemptTimeoutMs` (30 s) and `ConnectRetryDelayMs` (200 ms). The controller does not read them; each client's connection owner does.
 
 Code: `src/PerpsController.ts` `init`, `#performInitialization`, `#beginReinitialization`, `getActiveProvider`, `reconnect`, `disconnect`, `#performDisconnect`, `toggleTestnet`, `switchProvider`; `src/services/HyperLiquidClientService.ts` `reconnect`; `src/constants/hyperLiquidConfig.ts` `HYPERLIQUID_TRANSPORT_CONFIG`; `src/constants/perpsConfig.ts` `PERPS_CONSTANTS`.
 
@@ -216,7 +217,7 @@ Code: `src/PerpsController.ts` `init`, `#performInitialization`, `#beginReinitia
 Agreed for every client ([TAT-4656](https://consensyssoftware.atlassian.net/browse/TAT-4656)). Perps review checks each line on Mobile, Extension and Terminal. Bracketed values are the current constants.
 
 - One owner per client decides when to call `init` and `disconnect`. Other components read state; they don't connect.
-- Use the `PERPS_CONSTANTS` timings (`ConnectionGracePeriodMs` 20 s, `ConnectionAttemptTimeoutMs` 30 s, `ConnectRetryDelayMs` 200 ms) instead of local values.
+- Read connection timings from one config per client. It defaults to the `PERPS_CONSTANTS` timings (`ConnectionGracePeriodMs` 20 s, `ConnectionAttemptTimeoutMs` 30 s, `ConnectRetryDelayMs` 200 ms), and an override goes in that config, not in a local literal.
 - On account change, reconnect the provider if the new account needs live data; the controller refreshes preload but does not reconnect.
 - While `initializationState` is not ready, show the loading or failed state; don't call data methods.
 - Every `subscribeTo*` call keeps its unsubscribe and calls it on teardown.

@@ -16,10 +16,15 @@ import type {
   FeeRatesConfig,
 } from '../types/perps-types.js';
 import {
+  SCALE_ORDER_COUNT,
   STRATEGY_ORDER_TYPES,
   TRIGGER_ORDER_TYPES,
 } from '../utils/orderTypes.js';
-import { PROVIDER_CONFIG } from './perpsConfig.js';
+import {
+  CHASE_ORDER_CONFIG,
+  HYPERLIQUID_TWAP_LIMITS,
+  PROVIDER_CONFIG,
+} from './perpsConfig.js';
 
 // Network constants
 export const ARBITRUM_MAINNET_CHAIN_ID_HEX = '0xa4b1' as const;
@@ -224,6 +229,23 @@ export const HYPERLIQUID_ORDER_CAPABILITIES = Object.freeze({
   providerId: PROVIDER_CONFIG.DefaultProvider,
   supportedStrategies: Object.freeze([...STRATEGY_ORDER_TYPES]),
   supportedTriggerOrderTypes: Object.freeze([...TRIGGER_ORDER_TYPES]),
+  strategyRules: Object.freeze({
+    twap: Object.freeze({
+      minDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MinDurationMinutes,
+      maxDurationMinutes: HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes,
+      minNotionalUsd: HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd,
+      sliceIntervalSeconds: HYPERLIQUID_TWAP_LIMITS.SliceIntervalSeconds,
+    }),
+    chase: Object.freeze({
+      maxActiveSessions: CHASE_ORDER_CONFIG.MaxActiveSessions,
+      defaultIntervalMs: CHASE_ORDER_CONFIG.DefaultIntervalMs,
+      minIntervalMs: CHASE_ORDER_CONFIG.MinIntervalMs,
+    }),
+    scale: Object.freeze({
+      minOrders: SCALE_ORDER_COUNT.min,
+      maxOrders: SCALE_ORDER_COUNT.max,
+    }),
+  }),
   positionTpsl: Object.freeze({
     supportsExpectedPosition: true,
     childOrderIds: 'request-correlated',
@@ -355,8 +377,7 @@ export const SPOT_ASSET_ID_OFFSET = 10000;
 /**
  * HIP-3 asset market type classifications (PRODUCTION DEFAULT)
  *
- * This is the production default configuration, can be overridden via feature flag
- * (remoteFeatureFlags.perpsAssetMarketTypes) for dynamic control.
+ * This is the production default configuration.
  *
  * Maps asset symbols (e.g., "xyz:TSLA") to their market type for badge display.
  *
@@ -683,7 +704,7 @@ export const MAINNET_HIP3_CONFIG = {
 
 /**
  * HIP-3 margin management configuration
- * Controls margin buffers and auto-rebalance behavior for HIP-3 DEXes with isolated margin
+ * Controls margin buffers and auto-rebalance behavior for manual HIP-3 collateral transfers
  *
  * Background: HyperLiquid validates spendableBalance >= totalRequiredMargin BEFORE reallocating
  * existing locked margin. This requires temporary over-funding when increasing positions,

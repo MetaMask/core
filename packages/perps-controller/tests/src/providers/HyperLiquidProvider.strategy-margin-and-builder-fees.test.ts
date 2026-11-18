@@ -21,6 +21,7 @@ import {
   activeEthTwapHistory,
   baseOrder,
   createClearinghouseBalance,
+  createTestProvider,
   mockPlatformDependencies,
   setUpStrategyProvider,
   useStrategyClients,
@@ -435,6 +436,112 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
       );
     });
+  });
+
+  describe('HIP-3 manual collateral transfer', () => {
+    afterEach(async () => {
+      await provider.disconnect();
+    });
+
+    // A market buy is priced at mid + 3% slippage (103), plus the 0.3% buffer.
+    it.each([
+      // Isolated: the venue checks the whole position's margin (15 * 103 / 5).
+      { marginMode: 'isolated', expectedTransfer: 309 * 1.003 },
+      // Cross: the position's margin is already in the DEX balance, so only
+      // the new order's margin (5 * 103 / 5) moves.
+      { marginMode: 'cross', expectedTransfer: 103 * 1.003 },
+    ] as const)(
+      'funds a $marginMode position increase with the margin the venue checks',
+      async ({ marginMode, expectedTransfer }) => {
+        const sendAsset = vi
+          .fn<
+            (params: {
+              sourceDex: string;
+              destinationDex: string;
+              amount: string;
+            }) => Promise<{ status: string }>
+          >()
+          .mockResolvedValue({ status: 'ok' });
+        // Main DEX reads omit `dex`; the HIP-3 DEX holds the open position.
+        const clearinghouseByDex: Record<string, unknown> = {
+          undefined: createClearinghouseBalance('10000'),
+          xyz: {
+            ...createClearinghouseBalance('0'),
+            assetPositions: [
+              {
+                type: 'oneWay',
+                position: {
+                  coin: 'xyz:TSLA',
+                  szi: '10',
+                  entryPx: '100',
+                  positionValue: '1000',
+                  unrealizedPnl: '0',
+                  marginUsed: '200',
+                  leverage: { type: marginMode, value: 5 },
+                  liquidationPx: '50',
+                },
+              },
+            ],
+          },
+        };
+        useStrategyClients({
+          exchange: {
+            sendAsset,
+            order: vi.fn().mockResolvedValue({
+              status: 'ok',
+              response: {
+                data: {
+                  statuses: [
+                    { filled: { oid: 77, totalSz: '5', avgPx: '100' } },
+                  ],
+                },
+              },
+            }),
+          },
+          info: {
+            clearinghouseState: vi
+              .fn()
+              .mockImplementation(({ dex }: { dex?: string }) =>
+                Promise.resolve(clearinghouseByDex[String(dex)]),
+              ),
+            frontendOpenOrders: vi.fn().mockResolvedValue([]),
+            perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+            meta: vi.fn().mockResolvedValue({
+              universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+              collateralToken: 0,
+            }),
+            allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '100' }),
+          },
+        });
+        provider = createTestProvider({
+          hip3Enabled: true,
+          allowlistMarkets: ['xyz:*'],
+          useUnifiedAccount: false,
+          initialAssetMapping: [['xyz:TSLA', 110000]],
+        });
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          symbol: 'xyz:TSLA',
+          orderType: 'market',
+          size: '5',
+          usdAmount: '500',
+          currentPrice: 100,
+          leverage: 5,
+          marginMode,
+        } satisfies OrderParams);
+
+        expect(result).toMatchObject({ success: true });
+        expect(sendAsset.mock.calls[0][0]).toMatchObject({
+          sourceDex: '',
+          destinationDex: 'xyz',
+        });
+        expect(Number(sendAsset.mock.calls[0][0].amount)).toBeCloseTo(
+          expectedTransfer,
+          4,
+        );
+      },
+    );
   });
 
   describe('Builder fee policy', () => {

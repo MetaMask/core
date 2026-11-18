@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `calculateStatus` no longer special-cases `minedTx === 'unknown'`; any unrecognised `minedTx` value resolves to `SmartTransactionStatuses.UNKNOWN`.
   - Remove `SmartTransactionMinedTx`, `SmartTransactionCancellationReason` and `OriginalTransactionStatus`; use `SentinelMinedTxStatus`, `SentinelCancellationReason` and `SentinelOriginalTransactionStatus` instead. The string values are unchanged, but members are PascalCase (e.g. `SmartTransactionMinedTx.NOT_MINED` becomes `SentinelMinedTxStatus.NotMined`). `SmartTransactionMinedTx.UNKNOWN` has no replacement.
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+
 ## [27.3.0]
 
 ### Added

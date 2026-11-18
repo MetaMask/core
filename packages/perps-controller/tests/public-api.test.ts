@@ -21,7 +21,11 @@ import {
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
   PERPS_ERROR_CODES,
+  PERPS_EVENT_PROPERTY,
+  PERPS_EVENT_VALUE,
   PerpsController,
+  PerpsMeasurementName,
+  PerpsTraceOperations,
   TP_SL_PRECISION_CONFIG,
   calculateAccountSummary,
   calculateNetClosedPnl,
@@ -439,5 +443,22 @@ describe('@metamask/perps-controller public API', () => {
       await rewardsWithGrant.getPerpsTradingFeeGrant?.(scope),
     ).toStrictEqual(grant);
     expect(legacyRewards.getPerpsTradingFeeGrant).toBeUndefined();
+  });
+
+  it('keeps the unused A/B button-colour constants removed', () => {
+    expect(PERPS_EVENT_PROPERTY).not.toHaveProperty('AB_TEST_BUTTON_COLOR');
+    expect(PERPS_EVENT_VALUE).not.toHaveProperty('AB_TEST');
+  });
+
+  it('keeps the unused screen and UI measurement names removed', () => {
+    expect(PerpsMeasurementName).not.toHaveProperty('PerpsTabLoaded');
+    expect(PerpsMeasurementName).not.toHaveProperty('PerpsAssetScreenLoaded');
+    expect(PerpsMeasurementName).not.toHaveProperty(
+      'PerpsLeverageBottomSheetLoaded',
+    );
+  });
+
+  it('keeps the unused MarketData trace operation removed', () => {
+    expect(PerpsTraceOperations).not.toHaveProperty('MarketData');
   });
 });
