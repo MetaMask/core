@@ -996,6 +996,25 @@ describe('server-quotes', () => {
       expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
 
+    it.each([true, false])(
+      'passes accountSupports7702 as %s to gas station',
+      async (accountSupports7702) => {
+        vi.mocked(getTokenBalance).mockReturnValue('0');
+
+        await getServerQuotes({
+          accountSupports7702,
+          from: FROM_MOCK,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(vi.mocked(resolveGasStationCost)).toHaveBeenCalledWith(
+          expect.objectContaining({ accountSupports7702 }),
+        );
+      },
+    );
+
     it('zeroes source network fees when steps array is empty', async () => {
       fetchServerQuoteMock.mockResolvedValue({
         results: [

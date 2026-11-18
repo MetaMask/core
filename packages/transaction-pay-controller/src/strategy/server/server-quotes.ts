@@ -847,6 +847,7 @@ async function calculateSourceNetworkCost({
   );
 
   const gasStationCost = await resolveGasStationCost({
+    accountSupports7702,
     feeTokenAccount,
     firstStepData: {
       data: firstStep.data,
