@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controller` from `^20.4.1` to `^21.0.0` ([#11624](https://github.com/MetaMask/core/pull/11624/))
 - Use `ServerStrategy` instead of Relay for the crypto leg of `FiatStrategy` ([#11503](https://github.com/MetaMask/core/pull/11503))
   - Rate drift and fee reserve checks use the normalized quote amounts.
   - `ServerStrategy` no longer declines direct mUSD Money Account requests.
