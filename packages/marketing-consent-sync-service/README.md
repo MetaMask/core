@@ -18,6 +18,8 @@ The service holds no state. `AnalyticsController` records which local change is 
 
 The controller holds no state. `AnalyticsController` records which local change is waiting to be saved to AUS (`marketingConsentSyncPending`), in the same state update as the consent itself.
 
+The controller holds no state. `AnalyticsController` records which local change is waiting to be saved to AUS (`marketingConsentSyncPending`), in the same state update as the consent itself.
+
 ### Setup
 
 Construct it, then call `initialize()` once `AnalyticsController`, `AuthenticationController` and `KeyringController` are registered. The constructor doesn't call other controllers; `initialize()` reads their state, subscribes to their changes and starts syncing.
