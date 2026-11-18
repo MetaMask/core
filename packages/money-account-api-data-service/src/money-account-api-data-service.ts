@@ -309,15 +309,17 @@ export class MoneyAccountApiDataService extends BaseDataService<
    * @param url - The request URL.
    * @param responseStruct - The struct that defines the expected body.
    * @param endpointLabel - Endpoint name used in error messages.
+   * @param headers - Extra request headers, applied after the auth headers.
    * @returns The validated response body.
    */
   async #fetchValidated<Response>(
     url: URL,
     responseStruct: Struct<Response>,
     endpointLabel: string,
+    headers: Record<string, string> = {},
   ): Promise<Response> {
     const response = await fetch(url, {
-      headers: await this.#getRequestHeaders(),
+      headers: { ...(await this.#getRequestHeaders()), ...headers },
     });
 
     if (!response.ok) {
@@ -408,32 +410,13 @@ export class MoneyAccountApiDataService extends BaseDataService<
           ...(fresh ? { fresh: true } : {}),
         },
       },
-      async () => {
-        const headers = {
-          ...(await this.#getRequestHeaders()),
-          ...(fresh ? { 'Cache-Control': 'no-cache' } : {}),
-        };
-
-        const response = await fetch(url, { headers });
-
-        if (!response.ok) {
-          throw await MoneyAccountApiHttpError.fromResponse(
-            response,
-            `Money Account API positions request failed with status '${response.status}'`,
-          );
-        }
-
-        const json: unknown = await response.json();
-
-        const [error, validated] = validate(json, PositionResponseStruct);
-        if (error) {
-          throw new MoneyAccountApiResponseValidationError(
-            `Malformed response from positions endpoint: ${error.message}`,
-          );
-        }
-
-        return validated;
-      },
+      async () =>
+        this.#fetchValidated(
+          url,
+          PositionResponseStruct,
+          'positions',
+          fresh ? { 'Cache-Control': 'no-cache' } : {},
+        ),
     );
   }
 
