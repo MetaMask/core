@@ -2052,6 +2052,45 @@ describe('KycController', () => {
       }
     });
 
+    it('logs a rejected trace promise and keeps the launch outcome', async () => {
+      const trace = vi.fn(async () => {
+        throw new Error('async sentry down');
+      });
+      const messages: unknown[] = [];
+      const originalLog = traceLogger.log;
+      const wasEnabled = traceLogger.enabled;
+      traceLogger.enabled = true;
+      traceLogger.log = (...args: unknown[]): void => {
+        messages.push(args);
+      };
+
+      try {
+        await withController(
+          {
+            options: {
+              state: { sessionStatus: sessionStatus('pending') },
+              trace,
+            },
+          },
+          async ({ controller, launcher }) => {
+            launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+            expect(await controller.launchProviderFlow({})).toBe('abandoned');
+            await flushPromises();
+            expect(controller.state.providerFlowStatus).toBe('abandoned');
+            expect(messages.flat()).toStrictEqual(
+              expect.arrayContaining([
+                expect.stringContaining('Failed to emit trace'),
+              ]),
+            );
+          },
+        );
+      } finally {
+        traceLogger.log = originalLog;
+        traceLogger.enabled = wasEnabled;
+      }
+    });
+
     it('records failure when the provider launcher throws', async () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('pending') } } },

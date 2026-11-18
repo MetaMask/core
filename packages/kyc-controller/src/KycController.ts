@@ -112,12 +112,13 @@ export type KycTraceRequest = TraceRequest & {
 
 /**
  * Records one finished span. The callback is empty: `startTime` is the
- * beginning of the launch, so the span length is the flow.
+ * beginning of the launch, so the span length is the flow. It may return a
+ * promise, such as the shared async `TraceCallback`; a rejection is logged.
  */
 export type KycTraceCallback = (
   request: KycTraceRequest,
   fn?: () => void,
-) => void;
+) => void | Promise<unknown>;
 
 // Lifetime of the read-only `ukyc_capability_token` minted when creating a
 // UKYC session. The storage-and-auth spec requires the token's `expires_at` to
@@ -386,8 +387,8 @@ export type KycControllerOptions = {
   trackKycAnalytics?: KycAnalyticsTrackers;
   /**
    * Optional callback that records the SumSub launch duration. Omitted
-   * clients record nothing. A throwing callback does not change the launch
-   * outcome.
+   * clients record nothing. A throwing or rejecting callback does not change
+   * the launch outcome.
    */
   trace?: KycTraceCallback;
 };
@@ -1563,31 +1564,38 @@ export class KycController extends BaseController<
   /**
    * Records the SumSub launch that just finished. `startTime` is when
    * {@link KycController.#launchSumsubFlow} started, so the span covers the
-   * token fetch and the SDK. A throwing callback is logged and ignored.
+   * token fetch and the SDK. A throwing or rejecting callback is logged and
+   * ignored.
    *
    * @param result - The launch outcome.
    * @param startTime - When the launch started, in epoch milliseconds.
    */
   #traceProviderFlow(result: KycProviderFlowStatus, startTime: number): void {
-    try {
-      this.#trace?.(
-        {
-          name: KYC_PROVIDER_FLOW_TRACE_NAME,
-          op: KYC_PROVIDER_FLOW_TRACE_OPERATION,
-          startTime,
-          tags: {
-            feature: 'kyc',
-            provider: 'sumsub',
-            result,
-          },
-        },
-        () => undefined,
-      );
-    } catch (traceError) {
+    const logTraceError = (traceError: unknown): void => {
       traceLogger('Failed to emit trace', {
         traceName: KYC_PROVIDER_FLOW_TRACE_NAME,
         traceError,
       });
+    };
+
+    try {
+      Promise.resolve(
+        this.#trace?.(
+          {
+            name: KYC_PROVIDER_FLOW_TRACE_NAME,
+            op: KYC_PROVIDER_FLOW_TRACE_OPERATION,
+            startTime,
+            tags: {
+              feature: 'kyc',
+              provider: 'sumsub',
+              result,
+            },
+          },
+          () => undefined,
+        ),
+      ).catch(logTraceError);
+    } catch (traceError) {
+      logTraceError(traceError);
     }
   }
 
