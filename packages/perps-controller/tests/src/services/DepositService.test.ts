@@ -113,8 +113,31 @@ describe('DepositService', () => {
         },
         assetChainId: '0xa4b1',
         currentDepositId: mockDepositId,
+        providerId: 'hyperliquid',
       });
     });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'attributes an untagged route to the executing %s provider',
+      async (protocolId) => {
+        const result = await service.prepareTransaction({
+          provider: { ...mockProvider, protocolId },
+        });
+
+        expect(result.providerId).toBe(protocolId);
+      },
+    );
+
+    it.each(['aggregated', 'unknown'])(
+      'does not attribute an untagged route to a non-venue provider (%s)',
+      async (protocolId) => {
+        const result = await service.prepareTransaction({
+          provider: { ...mockProvider, protocolId },
+        });
+
+        expect(result.providerId).toBeUndefined();
+      },
+    );
 
     it('generates unique deposit ID for tracking', async () => {
       await service.prepareTransaction({

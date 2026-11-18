@@ -3063,6 +3063,7 @@ describe('PerpsController', () => {
         transaction: mockTransaction,
         assetChainId: mockAssetChainId,
         currentDepositId: mockDepositId,
+        providerId: 'hyperliquid',
       });
 
       // Create infrastructure mock (controllers no longer on infra)
@@ -3524,24 +3525,63 @@ describe('PerpsController', () => {
 
       await depositController.depositWithConfirmation({ amount: '100' });
 
-      // The route's venue is captured on the record before any asynchronous
-      // preparation, and stays fixed through completion.
+      // The venue returned by preparation stays fixed through completion.
       expect(depositController.state.depositRequests[0].providerId).toBe(
         'lighter',
       );
     });
 
-    it('attributes a direct-mode deposit to the active direct provider when the route has no venue', async () => {
+    it('keeps the executing direct venue when the active provider changes during preparation', async () => {
       depositController.testMarkInitialized();
       depositController.testSetProviders(
         new Map([['hyperliquid', mockProvider]]),
       );
+      const started = createDeferred<void>();
+      const release = createDeferred<void>();
+      mockDepositServiceInstance.prepareTransaction.mockImplementationOnce(
+        async () => {
+          started.resolve();
+          await release.promise;
+          return {
+            transaction: mockTransaction,
+            assetChainId: mockAssetChainId,
+            currentDepositId: mockDepositId,
+            providerId: 'hyperliquid',
+          };
+        },
+      );
+
+      const deposit = depositController.depositWithConfirmation({
+        amount: '100',
+      });
+      await started.promise;
+      depositController.testUpdate((state) => {
+        state.activeProvider = 'lighter';
+      });
+      release.resolve();
+      await deposit;
+
+      expect(depositController.state.activeProvider).toBe('lighter');
+      expect(depositController.state.depositRequests[0].providerId).toBe(
+        'hyperliquid',
+      );
+    });
+
+    it('omits venue attribution when preparation cannot resolve a venue', async () => {
+      depositController.testMarkInitialized();
+      depositController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      mockDepositServiceInstance.prepareTransaction.mockResolvedValueOnce({
+        transaction: mockTransaction,
+        assetChainId: mockAssetChainId,
+        currentDepositId: mockDepositId,
+      });
 
       await depositController.depositWithConfirmation({ amount: '100' });
 
-      // Direct mode: the active provider is the venue; there is no ambiguity.
-      expect(depositController.state.depositRequests[0].providerId).toBe(
-        'hyperliquid',
+      expect(depositController.state.depositRequests[0]).not.toHaveProperty(
+        'providerId',
       );
     });
 

@@ -4414,15 +4414,8 @@ export class PerpsController extends BaseController<
       const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
       const accountAddress = evmAccount?.address ?? 'unknown';
 
-      // The chosen route names the venue in aggregated mode; in direct mode
-      // the active provider is the venue. Captured before any asynchronous
-      // work, never relabeled later.
-      const directDepositVenue =
-        this.state.activeProvider === 'aggregated'
-          ? undefined
-          : this.state.activeProvider;
-      const depositVenueId = depositProviderId ?? directDepositVenue;
-
+      // Preparation resolves the venue from the route or executing provider,
+      // independent of later active-provider changes.
       this.update((state) => {
         state.lastDepositResult = null;
 
@@ -4433,9 +4426,9 @@ export class PerpsController extends BaseController<
           amount: amount ?? '0', // Use provided amount or default to '0'
           asset: USDC_SYMBOL,
           accountAddress, // Track which account initiated deposit
-          ...(depositVenueId === undefined
+          ...(depositProviderId === undefined
             ? {}
-            : { providerId: depositVenueId }),
+            : { providerId: depositProviderId }),
           success: false, // Will be updated when transaction completes
           txHash: undefined,
           status: 'pending' as TransactionStatus,

@@ -3,6 +3,7 @@ import { parseCaipAssetId } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { DEPOSIT_CONFIG } from '../constants/hyperLiquidConfig.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import type {
   AssetRoute,
   PerpsProvider,
@@ -66,7 +67,7 @@ export class DepositService {
     transaction: PerpsTransactionParams;
     assetChainId: Hex;
     currentDepositId: string;
-    /** Venue whose route was selected; the deposit settles on that venue. */
+    /** Venue from the selected route or executing direct provider. */
     providerId?: PerpsProviderType;
   }> {
     const { provider } = options;
@@ -98,6 +99,7 @@ export class DepositService {
       );
     }
     const bridgeContractAddress = route.contractAddress;
+    const resolvedProviderId = route.providerId ?? provider.protocolId;
 
     // Generate transfer data for ERC-20 token transfer (portable, no mobile imports)
     const transferData = generateERC20TransferData(
@@ -139,7 +141,9 @@ export class DepositService {
       transaction,
       assetChainId,
       currentDepositId,
-      providerId: route.providerId,
+      providerId: isPerpsProviderType(resolvedProviderId)
+        ? resolvedProviderId
+        : undefined,
     };
   }
 
