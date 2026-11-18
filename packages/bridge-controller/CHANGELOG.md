@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export getAccountByAddress and getFeatureFlags utils ([#11403](https://github.com/MetaMask/core/pull/11403))
+
 ### Removed
 
 - Remove the `BLAST` (`0x13e31`) chain ID constant, as the network is being terminated ([#11599](https://github.com/MetaMask/core/pull/11599))
