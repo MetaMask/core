@@ -78,6 +78,8 @@ const log = createModuleLogger(projectLogger, 'server-strategy');
  */
 const MISSING_TARGET_HASH = '0x' as Hex;
 
+const RETRYABLE_CLIENT_ERROR_STATUSES = [408, 429];
+
 const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
   name: { name: 'name', type: 'string' },
   version: { name: 'version', type: 'string' },
@@ -1433,10 +1435,13 @@ function getSourceLogs(
  * Determine if an error is a client error response from the server.
  *
  * @param error - Error thrown when fetching the status.
- * @returns True if the server responded with a 4xx status.
+ * @returns True if the server responded with a non-retryable 4xx status.
  */
 function isClientError(error: unknown): boolean {
   return (
-    error instanceof ServerApiError && error.status >= 400 && error.status < 500
+    error instanceof ServerApiError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    !RETRYABLE_CLIENT_ERROR_STATUSES.includes(error.status)
   );
 }

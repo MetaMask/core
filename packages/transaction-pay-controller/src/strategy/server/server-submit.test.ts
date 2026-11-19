@@ -691,6 +691,19 @@ describe('submitServerQuotes', () => {
     expect(getServerStatusMock).toHaveBeenCalledTimes(1);
   });
 
+  it.each([408, 429])(
+    'continues polling when getServerStatus returns retryable client error %s',
+    async (status) => {
+      getServerStatusMock
+        .mockRejectedValueOnce(new ServerApiError(status, String(status)))
+        .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it('continues polling when getServerStatus returns a server error', async () => {
     getServerStatusMock
       .mockRejectedValueOnce(new ServerApiError(500, '500 - Internal error'))
