@@ -1035,6 +1035,8 @@ type ChaseOrderMaxDistanceReachedHandler = (
 
 type HyperLiquidProviderOptions = {
   isTestnet?: boolean;
+  // The controller can replace this provider without mutating its client mode.
+  getCurrentIsTestnet?: () => boolean;
   hip3Enabled?: boolean;
   allowlistMarkets?: string[];
   blocklistMarkets?: string[];
@@ -1865,6 +1867,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   // the agent that signed that request.
   readonly #agentSignatureByAnswer = new WeakMap<object, AgentSignature>();
 
+  readonly #getCurrentIsTestnet?: () => boolean;
+
   readonly #onAgentRejected: HyperLiquidProviderOptions['onAgentRejected'];
 
   // Promise-based lock to prevent race conditions in concurrent initialization
@@ -1903,6 +1907,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       options.subscriptionBuilderAddressMainnet;
     this.#getAgentSigner = options.getAgentSigner;
     this.#onAgentRejected = options.onAgentRejected;
+    this.#getCurrentIsTestnet = options.getCurrentIsTestnet;
     this.#onChaseOrderMaxDistanceReached =
       options.onChaseOrderMaxDistanceReached;
     this.#priceDeviationLimit =
@@ -3079,6 +3084,36 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Record venue refusals before the SDK releases the wallet's signing lock.
+   *
+   * @param outcome - Exchange transport response or thrown error.
+   * @param accountContext - Captured account that issued the request.
+   */
+  #recordUnsupportedAccountFromExchangeOutcome(
+    outcome: { answer: unknown } | { error: unknown },
+    accountContext: AccountSupportContext,
+  ): void {
+    if ('error' in outcome) {
+      this.#recordUnsupportedAccountFromError(outcome.error, accountContext);
+    }
+    const answer =
+      'answer' in outcome ? outcome.answer : getVenueAnswer(outcome.error);
+    if (isStatusObject(answer)) {
+      const { response } = answer;
+      if (answer.status === 'err' && typeof response === 'string') {
+        this.#recordUnsupportedAccountFromError(response, accountContext);
+      } else if (isStatusObject(response) && isStatusObject(response.data)) {
+        const { status, statuses } = response.data;
+        this.#recordUnsupportedAccountFromStatuses(
+          Array.isArray(statuses) ? statuses : [status],
+          answer,
+          accountContext,
+        );
+      }
+    }
+  }
+
+  /**
    * Read support for an account context without initializing the provider.
    * Results are coalesced by account and network. Unsupported results stay for
    * the provider session; supported ones are re-probed after
@@ -3190,12 +3225,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     const currentAddress = await this.#walletService
       .getUserAddressWithDefault()
       .catch(() => undefined);
-    const currentNetwork = this.#clientService.isTestnetMode()
-      ? 'testnet'
-      : 'mainnet';
+    const isTestnet = this.#clientService.isTestnetMode();
+    const currentNetwork = isTestnet ? 'testnet' : 'mainnet';
     if (
       currentAddress?.toLowerCase() !== context.userAddress.toLowerCase() ||
-      currentNetwork !== context.network
+      currentNetwork !== context.network ||
+      (this.#getCurrentIsTestnet?.() ?? isTestnet) !== isTestnet
     ) {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
     }
@@ -3312,6 +3347,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     return this.#clientService.getExchangeClient(assertWritable, {
       beforeSign: assertWritable,
+      onExchangeResult: (outcome) =>
+        this.#recordUnsupportedAccountFromExchangeOutcome(
+          outcome,
+          accountContext,
+        ),
     });
   }
 
@@ -18450,32 +18490,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     return this.#clientService.getExchangeClient(assertWritable, {
       beforeSign: assertWritable,
-      onExchangeResult: (outcome) => {
-        if ('error' in outcome) {
-          this.#recordUnsupportedAccountFromError(
-            outcome.error,
-            accountContext,
-          );
-        }
-        const answer =
-          'answer' in outcome ? outcome.answer : getVenueAnswer(outcome.error);
-        if (isStatusObject(answer)) {
-          const { response } = answer;
-          if (answer.status === 'err' && typeof response === 'string') {
-            this.#recordUnsupportedAccountFromError(response, accountContext);
-          } else if (
-            isStatusObject(response) &&
-            isStatusObject(response.data)
-          ) {
-            const { status, statuses } = response.data;
-            this.#recordUnsupportedAccountFromStatuses(
-              Array.isArray(statuses) ? statuses : [status],
-              answer,
-              accountContext,
-            );
-          }
-        }
-      },
+      onExchangeResult: (outcome) =>
+        this.#recordUnsupportedAccountFromExchangeOutcome(
+          outcome,
+          accountContext,
+        ),
     });
   }
 

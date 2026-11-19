@@ -2895,6 +2895,7 @@ export class PerpsController extends BaseController<
     // Always create HyperLiquid provider as the base provider
     const hyperLiquidProvider = new HyperLiquidProvider({
       isTestnet: this.state.isTestnet,
+      getCurrentIsTestnet: (): boolean => this.state.isTestnet,
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,

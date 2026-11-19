@@ -1,16 +1,22 @@
 import { ExchangeClient } from '@nktkas/hyperliquid';
-import { describe, expect, it, vi } from 'vitest';
+import { assert, describe, expect, it, vi } from 'vitest';
 
 import { HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS } from '../../../src/constants/hyperLiquidConfig.js';
+import { PerpsController } from '../../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { GuardedExchangeHooks } from '../../../src/utils/guardedHyperLiquidClient.js';
 import { createGuardedHyperLiquidClient } from '../../../src/utils/guardedHyperLiquidClient.js';
 import {
   baseOrder,
+  MockedHyperLiquidClientService,
   setUpStrategyProvider,
   useStrategyClients,
 } from '../../helpers/hyperLiquidStrategyOrders.js';
-import { createDeferred } from '../../helpers/serviceMocks.js';
+import {
+  createDeferred,
+  createMockInfrastructure,
+  createMockMessenger,
+} from '../../helpers/serviceMocks.js';
 
 vi.mock('../../../src/services/HyperLiquidClientService');
 vi.mock('../../../src/services/HyperLiquidWalletService');
@@ -318,6 +324,201 @@ describe('strategy rollback after teardown', () => {
         resume.resolve();
         vi.useRealTimers();
       }
+    },
+  );
+
+  it('refuses a late TWAP rollback after the controller replaces its network provider', async () => {
+    const { mockClientService } = setUpStrategyProvider();
+    useStrategyClients({
+      info: { userToMultiSigSigners: vi.fn().mockResolvedValue(null) },
+    });
+    const dispatched = createDeferred<void>();
+    const acknowledge = createDeferred<void>();
+    const recordAction = vi.fn();
+    const sign = vi.fn(
+      async (_payload: unknown): Promise<`0x${string}`> =>
+        `0x${'11'.repeat(64)}1b`,
+    );
+    const sdk = createExchange(
+      new Map([
+        [
+          'twapOrder',
+          async (): Promise<unknown> => {
+            dispatched.resolve();
+            await acknowledge.promise;
+            return {
+              status: 'ok',
+              response: {
+                type: 'twapOrder',
+                data: { status: { running: { twapId: 987 } } },
+              },
+            };
+          },
+        ],
+        [
+          'twapCancel',
+          async (): Promise<unknown> => ({
+            status: 'ok',
+            response: { type: 'twapCancel', data: { status: 'success' } },
+          }),
+        ],
+      ]),
+      recordAction,
+      { signTypedData: sign },
+    );
+    const controller = new PerpsController({
+      infrastructure: createMockInfrastructure(),
+      messenger: createMockMessenger(),
+      state: { activeProvider: 'hyperliquid', isTestnet: false },
+    });
+    try {
+      await controller.init();
+      const provider = controller.getActiveProviderOrNull();
+      assert(provider);
+      mockClientService.getExchangeClient.mockImplementation(
+        guardExchange.bind(undefined, sdk),
+      );
+      const pending = provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      });
+      await Promise.race([
+        dispatched.promise,
+        pending.then(({ error }) => {
+          throw new Error(`TWAP ended before dispatch: ${error}`);
+        }),
+      ]);
+      const signedBeforeToggle = sign.mock.calls.length;
+      MockedHyperLiquidClientService.mockImplementationOnce(function () {
+        return {
+          ...mockClientService,
+          isTestnetMode: vi.fn().mockReturnValue(true),
+        };
+      });
+
+      expect(await controller.toggleTestnet()).toMatchObject({
+        success: true,
+        isTestnet: true,
+      });
+      expect(controller.getActiveProviderOrNull()).not.toBe(provider);
+      expect(mockClientService.isTestnetMode()).toBe(false);
+      acknowledge.resolve();
+
+      const result = await pending;
+      expect(sign).toHaveBeenCalledTimes(signedBeforeToggle);
+      expect(recordAction).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'twapCancel' }),
+      );
+      expect(result).toMatchObject({ success: false, orderId: '987' });
+    } finally {
+      acknowledge.resolve();
+      await controller.disconnect();
+    }
+  });
+
+  it.each([
+    ['top-level', { status: 'err', response: 'Multi-sig required' }],
+    [
+      'per-entry',
+      {
+        status: 'ok',
+        response: {
+          type: 'cancel',
+          data: { statuses: [{ error: 'Multi-sig required' }] },
+        },
+      },
+    ],
+    [
+      'singular',
+      {
+        status: 'ok',
+        response: {
+          type: 'cancel',
+          data: { status: { error: 'Multi-sig required' } },
+        },
+      },
+    ],
+  ] as const)(
+    'records a %s multi-sig refusal before the queued Scale rollback signs',
+    async (_shape, refusal) => {
+      const { provider, mockClientService } = setUpStrategyProvider();
+      useStrategyClients({
+        info: { userToMultiSigSigners: vi.fn().mockResolvedValue(null) },
+      });
+      const dispatched = createDeferred<void>();
+      const acknowledge = createDeferred<void>();
+      const recordAction = vi.fn();
+      const sign = vi.fn(
+        async (_payload: unknown): Promise<`0x${string}`> =>
+          `0x${'11'.repeat(64)}1b`,
+      );
+      const sdk = createExchange(
+        new Map([
+          [
+            'order',
+            async (): Promise<unknown> => {
+              dispatched.resolve();
+              await acknowledge.promise;
+              return {
+                status: 'ok',
+                response: {
+                  type: 'order',
+                  data: {
+                    statuses: [
+                      { resting: { oid: 11 } },
+                      'waitingForFill',
+                      { error: 'Insufficient margin' },
+                    ],
+                  },
+                },
+              };
+            },
+          ],
+          ['cancel', async (): Promise<unknown> => refusal],
+          [
+            'cancelByCloid',
+            async (): Promise<unknown> => ({
+              status: 'ok',
+              response: { type: 'cancel', data: { statuses: ['success'] } },
+            }),
+          ],
+        ]),
+        recordAction,
+        { signTypedData: sign },
+      );
+      mockClientService.getExchangeClient.mockImplementation(
+        guardExchange.bind(undefined, sdk),
+      );
+
+      const pending = provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2900',
+        scaleMaxPrice: '2950',
+        scaleNumOrders: 3,
+      });
+      await Promise.race([
+        dispatched.promise,
+        pending.then(({ error }) => {
+          throw new Error(`Scale ended before dispatch: ${error}`);
+        }),
+      ]);
+      const signedBeforeRollback = sign.mock.calls.length;
+      try {
+        await provider.disconnect();
+      } finally {
+        acknowledge.resolve();
+      }
+
+      await pending;
+      expect(recordAction).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'cancel' }),
+      );
+      expect(sign).toHaveBeenCalledTimes(signedBeforeRollback + 1);
+      expect(recordAction).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'cancelByCloid' }),
+      );
     },
   );
 });
