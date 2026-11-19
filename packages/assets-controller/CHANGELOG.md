@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^113.3.2` to `^113.3.3` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@metamask/network-enablement-controller` from `^7.1.3` to `^7.1.4` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@metamask/phishing-controller` from `^18.3.1` to `^18.3.2` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+## [21.0.0]
+
 ### Added
 
 - Add optional `bypassServerCache` parameter to `addCustomAsset` (and the `AssetsController:addCustomAsset` action) ([#11613](https://github.com/MetaMask/core/pull/11613))
@@ -1325,7 +1335,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.1...@metamask/assets-controller@21.0.0
 [20.4.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.4.0...@metamask/assets-controller@20.4.1
 [20.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...@metamask/assets-controller@20.4.0
 [20.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...@metamask/assets-controller@20.3.1

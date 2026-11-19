@@ -11,7 +11,10 @@ import { TransactionStatus, TransactionType } from '../types.js';
 import { rpcRequest } from '../utils/provider.js';
 import { getTransaction, getTransactionOrThrow } from '../utils/state.js';
 import { releaseTransactionExecution } from './state.js';
-import type { TransactionLifecycleRequest } from './types.js';
+import type {
+  TransactionLifecycleRequest,
+  TransactionStageDependencies,
+} from './types.js';
 
 const log = createModuleLogger(lifecycleLogger, 'submit');
 
@@ -135,7 +138,7 @@ async function publishAndSubmitTransaction(
   releaseNonceLock: () => void,
 ): Promise<TransactionMeta> {
   const {
-    dependencies: { internalEvents, messenger, updateTransactionInternal },
+    dependencies: { messenger },
     transactionMeta,
   } = request;
 
@@ -167,6 +170,50 @@ async function publishAndSubmitTransaction(
     rawTx ?? '0x',
   );
 
+  const submittedTransactionMeta = markTransactionSubmitted(
+    request.dependencies,
+    {
+      hash,
+      preTxBalance: shouldUpdatePreTxBalance ? preTxBalance : undefined,
+      transactionId,
+    },
+  );
+
+  // The request is owned by a single execution, so there is no concurrent writer.
+  // eslint-disable-next-line require-atomic-updates
+  request.transactionMeta = submittedTransactionMeta;
+
+  return submittedTransactionMeta;
+}
+
+/**
+ * Record a published transaction as submitted and emit the submitted and
+ * finished events.
+ *
+ * @param dependencies - Controller resources.
+ * @param options - Options.
+ * @param options.hash - Hash of the published transaction.
+ * @param options.preTxBalance - Balance before the transaction, if captured.
+ * @param options.transactionId - ID of the transaction.
+ * @returns The submitted transaction.
+ */
+export function markTransactionSubmitted(
+  dependencies: Pick<
+    TransactionStageDependencies,
+    'internalEvents' | 'messenger' | 'updateTransactionInternal'
+  >,
+  {
+    hash,
+    preTxBalance,
+    transactionId,
+  }: {
+    hash: string | undefined;
+    preTxBalance?: string;
+    transactionId: string;
+  },
+): TransactionMeta {
+  const { internalEvents, messenger, updateTransactionInternal } = dependencies;
+
   const submittedTransactionMeta = updateTransactionInternal(
     {
       transactionId,
@@ -176,16 +223,12 @@ async function publishAndSubmitTransaction(
       draftTxMeta.status = TransactionStatus.submitted;
       draftTxMeta.submittedTime ??= new Date().getTime();
 
-      if (shouldUpdatePreTxBalance) {
+      if (preTxBalance !== undefined) {
         draftTxMeta.preTxBalance = preTxBalance;
         log('Updated pre-transaction balance', preTxBalance);
       }
     },
   );
-
-  // The request is owned by a single execution, so there is no concurrent writer.
-  // eslint-disable-next-line require-atomic-updates
-  request.transactionMeta = submittedTransactionMeta;
 
   messenger.publish('TransactionController:transactionSubmitted', {
     transactionMeta: submittedTransactionMeta,

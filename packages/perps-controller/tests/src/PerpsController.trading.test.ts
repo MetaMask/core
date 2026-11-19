@@ -1525,6 +1525,67 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('batch result status', () => {
+    const batch = (successCount: number, failureCount: number) => ({
+      success: successCount > 0,
+      successCount,
+      failureCount,
+      results: [],
+    });
+
+    it.each([
+      ['all', 2, 0],
+      ['partial', 1, 1],
+      ['none', 0, 2],
+      ['none', 0, 0],
+    ] as const)(
+      'reports %s from cancelOrders with %i cancelled and %i failed',
+      async (status, successCount, failureCount) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        vi.spyOn(mockTradingServiceInstance, 'cancelOrders').mockResolvedValue(
+          batch(successCount, failureCount),
+        );
+
+        const result = await controller.cancelOrders({ cancelAll: true });
+
+        expect(result.status).toBe(status);
+      },
+    );
+
+    it.each([
+      ['all', 2, 0],
+      ['partial', 1, 1],
+      ['none', 0, 2],
+    ] as const)(
+      'reports %s from closePositions with %i closed and %i failed',
+      async (status, successCount, failureCount) => {
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        vi.spyOn(
+          mockTradingServiceInstance,
+          'closePositions',
+        ).mockResolvedValue(batch(successCount, failureCount));
+
+        const result = await controller.closePositions({ closeAll: true });
+
+        expect(result.status).toBe(status);
+      },
+    );
+
+    it('keeps success true on a partial close, so status is what separates it', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      vi.spyOn(mockTradingServiceInstance, 'closePositions').mockResolvedValue(
+        batch(1, 1),
+      );
+
+      const result = await controller.closePositions({ closeAll: true });
+
+      expect(result).toMatchObject({ success: true, status: 'partial' });
+    });
+  });
+
   describe('closePosition', () => {
     it('closes position successfully', async () => {
       const closeParams = {
@@ -1560,9 +1621,12 @@ describe('PerpsController', () => {
   });
 
   describe('closePositions', () => {
-    it('delegates to TradingService.closePositions', async () => {
+    it('delegates to TradingService.closePositions and forwards position read options', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const getPositions = vi
+        .spyOn(controller, 'getPositions')
+        .mockResolvedValue([]);
 
       vi.spyOn(mockTradingServiceInstance, 'closePositions').mockResolvedValue({
         success: true,
@@ -1582,6 +1646,12 @@ describe('PerpsController', () => {
           context: expect.any(Object),
         }),
       );
+      const { context } =
+        mockTradingServiceInstance.closePositions.mock.calls[0][0];
+      await context.getPositions?.({ throwOnUnavailable: true });
+      expect(getPositions).toHaveBeenCalledExactlyOnceWith({
+        throwOnUnavailable: true,
+      });
     });
   });
 

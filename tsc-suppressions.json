@@ -664,9 +664,6 @@
     "TS2339": {
       "count": 1
     },
-    "TS2554": {
-      "count": 1
-    },
     "TS7005": {
       "count": 189
     },
@@ -688,9 +685,6 @@
   "packages/perps-controller/tests/src/providers/AggregatedPerpsProvider.test.ts": {
     "TS18048": {
       "count": 8
-    },
-    "TS2304": {
-      "count": 1
     },
     "TS2339": {
       "count": 15
