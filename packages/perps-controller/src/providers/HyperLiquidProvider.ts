@@ -12396,7 +12396,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Use atomic getter to prevent race condition between check and get
       const cachedOrders =
-        this.#subscriptionService.getOrdersCacheIfInitialized(true);
+        this.#subscriptionService.getOrdersCacheIfInitialized(true, {
+          userAddress,
+        });
 
       // Replacing TP/SL has to consider standalone ('na' grouping) triggers —
       // left by a partial update or placed independently — which are not
@@ -13737,9 +13739,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     targetDex?: string,
     options: { revalidateMissingSymbol?: string } = {},
   ): Promise<Position[]> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
     if (targetDex !== undefined) {
       const targetPositions =
-        this.#subscriptionService.getCachedPositionsForDex(targetDex);
+        this.#subscriptionService.getCachedPositionsForDex(
+          targetDex,
+          userAddress,
+        );
       if (targetPositions === null) {
         this.#deps.debugLogger.log(
           'Target DEX position cache unavailable: fetching REST positions',
@@ -13767,6 +13773,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const { answered, positions } = await this.#queryDexPositions(
         targetDex || null,
+        userAddress,
       );
       if (!answered) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
@@ -13775,7 +13782,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const cachedPositions =
-      this.#subscriptionService.getFreshPositionsForAllDexs();
+      this.#subscriptionService.getFreshPositionsForAllDexs(false, userAddress);
     if (cachedPositions !== null) {
       return cachedPositions;
     }
@@ -13783,7 +13790,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#deps.debugLogger.log(
       'Position caches incomplete: fetching full REST positions',
     );
-    return this.#queryAllDexPositionsStrict();
+    return this.#queryAllDexPositionsStrict(userAddress);
   }
 
   /**
@@ -13793,13 +13800,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * could close one DEX and report success while another live position was
    * never checked.
    *
+   * @param userAddress - Wallet whose positions are needed.
    * @returns A complete position list across all enabled DEXs.
    * @throws `PROVIDER_NOT_AVAILABLE` when any expected DEX fails.
    */
-  async #queryAllDexPositionsStrict(): Promise<Position[]> {
+  async #queryAllDexPositionsStrict(userAddress: Hex): Promise<Position[]> {
     await this.#ensureClientsInitialized();
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
     const enabledDexs = await this.#getValidatedDexsStrict();
 
     return await this.#fetchPositionContext(
@@ -13864,15 +13871,19 @@ export class HyperLiquidProvider implements PerpsProvider {
    * TP/SL enrichment is skipped because callers only read size, side, and margin.
    *
    * @param dexName - DEX identifier, or null for the main DEX.
+   * @param scopedAddress - Wallet already resolved by the caller, if supplied.
    * @returns Whether the DEX answered, and the positions it reported.
    */
   async #queryDexPositions(
     dexName: string | null,
+    scopedAddress?: Hex,
   ): Promise<{ answered: boolean; positions: Position[] }> {
     try {
       await this.#ensureClientsInitialized();
       const infoClient = this.#clientService.getInfoClient({ useHttp: true });
-      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      const userAddress =
+        scopedAddress ??
+        (await this.#walletService.getUserAddressWithDefault());
       const state = await infoClient.clearinghouseState(
         dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
       );
@@ -13965,10 +13976,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         return positions;
       }
 
+      const userAddress = await this.#walletService.getUserAddressWithDefault(
+        params?.accountId,
+      );
       if (params?.includeProtection === false) {
-        const userAddress = await this.#walletService.getUserAddressWithDefault(
-          params.accountId,
-        );
         const positions = params.skipCache
           ? null
           : this.#subscriptionService.getFreshPositionsForAllDexs(
@@ -13986,7 +13997,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       if (!params?.skipCache && params?.accountId === undefined) {
         const cachedPositions =
-          this.#subscriptionService.getFreshPositionsForAllDexs(true);
+          this.#subscriptionService.getFreshPositionsForAllDexs(
+            true,
+            userAddress,
+          );
         if (cachedPositions !== null) {
           return cachedPositions;
         }
@@ -14003,10 +14017,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#clientService.ensureInitialized();
 
       const infoClient = this.#clientService.getInfoClient();
-      const userAddress = await this.#walletService.getUserAddressWithDefault(
-        params?.accountId,
-      );
-
       const dexs = await this.#getValidatedDexsStrict();
       const { results: stateResults, failedDexs: failedStateDexs } =
         await this.#queryUserDataAcrossDexs(

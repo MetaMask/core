@@ -1061,7 +1061,10 @@ describe('HyperLiquidProvider', () => {
       await expect(positions).rejects.toHaveProperty('cause', cause);
       expect(
         mockSubscriptionService.getFreshPositionsForAllDexs,
-      ).toHaveBeenCalledWith(true);
+      ).toHaveBeenCalledWith(
+        true,
+        await mockWalletService.getUserAddressWithDefault(),
+      );
     });
 
     it('rejects when the position request fails', async () => {

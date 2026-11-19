@@ -838,6 +838,11 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.objectContaining({ size: '0.1' }),
       ]);
       expect(healthyAccount).toHaveBeenCalledOnce();
+      expect(service.getCachedPositionsForDex('', '0x123')).toMatchObject([
+        { size: '0.1' },
+      ]);
+      expect(service.getCachedPositionsForDex('', '0x456')).toBeNull();
+      expect(service.getFreshPositionsForAllDexs(false, '0x456')).toBeNull();
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         failure,
         expect.anything(),

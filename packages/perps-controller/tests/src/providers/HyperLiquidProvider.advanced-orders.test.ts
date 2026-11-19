@@ -957,7 +957,10 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
       expect(
         mockSubscriptionService.getCachedPositionsForDex,
-      ).toHaveBeenCalledWith('');
+      ).toHaveBeenCalledWith(
+        '',
+        await mockWalletService.getUserAddressWithDefault(),
+      );
       expect(
         mockClientService.getExchangeClient().updateLeverage,
       ).toHaveBeenCalledWith({ asset: 0, isCross: true, leverage: 10 });

@@ -4057,11 +4057,17 @@ export class HyperLiquidSubscriptionService {
    * hand back pre-reconnect sizes as though they were live.
    *
    * @param dexName - DEX identifier, or '' for the main DEX.
-   * @returns That DEX's live positions, or null if it has not published on this
-   * connection.
+   * @param userAddress - Wallet the slice must belong to, if supplied.
+   * @returns That DEX's live positions, or null if its wallet or epoch is stale.
    */
-  public getCachedPositionsForDex(dexName: string): Position[] | null {
-    if (!this.#isPositionDexFresh(dexName)) {
+  public getCachedPositionsForDex(
+    dexName: string,
+    userAddress?: string,
+  ): Position[] | null {
+    if (
+      (userAddress !== undefined && !this.#hasUserDataWallet(userAddress)) ||
+      !this.#isPositionDexFresh(dexName)
+    ) {
       return null;
     }
     return this.#dexPositionsCache.get(dexName) ?? null;
