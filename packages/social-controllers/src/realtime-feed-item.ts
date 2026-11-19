@@ -1,10 +1,6 @@
 import {
   array,
-  assign,
-  boolean,
-  enums,
   is,
-  literal,
   nullable,
   number,
   optional,
@@ -22,12 +18,12 @@ import type {
   ProfileIdentity,
   Trade,
 } from './social-types.js';
-import {
-  AuthorCommentStruct,
-  CommentEngagementStruct,
-  FeedItemStruct,
-} from './structs.js';
+import { AuthorCommentStruct, CommentEngagementStruct } from './structs.js';
 
+/**
+ * Trade-comment shape only. Kept as a small Superstruct so malformed comments
+ * on a fill are dropped without validating the rest of the card again.
+ */
 const RawTradeCommentStruct = structType({
   uid: string(),
   commentText: string(),
@@ -36,83 +32,6 @@ const RawTradeCommentStruct = structType({
   translations: optional(record(string(), string())),
   metrics: CommentEngagementStruct,
   replies: optional(array(unknownStruct())),
-});
-
-const RawTradeStruct = assign(
-  structType({
-    tokenAmount: number(),
-    usdCost: number(),
-    marketCap: nullable(number()),
-    timestamp: number(),
-    transactionHash: string(),
-    direction: enums(['buy', 'sell']),
-    classification: nullable(enums(['spot', 'perp', 'send', 'receive'])),
-    intent: enums(['enter', 'exit']),
-    perpPositionType: nullable(enums(['long', 'short'])),
-    perpLeverage: nullable(number()),
-  }),
-  structType({
-    comments: array(unknownStruct()),
-  }),
-);
-
-const RawHydratedPositionStruct = structType({
-  itemId: string(),
-  timestamp: number(),
-  cardLatestTradeAt: number(),
-  actor: structType({
-    type: literal('user'),
-    address: string(),
-    name: string(),
-    images: structType({
-      raw: nullable(string()),
-      xs: nullable(string()),
-      sm: nullable(string()),
-    }),
-    profile: structType({
-      id: string(),
-      metadata: record(string(), unknownStruct()),
-      ...ProfileIdentityStruct.schema,
-    }),
-    followerCount: optional(nullable(number())),
-  }),
-  metadata: structType({
-    tokenChain: string(),
-    tokenSymbol: string(),
-    tokenName: string(),
-    tokenAddress: string(),
-    positionAmount: number(),
-    positionStats: structType({
-      boughtUSD: nullable(number()),
-      soldUSD: nullable(number()),
-      realizedGainsUSD: nullable(number()),
-      holdingsCostBasisUSD: nullable(number()),
-      receivedCostBasisUSD: nullable(number()),
-      holdingReceivedCostBasisUSD: nullable(number()),
-      isOpen: boolean(),
-    }),
-    trades: array(RawTradeStruct),
-    perpPositionType: optional(nullable(enums(['long', 'short']))),
-    perpLeverage: optional(nullable(number())),
-    positionAmountWithLeverage: optional(nullable(number())),
-  }),
-  metrics: structType({
-    reactions: array(unknownStruct()),
-    userReaction: nullable(string()),
-    commentCount: number(),
-    replyCount: number(),
-    copyCount: optional(nullable(number())),
-  }),
-  imageUrl: optional(nullable(string())),
-  firstTradeAt: optional(nullable(number())),
-  holdTimeMs: optional(nullable(number())),
-  entryPriceUsd: optional(nullable(number())),
-  authorComment: optional(nullable(AuthorCommentStruct)),
-  flags: optional(nullable(array(string()))),
-  currentValueUSD: optional(nullable(number())),
-  positionValueUSD: optional(nullable(number())),
-  pnlValueUsd: optional(nullable(number())),
-  pnlPercent: optional(nullable(number())),
 });
 
 const PRICED_KEYS = [
@@ -135,8 +54,23 @@ const toPricedFields = (value: PricedFields): PricedFields =>
 
 export type RealtimeFeedEventData = FeedItem;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const isNullableNumber = (value: unknown): value is number | null =>
+  value === null || isFiniteNumber(value);
+
+const isNullableString = (value: unknown): value is string | null =>
+  value === null || typeof value === 'string';
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+
 const readNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  isFiniteNumber(value) ? value : undefined;
 
 const readNullableNumber = (value: unknown): number | null =>
   readNumber(value) ?? null;
@@ -159,13 +93,368 @@ const toIdentity = (profile: ProfileIdentity): ProfileIdentity =>
     ),
   );
 
-const toActor = (actor: {
-  address: string;
-  name: string;
-  images: { raw: string | null; sm: string | null };
-  profile: ProfileIdentity & { id: string; metadata: Record<string, unknown> };
-  followerCount?: number | null;
-}): FeedActorSummary => ({
+type RawTrade = {
+  direction: 'buy' | 'sell';
+  intent: 'enter' | 'exit';
+  classification: 'spot' | 'perp' | 'send' | 'receive' | null;
+  perpPositionType: 'long' | 'short' | null;
+  perpLeverage: number | null;
+  tokenAmount: number;
+  usdCost: number;
+  marketCap: number | null;
+  timestamp: number;
+  transactionHash: string;
+  comments: unknown[];
+};
+
+type RawHydratedPosition = {
+  itemId: string;
+  timestamp: number;
+  cardLatestTradeAt: number;
+  actor: {
+    address: string;
+    name: string;
+    images: { raw: string | null; sm: string | null };
+    profile: ProfileIdentity & { id: string; metadata: Record<string, unknown> };
+    followerCount?: number | null;
+  };
+  metadata: {
+    tokenChain: string;
+    tokenSymbol: string;
+    tokenName: string;
+    tokenAddress: string;
+    positionAmount: number;
+    positionStats: {
+      boughtUSD: number | null;
+      soldUSD: number | null;
+      realizedGainsUSD: number | null;
+      holdingsCostBasisUSD: number | null;
+      receivedCostBasisUSD: number | null;
+      holdingReceivedCostBasisUSD: number | null;
+      isOpen: boolean;
+    };
+    trades: RawTrade[];
+    perpPositionType?: 'long' | 'short' | null;
+    perpLeverage?: number | null;
+    positionAmountWithLeverage?: number | null;
+  };
+  metrics: {
+    commentCount: number;
+    replyCount: number;
+    copyCount?: number | null;
+  };
+  imageUrl?: string | null;
+  firstTradeAt?: number | null;
+  holdTimeMs?: number | null;
+  entryPriceUsd?: number | null;
+  authorComment?: AuthorComment | null;
+  flags?: string[] | null;
+  currentValueUSD?: number | null;
+  positionValueUSD?: number | null;
+  pnlValueUsd?: number | null;
+  pnlPercent?: number | null;
+};
+
+const DIRECTIONS = new Set(['buy', 'sell']);
+const INTENTS = new Set(['enter', 'exit']);
+const CLASSIFICATIONS = new Set(['spot', 'perp', 'send', 'receive']);
+const PERP_SIDES = new Set(['long', 'short']);
+
+/**
+ * Narrow trade check: required scalars only. Comments stay opaque and are
+ * filtered later, so a bad reply does not invalidate the whole card.
+ */
+const readRawTrade = (value: unknown): RawTrade | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const {
+    direction,
+    intent,
+    classification,
+    perpPositionType,
+    perpLeverage,
+    tokenAmount,
+    usdCost,
+    marketCap,
+    timestamp,
+    transactionHash,
+    comments,
+  } = value;
+  if (
+    typeof direction !== 'string' ||
+    !DIRECTIONS.has(direction) ||
+    typeof intent !== 'string' ||
+    !INTENTS.has(intent) ||
+    !isFiniteNumber(tokenAmount) ||
+    !isFiniteNumber(usdCost) ||
+    !isNullableNumber(marketCap) ||
+    !isFiniteNumber(timestamp) ||
+    typeof transactionHash !== 'string' ||
+    !Array.isArray(comments) ||
+    (classification !== null &&
+      (typeof classification !== 'string' ||
+        !CLASSIFICATIONS.has(classification))) ||
+    (perpPositionType !== null &&
+      (typeof perpPositionType !== 'string' ||
+        !PERP_SIDES.has(perpPositionType))) ||
+    !isNullableNumber(perpLeverage)
+  ) {
+    return undefined;
+  }
+  return {
+    direction: direction as 'buy' | 'sell',
+    intent: intent as 'enter' | 'exit',
+    classification: classification as RawTrade['classification'],
+    perpPositionType: perpPositionType as RawTrade['perpPositionType'],
+    perpLeverage,
+    tokenAmount,
+    usdCost,
+    marketCap,
+    timestamp,
+    transactionHash,
+    comments,
+  };
+};
+
+const readProfileIdentity = (
+  profile: Record<string, unknown>,
+): ProfileIdentity | undefined => {
+  const identityCandidate = Object.fromEntries(
+    PROFILE_IDENTITY_KEYS.flatMap((key) =>
+      profile[key] === undefined ? [] : [[key, profile[key]]],
+    ),
+  );
+  return is(identityCandidate, ProfileIdentityStruct)
+    ? identityCandidate
+    : undefined;
+};
+
+/**
+ * Cheap shape check for the socket's hydrated card. Avoids walking the full
+ * Superstruct tree on every Live tick — that was most of normalize cost.
+ * `authorComment` still uses {@link AuthorCommentStruct} so a malformed Call
+ * drops the event, matching the previous schema.
+ */
+const readRawHydratedPosition = (
+  value: unknown,
+): RawHydratedPosition | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const {
+    itemId,
+    timestamp,
+    cardLatestTradeAt,
+    actor,
+    metadata,
+    metrics,
+    imageUrl,
+    firstTradeAt,
+    holdTimeMs,
+    entryPriceUsd,
+    authorComment,
+    flags,
+    currentValueUSD,
+    positionValueUSD,
+    pnlValueUsd,
+    pnlPercent,
+  } = value;
+
+  if (
+    typeof itemId !== 'string' ||
+    !isFiniteNumber(timestamp) ||
+    !isFiniteNumber(cardLatestTradeAt) ||
+    !isRecord(actor) ||
+    !isRecord(metadata) ||
+    !isRecord(metrics)
+  ) {
+    return undefined;
+  }
+
+  const { type, address, name, images, profile, followerCount } = actor;
+  if (
+    type !== 'user' ||
+    typeof address !== 'string' ||
+    typeof name !== 'string' ||
+    !isRecord(images) ||
+    !isNullableString(images.raw) ||
+    !isNullableString(images.xs) ||
+    !isNullableString(images.sm) ||
+    !isRecord(profile) ||
+    typeof profile.id !== 'string' ||
+    !isRecord(profile.metadata) ||
+    (followerCount !== undefined && !isNullableNumber(followerCount))
+  ) {
+    return undefined;
+  }
+
+  const identity = readProfileIdentity(profile);
+  if (!identity) {
+    return undefined;
+  }
+
+  const {
+    tokenChain,
+    tokenSymbol,
+    tokenName,
+    tokenAddress,
+    positionAmount,
+    positionStats,
+    trades,
+    perpPositionType,
+    perpLeverage,
+    positionAmountWithLeverage,
+  } = metadata;
+
+  if (
+    typeof tokenChain !== 'string' ||
+    typeof tokenSymbol !== 'string' ||
+    typeof tokenName !== 'string' ||
+    typeof tokenAddress !== 'string' ||
+    !isFiniteNumber(positionAmount) ||
+    !isRecord(positionStats) ||
+    !Array.isArray(trades)
+  ) {
+    return undefined;
+  }
+
+  const {
+    boughtUSD,
+    soldUSD,
+    realizedGainsUSD,
+    holdingsCostBasisUSD,
+    receivedCostBasisUSD,
+    holdingReceivedCostBasisUSD,
+    isOpen,
+  } = positionStats;
+
+  if (
+    !isNullableNumber(boughtUSD) ||
+    !isNullableNumber(soldUSD) ||
+    !isNullableNumber(realizedGainsUSD) ||
+    !isNullableNumber(holdingsCostBasisUSD) ||
+    !isNullableNumber(receivedCostBasisUSD) ||
+    !isNullableNumber(holdingReceivedCostBasisUSD) ||
+    typeof isOpen !== 'boolean'
+  ) {
+    return undefined;
+  }
+
+  if (
+    (perpPositionType !== undefined &&
+      perpPositionType !== null &&
+      (typeof perpPositionType !== 'string' ||
+        !PERP_SIDES.has(perpPositionType))) ||
+    (perpLeverage !== undefined && !isNullableNumber(perpLeverage)) ||
+    (positionAmountWithLeverage !== undefined &&
+      !isNullableNumber(positionAmountWithLeverage))
+  ) {
+    return undefined;
+  }
+
+  const parsedTrades: RawTrade[] = [];
+  for (const trade of trades) {
+    const parsed = readRawTrade(trade);
+    if (!parsed) {
+      return undefined;
+    }
+    parsedTrades.push(parsed);
+  }
+
+  const { commentCount, replyCount, copyCount } = metrics;
+  if (
+    !isFiniteNumber(commentCount) ||
+    !isFiniteNumber(replyCount) ||
+    (copyCount !== undefined && !isNullableNumber(copyCount))
+  ) {
+    return undefined;
+  }
+
+  if (
+    (imageUrl !== undefined && !isNullableString(imageUrl)) ||
+    (firstTradeAt !== undefined && !isNullableNumber(firstTradeAt)) ||
+    (holdTimeMs !== undefined && !isNullableNumber(holdTimeMs)) ||
+    (entryPriceUsd !== undefined && !isNullableNumber(entryPriceUsd)) ||
+    (flags !== undefined && flags !== null && !isStringArray(flags)) ||
+    (currentValueUSD !== undefined && !isNullableNumber(currentValueUSD)) ||
+    (positionValueUSD !== undefined && !isNullableNumber(positionValueUSD)) ||
+    (pnlValueUsd !== undefined && !isNullableNumber(pnlValueUsd)) ||
+    (pnlPercent !== undefined && !isNullableNumber(pnlPercent))
+  ) {
+    return undefined;
+  }
+
+  // Preserve prior behavior: a present but malformed Call rejects the event.
+  if (authorComment !== undefined && authorComment !== null) {
+    if (!is(authorComment, AuthorCommentStruct)) {
+      return undefined;
+    }
+  }
+
+  return {
+    itemId,
+    timestamp,
+    cardLatestTradeAt,
+    actor: {
+      address,
+      name,
+      images: { raw: images.raw, sm: images.sm },
+      profile: {
+        id: profile.id,
+        metadata: profile.metadata,
+        ...identity,
+      },
+      ...(followerCount === undefined ? {} : { followerCount }),
+    },
+    metadata: {
+      tokenChain,
+      tokenSymbol,
+      tokenName,
+      tokenAddress,
+      positionAmount,
+      positionStats: {
+        boughtUSD,
+        soldUSD,
+        realizedGainsUSD,
+        holdingsCostBasisUSD,
+        receivedCostBasisUSD,
+        holdingReceivedCostBasisUSD,
+        isOpen,
+      },
+      trades: parsedTrades,
+      ...(perpPositionType === undefined
+        ? {}
+        : {
+            perpPositionType: perpPositionType as 'long' | 'short' | null,
+          }),
+      ...(perpLeverage === undefined ? {} : { perpLeverage }),
+      ...(positionAmountWithLeverage === undefined
+        ? {}
+        : { positionAmountWithLeverage }),
+    },
+    metrics: {
+      commentCount,
+      replyCount,
+      ...(copyCount === undefined ? {} : { copyCount }),
+    },
+    ...(imageUrl === undefined ? {} : { imageUrl }),
+    ...(firstTradeAt === undefined ? {} : { firstTradeAt }),
+    ...(holdTimeMs === undefined ? {} : { holdTimeMs }),
+    ...(entryPriceUsd === undefined ? {} : { entryPriceUsd }),
+    ...(authorComment === undefined
+      ? {}
+      : { authorComment: authorComment as AuthorComment | null }),
+    ...(flags === undefined ? {} : { flags }),
+    ...(currentValueUSD === undefined ? {} : { currentValueUSD }),
+    ...(positionValueUSD === undefined ? {} : { positionValueUSD }),
+    ...(pnlValueUsd === undefined ? {} : { pnlValueUsd }),
+    ...(pnlPercent === undefined ? {} : { pnlPercent }),
+  };
+};
+
+const toActor = (actor: RawHydratedPosition['actor']): FeedActorSummary => ({
   profileId: actor.profile.id,
   address: actor.address,
   name: actor.name,
@@ -204,19 +493,7 @@ const toTradeComments = (comments: unknown[]): AuthorComment[] =>
     ];
   });
 
-const toTrade = (trade: {
-  direction: 'buy' | 'sell';
-  intent: 'enter' | 'exit';
-  classification: 'spot' | 'perp' | 'send' | 'receive' | null;
-  perpPositionType: 'long' | 'short' | null;
-  perpLeverage: number | null;
-  tokenAmount: number;
-  usdCost: number;
-  marketCap: number | null;
-  timestamp: number;
-  transactionHash: string;
-  comments: unknown[];
-}): Trade => ({
+const toTrade = (trade: RawTrade): Trade => ({
   direction: trade.direction,
   intent: trade.intent,
   ...(trade.classification === null ? {} : { category: trade.classification }),
@@ -231,27 +508,90 @@ const toTrade = (trade: {
   comments: toTradeComments(trade.comments),
 });
 
-const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem =>
-  is(value, FeedItemStruct);
+/**
+ * Cheap check for an already-normalized {@link FeedItem}. Required scalars
+ * only; optional Call still uses {@link AuthorCommentStruct}.
+ */
+const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const {
+    positionId,
+    tokenSymbol,
+    tokenName,
+    tokenAddress,
+    chain,
+    positionAmount,
+    boughtUsd,
+    soldUsd,
+    realizedPnl,
+    costBasis,
+    trades,
+    lastTradeAt,
+    actor,
+    timestamp,
+    authorComment,
+    flags,
+    currentValueUSD,
+    positionValueUSD,
+    pnlValueUsd,
+    pnlPercent,
+  } = value;
+
+  if (
+    typeof positionId !== 'string' ||
+    typeof tokenSymbol !== 'string' ||
+    typeof tokenName !== 'string' ||
+    typeof tokenAddress !== 'string' ||
+    typeof chain !== 'string' ||
+    !isFiniteNumber(positionAmount) ||
+    !isNullableNumber(boughtUsd) ||
+    !isNullableNumber(soldUsd) ||
+    !isNullableNumber(realizedPnl) ||
+    !isNullableNumber(costBasis) ||
+    !Array.isArray(trades) ||
+    !isFiniteNumber(lastTradeAt) ||
+    !isRecord(actor) ||
+    typeof actor.profileId !== 'string' ||
+    typeof actor.address !== 'string' ||
+    typeof actor.name !== 'string' ||
+    !isFiniteNumber(timestamp) ||
+    (flags !== undefined && flags !== null && !isStringArray(flags)) ||
+    (currentValueUSD !== undefined && !isNullableNumber(currentValueUSD)) ||
+    (positionValueUSD !== undefined && !isNullableNumber(positionValueUSD)) ||
+    (pnlValueUsd !== undefined && !isNullableNumber(pnlValueUsd)) ||
+    (pnlPercent !== undefined && !isNullableNumber(pnlPercent))
+  ) {
+    return false;
+  }
+
+  if (authorComment !== undefined && authorComment !== null) {
+    return is(authorComment, AuthorCommentStruct);
+  }
+
+  return true;
+};
 
 export const normalizeRealtimeFeedItem = (
   value: unknown,
 ): FeedItem | undefined => {
-  if (!is(value, RawHydratedPositionStruct)) {
+  const raw = readRawHydratedPosition(value);
+  if (!raw) {
     return undefined;
   }
 
-  const stats = value.metadata.positionStats;
+  const stats = raw.metadata.positionStats;
   const receivedCostBasis = stats.receivedCostBasisUSD;
   const holdingReceivedCostBasis = stats.holdingReceivedCostBasisUSD;
 
   return {
-    positionId: value.itemId,
-    tokenSymbol: value.metadata.tokenSymbol,
-    tokenName: value.metadata.tokenName,
-    tokenAddress: value.metadata.tokenAddress,
-    chain: value.metadata.tokenChain,
-    positionAmount: value.metadata.positionAmount,
+    positionId: raw.itemId,
+    tokenSymbol: raw.metadata.tokenSymbol,
+    tokenName: raw.metadata.tokenName,
+    tokenAddress: raw.metadata.tokenAddress,
+    chain: raw.metadata.tokenChain,
+    positionAmount: raw.metadata.positionAmount,
     isOpen: stats.isOpen,
     boughtUsd: addNullableNumbers(stats.boughtUSD, receivedCostBasis),
     soldUsd: stats.soldUSD,
@@ -260,31 +600,31 @@ export const normalizeRealtimeFeedItem = (
       stats.holdingsCostBasisUSD,
       holdingReceivedCostBasis,
     ),
-    trades: value.metadata.trades.map(toTrade),
-    lastTradeAt: value.cardLatestTradeAt,
-    tokenImageUrl: value.imageUrl,
-    perpPositionType: value.metadata.perpPositionType,
-    perpLeverage: value.metadata.perpLeverage,
+    trades: raw.metadata.trades.map(toTrade),
+    lastTradeAt: raw.cardLatestTradeAt,
+    tokenImageUrl: raw.imageUrl,
+    perpPositionType: raw.metadata.perpPositionType,
+    perpLeverage: raw.metadata.perpLeverage,
     positionAmountWithLeverage:
-      value.metadata.positionAmountWithLeverage ?? null,
-    actor: toActor(value.actor),
-    timestamp: value.timestamp,
+      raw.metadata.positionAmountWithLeverage ?? null,
+    actor: toActor(raw.actor),
+    timestamp: raw.timestamp,
     // The socket payload carries the server's selected author comment. It is
     // passed through as sent: an absent field stays absent, an explicit null
     // stays null, and a malformed value already dropped the item above.
-    ...(value.authorComment === undefined
+    ...(raw.authorComment === undefined
       ? {}
-      : { authorComment: value.authorComment }),
-    commentCount: value.metrics.commentCount,
-    replyCount: value.metrics.replyCount,
-    copyCount: value.metrics.copyCount ?? 0,
-    firstTradeAt: value.firstTradeAt ?? null,
-    holdTimeMs: value.holdTimeMs ?? null,
-    entryPriceUsd: value.entryPriceUsd ?? null,
+      : { authorComment: raw.authorComment }),
+    commentCount: raw.metrics.commentCount,
+    replyCount: raw.metrics.replyCount,
+    copyCount: raw.metrics.copyCount ?? 0,
+    firstTradeAt: raw.firstTradeAt ?? null,
+    holdTimeMs: raw.holdTimeMs ?? null,
+    entryPriceUsd: raw.entryPriceUsd ?? null,
     // `flags` lives on the hydrated card, beside `metadata`. The server does
     // not set `metadata.flags`.
-    ...(value.flags === undefined ? {} : { flags: value.flags }),
-    ...toPricedFields(value),
+    ...(raw.flags === undefined ? {} : { flags: raw.flags }),
+    ...toPricedFields(raw),
   };
 };
 
