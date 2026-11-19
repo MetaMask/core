@@ -5,6 +5,7 @@ import {
   SocialRealtimeService,
   SocialService,
   socialServiceName,
+  TRADING_PRIVACY_VALUES,
   UNSUPPORTED_TOKEN_POSITION_FLAG,
 } from './index.js';
 
@@ -27,5 +28,9 @@ describe('social-controllers exports', () => {
 
   it('exports the unsupported-token position flag', () => {
     expect(UNSUPPORTED_TOKEN_POSITION_FLAG).toBe('unsupported-token');
+  });
+
+  it('exports the trading privacy values', () => {
+    expect(TRADING_PRIVACY_VALUES).toStrictEqual(['public', 'private']);
   });
 });

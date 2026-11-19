@@ -15,6 +15,9 @@
     },
     {
       "path": "../address-book-controller"
+    },
+    {
+      "path": "../eth-sig-util"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

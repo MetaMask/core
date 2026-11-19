@@ -38,6 +38,15 @@ import type {
   ReadonlyAnalyticsEventFragment,
 } from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';
+import type {
+  ErrorTrackingSession,
+  TrackErrorAsAnalyticsOptions,
+} from './track-error-as-analytics.js';
+import {
+  ERROR_OCCURRED_EVENT_NAME,
+  releaseErrorTrackingReservation,
+  reserveErrorOccurredEvent,
+} from './track-error-as-analytics.js';
 
 // === GENERAL ===
 
@@ -120,6 +129,21 @@ export type AnalyticsControllerState = {
    * Optional for backward compatibility. Missing values are treated as `false`.
    */
   marketingConsentDecisionMade?: boolean;
+
+  /**
+   * Whether the marketing consent held here is a choice made on this device
+   * that has not yet been saved to the user's profile in Authenticated User
+   * Storage.
+   *
+   * Set by {@link AnalyticsController.optInToMarketing} and
+   * {@link AnalyticsController.optOutOfMarketing}, cleared by
+   * {@link AnalyticsController.clearMarketingConsentSyncPending} and
+   * {@link AnalyticsController.resetMarketingConsentDecision}. A value applied
+   * from the profile with
+   * {@link AnalyticsController.applyRemoteMarketingConsent} never sets it.
+   * Optional for backward compatibility. Missing values are treated as `false`.
+   */
+  marketingConsentSyncPending?: boolean;
 
   /**
    * Cached event-purpose configuration. Optional for backward compatibility.
@@ -278,6 +302,7 @@ export function getDefaultAnalyticsControllerState(): Omit<
     consentDecisionMade: false,
     optedInToMarketing: false,
     marketingConsentDecisionMade: false,
+    marketingConsentSyncPending: false,
     marketingCampaignCookieId: null,
   };
 }
@@ -306,6 +331,12 @@ const analyticsControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
+  },
+  marketingConsentSyncPending: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
   },
   eventsConfig: {
     includeInStateLogs: true,
@@ -355,6 +386,7 @@ const analyticsControllerMetadata = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'trackEvent',
+  'trackErrorAsAnalytics',
   'identify',
   'trackView',
   'optIn',
@@ -363,6 +395,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'optInToMarketing',
   'optOutOfMarketing',
   'resetMarketingConsentDecision',
+  'applyRemoteMarketingConsent',
+  'clearMarketingConsentSyncPending',
   'setMarketingCampaignCookieId',
   'createEventFragment',
   'upsertEventFragment',
@@ -772,6 +806,15 @@ export class AnalyticsController extends BaseController<
   #locationResolvePromise: Promise<void> | undefined;
 
   #locationContext: AnalyticsLocationContext | undefined;
+
+  /**
+   * In-memory sampling, deduplication, and session-cap state for
+   * {@link trackErrorAsAnalytics}. Not persisted.
+   */
+  readonly #errorTrackingSession: ErrorTrackingSession = {
+    emittedCount: 0,
+    lastEmittedAtBySignature: new Map(),
+  };
 
   /**
    * Constructs an AnalyticsController instance.
@@ -1956,6 +1999,74 @@ export class AnalyticsController extends BaseController<
     );
   }
 
+  /**
+   * Report a caught error as an `Error Occurred` analytics event.
+   *
+   * Properties always include `source` and a sanitized `error_message`.
+   * Whitespace is collapsed and the message is capped at 500 characters.
+   * Stack traces are never included. Optional `properties` are merged in
+   * as well.
+   *
+   * `source` must uniquely identify the error case (for example
+   * `swap-quote-fetch`). Do not reuse one value for every error in a file
+   * or package.
+   *
+   * Sampling, a deduplication window, and a per-session cap bound volume.
+   * Those controls default to always emitting, 10 seconds, and 50 events.
+   * A caller can only lower the session cap. The budget belongs to this
+   * controller instance and is not persisted.
+   *
+   * Delivery goes through {@link trackEvent}, so consent gating, the
+   * pre-consent queue, and geolocation enrichment all apply. Opted-out
+   * calls return before the volume controls run, so they do not consume
+   * the session budget.
+   *
+   * Fail-safe: this method never throws. If delivery throws, the session
+   * reservation is released.
+   *
+   * @param error - The caught value to report.
+   * @param options - Source and optional volume controls.
+   * @param options.source - Unique discriminator for this error case.
+   * @param options.volumeControls - Optional sampling, dedup, and session cap.
+   * @param properties - Optional extra properties.
+   */
+  trackErrorAsAnalytics(
+    error: unknown,
+    options: TrackErrorAsAnalyticsOptions,
+    properties?: AnalyticsEventProperties,
+  ): void {
+    try {
+      if (
+        !this.#isCaptureAllowed(
+          this.#purposesFromName(ERROR_OCCURRED_EVENT_NAME),
+        )
+      ) {
+        return;
+      }
+
+      const reserved = reserveErrorOccurredEvent(
+        this.#errorTrackingSession,
+        error,
+        options,
+        properties,
+      );
+      if (reserved === undefined) {
+        return;
+      }
+
+      try {
+        this.trackEvent(reserved.event);
+      } catch {
+        releaseErrorTrackingReservation(
+          this.#errorTrackingSession,
+          reserved.reservation,
+        );
+      }
+    } catch {
+      // Fail-safe: telemetry must never break the calling flow.
+    }
+  }
+
   #trackEvent(
     event: AnalyticsTrackingEvent,
     context: AnalyticsContext | undefined,
@@ -2340,30 +2451,41 @@ export class AnalyticsController extends BaseController<
   /**
    * Opt in to marketing analytics.
    *
-   * Independent of {@link optIn}. Replays queued marketing events.
+   * Independent of {@link optIn}. Replays queued marketing events. The choice
+   * is marked as not yet saved to the user's profile (see
+   * {@link AnalyticsControllerState.marketingConsentSyncPending}), even when
+   * the user was already opted in.
    *
    * @returns A promise that resolves once opt-in processing has completed.
    */
   async optInToMarketing(): Promise<void> {
-    this.update((state) => {
-      state.optedInToMarketing = true;
-      state.marketingConsentDecisionMade = true;
-    });
-
-    await this.#maybeResolveLocation();
-    this.#replayPreConsentEvents();
+    await this.#optInToMarketing({ syncPending: true });
   }
 
   /**
    * Opt out of marketing analytics.
    *
    * Independent of {@link optOut}. Discards queued marketing events and
-   * marketing event fragments.
+   * marketing event fragments. The choice is marked as not yet saved to the
+   * user's profile (see
+   * {@link AnalyticsControllerState.marketingConsentSyncPending}), even when
+   * the user was already opted out.
    */
   optOutOfMarketing(): void {
+    this.#optOutOfMarketing({ syncPending: true });
+  }
+
+  /**
+   * Reset the marketing consent decision back to undecided.
+   *
+   * Independent of {@link resetConsentDecision}. Also drops a choice not yet
+   * saved to the user's profile, so the next sync adopts the profile's value.
+   */
+  resetMarketingConsentDecision(): void {
     this.update((state) => {
       state.optedInToMarketing = false;
-      state.marketingConsentDecisionMade = true;
+      state.marketingConsentDecisionMade = false;
+      state.marketingConsentSyncPending = false;
       state.marketingCampaignCookieId = null;
     });
 
@@ -2371,15 +2493,103 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Reset the marketing consent decision back to undecided.
+   * Apply the marketing consent saved in the user's profile (Authenticated
+   * User Storage).
    *
-   * Independent of {@link resetConsentDecision}.
+   * Has the same effects as {@link optInToMarketing} or
+   * {@link optOutOfMarketing}, except that the value is not marked as waiting
+   * to be saved, since the profile already holds it. Does nothing when a
+   * choice made on this device is still waiting to be saved, since that choice
+   * wins, or when the user already made the same decision.
+   *
+   * @param optedIn - Whether the profile's consent is opted in.
+   * @returns A promise that resolves once opt-in processing has completed.
    */
-  resetMarketingConsentDecision(): void {
+  async applyRemoteMarketingConsent(optedIn: boolean): Promise<void> {
+    if (this.state.marketingConsentSyncPending === true) {
+      return;
+    }
+
+    const sameDecisionMade =
+      this.state.marketingConsentDecisionMade === true &&
+      (this.state.optedInToMarketing === true) === optedIn;
+    if (sameDecisionMade) {
+      return;
+    }
+
+    if (optedIn) {
+      await this.#optInToMarketing({ syncPending: false });
+    } else {
+      this.#optOutOfMarketing({ syncPending: false });
+    }
+  }
+
+  /**
+   * Mark a marketing consent choice as no longer waiting to be saved to the
+   * user's profile, either because the profile saved it or because it was
+   * dropped after a failed save.
+   *
+   * Does nothing when local consent no longer matches `optedIn`: a newer
+   * choice was made in the meantime and still has to be saved.
+   *
+   * @param optedIn - The consent value that was saved or dropped.
+   */
+  clearMarketingConsentSyncPending(optedIn: boolean): void {
+    if (this.state.marketingConsentSyncPending !== true) {
+      return;
+    }
+
+    const consentChangedSince =
+      (this.state.optedInToMarketing === true) !== optedIn;
+    if (consentChangedSince) {
+      return;
+    }
+
+    this.update((state) => {
+      state.marketingConsentSyncPending = false;
+    });
+  }
+
+  /**
+   * Opt in to marketing analytics and replay queued marketing events.
+   *
+   * @param options - Options.
+   * @param options.syncPending - Whether the choice still has to be saved to
+   * the user's profile.
+   */
+  async #optInToMarketing({
+    syncPending,
+  }: {
+    syncPending: boolean;
+  }): Promise<void> {
+    this.update((state) => {
+      state.optedInToMarketing = true;
+      state.marketingConsentDecisionMade = true;
+      if (syncPending) {
+        state.marketingConsentSyncPending = true;
+      }
+    });
+
+    await this.#maybeResolveLocation();
+    this.#replayPreConsentEvents();
+  }
+
+  /**
+   * Opt out of marketing analytics and discard queued marketing events and
+   * marketing event fragments.
+   *
+   * @param options - Options.
+   * @param options.syncPending - Whether the choice still has to be saved to
+   * the user's profile.
+   */
+  #optOutOfMarketing({ syncPending }: { syncPending: boolean }): void {
     this.update((state) => {
       state.optedInToMarketing = false;
-      state.marketingConsentDecisionMade = false;
+      state.marketingConsentDecisionMade = true;
       state.marketingCampaignCookieId = null;
+      if (syncPending) {
+        state.marketingConsentSyncPending = true;
+      }
     });
 
     this.#pruneAllForConsent();

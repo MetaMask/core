@@ -480,7 +480,7 @@ export type LighterAccountResponse = {
 export type LighterApiPosition = {
   marketId: number;
   symbol: string;
-  initialMarginFraction: string;
+  initialMarginFraction?: string;
   openOrderCount: number;
   /** Optional in legacy captures; live mode changes require authoritative counts. */
   pendingOrderCount?: number;
@@ -746,6 +746,40 @@ export type LighterTradesResponse = {
   message?: string;
   nextCursor?: string;
   trades: LighterRestTrade[];
+};
+
+/**
+ * One public trade from `GET /api/v1/recentTrades` or the `trade/{market_id}`
+ * WebSocket channel (post-camelization). Only the fields the public trade
+ * feed reads; the venue sends more.
+ */
+export type LighterPublicTrade = {
+  tradeId: number;
+  tradeIdStr?: string;
+  txHash: string;
+  marketId: number;
+  size: string;
+  price: string;
+  /** True when the maker sold, so the taker (aggressor) bought. */
+  isMakerAsk: boolean;
+  timestamp: number;
+};
+
+/** `GET /api/v1/recentTrades` response (post-camelization). */
+export type LighterRecentTradesResponse = {
+  code: number;
+  message?: string;
+  trades: LighterPublicTrade[];
+};
+
+/**
+ * `trade/{market_id}` WebSocket payload (post-camelization). `subscribed/trade`
+ * carries the venue's recent trades, `update/trade` each new batch.
+ */
+export type LighterWsPublicTradesMessage = {
+  type?: string;
+  channel?: string;
+  trades?: unknown;
 };
 
 /** Query parameters supported by the Lighter trades endpoint. */

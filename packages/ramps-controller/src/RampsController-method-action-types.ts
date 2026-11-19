@@ -81,6 +81,9 @@ export type RampsControllerSetUserRegionAction = {
  * @param options.autoSelected - When true, marks the provider as system-guessed
  * (soft selection). The UI will silently auto-switch on token conflict instead
  * of showing the "Token Not Available" modal. Defaults to false.
+ * @param options.userSelected - When true, also records the provider as the
+ * user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+ * Defaults to false. Passing `null` as the provider always clears the pick.
  */
 export type RampsControllerSetSelectedProviderAction = {
   type: `RampsController:setSelectedProvider`;
@@ -121,6 +124,38 @@ export type RampsControllerSetSelectedProviderAction = {
 export type RampsControllerSetSelectedProviderForAssetAction = {
   type: `RampsController:setSelectedProviderForAsset`;
   handler: RampsController['setSelectedProviderForAsset'];
+};
+
+/**
+ * Selects the provider for the given asset and returns its id.
+ *
+ * Among the providers in `providers.data` that offer the asset (minus
+ * `excludeProviderIds`), the first match wins:
+ * 1. The user's own pick ({@link RampsControllerState.userSelectedProviderId}).
+ * 2. The first provider in `aheadOfHistory`.
+ * 3. The provider of the most recent completed buy, across all accounts,
+ * from controller orders plus `extraHistory`.
+ * 4. The first provider in API ranking order.
+ *
+ * With a `null` asset (no token chosen yet) every provider is a candidate
+ * and step 2 is skipped, since that list only applies to assets its
+ * providers offer.
+ *
+ * The selection is marked auto-selected unless it is the user's own pick.
+ * The user's pick is kept when another provider is chosen, so it comes back
+ * on the next asset it offers.
+ *
+ * @param assetId - CAIP-19 asset id the user is buying, or `null`.
+ * @param options - Optional inputs.
+ * @param options.aheadOfHistory - Provider ids that win over history.
+ * @param options.extraHistory - Completed buys from outside controller state.
+ * @param options.excludeProviderIds - Provider ids to leave out.
+ * @returns The selected provider id, or `null` when providers are not loaded
+ * or none offers the asset (the selection is left unchanged).
+ */
+export type RampsControllerSelectProviderForAssetAction = {
+  type: `RampsController:selectProviderForAsset`;
+  handler: RampsController['selectProviderForAsset'];
 };
 
 /**
@@ -360,6 +395,9 @@ export type RampsControllerGetQuoteWithFeesAction = {
  * Unchanged syncable payloads (including unchanged poll results) are ignored
  * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
  *
+ * When network access is denied, the order is still written locally and the
+ * remote push is deferred to the next full sync.
+ *
  * @param order - The RampsOrder to add or update.
  */
 export type RampsControllerAddOrderAction = {
@@ -369,6 +407,9 @@ export type RampsControllerAddOrderAction = {
 
 /**
  * Removes a V2 order from controller state by providerOrderId.
+ *
+ * When network access is denied, the order is still removed locally and the
+ * remote tombstone is deferred to the next full sync.
  *
  * @param providerOrderId - The provider order ID to remove.
  */
@@ -615,6 +656,9 @@ export type RampsControllerGetFallbackBuyWidgetDataAction = {
  * Adds a minimal stub order to controller state; the existing order polling
  * will fetch the full order when the provider has created it.
  *
+ * When network access is denied, the stub is still written locally and its
+ * remote push is deferred to the next full sync.
+ *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
  * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
@@ -730,6 +774,9 @@ export type RampsControllerTransakVerifyUserOtpAction = {
 /**
  * Logs the user out of Transak. Clears authentication state and user details
  * regardless of whether the API call succeeds or fails.
+ *
+ * When network access is denied, the local session is cleared and a message
+ * is returned without calling the Transak service.
  *
  * @returns A message indicating the logout result.
  */
@@ -979,6 +1026,7 @@ export type RampsControllerMethodActions =
   | RampsControllerSetUserRegionAction
   | RampsControllerSetSelectedProviderAction
   | RampsControllerSetSelectedProviderForAssetAction
+  | RampsControllerSelectProviderForAssetAction
   | RampsControllerInitAction
   | RampsControllerGetCountriesAction
   | RampsControllerGetTokensAction

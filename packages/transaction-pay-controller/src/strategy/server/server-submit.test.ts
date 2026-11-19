@@ -25,7 +25,10 @@ import {
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
-import { getLiveTokenBalanceOrUndefined } from '../../utils/token.js';
+import {
+  buildCaipAssetType,
+  getLiveTokenBalanceOrUndefined,
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
@@ -37,7 +40,7 @@ import {
   submitServerIntent,
 } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
-import { submitServerQuotes } from './server-submit.js';
+import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
@@ -66,6 +69,8 @@ const ORIGINAL_TRANSACTION_ID_MOCK = 'original-transaction-id';
 const ORIGINAL_FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const QUOTE_FROM_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const SOURCE_CHAIN_ID_MOCK = '0x89' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK =
+  '0x5555555555555555555555555555555555555555' as Hex;
 const TARGET_HASH_MOCK = '0xtarget' as Hex;
 const SOURCE_HASH_MOCK = '0xsource' as Hex;
 
@@ -95,18 +100,16 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
   gasless: true,
   id: 'server-intent-id',
   input: {
-    chainId: 137,
+    asset: 'eip155:137/erc20:0x5555555555555555555555555555555555555555',
     decimals: 6,
     formatted: '1.23',
     raw: '1230000',
-    token: '0x5555555555555555555555555555555555555555',
   },
   output: {
-    chainId: 1,
+    asset: 'eip155:1/erc20:0x6666666666666666666666666666666666666666',
     decimals: 6,
     formatted: '1',
     raw: '1000000',
-    token: '0x6666666666666666666666666666666666666666',
   },
   provider: 'relay',
   steps: [
@@ -135,9 +138,9 @@ const QUOTE_MOCK = {
   original: ORIGINAL_QUOTE_MOCK,
   request: {
     from: QUOTE_FROM_MOCK,
+    sourceAccountId: `eip155:137:${QUOTE_FROM_MOCK}`,
+    sourceAssetId: `eip155:137/erc20:${SOURCE_TOKEN_ADDRESS_MOCK}`,
     sourceBalanceRaw: '10000000',
-    sourceChainId: SOURCE_CHAIN_ID_MOCK,
-    sourceTokenAddress: '0x5555555555555555555555555555555555555555',
     sourceTokenAmount: '1230000',
     targetAmountMinimum: '1000000',
     targetChainId: '0x1',
@@ -865,6 +868,133 @@ describe('submitServerQuotes', () => {
       expect(addTxMock).not.toHaveBeenCalled();
     });
 
+    describe('authorization list', () => {
+      const AUTHORIZATION_MOCK = {
+        address: '0x7777777777777777777777777777777777777777' as Hex,
+        chainId: 137,
+        nonce: 2,
+        r: '0xr' as Hex,
+        s: '0xs' as Hex,
+        yParity: 1,
+      };
+
+      const SAME_CHAIN_OVERRIDES: Partial<ServerQuote> = {
+        authorizationList: [AUTHORIZATION_MOCK],
+        output: {
+          ...ORIGINAL_QUOTE_MOCK.output,
+          asset: 'eip155:137/erc20:0x6666666666666666666666666666666666666666',
+        },
+      };
+
+      const BATCH_STEPS: ServerQuote['steps'] = [
+        ORIGINAL_QUOTE_MOCK.steps[0],
+        {
+          type: 'transaction' as const,
+          chainId: 137,
+          data: '0xseconddata',
+          to: '0x9999999999999999999999999999999999999999',
+          value: '0x20',
+        },
+      ];
+
+      function withoutAccountOverride(
+        executeRequest: PayStrategyExecuteRequest<ServerQuote>,
+      ): PayStrategyExecuteRequest<ServerQuote> {
+        executeRequest.transaction.txParams.from = QUOTE_FROM_MOCK;
+        return executeRequest;
+      }
+
+      it('passes the address and chain ID to a same-chain single transaction', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(buildNonGaslessRequest(SAME_CHAIN_OVERRIDES)),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              { address: AUTHORIZATION_MOCK.address, chainId: '0x89' },
+            ],
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('omits it from a cross-chain single transaction', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              authorizationList: [AUTHORIZATION_MOCK],
+            }),
+          ),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('omits it when the quote has no authorizations', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              output: SAME_CHAIN_OVERRIDES.output,
+            }),
+          ),
+        );
+
+        expect(addTxMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+          expect.anything(),
+        );
+      });
+
+      it('passes the signed authorizations to a same-chain batch with an account override', async () => {
+        await submitServerQuotes(
+          buildNonGaslessRequest({
+            ...SAME_CHAIN_OVERRIDES,
+            steps: BATCH_STEPS,
+          }),
+        );
+
+        expect(addTxBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authorizationList: [
+              {
+                address: AUTHORIZATION_MOCK.address,
+                chainId: '0x89',
+                nonce: '0x2',
+                r: '0xr',
+                s: '0xs',
+                yParity: '0x1',
+              },
+            ],
+          }),
+        );
+      });
+
+      it('omits it from a same-chain batch without an account override', async () => {
+        await submitServerQuotes(
+          withoutAccountOverride(
+            buildNonGaslessRequest({
+              ...SAME_CHAIN_OVERRIDES,
+              steps: BATCH_STEPS,
+            }),
+          ),
+        );
+
+        expect(addTxBatchMock).toHaveBeenCalledWith(
+          expect.not.objectContaining({
+            authorizationList: expect.anything(),
+          }),
+        );
+      });
+    });
+
     it('passes gasFeeToken when fees.isSourceGasFeeToken is true', async () => {
       const reqWithGasFeeToken = buildNonGaslessRequest();
       reqWithGasFeeToken.quotes[0].fees.isSourceGasFeeToken = true;
@@ -875,7 +1005,7 @@ describe('submitServerQuotes', () => {
         expect.anything(),
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -902,7 +1032,7 @@ describe('submitServerQuotes', () => {
       expect(addTxBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -915,7 +1045,10 @@ describe('submitServerQuotes', () => {
 
       // Sponsorship only applies when the quote never leaves the parent
       // transaction's chain.
-      sponsoredRequest.quotes[0].request.sourceChainId = chainId;
+      sponsoredRequest.quotes[0].request.sourceAssetId = buildCaipAssetType(
+        chainId,
+        SOURCE_TOKEN_ADDRESS_MOCK,
+      );
       sponsoredRequest.quotes[0].request.targetChainId = chainId;
       sponsoredRequest.transaction.isGasFeeSponsored = true;
 
@@ -992,7 +1125,10 @@ describe('submitServerQuotes', () => {
 
     it('does not sponsor a cross-chain route even when the parent is sponsored', async () => {
       const crossChainRequest = buildSponsoredRequest();
-      crossChainRequest.quotes[0].request.sourceChainId = '0x89';
+      crossChainRequest.quotes[0].request.sourceAssetId = buildCaipAssetType(
+        '0x89',
+        SOURCE_TOKEN_ADDRESS_MOCK,
+      );
 
       await submitServerQuotes(crossChainRequest);
 
@@ -1656,5 +1792,29 @@ describe('submitServerQuotes', () => {
 
       expect(addTxMock).toHaveBeenCalled();
     });
+  });
+});
+
+describe('getServerSubmitParams', () => {
+  const { messenger } = getMessengerMock();
+
+  it('returns the params for the quote transaction steps', async () => {
+    const params = await getServerSubmitParams(
+      QUOTE_MOCK,
+      messenger,
+      TRANSACTION_META_MOCK,
+    );
+
+    expect(params).toStrictEqual([
+      {
+        data: '0xstepdata',
+        from: QUOTE_FROM_MOCK,
+        gas: '0x61a8',
+        maxFeePerGas: '0x3b9aca00',
+        maxPriorityFeePerGas: '0x1dcd6500',
+        to: '0x4444444444444444444444444444444444444444',
+        value: '0x10',
+      },
+    ]);
   });
 });

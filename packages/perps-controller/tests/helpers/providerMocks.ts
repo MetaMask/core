@@ -56,6 +56,7 @@ export const createMockHyperLiquidProvider = (): Mocked<HyperLiquidProvider> =>
     setLiveDataConfig: vi.fn(),
     disconnect: vi.fn(),
     updatePositionTPSL: vi.fn(),
+    replacePositionTPSLLeg: vi.fn(),
     calculateLiquidationPrice: vi.fn(),
     calculateMaintenanceMargin: vi.fn(),
     getMaxLeverage: vi.fn(),

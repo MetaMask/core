@@ -1,8 +1,10 @@
 import { hasProperty, Hex, isHexString } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import {
   BASIS_POINTS_DIVISOR,
   HIP3_ASSET_ID_CONFIG,
+  isUnrestrictedMarginMode,
 } from '../constants/hyperLiquidConfig.js';
 import {
   DECIMAL_PRECISION_CONFIG,
@@ -13,6 +15,7 @@ import type {
   AssetPosition,
   FrontendOrder,
   ClearinghouseStateResponse,
+  HyperLiquidPublicTrade,
   MetaResponse,
   SDKOrderParams,
 } from '../types/hyperliquid-types.js';
@@ -24,6 +27,7 @@ import type {
   OrderParams as PerpsOrderParams,
   Position,
   PositionTriggerOrder,
+  PublicTrade,
   RawLedgerUpdate,
   UserHistoryItem,
 } from '../types/index.js';
@@ -37,6 +41,10 @@ import {
   isTriggerOrderType,
   toSDKTimeInForce,
 } from './orderTypes.js';
+import {
+  buildPublicTrade,
+  sortPublicTradesNewestFirst,
+} from './publicTrades.js';
 import {
   countSignificantFigures,
   roundToSignificantFigures,
@@ -246,8 +254,55 @@ export function adaptTpslLinkageToGrouping(
   }
 }
 
-export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
+/**
+ * Margin Hyperliquid shows for a cross position. When cross equity is below
+ * the cross initial margin, the venue scales each cross position's margin by
+ * `accountValue / totalMarginUsed`.
+ *
+ * @param marginUsed - The position's raw margin used.
+ * @param crossMarginSummary - The clearinghouse's cross margin summary.
+ * @returns The displayed margin, or undefined when an input is not a number.
+ */
+function deriveCrossDisplayMarginUsed(
+  marginUsed: string,
+  crossMarginSummary: ClearinghouseStateResponse['crossMarginSummary'],
+): string | undefined {
+  const margin = new BigNumber(marginUsed);
+  const accountValue = new BigNumber(crossMarginSummary.accountValue);
+  const totalMarginUsed = new BigNumber(crossMarginSummary.totalMarginUsed);
+  if (
+    !margin.isFinite() ||
+    !accountValue.isFinite() ||
+    !totalMarginUsed.isFinite()
+  ) {
+    return undefined;
+  }
+  if (totalMarginUsed.lte(0) || accountValue.gte(totalMarginUsed)) {
+    return margin.toFixed();
+  }
+  return BigNumber.max(
+    margin.times(accountValue).div(totalMarginUsed),
+    0,
+  ).toFixed();
+}
+
+/**
+ * Adapt a Hyperliquid asset position.
+ *
+ * @param assetPosition - Position from a clearinghouse state.
+ * @param crossMarginSummary - That clearinghouse's `crossMarginSummary`. When
+ * given, a cross position also carries `displayMarginUsed`.
+ * @returns The position.
+ */
+export function adaptPositionFromSDK(
+  assetPosition: AssetPosition,
+  crossMarginSummary?: ClearinghouseStateResponse['crossMarginSummary'],
+): Position {
   const pos = assetPosition.position;
+  const displayMarginUsed =
+    pos.leverage.type === 'cross' && crossMarginSummary
+      ? deriveCrossDisplayMarginUsed(pos.marginUsed, crossMarginSummary)
+      : undefined;
   return {
     symbol: pos.coin,
     size: pos.szi,
@@ -255,6 +310,7 @@ export function adaptPositionFromSDK(assetPosition: AssetPosition): Position {
     positionValue: pos.positionValue,
     unrealizedPnl: pos.unrealizedPnl,
     marginUsed: pos.marginUsed,
+    ...(displayMarginUsed !== undefined && { displayMarginUsed }),
     leverage: {
       type: pos.leverage.type,
       value: pos.leverage.value,
@@ -480,13 +536,18 @@ export function adaptPositionTriggerOrderFromSDK(params: {
 export function adaptMarketFromSDK(
   sdkMarket: MetaResponse['universe'][number],
 ): MarketInfo {
+  // The venue also sends `normal` (no restriction), which the SDK type omits.
+  // `MarketInfo.marginMode` carries restrictions only, so drop it.
+  const venueMarginMode: string | undefined = sdkMarket.marginMode;
   return {
     name: sdkMarket.name,
     szDecimals: sdkMarket.szDecimals,
     maxLeverage: sdkMarket.maxLeverage,
     marginTableId: sdkMarket.marginTableId,
     onlyIsolated: sdkMarket.onlyIsolated,
-    marginMode: sdkMarket.marginMode,
+    ...(!isUnrestrictedMarginMode(venueMarginMode) && {
+      marginMode: sdkMarket.marginMode,
+    }),
     isDelisted: sdkMarket.isDelisted,
   };
 }
@@ -755,4 +816,51 @@ export function adaptHyperLiquidLedgerUpdateToUserHistoryItem(
         },
       };
     });
+}
+
+const HYPERLIQUID_ZERO_HASH = /^0x0+$/u;
+const HYPERLIQUID_TRADE_SIDE = { B: 'buy', A: 'sell' } as const;
+
+/**
+ * Adapt Hyperliquid public trades (REST `recentTrades` or WS `trades`) to
+ * {@link PublicTrade}, newest first. Trades for another coin and malformed
+ * trades are dropped. `side` is the aggressor's: `B` bought, `A` sold. The id
+ * comes from {@link buildHyperLiquidFillId}, so both transports give one
+ * execution the same id.
+ *
+ * @param trades - SDK trades.
+ * @param symbol - Requested coin; other coins are dropped.
+ * @returns The trades for `symbol`, newest first.
+ */
+export function adaptPublicTradesFromHyperLiquid(
+  trades: readonly HyperLiquidPublicTrade[],
+  symbol: string,
+): PublicTrade[] {
+  const adapted: PublicTrade[] = [];
+  for (const trade of trades) {
+    if (trade.coin !== symbol) {
+      continue;
+    }
+    const publicTrade = buildPublicTrade({
+      id:
+        typeof trade.tid === 'number'
+          ? buildHyperLiquidFillId(trade)
+          : undefined,
+      symbol,
+      price: trade.px,
+      size: trade.sz,
+      side: HYPERLIQUID_TRADE_SIDE[trade.side] ?? null,
+      timestamp: trade.time,
+      txHash:
+        typeof trade.hash === 'string' &&
+        !HYPERLIQUID_ZERO_HASH.test(trade.hash)
+          ? trade.hash
+          : undefined,
+      providerId: 'hyperliquid',
+    });
+    if (publicTrade) {
+      adapted.push(publicTrade);
+    }
+  }
+  return sortPublicTradesNewestFirst(adapted);
 }

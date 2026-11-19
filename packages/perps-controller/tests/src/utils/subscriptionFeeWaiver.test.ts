@@ -409,6 +409,25 @@ describe('applyFeeResolution', () => {
     expect(priced.feeSource).toBe('subscription');
   });
 
+  it('leaves the total rate and amount undefined when the protocol rate is unknown', () => {
+    const priced = applyFeeResolution({
+      fees: { metamaskFeeRate: 0.001 },
+      resolution: {
+        feeBips: 10,
+        discountBips: 0,
+        source: 'default',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+      chargesBuilderFee: true,
+    });
+
+    expect(priced.metamaskFeeRate).toBeCloseTo(0.001, 10);
+    expect(priced.metamaskFeeAmount).toBeCloseTo(1, 10);
+    expect(priced.feeRate).toBeUndefined();
+    expect(priced.feeAmount).toBeUndefined();
+  });
+
   it('reports the rewards source from the resolution that repriced the quote', () => {
     const priced = applyFeeResolution({
       fees,

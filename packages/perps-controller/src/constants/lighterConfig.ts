@@ -231,9 +231,55 @@ export const LIGHTER_FILL_REPLAY_LIMIT = 100;
 export const LIGHTER_HTTP_TIMEOUT_MS = 10000;
 
 /**
+ * Most trades `GET /api/v1/recentTrades` returns; a larger `limit` is rejected.
+ */
+export const LIGHTER_RECENT_TRADES_MAX_LIMIT = 100;
+
+/**
  * Interval for polling REST prices (no WS subscription in the POC)
  */
 export const LIGHTER_PRICE_POLLING_INTERVAL_MS = 5000;
+
+/**
+ * Standard-account REST budget: Lighter allows 60 requests per minute per IP
+ * and per L1 address, and answers 429 or 405 above it.
+ */
+export const LIGHTER_REST_REQUESTS_PER_MINUTE = 60;
+
+/** Sliding window the REST budget is counted over. */
+export const LIGHTER_REST_BUDGET_WINDOW_MS = 60_000;
+
+/** First cooldown after a 429/405 without Retry-After; doubles per strike. */
+export const LIGHTER_RATE_LIMIT_BASE_COOLDOWN_MS = 1_000;
+
+/** Longest cooldown after repeated 429/405 responses. */
+export const LIGHTER_RATE_LIMIT_MAX_COOLDOWN_MS = 60_000;
+
+/** Consecutive 5xx responses after which Lighter health reports degraded. */
+export const LIGHTER_SERVER_ERROR_DEGRADED_THRESHOLD = 3;
+
+// ============================================================================
+// WebSocket stream lifecycle
+// ============================================================================
+
+/**
+ * Wait after a channel's last listener leaves before unsubscribing it, so
+ * quick back-and-forth between markets does not churn frames (Lighter counts
+ * them against 200 messages per minute per IP).
+ */
+export const LIGHTER_CHANNEL_RELEASE_DELAY_MS = 5_000;
+
+/** Default time the shared socket stays open after its last listener leaves. */
+export const LIGHTER_SOCKET_IDLE_CLOSE_MS = 30_000;
+
+/** First reconnect delay after the socket drops; doubles per attempt. */
+export const LIGHTER_RECONNECT_BASE_DELAY_MS = 1_000;
+
+/** Longest reconnect delay. */
+export const LIGHTER_RECONNECT_MAX_DELAY_MS = 30_000;
+
+/** How long the socket may stay down with listeners before health degrades. */
+export const LIGHTER_SOCKET_DOWN_GRACE_MS = 10_000;
 
 /**
  * Maximum leverage placeholder until per-market margin fractions are wired.
@@ -328,6 +374,41 @@ export function fromLighterInteger(value: number, decimals: number): number {
 }
 
 /**
+ * Check the size precision accepted by the maker sizing calculation.
+ *
+ * @param decimals - Venue size decimals.
+ * @returns Whether the value can be used as a size precision.
+ */
+export function isLighterOrderSizeDecimals(decimals: number): boolean {
+  // Number.toFixed accepts up to 100 fractional digits.
+  return Number.isSafeInteger(decimals) && decimals >= 0 && decimals <= 100;
+}
+
+/**
+ * Read both maker minimums as a pair. Sizing requires both values.
+ *
+ * @param market - Market metadata from `orderBooks`.
+ * @returns The parsed minimums, or null when either is invalid.
+ */
+export function getLighterMakerMinimums(
+  market: Pick<LighterOrderBookMeta, 'minBaseAmount' | 'minQuoteAmount'>,
+): { minBase: number; minQuote: number } | null {
+  const minBase = parseLighterStrictDecimal(market.minBaseAmount);
+  const minQuote = parseLighterStrictDecimal(market.minQuoteAmount);
+  if (
+    minBase === null ||
+    !Number.isFinite(minBase) ||
+    minBase <= 0 ||
+    minQuote === null ||
+    !Number.isFinite(minQuote) ||
+    minQuote <= 0
+  ) {
+    return null;
+  }
+  return { minBase, minQuote };
+}
+
+/**
  * Compute the minimum order base size for a market that satisfies both
  * `minBaseAmount` and `minQuoteAmount` at a given price.
  *
@@ -342,24 +423,18 @@ export function computeLighterMinOrderSize(
   >,
   price: number,
 ): number {
-  const minBase = parseLighterStrictDecimal(market.minBaseAmount);
-  const minQuote = parseLighterStrictDecimal(market.minQuoteAmount);
+  const minimums = getLighterMakerMinimums(market);
   if (
-    minBase === null ||
-    !Number.isFinite(minBase) ||
-    minBase <= 0 ||
-    minQuote === null ||
-    !Number.isFinite(minQuote) ||
-    minQuote <= 0 ||
+    minimums === null ||
     !Number.isFinite(price) ||
     price <= 0 ||
-    !Number.isSafeInteger(market.supportedSizeDecimals) ||
-    market.supportedSizeDecimals < 0
+    !isLighterOrderSizeDecimals(market.supportedSizeDecimals)
   ) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} invalid market minimum-size metadata`,
     );
   }
+  const { minBase, minQuote } = minimums;
   const step = 10 ** -market.supportedSizeDecimals;
   const byQuote = minQuote / price;
   const raw = Math.max(minBase, byQuote);

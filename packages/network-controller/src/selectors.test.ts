@@ -1,44 +1,55 @@
+import { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 import { describe, expect, it } from 'vitest';
 
-import { getRpcFailoverMode } from './selectors.js';
+import {
+  RPC_FAILOVER_MODES,
+  selectRpcFailoverModeFeatureFlag,
+} from './selectors.js';
 
 /**
- * Builds a remote feature flag controller state with the given failover mode.
+ * Builds a complete version of RemoteFeatureFlagController state, filling in the given feature flags.
  *
- * @param mode - The value to set for `corePlatformRpcFailoverMode`, if any.
- * @returns The state object.
+ * @param state - The partial RemoteFeatureFlagController state.
+ * @returns The RemoteFeatureFlagController state object.
  */
-function buildState(mode?: unknown): {
-  remoteFeatureFlags: Record<string, unknown>;
-  cacheTimestamp: number;
-} {
+function buildRemoteFeatureFlagControllerState(
+  state: Partial<RemoteFeatureFlagControllerState>,
+): RemoteFeatureFlagControllerState {
   return {
-    remoteFeatureFlags:
-      mode === undefined ? {} : { corePlatformRpcFailoverMode: mode },
+    remoteFeatureFlags: {},
     cacheTimestamp: 0,
+    ...state,
   };
 }
 
-describe('getRpcFailoverMode', () => {
-  it('returns "enabled" when the flag is "enabled"', () => {
-    expect(getRpcFailoverMode(buildState('enabled') as never)).toBe('enabled');
+describe('selectRpcFailoverModeFeatureFlag', () => {
+  for (const mode of RPC_FAILOVER_MODES) {
+    it(`returns "${mode}" when the corePlatformRpcFailoverMode flag is "${mode}"`, () => {
+      const state = buildRemoteFeatureFlagControllerState({
+        remoteFeatureFlags: {
+          corePlatformRpcFailoverMode: mode,
+        },
+      });
+
+      expect(selectRpcFailoverModeFeatureFlag(state)).toBe(mode);
+    });
+  }
+
+  it('returns null when the corePlatformRpcFailoverMode flag is absent', () => {
+    const state = buildRemoteFeatureFlagControllerState({
+      remoteFeatureFlags: {},
+    });
+
+    expect(selectRpcFailoverModeFeatureFlag(state)).toBeNull();
   });
 
-  it('returns "forced" when the flag is "forced"', () => {
-    expect(getRpcFailoverMode(buildState('forced') as never)).toBe('forced');
-  });
+  it('returns null when the corePlatformRpcFailoverMode flag is an unrecognized value', () => {
+    const state = buildRemoteFeatureFlagControllerState({
+      remoteFeatureFlags: {
+        corePlatformRpcFailoverMode: 'something-unrecognized',
+      },
+    });
 
-  it('returns "disabled" when the flag is "disabled"', () => {
-    expect(getRpcFailoverMode(buildState('disabled') as never)).toBe(
-      'disabled',
-    );
-  });
-
-  it('returns "disabled" when the flag is absent', () => {
-    expect(getRpcFailoverMode(buildState() as never)).toBe('disabled');
-  });
-
-  it('returns "disabled" when the flag is an unrecognized value', () => {
-    expect(getRpcFailoverMode(buildState('yes') as never)).toBe('disabled');
+    expect(selectRpcFailoverModeFeatureFlag(state)).toBeNull();
   });
 });

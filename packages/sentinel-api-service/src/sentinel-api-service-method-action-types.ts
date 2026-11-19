@@ -8,8 +8,7 @@ import type { SentinelApiService } from './sentinel-api-service.js';
 /**
  * Fetches the configuration of a single network from the `/network`
  * endpoint of that network's subdomain. The subdomain is resolved from the
- * supported-network registry. The result is cached, as the configuration is
- * stable.
+ * supported-network registry. Not cached as it is the sentinel live capabilities endpoint.
  *
  * @param chainId - The chain ID of the network.
  * @returns The network configuration.
@@ -42,6 +41,9 @@ export type SentinelApiServiceGetNetworksAction = {
  * Sentinel URL resolved for the chain and returns the URL to use instead.
  * Lets consumers rewrite the request URL (for example to route through the
  * MetaMask Shield proxy) without the service knowing about those concerns.
+ * @param options.traceContext - Optional trace context to nest the
+ * simulation trace under. Without it, clients that do not infer a parent
+ * from the active span record the trace as a root span.
  * @returns The simulation response.
  */
 export type SentinelApiServiceSimulateTransactionsAction = {
@@ -76,6 +78,57 @@ export type SentinelApiServiceGetSmartTransactionAction = {
 };
 
 /**
+ * Quotes gas fees for unsigned smart transactions via
+ * `POST /v1/networks/{chainId}/getFees`. Not cached, since a quote goes
+ * stale immediately.
+ *
+ * @param request - The fee quote request.
+ * @returns The fee quote response. One entry in `txs` per transaction, in
+ * request order.
+ */
+export type SentinelApiServiceGetFeesAction = {
+  type: `SentinelApiService:getFees`;
+  handler: SentinelApiService['getFees'];
+};
+
+/**
+ * Submits signed smart transactions via
+ * `POST /v1/networks/{chainId}/submitTransactions`. Not cached.
+ *
+ * @param request - The submit request.
+ * @returns The UUID assigned to the submitted batch.
+ */
+export type SentinelApiServiceSubmitTransactionsAction = {
+  type: `SentinelApiService:submitTransactions`;
+  handler: SentinelApiService['submitTransactions'];
+};
+
+/**
+ * Cancels a smart transaction via `POST /v1/networks/{chainId}/cancel`.
+ * Not cached.
+ *
+ * @param request - The cancel request.
+ * @returns The cancel result. `cancelled` is `true` on success.
+ */
+export type SentinelApiServiceCancelAction = {
+  type: `SentinelApiService:cancel`;
+  handler: SentinelApiService['cancel'];
+};
+
+/**
+ * Looks up the statuses of several smart transactions via
+ * `GET /v1/networks/{chainId}/batchStatus`. Not cached, since statuses change
+ * while transactions are pending.
+ *
+ * @param request - The batch status request.
+ * @returns The status of each requested transaction, keyed by UUID.
+ */
+export type SentinelApiServiceGetBatchStatusAction = {
+  type: `SentinelApiService:getBatchStatus`;
+  handler: SentinelApiService['getBatchStatus'];
+};
+
+/**
  * Union of all SentinelApiService action types.
  */
 export type SentinelApiServiceMethodActions =
@@ -83,4 +136,8 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceGetNetworksAction
   | SentinelApiServiceSimulateTransactionsAction
   | SentinelApiServiceSubmitRelayTransactionAction
-  | SentinelApiServiceGetSmartTransactionAction;
+  | SentinelApiServiceGetSmartTransactionAction
+  | SentinelApiServiceGetFeesAction
+  | SentinelApiServiceSubmitTransactionsAction
+  | SentinelApiServiceCancelAction
+  | SentinelApiServiceGetBatchStatusAction;

@@ -599,7 +599,9 @@ describe('KycService', () => {
     };
 
     it('posts the client public key and returns the deletion wrapping key', async () => {
-      nock(MOCK_API_URL)
+      nock(MOCK_API_URL, {
+        reqheaders: { authorization: `Bearer ${AAL2_TOKEN}` },
+      })
         .post(
           '/deletions',
           (body: Record<string, unknown>) =>
@@ -611,8 +613,20 @@ describe('KycService', () => {
       expect(
         await service.createDeletion({
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          aal2Token: AAL2_TOKEN,
         }),
       ).toStrictEqual(response);
+    });
+
+    it('throws when aal2Token is missing', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.createDeletion({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          aal2Token: '',
+        }),
+      ).rejects.toThrow(/aal2Token is required/u);
     });
 
     it('throws on a malformed response', async () => {
@@ -622,6 +636,7 @@ describe('KycService', () => {
       await expect(
         service.createDeletion({
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          aal2Token: AAL2_TOKEN,
         }),
       ).rejects.toThrow(/Malformed response received from deletions API/u);
     });
@@ -631,7 +646,9 @@ describe('KycService', () => {
     const wrappedUkycCapabilityToken = { nonce: 'nonce-1', data: 'data-1' };
 
     it('deletes with the wrapped token and accepts an empty response', async () => {
-      nock(MOCK_API_URL)
+      nock(MOCK_API_URL, {
+        reqheaders: { authorization: `Bearer ${AAL2_TOKEN}` },
+      })
         .delete(
           '/deletions/deletion-1',
           (body: Record<string, unknown>) =>
@@ -645,8 +662,21 @@ describe('KycService', () => {
         await service.completeDeletion({
           deletionId: 'deletion-1',
           wrappedUkycCapabilityToken,
+          aal2Token: AAL2_TOKEN,
         }),
       ).toBeUndefined();
+    });
+
+    it('throws when aal2Token is missing', async () => {
+      const { service } = getService();
+
+      await expect(
+        service.completeDeletion({
+          deletionId: 'deletion-1',
+          wrappedUkycCapabilityToken,
+          aal2Token: '',
+        }),
+      ).rejects.toThrow(/aal2Token is required/u);
     });
 
     it('url-encodes the deletion id', async () => {
@@ -657,6 +687,7 @@ describe('KycService', () => {
         await service.completeDeletion({
           deletionId: 'a/b',
           wrappedUkycCapabilityToken,
+          aal2Token: AAL2_TOKEN,
         }),
       ).toBeUndefined();
     });

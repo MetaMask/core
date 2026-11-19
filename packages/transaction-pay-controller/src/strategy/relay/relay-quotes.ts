@@ -28,12 +28,12 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { withNonAtomicRequests } from '../../utils/account.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
 import {
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
-  isAtomicMaxEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -43,6 +43,13 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
+import { applyHyperliquidActivationFee } from '../../utils/hyperliquid-activation.js';
+import {
+  getMaxQuotes,
+  isAtomicMaxQuote,
+  isAtomicMaxSupported,
+} from '../../utils/max-quote.js';
+import type { MaxQuoteDetails } from '../../utils/max-quote.js';
 import {
   normalizePerpsDepositRequest,
   normalizePerpsWithdrawRequest,
@@ -58,6 +65,8 @@ import { estimateSourceGas } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
 import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
+  buildCaipAssetType,
+  getEvmQuoteSource,
   getNativeToken,
   getTokenFiatRate,
   normalizeTokenAddress,
@@ -66,13 +75,8 @@ import {
 import { getQuotePricing } from '../../utils/trade-type.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { hasRelayDepositStep } from './deposit-step.js';
-import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import { fetchRelayQuote } from './relay-api.js';
-import {
-  getRelayMaxQuote,
-  isSubsidizedAtomicMaxQuote,
-  throwAtomicPromotionFailed,
-} from './relay-max.js';
+import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -91,12 +95,15 @@ type RelayQuoteRequestDraft = Omit<RelayQuoteRequest, 'amount' | 'tradeType'> &
 /**
  * Fetches Relay quotes.
  *
- * @param request - Request object.
+ * @param fullRequest - Request object.
  * @returns Array of quotes.
  */
 export async function getRelayQuotes(
-  request: PayStrategyGetQuotesRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>[]> {
+  // Fiat estimation and submit build a fresh request and call here directly,
+  // so they never pass through the dispatch in `getQuotes`.
+  const request = withNonAtomicRequests(fullRequest);
   const { requests } = request;
 
   log('Fetching quotes', requests);
@@ -134,31 +141,16 @@ export async function getRelayQuotes(
       ),
     );
 
-    const atomicMaxQuotes = quotes.filter(isSubsidizedAtomicMaxQuote);
-    const otherQuotes = quotes.filter(
-      (quote) => !isSubsidizedAtomicMaxQuote(quote),
-    );
+    // Atomic max quotes are validated as part of the max flow.
+    const quotesToValidate = quotes.filter((quote) => !isAtomicMaxQuote(quote));
 
-    if (otherQuotes.length > 0) {
+    if (quotesToValidate.length > 0) {
       await validateRelayQuotes({
         messenger: request.messenger,
-        quotes: otherQuotes,
+        quotes: quotesToValidate,
         signal: request.signal,
         transaction: request.transaction,
       });
-    }
-
-    if (atomicMaxQuotes.length > 0) {
-      try {
-        await validateRelayQuotes({
-          messenger: request.messenger,
-          quotes: atomicMaxQuotes,
-          signal: request.signal,
-          transaction: request.transaction,
-        });
-      } catch (error) {
-        throwAtomicPromotionFailed(error);
-      }
     }
 
     return quotes;
@@ -178,7 +170,25 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
-  return getRelayMaxQuote(request, fullRequest, getSingleQuote);
+  const [maxQuote] = await getMaxQuotes({
+    fullRequest,
+    getQuoteDetails: getRelayMaxQuoteDetails,
+    getQuotes: async (maxRequest, transaction) => [
+      await getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    ],
+    request,
+    requote: (_quote, maxRequest, transaction) =>
+      getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    validateAtomicQuote: (quote) =>
+      validateRelayQuotes({
+        messenger: fullRequest.messenger,
+        quotes: [quote],
+        signal: fullRequest.signal,
+        transaction: fullRequest.transaction,
+      }),
+  });
+
+  return maxQuote;
 }
 
 /**
@@ -232,13 +242,13 @@ async function getSingleQuote(
 
   const {
     from,
-    sourceChainId,
-    sourceTokenAddress,
     sourceTokenAmount,
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
   } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
 
   const slippageDecimal = getSlippage(
     messenger,
@@ -427,8 +437,7 @@ async function processTransactions(
   // below use EXACT_OUTPUT rather than the usual max EXACT_INPUT quote.
   if (
     isMaxAmount &&
-    (request.isPostQuote === true ||
-      !isAtomicMaxEnabled(messenger, transaction))
+    !isAtomicMaxSupported({ messenger, request, transaction })
   ) {
     throw new Error('Max amount quotes do not support included transactions');
   }
@@ -484,12 +493,18 @@ function normalizeRequest(
   request: QuoteRequest,
   transaction: TransactionMeta,
 ): QuoteRequest {
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
+
   const newRequest = {
     ...request,
-    sourceTokenAddress: normalizeTokenAddress(
-      request.sourceTokenAddress,
-      request.sourceChainId,
-      TokenAddressTarget.Relay,
+    sourceAssetId: buildCaipAssetType(
+      sourceChainId,
+      normalizeTokenAddress(
+        sourceTokenAddress,
+        sourceChainId,
+        TokenAddressTarget.Relay,
+      ),
     ),
     targetTokenAddress: normalizeTokenAddress(
       request.targetTokenAddress,
@@ -658,12 +673,13 @@ function getFiatRates(
   // For HyperLiquid source, the normalized chain/token (HyperCore + Perps USDC)
   // won't have a fiat rate entry. Use Arbitrum USDC instead since Perps USDC
   // is pegged 1:1.
+  const quoteSource = getEvmQuoteSource(request);
   const sourceChainId = request.isHyperliquidSource
     ? CHAIN_ID_ARBITRUM
-    : request.sourceChainId;
+    : quoteSource.chainId;
   const sourceTokenAddress = request.isHyperliquidSource
     ? ARBITRUM_USDC_ADDRESS
-    : request.sourceTokenAddress;
+    : quoteSource.tokenAddress;
 
   const finalSourceTokenAddress =
     sourceChainId === CHAIN_ID_POLYGON &&
@@ -720,7 +736,9 @@ async function calculateSourceNetworkCost(
     is7702: boolean;
   }
 > {
-  const { from, sourceChainId, sourceTokenAddress } = request;
+  const { from } = request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(request);
 
   // None of these flows bill origin gas to the user: the execute flow has a
   // relayer redeem a signed delegation, a HyperLiquid withdrawal's "deposit"
@@ -958,4 +976,29 @@ function isStablecoin(
       tokenAddress.toLowerCase() as Hex,
     ),
   );
+}
+
+function getRelayMaxQuoteDetails({
+  original,
+}: TransactionPayQuote<RelayQuote>): MaxQuoteDetails {
+  const firstTransactionStep = original.steps.find(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const firstStepData = firstTransactionStep?.items[0]?.data;
+
+  return {
+    gasLimits: original.metamask.gasLimits,
+    gasStationTransactions: firstStepData
+      ? {
+          firstStepData,
+          totalItemCount: original.steps.reduce(
+            (count, step) => count + step.items.length,
+            0,
+          ),
+        }
+      : undefined,
+    isGasless: original.metamask.isExecute === true,
+    isSubsidized: isSubsidizedRelayQuote(original),
+    targetAmountRaw: original.details.currencyOut.amount,
+  };
 }

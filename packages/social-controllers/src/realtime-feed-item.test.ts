@@ -540,6 +540,46 @@ describe('parseRealtimeFeedItem', () => {
     expect(absent?.flags).toBeUndefined();
   });
 
+  it('copies the prices the server marked the card to', () => {
+    const value = {
+      ...fullHydratedPosition,
+      currentValueUSD: 150,
+      positionValueUSD: 150,
+      pnlValueUsd: 50,
+      pnlPercent: 50,
+    };
+
+    const result = normalizeRealtimeFeedItem(value);
+
+    expect(result).toMatchObject({
+      currentValueUSD: 150,
+      positionValueUSD: 150,
+      pnlValueUsd: 50,
+      pnlPercent: 50,
+    });
+  });
+
+  it('leaves prices the server did not send absent and keeps nulls', () => {
+    const value = {
+      ...fullHydratedPosition,
+      currentValueUSD: 0,
+      pnlValueUsd: null,
+    };
+
+    const result = normalizeRealtimeFeedItem(value);
+
+    expect(result?.currentValueUSD).toBe(0);
+    expect(result?.pnlValueUsd).toBeNull();
+    expect(result).not.toHaveProperty('positionValueUSD');
+    expect(result).not.toHaveProperty('pnlPercent');
+  });
+
+  it('rejects a realtime item whose price is not a number', () => {
+    const value = { ...fullHydratedPosition, currentValueUSD: '150' };
+
+    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+  });
+
   it('keeps flags on an already normalized feed item', () => {
     const normalized = normalizeRealtimeFeedItem(fullHydratedPosition);
     const flagged = { ...normalized, flags: ['insider'] };
@@ -548,5 +588,53 @@ describe('parseRealtimeFeedItem', () => {
     expect(
       parseRealtimeFeedItem({ ...normalized, flags: 'insider' }),
     ).toBeUndefined();
+  });
+
+  it('copies the Profile API identity from the actor profile', () => {
+    const identity = {
+      displayName: 'Alice',
+      bio: 'gm',
+      createdAt: '2025-11-02T10:00:00.000Z',
+      updatedAt: '2026-10-30T08:30:00.000Z',
+      connectedToX: false,
+      tradingPrivacy: 'private',
+    };
+    const value = {
+      ...fullHydratedPosition,
+      actor: {
+        ...fullHydratedPosition.actor,
+        profile: { ...fullHydratedPosition.actor.profile, ...identity },
+      },
+    };
+
+    const item = normalizeRealtimeFeedItem(value);
+
+    expect(item?.actor).toMatchObject(identity);
+  });
+
+  it('leaves the Profile API identity absent when the actor profile has none', () => {
+    const item = normalizeRealtimeFeedItem(fullHydratedPosition);
+
+    expect(item?.actor).not.toHaveProperty('displayName');
+    expect(item?.actor).not.toHaveProperty('bio');
+    expect(item?.actor).not.toHaveProperty('createdAt');
+    expect(item?.actor).not.toHaveProperty('updatedAt');
+    expect(item?.actor).not.toHaveProperty('connectedToX');
+    expect(item?.actor).not.toHaveProperty('tradingPrivacy');
+  });
+
+  it('rejects a realtime item whose actor trading privacy is unknown', () => {
+    const value = {
+      ...fullHydratedPosition,
+      actor: {
+        ...fullHydratedPosition.actor,
+        profile: {
+          ...fullHydratedPosition.actor.profile,
+          tradingPrivacy: 'friends',
+        },
+      },
+    };
+
+    expect(parseRealtimeFeedItem(value)).toBeUndefined();
   });
 });

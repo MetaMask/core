@@ -80,6 +80,9 @@ export const SocialServiceErrorMessage = {
     'SocialService: Moderation status request failed',
   FETCH_MODERATION_STATUS_INVALID_RESPONSE:
     'SocialService: Moderation status returned invalid response',
+  FETCH_QUOTE_TOKENS_FAILED: 'SocialService: Quote tokens request failed',
+  FETCH_QUOTE_TOKENS_INVALID_RESPONSE:
+    'SocialService: Quote tokens returned invalid response',
   FETCH_TRENDING_GIFS_FAILED: 'SocialService: Trending GIFs request failed',
   FETCH_TRENDING_GIFS_INVALID_RESPONSE:
     'SocialService: Trending GIFs returned invalid response',

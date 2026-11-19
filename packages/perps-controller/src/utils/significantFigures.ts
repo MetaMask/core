@@ -1,4 +1,5 @@
 import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig.js';
+import { parseFormattedPrice } from './stringParseUtils.js';
 
 /**
  * Count significant figures in a price string.
@@ -12,8 +13,7 @@ export const countSignificantFigures = (priceString: string): number => {
     return 0;
   }
 
-  const cleaned = priceString.replace(/[$,]/gu, '').trim();
-  const number = parseFloat(cleaned);
+  const number = parseFormattedPrice(priceString);
   if (isNaN(number) || number === 0) {
     return 0;
   }
@@ -45,8 +45,7 @@ export const hasExceededSignificantFigures = (
     return false;
   }
 
-  const cleaned = priceString.replace(/[$,]/gu, '').trim();
-  const number = parseFloat(cleaned);
+  const number = parseFormattedPrice(priceString);
   if (isNaN(number)) {
     return false;
   }
@@ -74,8 +73,7 @@ export const roundToSignificantFigures = (
     return priceString;
   }
 
-  const cleaned = priceString.replace(/[$,]/gu, '').trim();
-  const number = Number.parseFloat(cleaned);
+  const number = parseFormattedPrice(priceString);
   if (Number.isNaN(number) || number === 0) {
     return priceString;
   }

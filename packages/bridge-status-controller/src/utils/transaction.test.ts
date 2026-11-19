@@ -30,6 +30,7 @@ import {
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   getAddTransactionBatchParams,
+  getTransactionMetaByActionId,
   toQuoteAndTxMetadata,
   waitForTxConfirmation,
   isTradeTx,
@@ -84,6 +85,29 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
     });
 
+    it('keeps polling when the tx is not in state yet', async () => {
+      const messenger = {
+        call: vi
+          .fn()
+          .mockReturnValueOnce({ transactions: [] })
+          .mockReturnValueOnce({
+            transactions: [
+              {
+                id: 'tx1',
+                status: TransactionStatus.confirmed,
+              } as TransactionMeta,
+            ],
+          }),
+      } as unknown as BridgeStatusControllerMessenger;
+
+      expect(
+        await waitForTxConfirmation(messenger, 'tx1', {
+          timeoutMs: 50,
+          pollMs: 1,
+        }),
+      ).toStrictEqual(expect.objectContaining({ id: 'tx1' }));
+    });
+
     it('times out when status never changes', async () => {
       vi.useFakeTimers();
       const messenger = {
@@ -117,6 +141,23 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       nowSpy.mockRestore();
       vi.useRealTimers();
+    });
+  });
+
+  describe('getTransactionMetaByActionId', () => {
+    it('returns the tx with a matching actionId', () => {
+      const messenger = {
+        call: vi.fn(() => ({
+          transactions: [
+            { id: 'tx-other', actionId: 'other' },
+            { id: 'tx1', actionId: 'action-1' },
+          ],
+        })),
+      } as unknown as BridgeStatusControllerMessenger;
+
+      expect(getTransactionMetaByActionId(messenger, 'action-1')?.id).toBe(
+        'tx1',
+      );
     });
   });
 

@@ -13,21 +13,24 @@ export type {
 } from './MfaRecoveryController.js';
 export type {
   MfaRecoveryControllerAbortAction,
+  MfaRecoveryControllerAcquireLockAction,
   MfaRecoveryControllerAuthenticateIdentifierAction,
+  MfaRecoveryControllerGetIdentifiersAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,
   MfaRecoveryControllerRegisterAction,
+  MfaRecoveryControllerReleaseLockAction,
   MfaRecoveryControllerResumeAction,
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
 } from './MfaRecoveryController-method-action-types.js';
 export { CubistEscrowProvider } from './escrow-providers/cubist-escrow-provider.js';
 export type { CubistEscrowProviderOptions } from './escrow-providers/cubist-escrow-provider.js';
-export { AuthApiRecoveryAuthProvider } from './auth-api-recovery-provider.js';
+export { RecoveryRegistrationLockProvider } from './recovery-registration-lock-provider.js';
 export type {
-  AuthApiRecoveryAuthProviderMessenger,
-  AuthApiRecoveryAuthProviderOptions,
-} from './auth-api-recovery-provider.js';
+  RecoveryRegistrationLockProviderMessenger,
+  RecoveryRegistrationLockProviderOptions,
+} from './recovery-registration-lock-provider.js';
 export {
   IncompleteMutationError,
   MfaRecoveryError,
@@ -36,14 +39,22 @@ export {
 export {
   IDENTIFIER_AUTH_MODES,
   MIN_IDENTIFIERS,
+  expectedSeedlessAuthConnection,
+  getEscrowPasskeyChallenge,
   getIdentifierAuthMode,
+  isEscrowPasskeyChallenge,
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
   EncryptedPendingOperation,
+  GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
+  KeyBoundIdentifierLogin,
+  KeyBoundIdentifierToken,
+  KeyBoundIdentifierTokenRequest,
   Mutation,
   MutationPayload,
   MutationReceipt,
@@ -55,11 +66,13 @@ export type {
   PendingUpdateIdentifiersPayload,
   PendingUpdateRecoverySecretPayload,
   RecoveryApproval,
-  RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryIdentifiers,
+  RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
+  SeedlessAuthData,
   WrappedSecret,
   WrappedSecretOutput,
 } from './types.js';

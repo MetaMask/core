@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+## [27.1.1]
+
+### Changed
+
 - Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [27.1.0]
 
@@ -623,7 +631,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.1...HEAD
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.0...@metamask/gas-fee-controller@27.1.1
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.0.0...@metamask/gas-fee-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.2...@metamask/gas-fee-controller@27.0.0
 [26.3.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.1...@metamask/gas-fee-controller@26.3.2

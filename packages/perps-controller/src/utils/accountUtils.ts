@@ -3,18 +3,42 @@
  * Handles account selection and EVM account filtering
  */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { isCaipAccountId, parseCaipAccountId } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { USDC_DECIMALS } from '../constants/hyperLiquidConfig.js';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
-import type { SpotClearinghouseStateResponse } from '../types/hyperliquid-types.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
+import type {
+  HyperLiquidAbstractionMode,
+  SpotClearinghouseStateResponse,
+} from '../types/hyperliquid-types.js';
 import type {
   AccountState,
   CrossMarginSummary,
   PerpsInternalAccount,
 } from '../types/index.js';
+import { aggregateAccountTotals } from './accountAggregation.js';
+import { parseFiniteDecimal } from './stringParseUtils.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
+
+/**
+ * Read the account address from a CAIP-10 account id.
+ *
+ * The value is validated, not split: a bare address or an id with extra
+ * segments names no account, so it can never be mistaken for the selected
+ * wallet because its last segment happens to match.
+ *
+ * @param accountId - Account id from a caller; may be malformed at runtime.
+ * @returns The lowercased address, or undefined when the id is not CAIP-10.
+ */
+export function getCaipAccountAddress(accountId: string): string | undefined {
+  if (!isCaipAccountId(accountId)) {
+    return undefined;
+  }
+  return parseCaipAccountId(accountId).address.toLowerCase();
+}
 
 function isEvmAccountType(type: string): boolean {
   return EVM_ACCOUNT_TYPES.has(type);
@@ -60,6 +84,7 @@ function isAccountLike(
     typeof value === 'object' &&
     value !== null &&
     typeof account?.address === 'string' &&
+    account.address.length > 0 &&
     typeof account.type === 'string'
   );
 }
@@ -67,31 +92,43 @@ function isAccountLike(
 export function getSelectedEvmAccountDetailsFromMessenger(
   messenger: SelectedEvmAccountMessenger,
 ): InternalAccount | PerpsInternalAccount | undefined {
+  let legacyEvmAccount: InternalAccount | PerpsInternalAccount | undefined;
   try {
     const selectedAccount = messenger.call(
       'AccountsController:getSelectedAccount',
     );
     if (isAccountLike(selectedAccount)) {
-      const evmAccount = findEvmAccount([selectedAccount]);
-      if (evmAccount) {
-        return evmAccount;
-      }
+      legacyEvmAccount = findEvmAccount([selectedAccount]) ?? undefined;
     }
   } catch {
-    // Fall back to the selected account group if the direct lookup is unavailable.
+    // Some clients expose only the account tree action.
   }
 
   try {
     const selectedAccountGroup = messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
-    return Array.isArray(selectedAccountGroup)
-      ? (findEvmAccount(selectedAccountGroup.filter(isAccountLike)) ??
-          undefined)
-      : undefined;
+    if (Array.isArray(selectedAccountGroup)) {
+      const groupAccounts = selectedAccountGroup.filter(isAccountLike);
+      if (groupAccounts.length > 0) {
+        // The legacy action can return the last EVM wallet when a different
+        // account group is selected. Keep it only if it belongs to this group.
+        const legacyAddress = legacyEvmAccount?.address.toLowerCase();
+        if (
+          legacyAddress &&
+          groupAccounts.some(
+            ({ address }) => address.toLowerCase() === legacyAddress,
+          )
+        ) {
+          return legacyEvmAccount;
+        }
+        return findEvmAccount(groupAccounts) ?? undefined;
+      }
+    }
   } catch {
-    return undefined;
+    // Older clients and startup can use the legacy selection.
   }
+  return legacyEvmAccount;
 }
 
 export function getSelectedEvmAccountFromMessenger(
@@ -105,6 +142,12 @@ export function getSelectedEvmAccountFromMessenger(
 export type ReturnOnEquityInput = {
   unrealizedPnl: string | number;
   returnOnEquity: string | number;
+  /**
+   * Margin the account uses. When given, it is the account's weight, so an
+   * account with an RoE of 0 still counts. Without it the weight is derived
+   * from PnL / RoE, which an RoE of 0 cannot give.
+   */
+  marginUsed?: string | number;
 };
 
 export function calculateWeightedReturnOnEquity(
@@ -114,8 +157,8 @@ export function calculateWeightedReturnOnEquity(
     return '0';
   }
 
-  let totalWeightedROE = 0;
-  let totalMarginUsed = 0;
+  let totalWeightedROE = new BigNumber(0);
+  let totalMarginUsed = new BigNumber(0);
 
   for (const account of accounts) {
     const unrealizedPnl =
@@ -127,53 +170,141 @@ export function calculateWeightedReturnOnEquity(
         ? Number.parseFloat(account.returnOnEquity)
         : account.returnOnEquity;
 
-    if (Number.isNaN(unrealizedPnl) || Number.isNaN(returnOnEquity)) {
+    if (!Number.isFinite(unrealizedPnl) || !Number.isFinite(returnOnEquity)) {
       continue;
     }
 
-    if (returnOnEquity === 0) {
+    let marginUsed: number | null;
+    if (account.marginUsed === undefined) {
+      if (returnOnEquity === 0) {
+        continue;
+      }
+      marginUsed = (unrealizedPnl / returnOnEquity) * 100;
+    } else {
+      marginUsed =
+        typeof account.marginUsed === 'string'
+          ? parseFiniteDecimal(account.marginUsed)
+          : account.marginUsed;
+    }
+
+    if (
+      marginUsed === null ||
+      !Number.isFinite(marginUsed) ||
+      marginUsed <= 0
+    ) {
       continue;
     }
 
-    const marginUsed = (unrealizedPnl / returnOnEquity) * 100;
-
-    if (Number.isNaN(marginUsed) || marginUsed <= 0) {
-      continue;
-    }
-
-    const roeDecimal = returnOnEquity / 100;
-
-    totalWeightedROE += roeDecimal * marginUsed;
-    totalMarginUsed += marginUsed;
+    totalWeightedROE = totalWeightedROE.plus(
+      new BigNumber(returnOnEquity).times(marginUsed),
+    );
+    totalMarginUsed = totalMarginUsed.plus(marginUsed);
   }
 
-  if (totalMarginUsed <= 0) {
+  if (totalMarginUsed.isZero()) {
     return '0';
   }
 
-  const weightedROE = (totalWeightedROE / totalMarginUsed) * 100;
-  return weightedROE.toString();
+  return totalWeightedROE.dividedBy(totalMarginUsed).toString();
 }
 
 // The release-branch balance bridge is USDC-only. Non-USDC spot assets must
 // not inflate the balances shown or validated by withdraw/payment flows.
 const SPOT_COLLATERAL_COINS = new Set<string>(['USDC']);
 
+/**
+ * Sums one field of the USDC spot balances.
+ *
+ * The default fails soft: a missing response or a non-finite amount counts as
+ * zero so displayed balances still render. `{ strict: true }` returns
+ * `undefined` instead. Collateral is the denominator of the account ratio, so
+ * a guess would show a ratio the venue never reported. A response that lists
+ * no USDC balance is a genuine `0` in both modes.
+ *
+ * @param spotState - Spot clearinghouse state.
+ * @param field - The USDC amount to sum.
+ * @param options.strict - Fail the sum when `balances` is not a list or a
+ * USDC amount is missing or not finite.
+ * @returns The USDC sum, or `undefined` in strict mode when the response
+ * cannot be trusted.
+ */
 function getSpotCollateralAmount(
   spotState: SpotClearinghouseStateResponse | null | undefined,
   field: 'hold' | 'total',
-): BigNumber {
+  options: { strict: true },
+): BigNumber | undefined;
+function getSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  field: 'hold' | 'total',
+  options?: { strict?: false },
+): BigNumber;
+function getSpotCollateralAmount(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  field: 'hold' | 'total',
+  options?: { strict?: boolean },
+): BigNumber | undefined {
+  const strict = options?.strict === true;
   if (!spotState?.balances || !Array.isArray(spotState.balances)) {
-    return new BigNumber(0);
+    return strict ? undefined : new BigNumber(0);
   }
 
-  return spotState.balances.reduce((sum, balance) => {
-    if (!balance.coin || !SPOT_COLLATERAL_COINS.has(balance.coin)) {
-      return sum;
+  let sum = new BigNumber(0);
+  for (const balance of spotState.balances) {
+    if (!balance?.coin || !SPOT_COLLATERAL_COINS.has(balance.coin)) {
+      continue;
     }
-    const value = new BigNumber(balance[field] ?? '0');
-    return value.isFinite() ? sum.plus(value) : sum;
-  }, new BigNumber(0));
+    const raw: unknown = balance[field];
+    if (strict) {
+      if (raw === undefined || raw === null || raw === '') {
+        return undefined;
+      }
+      const value = new BigNumber(raw as BigNumber.Value);
+      if (!value.isFinite()) {
+        return undefined;
+      }
+      sum = sum.plus(value);
+      continue;
+    }
+    const value = new BigNumber((raw ?? '0') as BigNumber.Value);
+    if (value.isFinite()) {
+      sum = sum.plus(value);
+    }
+  }
+  return sum;
+}
+
+/**
+ * Free spot USDC, `max(0, total − hold)`, counting USDC only.
+ *
+ * @param spotState - Spot clearinghouse state.
+ * @param options.strict - See {@link getSpotCollateralAmount}.
+ * @returns Free spot USDC, or `undefined` in strict mode when either amount
+ * cannot be trusted.
+ */
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options: { strict: true },
+): BigNumber | undefined;
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options?: { strict?: false },
+): BigNumber;
+function getFreeSpotUsdc(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  options?: { strict?: boolean },
+): BigNumber | undefined {
+  const total =
+    options?.strict === true
+      ? getSpotCollateralAmount(spotState, 'total', { strict: true })
+      : getSpotCollateralAmount(spotState, 'total');
+  const hold =
+    options?.strict === true
+      ? getSpotCollateralAmount(spotState, 'hold', { strict: true })
+      : getSpotCollateralAmount(spotState, 'hold');
+  if (total === undefined || hold === undefined) {
+    return undefined;
+  }
+  return BigNumber.max(0, total.minus(hold));
 }
 
 export function getSpotBalance(
@@ -186,6 +317,48 @@ export function getSpotHold(
   spotState?: SpotClearinghouseStateResponse | null,
 ): number {
   return getSpotCollateralAmount(spotState, 'hold').toNumber();
+}
+
+/**
+ * Spot USDC the venue counts as cross collateral.
+ *
+ * Unknown spot state or an unresolved abstraction mode stays `undefined`,
+ * not `0`. A ratio computed from `0` treats a Unified account as Standard
+ * and overstates how close it is to liquidation. This is deliberately
+ * different from {@link hyperLiquidModeFoldsSpot}, which fail-closes an
+ * unknown mode to "do not fold" so withdrawable funds are not over-reported.
+ *
+ * @param spotState - Spot clearinghouse state. `null` or omitted means it
+ * has not been read yet.
+ * @param abstractionMode - Resolved abstraction mode. `null` or omitted
+ * means it has not been read yet.
+ * @returns Canonical USDC decimal string: `'0'` when spot is not collateral
+ * (Standard / `default`), or free spot USDC (`max(0, total − hold)`, USDC
+ * only) for Unified and portfolio margin. `undefined` until both inputs
+ * are known, and for Unified or portfolio margin when a USDC `total` or
+ * `hold` is missing or not a finite number. A response that lists no USDC
+ * balance is a genuine `'0'`.
+ */
+export function getCrossMarginSpotCollateral(
+  spotState: SpotClearinghouseStateResponse | null | undefined,
+  abstractionMode: HyperLiquidAbstractionMode | null | undefined,
+): string | undefined {
+  if (
+    spotState === null ||
+    spotState === undefined ||
+    abstractionMode === null ||
+    abstractionMode === undefined
+  ) {
+    return undefined;
+  }
+  if (!hyperLiquidModeFoldsSpot(abstractionMode)) {
+    return '0';
+  }
+  const freeSpot = getFreeSpotUsdc(spotState, { strict: true });
+  if (freeSpot === undefined) {
+    return undefined;
+  }
+  return canonicalizeUsdc(freeSpot);
 }
 
 /**
@@ -206,10 +379,20 @@ export type AddSpotBalanceOptions = {
    * Standard mode). The caller is responsible for translating
    * provider-specific state into this flag.
    *
-   * Defaults to `true` for backward compatibility with call sites that
-   * haven't yet been wired with provider-specific context.
+   * Defaults to `false`. Omitting the flag does not mean the mode is
+   * Standard: pass `abstractionMode` to publish `spotCollateral`.
    */
   foldIntoCollateral?: boolean;
+  /**
+   * Resolved abstraction mode used to publish `AccountState.spotCollateral`.
+   * Pass `null` while the mode is unknown. Omit the property to leave any
+   * existing `spotCollateral` untouched.
+   *
+   * Derive `foldIntoCollateral` from the same mode via
+   * `hyperLiquidModeFoldsSpot`. The two answers differ when the mode is
+   * unknown: folding stays off, and `spotCollateral` stays unset.
+   */
+  abstractionMode?: HyperLiquidAbstractionMode | null;
 };
 
 /**
@@ -218,9 +401,9 @@ export type AddSpotBalanceOptions = {
  * — the util stays provider-agnostic.
  *
  * @param accountState - Base AccountState produced by a provider adapter.
- * @param spotState - Raw spot clearinghouse response (HL-shaped); null or missing means no spot balance and the state is returned unchanged.
+ * @param spotState - Raw spot clearinghouse response (HL-shaped); null or missing means no spot balance and the balances are returned unchanged.
  * @param options - See {@link AddSpotBalanceOptions}.
- * @returns AccountState with spot folded into `totalBalance` always, and into spendable/withdrawable when `foldIntoCollateral` is true.
+ * @returns AccountState with spot folded into `totalBalance` always, and into spendable/withdrawable when `foldIntoCollateral` is true. When `abstractionMode` is passed, `spotCollateral` is the spot USDC that counts as cross collateral.
  */
 export function addSpotBalanceToAccountState(
   accountState: AccountState,
@@ -231,10 +414,29 @@ export function addSpotBalanceToAccountState(
   // A caller that omits `options` should NOT silently fold spot — that would
   // over-report withdrawable funds for Standard / default users.
   const foldIntoCollateral = options?.foldIntoCollateral ?? false;
+  const publishesSpotCollateral =
+    options !== undefined &&
+    Object.prototype.hasOwnProperty.call(options, 'abstractionMode');
+  const spotCollateral = publishesSpotCollateral
+    ? getCrossMarginSpotCollateral(spotState, options?.abstractionMode)
+    : undefined;
+  const withSpotCollateral = (state: AccountState): AccountState => {
+    if (!publishesSpotCollateral) {
+      return state;
+    }
+    if (state.spotCollateral === spotCollateral) {
+      return state;
+    }
+    if (spotCollateral === undefined) {
+      const { spotCollateral: _removed, ...rest } = state;
+      return rest;
+    }
+    return { ...state, spotCollateral };
+  };
 
   const spotBalance = getSpotCollateralAmount(spotState, 'total');
   const spotHold = getSpotCollateralAmount(spotState, 'hold');
-  const freeSpot = BigNumber.max(0, spotBalance.minus(spotHold));
+  const freeSpot = getFreeSpotUsdc(spotState);
 
   const currentTotal = new BigNumber(accountState.totalBalance);
   const currentSpendable = new BigNumber(accountState.spendableBalance);
@@ -243,7 +445,7 @@ export function addSpotBalanceToAccountState(
   // Preserve sentinel totals (e.g. PERPS_CONSTANTS.FallbackDataDisplay '--')
   // rather than coercing them to NaN.
   if (!currentTotal.isFinite()) {
-    return accountState;
+    return withSpotCollateral(accountState);
   }
 
   // Folding is gated strictly on the resolved abstraction mode (see callers'
@@ -279,15 +481,15 @@ export function addSpotBalanceToAccountState(
     nextSpendable === accountState.spendableBalance &&
     nextWithdrawable === accountState.withdrawableBalance
   ) {
-    return accountState;
+    return withSpotCollateral(accountState);
   }
 
-  return {
+  return withSpotCollateral({
     ...accountState,
     totalBalance: nextTotal,
     spendableBalance: nextSpendable,
     withdrawableBalance: nextWithdrawable,
-  };
+  });
 }
 
 function resolveFoldedBalance(
@@ -342,6 +544,124 @@ export function sumCrossMarginSummaries(
 }
 
 /**
+ * A {@link CrossMarginSummary} whose figures may already be numbers.
+ */
+export type CrossMarginSummaryInput = Record<
+  keyof CrossMarginSummary,
+  number | string
+>;
+
+/**
+ * Account figures derived from the venue's cross margin. Each is undefined
+ * while its inputs are unknown.
+ */
+export type PerpsAccountSummary = {
+  /** Maintenance margin the cross positions require, in USD. */
+  maintenanceMargin: number | undefined;
+  /**
+   * Cross maintenance margin over cross collateral (0.5 = 50%). Cross
+   * positions are liquidated when it reaches 1.
+   */
+  accountRatio: number | undefined;
+  /** Cross notional as a multiple of total account equity. */
+  accountLeverage: number | undefined;
+  /** Cross margin used over cross collateral (0.25 = 25%). */
+  crossMarginUsage: number | undefined;
+};
+
+/**
+ * Inputs to {@link calculateAccountSummary}.
+ */
+export type CalculateAccountSummaryParams = {
+  /**
+   * Total account equity in USD, isolated margin included
+   * (`AccountState.totalBalance`).
+   */
+  totalEquity: number | string;
+  /** The venue's cross margin figures; undefined until read. */
+  crossMarginSummary: CrossMarginSummaryInput | undefined;
+  /**
+   * Spot USDC the venue counts as cross collateral (0 when it counts none);
+   * undefined until read.
+   */
+  spotCollateral: number | string | undefined;
+};
+
+function toFiniteNumber(
+  value: number | string | undefined,
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function share(
+  part: number | undefined,
+  whole: number | undefined,
+): number | undefined {
+  return part === undefined || whole === undefined || whole <= 0
+    ? undefined
+    : part / whole;
+}
+
+/**
+ * The collateral the cross positions draw on: the cross account value plus
+ * the spot USDC the venue counts as collateral.
+ *
+ * @param crossMarginSummary - The venue's cross margin figures.
+ * @param spotCollateral - Spot USDC counted as cross collateral.
+ * @returns The cross collateral in USD, or undefined until both are known.
+ */
+export function getCrossCollateral(
+  crossMarginSummary: CrossMarginSummaryInput | undefined,
+  spotCollateral: number | string | undefined,
+): number | undefined {
+  const accountValue = toFiniteNumber(crossMarginSummary?.accountValue);
+  const spot = toFiniteNumber(spotCollateral);
+  return accountValue === undefined || spot === undefined
+    ? undefined
+    : accountValue + spot;
+}
+
+/**
+ * Derive the account summary from the venue's cross margin figures, matching
+ * Hyperliquid: account leverage divides cross notional by total account
+ * equity, isolated margin included; account ratio and cross margin usage
+ * divide the cross maintenance margin and margin used by cross collateral.
+ *
+ * @param params - The account inputs.
+ * @param params.totalEquity - Total account equity in USD.
+ * @param params.crossMarginSummary - The venue's cross margin figures.
+ * @param params.spotCollateral - Spot USDC counted as cross collateral.
+ * @returns The summary; a ratio is undefined while its inputs are unknown or
+ * its denominator is not positive.
+ */
+export function calculateAccountSummary({
+  totalEquity,
+  crossMarginSummary,
+  spotCollateral,
+}: CalculateAccountSummaryParams): PerpsAccountSummary {
+  const collateral = getCrossCollateral(crossMarginSummary, spotCollateral);
+  const maintenanceMargin = toFiniteNumber(
+    crossMarginSummary?.maintenanceMargin,
+  );
+  return {
+    maintenanceMargin,
+    accountRatio: share(maintenanceMargin, collateral),
+    accountLeverage: share(
+      toFiniteNumber(crossMarginSummary?.notional),
+      toFiniteNumber(totalEquity),
+    ),
+    crossMarginUsage: share(
+      toFiniteNumber(crossMarginSummary?.marginUsed),
+      collateral,
+    ),
+  };
+}
+
+/**
  * Aggregate multiple per-DEX AccountState objects into one by summing numeric
  * fields exactly. Collateral subtotals retain their full precision so spot
  * collateral can be added before the final USDC canonicalization.
@@ -349,65 +669,19 @@ export function sumCrossMarginSummaries(
  *
  * @param states - The array of per-DEX account states to aggregate.
  * @returns The combined account state with summed balances and recalculated ROE.
+ * @throws `ACCOUNT_STATE_FAILED` when `states` is empty.
  */
 export function aggregateAccountStates(states: AccountState[]): AccountState {
-  const fallback: AccountState = {
-    spendableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    withdrawableBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    totalBalance: PERPS_CONSTANTS.FallbackDataDisplay,
-    marginUsed: PERPS_CONSTANTS.FallbackDataDisplay,
-    unrealizedPnl: PERPS_CONSTANTS.FallbackDataDisplay,
-    returnOnEquity: PERPS_CONSTANTS.FallbackDataDisplay,
-  };
-
   if (states.length === 0) {
-    return fallback;
+    // No account answered: the state is unknown. A '--' placeholder in
+    // numeric fields parses as NaN downstream.
+    throw new Error(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
   }
 
-  const aggregated = states.reduce<AccountState>((acc, state, index) => {
-    if (index === 0) {
-      return { ...state };
-    }
-
-    return {
-      spendableBalance: addDecimalValues(
-        acc.spendableBalance,
-        state.spendableBalance,
-      ),
-      withdrawableBalance: addDecimalValues(
-        acc.withdrawableBalance,
-        state.withdrawableBalance,
-      ),
-      totalBalance: addDecimalValues(acc.totalBalance, state.totalBalance),
-      marginUsed: (
-        parseFloat(acc.marginUsed) + parseFloat(state.marginUsed)
-      ).toString(),
-      unrealizedPnl: (
-        parseFloat(acc.unrealizedPnl) + parseFloat(state.unrealizedPnl)
-      ).toString(),
-      returnOnEquity: '0',
-    };
-  }, fallback);
-
-  aggregated.spendableBalance = normalizeDecimalString(
-    aggregated.spendableBalance,
-  );
-  aggregated.withdrawableBalance = normalizeDecimalString(
-    aggregated.withdrawableBalance,
-  );
-  aggregated.totalBalance = normalizeDecimalString(aggregated.totalBalance);
-
-  // Recalculate ROE across all DEXs
-  const totalMarginUsed = parseFloat(aggregated.marginUsed);
-  const totalUnrealizedPnl = parseFloat(aggregated.unrealizedPnl);
-  if (totalMarginUsed > 0) {
-    aggregated.returnOnEquity = (
-      (totalUnrealizedPnl / totalMarginUsed) *
-      100
-    ).toString();
-  } else {
-    aggregated.returnOnEquity = '0';
-  }
+  const aggregated: AccountState = {
+    ...(states.length === 1 ? states[0] : {}),
+    ...aggregateAccountTotals(states),
+  };
 
   const crossMarginSummary = sumCrossMarginSummaries(states);
   if (crossMarginSummary) {
@@ -415,13 +689,4 @@ export function aggregateAccountStates(states: AccountState[]): AccountState {
   }
 
   return aggregated;
-}
-
-function addDecimalValues(left: string, right: string): string {
-  return new BigNumber(left).plus(right).toFixed();
-}
-
-function normalizeDecimalString(value: string): string {
-  const amount = new BigNumber(value);
-  return amount.isFinite() ? amount.toFixed() : value;
 }

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/eth-sig-util` from `^10.0.0` to `^10.0.1` ([#11546](https://github.com/MetaMask/core/pull/11546))
+
+## [28.2.2]
+
+### Changed
+
+- Bump `@metamask/eth-hd-keyring` from `^15.0.0` to `^16.0.0` ([#11532](https://github.com/MetaMask/core/pull/11532))
+- Bump `@metamask/eth-simple-keyring` from `^13.0.0` to `^13.0.3` ([#11532](https://github.com/MetaMask/core/pull/11532))
+
+## [28.2.1]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -14,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.2` ([#11107](https://github.com/MetaMask/core/pull/11107), [#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/eth-sig-util` from `^9.0.0` to `^10.0.0` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
 ## [28.2.0]
 
@@ -1106,7 +1120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.2...HEAD
+[28.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.1...@metamask/keyring-controller@28.2.2
+[28.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.2.0...@metamask/keyring-controller@28.2.1
 [28.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.1.0...@metamask/keyring-controller@28.2.0
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@28.0.0...@metamask/keyring-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.1...@metamask/keyring-controller@28.0.0

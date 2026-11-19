@@ -42,6 +42,7 @@ import type {
   ModerationStatusResponse,
   Position,
   PositionsResponse,
+  QuoteTokensResponse,
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
   SwapCommentResponse,
@@ -66,6 +67,7 @@ import {
   ModerationStatusResponseStruct,
   PositionStruct,
   PositionsResponseStruct,
+  QuoteTokensResponseStruct,
   SwapCommentResponseStruct,
   TraderProfileResponseStruct,
   UnfollowResponseStruct,
@@ -106,6 +108,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchBlockedProfiles',
   'fetchBlockedContent',
   'fetchModerationStatus',
+  'fetchQuoteTokens',
   'fetchTrendingGifs',
   'searchGifs',
 ] as const;
@@ -1337,6 +1340,37 @@ export class SocialService extends BaseDataService<
           );
         }
         return status;
+      },
+    });
+  }
+
+  /**
+   * Fetches native, wrapped native, and stablecoin assets that do not produce
+   * indexed positions.
+   *
+   * Calls `GET ${baseUrl}/tokens/quote-tokens`.
+   *
+   * @returns CAIP-19 ids grouped by asset category.
+   */
+  async fetchQuoteTokens(): Promise<QuoteTokensResponse> {
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:fetchQuoteTokens`],
+      queryFn: async () => {
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(`${this.#v1Url}/tokens/quote-tokens`, {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_FAILED,
+        );
+        const quoteTokens = (await response.json()) as unknown;
+        if (!is(quoteTokens, QuoteTokensResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_INVALID_RESPONSE,
+          );
+        }
+        return quoteTokens;
       },
     });
   }

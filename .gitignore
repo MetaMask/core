@@ -58,3 +58,6 @@ packages/*/*.tsbuildinfo
 # Docusaurus
 **/.docusaurus
 packages/wallet-framework-docs/site/build
+
+# Vitest cache
+.vitest/

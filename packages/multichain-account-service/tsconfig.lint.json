@@ -25,6 +25,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../key-tree/tsconfig.lint.json"
     }
   ]
 }

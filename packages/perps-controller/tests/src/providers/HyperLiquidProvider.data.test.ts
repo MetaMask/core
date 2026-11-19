@@ -2,6 +2,7 @@
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import type { ActiveAssetDataWsEvent } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
@@ -36,6 +37,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -78,11 +80,7 @@ vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: vi.fn((error, defaultResponse) => ({
-    ...defaultResponse,
-    success: false,
-    error: error instanceof Error ? error.message : String(error),
-  })),
+  createErrorResult: vi.fn(),
 }));
 
 // Mock adapter functions
@@ -351,6 +349,10 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -491,11 +493,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      actualValidation.createErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -523,14 +521,29 @@ describe('HyperLiquidProvider', () => {
     });
   });
   describe('Data Retrieval', () => {
-    it('gets positions successfully', async () => {
-      const positions = await provider.getPositions();
+    it('carries scaled display margin on cross positions read via REST', async () => {
+      const info = mockClientService.getInfoClient();
+      const user = await mockWalletService.getUserAddressWithDefault();
+      const state = await info.clearinghouseState({ user });
+      vi.mocked(info.clearinghouseState)
+        .mockClear()
+        .mockResolvedValue({
+          ...state,
+          crossMarginSummary: {
+            accountValue: '95',
+            totalMarginUsed: '950',
+            totalNtlPos: '9500',
+            totalRawUsd: '0',
+          },
+        });
 
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBeGreaterThan(0);
-      expect(
-        mockClientService.getInfoClient().clearinghouseState,
-      ).toHaveBeenCalled();
+      const positions = await provider.getPositions({ skipCache: true });
+
+      expect(positions).toMatchObject([
+        { symbol: 'BTC', marginUsed: '500', displayMarginUsed: '50' },
+        { symbol: 'ETH', marginUsed: '450', displayMarginUsed: '45' },
+      ]);
+      expect(info.clearinghouseState).toHaveBeenCalledExactlyOnceWith({ user });
     });
 
     it('gets account state successfully', async () => {
@@ -538,6 +551,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(accountState).toBeDefined();
       expect(accountState.totalBalance).toBe('19500'); // 10500 (perps) + 10000 (spot.total) - 1000 (spot.hold, double-counted in accountValue)
+      expect(accountState.spotCollateral).toBe('9000');
       expect(
         mockClientService.getInfoClient().clearinghouseState,
       ).toHaveBeenCalled();
@@ -559,6 +573,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(accountState).toBeDefined();
       expect(accountState.totalBalance).toBe('10500');
+      expect(accountState.spotCollateral).toBe('0');
       expect(
         mockClientService.getInfoClient().spotClearinghouseState,
       ).toHaveBeenCalled();
@@ -602,6 +617,7 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.spendableBalance).toBe('0');
       expect(accountState.withdrawableBalance).toBe('0');
       expect(accountState.totalBalance).toBe('0');
+      expect(accountState.spotCollateral).toBe('0');
     });
 
     it('folds USDC spot balance into spendable/withdrawable in Unified Account mode', async () => {
@@ -639,6 +655,7 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.spendableBalance).toBe('90');
       expect(accountState.withdrawableBalance).toBe('90');
       expect(accountState.totalBalance).toBe('90');
+      expect(accountState.spotCollateral).toBe('90');
     });
 
     it('returns a decimal-safe unified balance with isolated positions across DEXs', async () => {
@@ -689,6 +706,7 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.spendableBalance).toBe('1.775183');
       expect(accountState.withdrawableBalance).toBe('1.775183');
       expect(accountState.totalBalance).toBe('1.775183');
+      expect(accountState.spotCollateral).toBe('1.475183');
       expect(clearinghouseState).toHaveBeenCalledWith({ user: '0x123' });
       expect(clearinghouseState).toHaveBeenCalledWith({
         user: '0x123',
@@ -735,6 +753,7 @@ describe('HyperLiquidProvider', () => {
         expect(accountState.spendableBalance).toBe('0');
         expect(accountState.withdrawableBalance).toBe('0');
         expect(accountState.totalBalance).toBe('90');
+        expect(accountState.spotCollateral).toBe('0');
       },
     );
 
@@ -841,6 +860,53 @@ describe('HyperLiquidProvider', () => {
 
       expect(markets.length).toBe(1);
       expect(markets[0].name).toBe('xyz:STOCK1');
+    });
+
+    it('drops the venue normal margin mode so market info carries only restrictions', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const xyzMeta = {
+        universe: [
+          {
+            name: 'xyz:TSLA',
+            szDecimals: 3,
+            maxLeverage: 10,
+            marginMode: 'normal',
+          },
+          {
+            name: 'xyz:HOOD',
+            szDecimals: 3,
+            maxLeverage: 10,
+            marginMode: 'noCross',
+          },
+        ],
+        collateralToken: 0,
+      };
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: vi.fn().mockResolvedValue(xyzMeta),
+        metaAndAssetCtxs: vi.fn().mockResolvedValue([xyzMeta, []]),
+        spotMeta: vi.fn().mockResolvedValue({
+          tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+          universe: [],
+        }),
+      });
+
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(mockInfoClient);
+
+      const markets = await hip3Provider.getMarkets({ dex: 'xyz' });
+
+      expect(markets.map(({ name, marginMode }) => [name, marginMode])).toEqual(
+        [
+          ['xyz:TSLA', undefined],
+          ['xyz:HOOD', 'noCross'],
+        ],
+      );
+      expect(markets[0]).not.toHaveProperty('marginMode');
     });
 
     it('filters out a HIP-3 DEX from market discovery when its collateral token index cannot be resolved against spot metadata', async () => {
@@ -972,15 +1038,61 @@ describe('HyperLiquidProvider', () => {
       ]);
     });
 
-    it('handles data retrieval errors gracefully', async () => {
+    it('reads close pricing positions without relying on the order feed', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValue(
+        new Error('TP/SL orders unavailable'),
+      );
+      const positions = await provider.getPositions({
+        throwOnUnavailable: true,
+        includeProtection: false,
+      });
+      expect(positions).toEqual([
+        expect.objectContaining({
+          symbol: 'BTC',
+          positionValue: '5000',
+        }),
+        expect.objectContaining({
+          symbol: 'ETH',
+          positionValue: '4500',
+        }),
+      ]);
+      expect(infoClient.frontendOpenOrders).not.toHaveBeenCalled();
+    });
+
+    it('checks TP/SL orders before using a nonempty position cache', async () => {
+      mockSubscriptionService.getFreshPositionsForAllDexs.mockImplementation(
+        (requireProtection) =>
+          requireProtection ? null : [createMockPosition()],
+      );
+      const infoClient = mockClientService.getInfoClient();
+      const cause = new Error('TP/SL orders unavailable');
+      vi.mocked(infoClient.frontendOpenOrders).mockRejectedValueOnce(cause);
+
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
+      expect(
+        mockSubscriptionService.getFreshPositionsForAllDexs,
+      ).toHaveBeenCalledWith(
+        true,
+        await mockWalletService.getUserAddressWithDefault(),
+      );
+    });
+
+    it('rejects when the position request fails', async () => {
+      const cause = new Error('API Error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('API Error'));
+      ).mockRejectedValueOnce(cause);
 
-      const positions = await provider.getPositions();
-
-      expect(Array.isArray(positions)).toBe(true);
-      expect(positions.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
   });
 
@@ -1084,6 +1196,135 @@ describe('HyperLiquidProvider', () => {
       expect(typeof unsubscribe).toBe('function');
     });
 
+    describe('subscribeToAvailableToTrade', () => {
+      const user = '0x8dc623e964475d4d669da601fd15ea9125469003' as const;
+      // Venue frames for an account whose withdrawable is 0.050136 USDC: the
+      // per-market value includes the open position's margin and PnL, so it
+      // must come from the frame, never from the account-wide balance.
+      const isolatedPositionFrame: ActiveAssetDataWsEvent = {
+        user,
+        coin: 'BTC',
+        leverage: { type: 'isolated', value: 2, rawUsd: '-7.4688' },
+        maxTradeSzs: ['0.01095', '0.01135'],
+        availableToTrade: ['413.904112', '429.016554'],
+        markPx: '75580.0',
+      };
+      const crossPositionFrame: ActiveAssetDataWsEvent = {
+        user,
+        coin: 'SOL',
+        leverage: { type: 'cross', value: 2 },
+        maxTradeSzs: ['4.31', '4.56'],
+        availableToTrade: ['408.122841', '432.207615'],
+        markPx: '189.42',
+      };
+
+      const subscribeWithFrames = (
+        symbol: string,
+      ): {
+        callback: Mock;
+        emit: (frame: ActiveAssetDataWsEvent) => void;
+        unsubscribe: Mock;
+      } => {
+        let listener: ((frame: ActiveAssetDataWsEvent) => void) | undefined;
+        const unsubscribe = vi.fn();
+        mockSubscriptionService.subscribeToActiveAssetData = vi.fn(
+          (
+            params: Parameters<
+              HyperLiquidSubscriptionService['subscribeToActiveAssetData']
+            >[0],
+          ) => {
+            listener = params.callback;
+            return unsubscribe;
+          },
+        );
+        const callback = vi.fn();
+        const cleanup = provider.subscribeToAvailableToTrade({
+          symbol,
+          callback,
+        });
+        expect(cleanup).toBe(unsubscribe);
+        return {
+          callback,
+          unsubscribe,
+          emit: (frame) => listener?.(frame),
+        };
+      };
+
+      it('reports the venue value per side with an open isolated position at non-zero PnL', () => {
+        const { callback, emit } = subscribeWithFrames('BTC');
+
+        emit(isolatedPositionFrame);
+
+        expect(
+          mockSubscriptionService.subscribeToActiveAssetData,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({ symbol: 'BTC', accountId: undefined }),
+        );
+        expect(callback).toHaveBeenCalledWith({
+          providerId: 'hyperliquid',
+          symbol: 'BTC',
+          long: '413.904112',
+          short: '429.016554',
+        });
+      });
+
+      it('reports the venue value per side with an open cross position at non-zero PnL', () => {
+        const { callback, emit } = subscribeWithFrames('SOL');
+
+        emit(crossPositionFrame);
+
+        expect(callback).toHaveBeenCalledWith({
+          providerId: 'hyperliquid',
+          symbol: 'SOL',
+          long: '408.122841',
+          short: '432.207615',
+        });
+      });
+
+      it('reports each new venue value as the position and leverage change', () => {
+        const { callback, emit } = subscribeWithFrames('BTC');
+
+        emit(isolatedPositionFrame);
+        emit({
+          ...isolatedPositionFrame,
+          leverage: { type: 'isolated', value: 5, rawUsd: '-12.0144' },
+          availableToTrade: ['416.811930', '427.402219'],
+        });
+
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback).toHaveBeenLastCalledWith({
+          providerId: 'hyperliquid',
+          symbol: 'BTC',
+          long: '416.811930',
+          short: '427.402219',
+        });
+      });
+
+      it('passes the account and error handler to the venue stream', () => {
+        const onError = vi.fn();
+        mockSubscriptionService.subscribeToActiveAssetData = vi
+          .fn()
+          .mockReturnValue(vi.fn());
+
+        provider.subscribeToAvailableToTrade({
+          symbol: 'xyz:TSLA',
+          accountId: `eip155:42161:${user}`,
+          callback: vi.fn(),
+          onError,
+        });
+
+        expect(
+          mockSubscriptionService.subscribeToActiveAssetData,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            symbol: 'xyz:TSLA',
+            accountId: `eip155:42161:${user}`,
+            onError,
+          }),
+        );
+      });
+    });
+
     it('sets live data config', () => {
       const config: Partial<LiveDataConfig> = {
         priceThrottleMs: 1000,
@@ -1165,8 +1406,16 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.disconnect();
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Disconnect failed');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('Disconnect failed');
     });
 
     describe('ping() health check', () => {
@@ -1296,7 +1545,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid order parameters');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles validation errors in withdrawals', async () => {
@@ -1314,19 +1563,25 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.withdraw(withdrawParams);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid withdrawal parameters');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(result.error).not.toContain('Invalid withdrawal parameters');
     });
 
-    it('handles unknown errors gracefully', async () => {
+    it('retains the underlying error when positions are unavailable', async () => {
+      const cause = new Error('Unknown error');
       (
         mockClientService.getInfoClient().clearinghouseState as Mock
-      ).mockRejectedValueOnce(new Error('Unknown error'));
+      ).mockRejectedValueOnce(cause);
 
-      const result = await provider.getPositions();
-
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(0);
+      const positions = provider.getPositions();
+      await expect(positions).rejects.toThrow(
+        PERPS_ERROR_CODES.POSITIONS_FAILED,
+      );
+      await expect(positions).rejects.toHaveProperty('cause', cause);
     });
 
     describe('error mapping integration', () => {
@@ -1420,7 +1675,7 @@ describe('HyperLiquidProvider', () => {
         expect(result.error).toBe('ORDER_LEVERAGE_REDUCTION_FAILED');
       });
 
-      it('preserves original error message for unmapped errors', async () => {
+      it('hides the original error message for unmapped errors', async () => {
         // Mock with an unmapped error
         const originalError = new Error('Some other HyperLiquid API error');
         mockClientService.getExchangeClient = vi.fn().mockReturnValue({
@@ -1442,7 +1697,7 @@ describe('HyperLiquidProvider', () => {
         const result = await provider.placeOrder(orderParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toBe('Some other HyperLiquid API error');
+        expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
       });
     });
   });
@@ -1464,7 +1719,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Asset UNKNOWN not found');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing price data', async () => {
@@ -1485,7 +1740,7 @@ describe('HyperLiquidProvider', () => {
       // allMids returns {} so #getOrFetchPrice parses price as 0, which is
       // invalid. The error surfaces from #getAssetInfo before validation runs.
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid price for BTC: 0');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing position in close operation', async () => {

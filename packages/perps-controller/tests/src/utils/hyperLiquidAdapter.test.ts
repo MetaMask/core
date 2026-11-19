@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type {
+  AssetPosition,
   ClearinghouseStateResponse,
   FrontendOrder,
 } from '../../../src/types/hyperliquid-types.js';
@@ -8,6 +9,7 @@ import {
   adaptAccountStateFromSDK,
   adaptOrderFromSDK,
   adaptMarketFromSDK,
+  adaptPositionFromSDK,
   buildHyperLiquidFillId,
 } from '../../../src/utils/hyperLiquidAdapter.js';
 
@@ -111,6 +113,85 @@ describe('adaptOrderFromSDK', () => {
 
     expect(result.takeProfitPrice).toBeUndefined();
     expect(result.stopLossPrice).toBeUndefined();
+  });
+});
+
+describe('adaptPositionFromSDK cross display margin', () => {
+  const assetPosition = (
+    type: 'cross' | 'isolated',
+    marginUsed = '100',
+  ): AssetPosition => ({
+    type: 'oneWay',
+    position: {
+      coin: 'ETH',
+      szi: '0.5',
+      entryPx: '2000',
+      positionValue: '1000',
+      unrealizedPnl: '-50',
+      returnOnEquity: '-0.5',
+      liquidationPx: '1900',
+      marginUsed,
+      maxLeverage: 25,
+      leverage:
+        type === 'cross'
+          ? { type: 'cross', value: 10 }
+          : { type: 'isolated', value: 10, rawUsd: '100' },
+      cumFunding: { allTime: '1', sinceOpen: '0.5', sinceChange: '0.1' },
+    },
+  });
+  const summary = (
+    accountValue: string,
+    totalMarginUsed: string,
+  ): ClearinghouseStateResponse['crossMarginSummary'] => ({
+    accountValue,
+    totalMarginUsed,
+    totalNtlPos: '1000',
+    totalRawUsd: '0',
+  });
+
+  it('scales a cross position by accountValue / totalMarginUsed when cross equity is below initial margin', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross', '30'),
+      summary('50', '120'),
+    );
+    expect(position.marginUsed).toBe('30');
+    expect(position.displayMarginUsed).toBe('12.5');
+  });
+
+  it('shows the raw margin when cross equity covers initial margin', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross'),
+      summary('150', '100'),
+    );
+    expect(position.displayMarginUsed).toBe('100');
+  });
+
+  it('floors the display margin at zero when cross equity is negative', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross'),
+      summary('-10', '100'),
+    );
+    expect(position.displayMarginUsed).toBe('0');
+  });
+
+  it('shows the raw margin when the summary reports no margin used', () => {
+    const position = adaptPositionFromSDK(
+      assetPosition('cross'),
+      summary('0', '0'),
+    );
+    expect(position.displayMarginUsed).toBe('100');
+  });
+
+  it('omits the display margin for isolated positions, without a summary or with a non-numeric one', () => {
+    expect(
+      adaptPositionFromSDK(assetPosition('isolated'), summary('50', '100')),
+    ).not.toHaveProperty('displayMarginUsed');
+    expect(adaptPositionFromSDK(assetPosition('cross'))).not.toHaveProperty(
+      'displayMarginUsed',
+    );
+    expect(
+      adaptPositionFromSDK(assetPosition('cross'), summary('oops', '100')),
+    ).not.toHaveProperty('displayMarginUsed');
   });
 });
 
@@ -247,5 +328,66 @@ describe('adaptAccountStateFromSDK cross margin summary', () => {
         buildState(overrides as Partial<ClearinghouseStateResponse>),
       ),
     ).toThrow(`Invalid HyperLiquid cross margin ${field}`);
+  });
+});
+
+describe('adaptAccountStateFromSDK available balance (characterization)', () => {
+  it('reports the account-wide withdrawable for every market and side while positions carry PnL', () => {
+    const state: ClearinghouseStateResponse = {
+      assetPositions: [
+        {
+          position: {
+            coin: 'BTC',
+            szi: '0.0002',
+            entryPx: '75600',
+            positionValue: '15.12',
+            unrealizedPnl: '-0.0312',
+            marginUsed: '7.4688',
+            leverage: { type: 'isolated', value: 2, rawUsd: '-7.4688' },
+            liquidationPx: '38100',
+            maxLeverage: 40,
+            returnOnEquity: '-0.0041',
+            cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+          },
+          type: 'oneWay',
+        },
+        {
+          position: {
+            coin: 'SOL',
+            szi: '0.06',
+            entryPx: '189.2',
+            positionValue: '11.3652',
+            unrealizedPnl: '0.0421',
+            marginUsed: '5.6826',
+            leverage: { type: 'cross', value: 2 },
+            liquidationPx: null,
+            maxLeverage: 10,
+            returnOnEquity: '0.0074',
+            cumFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+          },
+          type: 'oneWay',
+        },
+      ],
+      marginSummary: {
+        accountValue: '18.5',
+        totalNtlPos: '26.4852',
+        totalRawUsd: '18.5',
+        totalMarginUsed: '13.1514',
+      },
+      crossMarginSummary: {
+        accountValue: '11.0',
+        totalNtlPos: '11.3652',
+        totalRawUsd: '11.0',
+        totalMarginUsed: '5.6826',
+      },
+      crossMaintenanceMarginUsed: '0.57',
+      withdrawable: '0.050136',
+      time: 0,
+    };
+
+    const accountState = adaptAccountStateFromSDK(state);
+
+    expect(accountState.spendableBalance).toBe('0.050136');
+    expect(accountState.withdrawableBalance).toBe('0.050136');
   });
 });

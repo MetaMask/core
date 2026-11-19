@@ -14,7 +14,9 @@ import {
   simulateQuoteTransactions,
   TransactionPaySimulationError,
 } from './simulation.js';
+import type { QuoteSimulation } from './simulation.js';
 import {
+  getEvmQuoteSource,
   getLiveTokenBalanceOrUndefined,
   getNativeToken,
   getTokenInfo,
@@ -26,15 +28,24 @@ const log = createModuleLogger(projectLogger, 'validation');
 
 const erc20Interface = new Interface(abiERC20);
 
-export type QuoteSimulation = {
-  transactions: SimulationTransaction[];
-};
-
 export type QuoteExecutionRequest = {
   messenger: TransactionPayControllerMessenger;
   quote: TransactionPayQuote<unknown>;
   signal?: AbortSignal;
   simulation: QuoteSimulation;
+};
+
+export type ValidateQuotesRequest<QuoteType> = {
+  /**
+   * Build the simulation for a quote, or return `undefined` to skip
+   * validating it.
+   */
+  buildSimulation: (
+    quote: TransactionPayQuote<QuoteType>,
+  ) => Promise<QuoteSimulation | undefined>;
+  messenger: TransactionPayControllerMessenger;
+  quotes: TransactionPayQuote<QuoteType>[];
+  signal?: AbortSignal;
 };
 
 export class QuoteError extends Error {
@@ -50,6 +61,50 @@ export class QuoteError extends Error {
   }
 }
 
+/**
+ * Validate each quote in turn by checking the live source balance and
+ * simulating the transactions it would submit.
+ *
+ * @param request - Validation request.
+ */
+export async function validateQuotes<QuoteType>(
+  request: ValidateQuotesRequest<QuoteType>,
+): Promise<void> {
+  const { buildSimulation, messenger, quotes, signal } = request;
+
+  for (const quote of quotes) {
+    try {
+      const simulation = await buildSimulation(quote);
+
+      if (!simulation) {
+        continue;
+      }
+
+      await validateQuoteExecution({
+        messenger,
+        quote,
+        signal,
+        simulation,
+      });
+    } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
+      const quoteError = toQuoteError(error);
+
+      if (quoteError.info.reason === 'insufficient-source-balance') {
+        // Backwards compatibility: keep the entire quote batch (including
+        // quotes that may have passed or not yet been validated) so that
+        // clients can still show quote details alongside the balance error.
+        throw new QuoteError(quoteError.info, quotes);
+      }
+
+      throw quoteError;
+    }
+  }
+}
+
 export async function validateQuoteExecution({
   messenger,
   quote,
@@ -58,13 +113,16 @@ export async function validateQuoteExecution({
 }: QuoteExecutionRequest): Promise<void> {
   throwIfAborted(signal);
 
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
+
   const liveBalance = await getLiveSourceBalance(quote, messenger);
 
   log('Live source balance', {
     from: quote.request.from,
     liveBalance,
-    sourceChainId: quote.request.sourceChainId,
-    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sourceChainId,
+    sourceTokenAddress,
   });
 
   throwIfAborted(signal);
@@ -79,8 +137,8 @@ export async function validateQuoteExecution({
   validateRequiredSourceAmount(messenger, quote, liveBalance);
 
   log('Checking decoded source transfers', {
-    sourceChainId: quote.request.sourceChainId,
-    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sourceChainId,
+    sourceTokenAddress,
     transactions: simulation.transactions,
   });
 
@@ -102,14 +160,16 @@ async function validateSimulation(
   simulation: QuoteSimulation,
   signal?: AbortSignal,
 ): Promise<void> {
+  const { chainId } = getEvmQuoteSource(quote.request);
+
   log('Starting simulation', {
-    chainId: quote.request.sourceChainId,
+    chainId,
     transactions: simulation.transactions,
   });
 
   try {
     await simulateQuoteTransactions({
-      chainId: quote.request.sourceChainId,
+      chainId,
       messenger,
       transactions: simulation.transactions,
     });
@@ -153,8 +213,8 @@ function formatBalanceShortfall(
   required: string,
   balance: string,
 ): string[] {
-  const { sourceChainId, sourceTokenAddress } = quote.request;
-  const tokenInfo = getTokenInfo(messenger, sourceTokenAddress, sourceChainId);
+  const { chainId, tokenAddress } = getEvmQuoteSource(quote.request);
+  const tokenInfo = getTokenInfo(messenger, tokenAddress, chainId);
 
   const requiredBn = new BigNumber(required);
   const balanceBn = new BigNumber(balance);
@@ -202,7 +262,9 @@ async function getLiveSourceBalance(
   quote: TransactionPayQuote<unknown>,
   messenger: TransactionPayControllerMessenger,
 ): Promise<string | undefined> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
     sourceChainId,
@@ -317,7 +379,8 @@ function isSourceTokenTransfer(
     return false;
   }
 
-  const { sourceChainId, sourceTokenAddress } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const isNativeSource =
     sourceTokenAddress.toLowerCase() ===
@@ -353,6 +416,18 @@ function decodeTransferAmount(data: Hex): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function toQuoteError(error: unknown): QuoteError {
+  if (isQuoteError(error)) {
+    return error;
+  }
+
+  return new QuoteError({
+    message: 'Quote simulation failed',
+    reason: 'simulation-failed',
+    detail: [(error as Error).message],
+  });
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

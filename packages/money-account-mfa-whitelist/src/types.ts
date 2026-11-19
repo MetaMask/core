@@ -55,6 +55,11 @@ export type MfaWhitelistConfig = {
    */
   cardSignInDomain?: string;
   /**
+   * The domain of the CHOMP sign-in message that links the MPC Money Account
+   * to the account it replaces. The message requires MFA when this is not set.
+   */
+  chompSignInDomain?: string;
+  /**
    * How far, in milliseconds, a signed message's timestamp may be from the
    * current time. Defaults to five minutes.
    */
@@ -104,6 +109,7 @@ export type MoneyAccountSignatureRequest =
 export type MfaWhitelistRule =
   | 'chomp-authentication'
   | 'card-sign-in'
+  | 'chomp-successor-association'
   | 'rewards-binding'
   | 'eip7702-authorization'
   | 'vault-standing-delegation'

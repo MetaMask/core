@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseBoundedNonNegativeDecimal,
   parseFiniteDecimal,
+  parseFormattedPrice,
   stripQuotes,
   parseCommaSeparatedString,
 } from '../../../src/utils/stringParseUtils.js';
@@ -122,4 +123,18 @@ describe('parseFiniteDecimal', () => {
       expect(parseFiniteDecimal(value)).toBeNull();
     },
   );
+});
+
+describe('parseFormattedPrice', () => {
+  it('parses a price with `$`, `,` and surrounding whitespace', () => {
+    expect(parseFormattedPrice('$1,234.5')).toBe(1234.5);
+    expect(parseFormattedPrice('  2,625 ')).toBe(2625);
+    expect(parseFormattedPrice('-$1,000')).toBe(-1000);
+  });
+
+  it('returns NaN for text that does not start with a number', () => {
+    expect(parseFormattedPrice('')).toBeNaN();
+    expect(parseFormattedPrice('abc')).toBeNaN();
+    expect(parseFormattedPrice('$')).toBeNaN();
+  });
 });

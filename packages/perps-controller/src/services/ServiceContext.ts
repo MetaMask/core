@@ -1,8 +1,12 @@
 import type { PerpsControllerState } from '../PerpsController.js';
 import type {
+  AccountState,
+  GetOrdersParams,
+  GetPositionsParams,
   Order,
   PerpsFeeResolution,
   PerpsGlobalSnapshotRequest,
+  PerpsProviderType,
   PerpsSubscriptionFeeWaiverStatus,
   Position,
 } from '../types/index.js';
@@ -63,8 +67,8 @@ export type ServiceContext = {
    * Query functions for dependent data
    * Required by: Operations that need to fetch related data
    */
-  getOpenOrders?: () => Promise<Order[]>;
-  getPositions?: () => Promise<Position[]>;
+  getOpenOrders?: (params?: GetOrdersParams) => Promise<Order[]>;
+  getPositions?: (params?: GetPositionsParams) => Promise<Position[]>;
 
   /**
    * Exact per-call identity and guards for adopting a global market snapshot.
@@ -74,6 +78,17 @@ export type ServiceContext = {
     request: PerpsGlobalSnapshotRequest;
     isCurrent: () => boolean;
     isMarketAllowed: (symbol: string) => boolean;
+  };
+
+  /**
+   * Guards a REST account-state write against the venue that currently backs
+   * account reads. A response that resolves after the default venue changed
+   * must not overwrite the new venue's snapshot, so `isCurrent` compares the
+   * response's captured `providerId` with the current account-data context.
+   * Omitted for callers that do not route account reads by venue.
+   */
+  accountDataContext?: {
+    isCurrent: (accountState: AccountState) => boolean;
   };
 
   /**
@@ -94,9 +109,15 @@ export type ServiceContext = {
   feeResolution?: PerpsFeeResolution;
 
   /**
-   * Callback functions for controller-specific operations
+   * Callback functions for controller-specific operations. `providerId` is
+   * the venue the placement was routed to; it keys the persisted trade
+   * configuration so a value saved on one venue never applies to another.
    */
-  saveTradeConfiguration?: (symbol: string, leverage: number) => void;
+  saveTradeConfiguration?: (
+    symbol: string,
+    leverage: number,
+    providerId?: PerpsProviderType,
+  ) => void;
 
   /**
    * Feature flag configuration callbacks

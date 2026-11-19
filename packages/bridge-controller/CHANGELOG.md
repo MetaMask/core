@@ -7,14 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [83.3.0]
+
+### Added
+
+- Set QuoteRequest parameters based on `isMoneyAccount` value provided by clients. When isMoneyAcount=true, only request `relay` quotes from the backend ([#11602](https://github.com/MetaMask/core/pull/11602))
+- Export getAccountByAddress and getFeatureFlags utils ([#11403](https://github.com/MetaMask/core/pull/11403))
+
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^20.1.0` to `^20.2.2` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11285](https://github.com/MetaMask/core/pull/11285), [#11300](https://github.com/MetaMask/core/pull/11300))
-- Bump `@metamask/assets-controllers` from `^113.0.1` to `^113.1.1` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
+- Bump `@metamask/assets-controller` from `^20.4.1` to `^21.0.0` ([#11649](https://github.com/MetaMask/core/pull/11649))
+
+### Removed
+
+- Remove the `BLAST` (`0x13e31`) chain ID constant, as the network is being terminated ([#11599](https://github.com/MetaMask/core/pull/11599))
+
+## [83.2.0]
+
+### Added
+
+- Add optional `getShouldYieldAfterFirstQuote` constructor option to `BridgeController` ([#11465](https://github.com/MetaMask/core/pull/11465))
+  - When it returns `true`, the quote stream yields one macrotask after the first quote is written to state, so clients can render it before the rest of the burst is processed
+- Add optional `getShouldFetchFirstQuoteImmediately` constructor option to `BridgeController` to start the first quote fetch without waiting for the first poll ([#11541](https://github.com/MetaMask/core/pull/11541))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.1.0` ([#11579](https://github.com/MetaMask/core/pull/11579))
+- Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+- Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
+
+### Fixed
+
+- Stop processing buffered quote stream events, including `onClose`, after the stream is aborted, so an aborted stream can no longer update quotes, token warnings, `quoteStreamComplete` or `quotesLoadingStatus` ([#11465](https://github.com/MetaMask/core/pull/11465))
+
+## [83.1.5]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+- Bump `@metamask/assets-controller` from `^20.3.1` to `^20.4.1` ([#11447](https://github.com/MetaMask/core/pull/11447), [#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/assets-controllers` from `^113.3.1` to `^113.3.2` ([#11472](https://github.com/MetaMask/core/pull/11472))
+- Bump `@metamask/transaction-controller` from `^73.1.2` to `^74.0.0` ([#11472](https://github.com/MetaMask/core/pull/11472))
+
+## [83.1.4]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^20.1.0` to `^20.3.1` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11285](https://github.com/MetaMask/core/pull/11285), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/assets-controllers` from `^113.0.1` to `^113.3.1` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
-- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
-- Bump `@metamask/multichain-network-controller` from `^4.0.0` to `^4.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
-- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/multichain-network-controller` from `^4.0.0` to `^4.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [83.1.3]
 
@@ -2207,7 +2255,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.3.0...HEAD
+[83.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.2.0...@metamask/bridge-controller@83.3.0
+[83.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.5...@metamask/bridge-controller@83.2.0
+[83.1.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...@metamask/bridge-controller@83.1.5
+[83.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.3...@metamask/bridge-controller@83.1.4
 [83.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.2...@metamask/bridge-controller@83.1.3
 [83.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.1...@metamask/bridge-controller@83.1.2
 [83.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.0...@metamask/bridge-controller@83.1.1

@@ -1,4 +1,6 @@
 import type { KeyPair } from '@metamask/cryptography';
+import type { AuthenticationControllerRequestMfaApprovalAction } from '@metamask/profile-sync-controller/auth';
+import { AuthConnection } from '@metamask/seedless-onboarding-controller';
 import {
   bytesToBase64,
   bytesToHex,
@@ -26,21 +28,24 @@ import {
 } from '../src/identifier-auth.js';
 import type {
   AuthControllerToken,
+  GetIdentifiersResponse,
+  GetMutationReceiptResponse,
   Identifier,
   IdentifierAuthorization,
-  KeyBoundIdentifierToken,
+  KeyBoundIdentifierLogin,
+  KeyBoundIdentifierTokenRequest,
   Mutation,
   MutationPayload,
   MutationReceipt,
   PendingOperation,
   PendingOperationEncryptor,
   PoPChallenge,
-  RecoveryApproval,
-  RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryLockProvider,
   GetRecoverySecretResponse,
   RegisterPayload,
+  SeedlessAuthData,
   UpdateIdentifiersPayload,
   UpdateRecoverySecretPayload,
   WrappedSecret,
@@ -97,10 +102,16 @@ export function createAuthControllerToken({
   return `${encode({ alg: 'none' })}.${encode(payload)}.stub-signature`;
 }
 
+type RequestMfaApprovalHandler =
+  AuthenticationControllerRequestMfaApprovalAction['handler'];
+
+const APPROVAL_TTL_SECS = 5 * 60;
+
 /**
- * In-memory AuthController used in tests.
+ * In-memory AuthenticationController used in tests. Its methods back the
+ * `AuthenticationController:*` action handlers.
  */
-export class StubAuthProvider implements RecoveryAuthProvider {
+export class StubAuthProvider {
   profileId = 'profile-1';
 
   now: () => number = unixNow;
@@ -111,24 +122,47 @@ export class StubAuthProvider implements RecoveryAuthProvider {
     this.identifiers = identifiers;
   }
 
-  async getAuthenticatedProfileId(): Promise<string> {
+  async refreshCanonicalProfileId(): Promise<string> {
     return this.profileId;
   }
 
-  async authorizeRecoveryRequest(params: {
-    requestHash: string;
-    requireTwoFactor?: boolean;
-  }): Promise<RecoveryApproval> {
+  async requestMfaApproval(
+    request: Parameters<RequestMfaApprovalHandler>[0],
+  ): ReturnType<RequestMfaApprovalHandler> {
     return {
       approval: createAuthControllerToken({
         sub: this.profileId,
-        exp: this.now() + 5 * 60,
-        requestHash: params.requestHash,
-        aal: params.requireTwoFactor ? 2 : 1,
+        exp: this.now() + APPROVAL_TTL_SECS,
+        requestHash: request.requestHash,
+        aal: request.requireVerification ? 2 : 1,
         identifiersHash: await hash(this.identifiers),
       }),
-      identifiers: this.identifiers,
+      expiresIn: APPROVAL_TTL_SECS,
+      ...(request.includeIdentifiers === false
+        ? {}
+        : { identifiers: this.identifiers }),
     };
+  }
+}
+
+/**
+ * In-memory per-profile lease, like the registration service's.
+ */
+export class StubRecoveryLockProvider implements RecoveryLockProvider {
+  lockId: string | null = null;
+
+  async acquire(lockId: string): Promise<void> {
+    if (this.lockId !== null && this.lockId !== lockId) {
+      throw new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict');
+    }
+    this.lockId = lockId;
+  }
+
+  async release(lockId: string): Promise<void> {
+    if (this.lockId !== null && this.lockId !== lockId) {
+      throw new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict');
+    }
+    this.lockId = null;
   }
 }
 
@@ -136,21 +170,63 @@ export class StubAuthProvider implements RecoveryAuthProvider {
  * In-memory identifier IdP used in tests.
  */
 export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvider {
-  async getKeyBoundIdentifierToken(params: {
-    identifier: Identifier;
-    proofPublicKey: Uint8Array;
-    requestHash: string;
-  }): Promise<KeyBoundIdentifierToken> {
+  async getKeyBoundIdentifierLogin(
+    params: KeyBoundIdentifierTokenRequest,
+  ): Promise<KeyBoundIdentifierLogin> {
     return {
-      identifier: params.identifier,
-      proofPublicKey: params.proofPublicKey,
-      requestHash: params.requestHash,
-      providerAssertion: {
-        bound: await hash({
-          proofPublicKey: params.proofPublicKey,
-          requestHash: params.requestHash,
-        }),
+      token: {
+        identifier: params.identifier,
+        proofPublicKey: params.proofPublicKey,
+        requestHash: params.requestHash,
+        notAfter: params.notAfter,
+        providerAssertion: {
+          bound: await hash([
+            params.proofPublicKey,
+            params.requestHash,
+            params.notAfter,
+          ]),
+        },
       },
+    };
+  }
+}
+
+export const STUB_SEEDLESS_AUTH_DATA: SeedlessAuthData = {
+  idTokens: ['seedless-id-token'],
+  accessToken: 'seedless-access-token',
+  metadataAccessToken: 'seedless-metadata-access-token',
+  refreshToken: 'seedless-refresh-token',
+  revokeToken: 'seedless-revoke-token',
+  authConnection: AuthConnection.Google,
+  authConnectionId: 'auth-connection-id',
+  groupedAuthConnectionId: 'grouped-auth-connection-id',
+  userId: 'user@example.com',
+  socialLoginEmail: 'user@example.com',
+};
+
+/**
+ * In-memory native ID-token IdP used in tests. One login exchanges the
+ * provider ID token once and returns both the key-bound token and the
+ * seedless auth-server tokens.
+ */
+export class StubSeedlessIdentifierAuthProvider extends StubIdentifierAuthProvider {
+  seedlessAuthData: SeedlessAuthData | undefined = STUB_SEEDLESS_AUTH_DATA;
+
+  async getKeyBoundIdentifierLogin(
+    params: KeyBoundIdentifierTokenRequest,
+  ): Promise<KeyBoundIdentifierLogin> {
+    const { token } = await super.getKeyBoundIdentifierLogin(params);
+    return {
+      token: {
+        ...token,
+        providerAssertion: {
+          ...(token.providerAssertion as Record<string, unknown>),
+          providerIdToken: 'provider-id-token',
+        },
+      },
+      ...(this.seedlessAuthData === undefined
+        ? {}
+        : { seedlessAuthData: this.seedlessAuthData }),
     };
   }
 }
@@ -191,29 +267,24 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   readonly #receiptPrivateKey: Uint8Array;
 
-  readonly #replicaIds: string[];
-
   #applyCommitted = false;
 
-  constructor(
-    id: string,
-    wrapKey: KeyPair,
-    receiptKey: KeyPair,
-    replicaIds: string[] = [id],
-  ) {
+  constructor(id: string, wrapKey: KeyPair, receiptKey: KeyPair) {
     this.id = id;
     this.wrapPublicKey = wrapKey.publicKey;
     this.#wrapPrivateKey = wrapKey.privateKey;
     this.receiptPublicKey = receiptKey.publicKey;
     this.#receiptPrivateKey = receiptKey.privateKey;
-    this.#replicaIds = [...replicaIds];
   }
 
   async isAvailable(): Promise<boolean> {
     return this.available;
   }
 
-  async generateChallenge(): Promise<PoPChallenge> {
+  async generateChallenge(
+    authControllerToken: AuthControllerToken,
+  ): Promise<PoPChallenge> {
+    this.#verifyProfileToken(authControllerToken);
     const challenge: StoredPoPChallenge = {
       id: `${this.id}-pop-${this.#popChallenges.size + 1}`,
       escrowId: this.id,
@@ -226,6 +297,46 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       escrowId: challenge.escrowId,
       expiresAt: challenge.expiresAt,
     };
+  }
+
+  async getIdentifiers(
+    authControllerToken: AuthControllerToken,
+  ): Promise<GetIdentifiersResponse> {
+    const record = this.#records.get(
+      this.#verifyProfileToken(authControllerToken),
+    );
+    if (record === undefined) {
+      return { identifiers: [], version: 0 };
+    }
+    return { identifiers: record.identifiers, version: record.version };
+  }
+
+  async getMutationReceipt(
+    authControllerToken: AuthControllerToken,
+    mutation: Mutation,
+  ): Promise<GetMutationReceiptResponse> {
+    const record = this.#records.get(
+      this.#verifyProfileToken(authControllerToken),
+    );
+    const applied = record?.appliedMutations[mutation.id];
+    const isOurs =
+      applied?.version === mutation.newVersion &&
+      applied.requestHash === mutation.requestHash;
+    return {
+      receipt: isOurs ? await this.#signReceipt(mutation) : null,
+      version: record?.version ?? 0,
+    };
+  }
+
+  #verifyProfileToken(authControllerToken: AuthControllerToken): string {
+    const claims = decodeAuthControllerToken(authControllerToken);
+    if (!claims || claims.ext.aal < 1 || claims.exp <= this.now()) {
+      throw new MfaRecoveryError(
+        'Invalid profile approval',
+        'invalid_profile_auth',
+      );
+    }
+    return claims.sub;
   }
 
   /**
@@ -261,10 +372,8 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       requestId,
       pkE,
     });
-    const { profileId } = await this.#verifyIdentifierAuthorization(
-      authorization,
-      requestHash,
-    );
+    await this.#verifyProofs([authorization], requestHash);
+    const profileId = this.#profileIdFor(authorization.token.identifier);
     const claims = decodeAuthControllerToken(authControllerToken);
     if (
       claims?.sub !== profileId ||
@@ -295,7 +404,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   async applyMutation(
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
@@ -309,7 +418,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       return await this.#applyMutation(
         mutation,
         authControllerToken,
-        identifierAuthorization,
+        identifierAuthorizations,
         payload,
         approvedIdentifiers,
       );
@@ -324,7 +433,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   async #applyMutation(
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
@@ -355,8 +464,17 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       throw new MfaRecoveryError('Version mismatch', 'version_mismatch');
     }
 
+    const enrolledAuthorizations = this.#splitSiweAuthorizations(
+      identifierAuthorizations,
+      (payload as { identifiers?: Identifier[] }).identifiers ?? [],
+      record?.identifiers ?? [],
+    );
+    if (identifierAuthorizations.length > 0) {
+      await this.#verifyProofs(identifierAuthorizations, mutation.requestHash);
+    }
+
     if (mutation.operation === 'register') {
-      if (identifierAuthorization !== null || record !== undefined) {
+      if (enrolledAuthorizations.length > 0 || record !== undefined) {
         throw new MfaRecoveryError('Invalid registration', 'invalid_register');
       }
       const registerPayload = payload as RegisterPayload;
@@ -405,17 +523,16 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         'update_unauthorized',
       );
     }
-    if (identifierAuthorization === null) {
+    if (enrolledAuthorizations.length !== 1) {
       throw new MfaRecoveryError(
-        'Identifier authorization required',
+        'Exactly one enrolled identifier authorization required',
         'missing_identifier_auth',
       );
     }
-    const authorization = await this.#verifyIdentifierAuthorization(
-      identifierAuthorization,
-      mutation.requestHash,
-    );
-    if (authorization.profileId !== mutation.profileId) {
+    if (
+      this.#profileIdFor(enrolledAuthorizations[0].token.identifier) !==
+      mutation.profileId
+    ) {
       throw new MfaRecoveryError('Profile mismatch', 'profile_mismatch');
     }
 
@@ -513,7 +630,10 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   patchRecord(
     profileId: string,
     patch: Partial<
-      Pick<RecoveryRecord, 'version' | 'lastMutationId' | 'recoverySecret'>
+      Pick<
+        RecoveryRecord,
+        'version' | 'lastMutationId' | 'recoverySecret' | 'identifiers'
+      >
     >,
   ): void {
     const record = this.#records.get(profileId);
@@ -523,7 +643,9 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     Object.assign(record, patch);
   }
 
-  async #signReceipt(mutation: Mutation): Promise<MutationReceipt> {
+  async #signReceipt(
+    mutation: Pick<Mutation, 'id' | 'requestHash' | 'newVersion'>,
+  ): Promise<MutationReceipt> {
     const unsigned = {
       mutationId: mutation.id,
       requestHash: mutation.requestHash,
@@ -560,20 +682,13 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       claims.sub !== mutation.profileId ||
       claims.ext.aal < 2 ||
       claims.exp <= this.now() ||
-      !this.#hasExactAudiences(mutation.audiences)
+      mutation.audiences.filter((id) => id === this.id).length !== 1
     ) {
       throw new MfaRecoveryError(
         'Invalid mutation authorization',
         'invalid_mutation_auth',
       );
     }
-  }
-
-  #hasExactAudiences(audiences: string[]): boolean {
-    return (
-      audiences.length === this.#replicaIds.length &&
-      audiences.every((id, index) => id === this.#replicaIds[index])
-    );
   }
 
   async #assertIdentifierOwnership(
@@ -585,7 +700,9 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     if (
       decodeAuthControllerToken(token)?.ext.identifiersHash !==
         (await hash(approvedIdentifiers)) ||
-      !identifiers.every((identifier) => approved.has(canonicalize(identifier)))
+      !identifiers
+        .filter(({ type }) => type !== 'siwe')
+        .every((identifier) => approved.has(canonicalize(identifier)))
     ) {
       throw new MfaRecoveryError(
         'Identifier ownership not approved',
@@ -597,23 +714,48 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     }
   }
 
-  async #verifyIdentifierAuthorization(
-    authorization: IdentifierAuthorization,
-    requestHash: string,
-  ): Promise<{ profileId: string }> {
-    const { token, proof } = authorization;
-    const { identifier } = token;
-    getIdentifierAuthMode(identifier.type);
-    if (
-      token.requestHash !== requestHash ||
-      proof.requestHash !== requestHash
-    ) {
+  /**
+   * Pairs each SIWE identifier this replica has not enrolled with exactly one
+   * authorization.
+   *
+   * @param authorizations - Authorizations sent with the mutation.
+   * @param identifiers - Payload identifiers.
+   * @param enrolled - Identifiers this replica has enrolled.
+   * @returns The remaining, enrolled-identifier authorizations.
+   */
+  #splitSiweAuthorizations(
+    authorizations: IdentifierAuthorization[],
+    identifiers: Identifier[],
+    enrolled: Identifier[],
+  ): IdentifierAuthorization[] {
+    const enrolledKeys = new Set(enrolled.map(canonicalIdentifier));
+    const newSiwe = new Set(
+      identifiers
+        .filter(({ type }) => type === 'siwe')
+        .map(canonicalIdentifier)
+        .filter((key) => !enrolledKeys.has(key)),
+    );
+    const siwe = authorizations
+      .map(({ token }) => canonicalIdentifier(token.identifier))
+      .filter((key) => newSiwe.has(key));
+    if (siwe.length !== newSiwe.size || new Set(siwe).size !== siwe.length) {
       throw new MfaRecoveryError(
-        'Request hash mismatch',
-        'request_hash_mismatch',
+        'Each new SIWE identifier requires one authorization',
+        'missing_siwe_auth',
       );
     }
-    const challenge = this.#popChallenges.get(proof.challengeId);
+    return authorizations.filter(
+      ({ token }) => !newSiwe.has(canonicalIdentifier(token.identifier)),
+    );
+  }
+
+  async #verifyProofs(
+    authorizations: IdentifierAuthorization[],
+    requestHash: string,
+  ): Promise<void> {
+    const challenge = this.#popChallenges.get(
+      authorizations[0].proof.challengeId,
+    );
     if (
       challenge === undefined ||
       challenge.consumed ||
@@ -622,21 +764,51 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     ) {
       throw new MfaRecoveryError('Invalid PoP challenge', 'invalid_challenge');
     }
-    const message = await hash([token, proof.challengeId, requestHash]);
-    if (
-      !(await verifySignature(token.proofPublicKey, proof.signature, message))
-    ) {
-      throw new MfaRecoveryError('Invalid PoP signature', 'invalid_pop');
+    for (const { token, proof } of authorizations) {
+      getIdentifierAuthMode(token.identifier.type);
+      if (
+        token.requestHash !== requestHash ||
+        proof.requestHash !== requestHash
+      ) {
+        throw new MfaRecoveryError(
+          'Request hash mismatch',
+          'request_hash_mismatch',
+        );
+      }
+      if (proof.challengeId !== challenge.id) {
+        throw new MfaRecoveryError(
+          'Invalid PoP challenge',
+          'invalid_challenge',
+        );
+      }
+      // Same window as the escrow: 1 minute late to 6 minutes ahead.
+      if (
+        token.notAfter + 60 < this.now() ||
+        token.notAfter > this.now() + 6 * 60
+      ) {
+        throw new MfaRecoveryError(
+          'Identifier token expired',
+          'identifier_token_expired',
+        );
+      }
+      const message = await hash([token, proof.challengeId, requestHash]);
+      if (
+        !(await verifySignature(token.proofPublicKey, proof.signature, message))
+      ) {
+        throw new MfaRecoveryError('Invalid PoP signature', 'invalid_pop');
+      }
     }
     challenge.consumed = true;
+  }
 
+  #profileIdFor(identifier: Identifier): string {
     const profileId = this.#identifierIndex.get(
       canonicalIdentifier(identifier),
     );
     if (profileId === undefined) {
       throw new MfaRecoveryError('Unknown identifier', 'unknown_identifier');
     }
-    return { profileId };
+    return profileId;
   }
 
   #assertIdentifiersAvailable(
@@ -707,5 +879,9 @@ export const passthroughEncryptor: PendingOperationEncryptor = {
  * @returns Index key.
  */
 function canonicalIdentifier(identifier: Identifier): string {
-  return `${identifier.type}:${identifier.namespace}:${identifier.value}`;
+  const value =
+    identifier.type === 'siwe'
+      ? identifier.value.toLowerCase()
+      : identifier.value;
+  return `${identifier.type}:${identifier.namespace}:${value}`;
 }

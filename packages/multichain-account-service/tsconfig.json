@@ -21,6 +21,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../key-tree"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

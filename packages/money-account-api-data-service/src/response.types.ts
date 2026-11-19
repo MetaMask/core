@@ -6,6 +6,7 @@ import type {
   PositionResponseStruct,
   RateHistoryResponseStruct,
   VaultRateResponseStruct,
+  VaultShareValuationsResponseStruct,
   VbaSiweChallengeResponseStruct,
   VbaSiweSessionResponseStruct,
   VbaTransfersResponseStruct,
@@ -163,6 +164,44 @@ export type RateHistoryResponse = Infer<typeof RateHistoryResponseStruct>;
  * (assets per share). `timestamp` is when that rate was indexed.
  */
 export type VaultRateResponse = Infer<typeof VaultRateResponseStruct>;
+
+/**
+ * One vault share movement in a past transaction, valued in the vault's
+ * underlying asset at that block.
+ */
+export type VaultShareValuation = {
+  vault_address: string;
+  vault_key: string;
+  asset_symbol: string | null;
+  asset_decimals: number;
+  type: string;
+  log_index: number | null;
+  block_number: number | null;
+  timestamp: string | null;
+  shares_wei: string | null;
+  assets_wei: string;
+  rate: string | null;
+  source: string;
+};
+
+/**
+ * Valuations for one requested transaction hash. `found` is false when no
+ * vault cash flow for the user is indexed for the transaction.
+ */
+export type VaultShareValuationResult = {
+  tx_hash: string;
+  found: boolean;
+  valuations: VaultShareValuation[];
+};
+
+/**
+ * Response from `GET /v1/positions/:address/vault-share-valuations`.
+ * Derived from {@link VaultShareValuationsResponseStruct} to ensure
+ * type/struct parity.
+ */
+export type VaultShareValuationsResponse = Infer<
+  typeof VaultShareValuationsResponseStruct
+>;
 
 /** Response from the SIWE challenge endpoint. */
 export type VbaSiweChallengeResponse = Infer<

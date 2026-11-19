@@ -243,6 +243,14 @@ module.exports = defineConfig({
       }
 
       if (isChildWorkspace) {
+        // All non-root packages must have a "scripts.allow-scripts" script that
+        // calls the root package's "allow-scripts" script.
+        expectWorkspaceField(
+          workspace,
+          'scripts.allow-scripts',
+          `yarn workspace ${rootWorkspace.manifest.name} run allow-scripts`,
+        );
+
         // The list of files included in all non-root packages must only include
         // files generated during the build process.
         expectWorkspaceArrayField(workspace, 'files', 'dist/');

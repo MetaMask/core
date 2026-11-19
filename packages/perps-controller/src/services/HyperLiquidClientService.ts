@@ -22,6 +22,7 @@ import {
 } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { HyperLiquidNetwork } from '../types/config.js';
+import type { HyperLiquidPublicTrade } from '../types/hyperliquid-types.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   SubscribeCandlesParams,
@@ -810,7 +811,7 @@ export class HyperLiquidClientService {
    * @param userAddress - The user's 0x address to query.
    * @param options - Optional cache-control options.
    * @param options.forceRefresh - When true, bypasses the coalesce cache.
-   * @returns Array of historical orders, empty array on SDK null.
+   * @returns The historical orders, including an explicit empty list.
    */
   public async fetchHistoricalOrders(
     userAddress: Hex,
@@ -836,7 +837,107 @@ export class HyperLiquidClientService {
   ): Promise<HistoricalOrdersResponse> {
     const infoClient = this.getInfoClient();
     const result = await infoClient.historicalOrders({ user: userAddress });
-    return result ?? [];
+    if (!Array.isArray(result)) {
+      throw new Error('Hyperliquid returned no historical order list');
+    }
+    return result;
+  }
+
+  /**
+   * Fetch a coin's most recent public trades over HTTP. The venue returns
+   * its last 10 trades.
+   *
+   * @param symbol - The coin (e.g. "BTC", or "dex:COIN" for HIP-3).
+   * @returns The venue's trades, as the SDK types them.
+   */
+  public async fetchRecentTrades(
+    symbol: string,
+  ): Promise<HyperLiquidPublicTrade[]> {
+    const infoClient = this.getInfoClient({ useHttp: true });
+    return await infoClient.recentTrades({ coin: symbol });
+  }
+
+  /**
+   * Subscribe to a coin's public trades over WebSocket. A new venue
+   * subscription first sends its recent trades, then each new batch; the SDK
+   * shares one subscription per coin, so a later listener gets only new
+   * batches.
+   *
+   * @param params - The subscription parameters.
+   * @param params.symbol - The coin (e.g. "BTC").
+   * @param params.callback - Receives each batch, as the SDK types it.
+   * @param params.onError - Receives a failure to open the subscription.
+   * @returns Cleanup function; safe to call before the subscription opens.
+   */
+  public subscribeToTrades({
+    symbol,
+    callback,
+    onError,
+  }: {
+    symbol: string;
+    callback: (trades: HyperLiquidPublicTrade[]) => void;
+    onError?: (error: Error) => void;
+  }): () => void {
+    this.ensureInitialized();
+    const subscriptionClient = this.getSubscriptionClient();
+    if (!subscriptionClient) {
+      throw new Error(PERPS_ERROR_CODES.SUBSCRIPTION_CLIENT_NOT_AVAILABLE);
+    }
+
+    let isUnsubscribed = false;
+    const unsubscribe = (subscription: {
+      unsubscribe: () => Promise<void>;
+    }): void => {
+      subscription.unsubscribe().catch((error: unknown) => {
+        const errorInstance = ensureError(
+          error,
+          'HyperLiquidClientService.subscribeToTrades',
+        );
+        if (errorInstance.message.startsWith('Already unsubscribed')) {
+          return;
+        }
+        this.#deps.logger.error(errorInstance, {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            service: 'HyperLiquidClientService',
+            network: this.#isTestnet ? 'testnet' : 'mainnet',
+          },
+          context: {
+            name: 'websocket_unsubscription',
+            data: {
+              operation: 'subscribeToTrades',
+              symbol,
+              phase: 'ws_unsubscription',
+            },
+          },
+        });
+      });
+    };
+    const subscriptionPromise = subscriptionClient.trades(
+      { coin: symbol },
+      (trades) => {
+        if (!isUnsubscribed) {
+          callback(trades);
+        }
+      },
+    );
+    subscriptionPromise.catch((error: unknown) => {
+      if (!isUnsubscribed) {
+        onError?.(
+          ensureError(error, 'HyperLiquidClientService.subscribeToTrades'),
+        );
+      }
+    });
+
+    return () => {
+      if (isUnsubscribed) {
+        return;
+      }
+      isUnsubscribed = true;
+      subscriptionPromise.then(unsubscribe).catch(() => {
+        // Subscription never opened; nothing to close.
+      });
+    };
   }
 
   /**

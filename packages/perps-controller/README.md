@@ -49,6 +49,151 @@ The package exports the controller's parameter, result, provider, and
 messenger types for client integrations. Provider availability and aggregated
 routing are controlled by client configuration and feature flags.
 
+## Multi-provider rollout prerequisites
+
+`perpsMultiProviderModeEnabled` is version-gated. Before enabling it for Mobile,
+set its `minimumVersion` to the first release that removes automatic
+navigation-driven calls to `switchProvider`. Do not enable the flag for older
+Mobile releases that still perform these switches.
+
+In particular, remove the automatic switch to `market.providerId` in
+`PerpsMarketDetailsRouter` and the switch to Lighter when opening an order in
+`usePerpsNavigation`. These calls must not switch the controller out of
+aggregated mode just to open a market or order. Keep aggregated mode active and
+pass a provider route to venue-specific operations instead.
+
+`switchProvider` represents an explicit mode selection, including a call that
+selects the already-active direct provider. A direct selection persists
+`hasExplicitProviderSelection` and prevents automatic migration back to
+aggregated mode across initialization and restarts. Reserve it for intentional
+mode changes. Use `setDefaultProvider` to change the aggregated routing
+preference without switching modes or reconnecting providers.
+
+When an aggregated provider has multiple registered venues, `placeOrder`,
+`editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`,
+`replacePositionTPSLLeg`, `updateMargin` and `withdraw` must name a
+`providerId`, and `flipPosition` must name `position.providerId`. Without a
+route they return `PROVIDER_ROUTE_REQUIRED`. An aggregated wrapper with only one
+registered venue, including HyperLiquid-only fallback when Lighter is
+unavailable, accepts these writes without an explicit route because there is
+only one destination.
+
+`cancelOrders` and `closePositions` are venue-attributed rather than refused.
+`cancelOrders({ orders: [{ orderId, providerId }] })` matches both fields,
+so a colliding ID on another venue is not cancelled. Non-empty legacy `orderIds`
+or `symbols` filters without scoped `orders` return `PROVIDER_ROUTE_REQUIRED`
+when multiple venues are registered; use `orders` to identify the intended venue. Cancel-all batches reach every venue holding an order. An empty
+`orders`, `orderIds` or `symbols` filter selects no orders. `closePositions` takes either `closeAll` (fans out to every enabled
+venue) or explicit `targets` of `{ symbol, providerId }`. A supplied
+`targets` list wins over `closeAll` and `symbols`, so an empty one closes
+nothing. A legacy symbols-only close without venue identity still returns
+`PROVIDER_ROUTE_REQUIRED` while multiple venues are registered, because closing
+a symbol that exists on both venues is ambiguous. Results carry a `providerId`
+per item, so identical symbols or order ids on different venues are never
+conflated: each venue's successes and failures are reported
+separately and one venue's failure never hides another venue's success.
+
+Batch cancellation uses strict discovery: an unavailable venue is not an empty
+venue. `CancelOrdersResult.discoveryFailures` names each failed venue and, for
+ID-filtered requests, its unresolved `orderIds`. These targets have no discovered
+symbol, so they are separate from `results`. `failureCount` includes unresolved
+IDs, or one failure per unavailable venue when the order count is unknown;
+`error` is the stable `BATCH_INCOMPLETE` code even when `success` is true.
+Already discovered scoped targets are not counted as discovery failures, even
+when another DEX on the same venue is unavailable. Before presenting a batch as
+complete, clients must inspect `failureCount` and per-item `results` as well as
+`error`, `discoveryFailures` and `failures`.
+A complete direct-venue discovery failure uses the same code and attributes
+its unresolved targets to the provider's validated protocol identity, never a
+tracing tag. If an unknown protocol cannot be attributed safely, the result
+still returns `BATCH_INCOMPLETE` without inventing a venue.
+
+Both multi-venue cancel and close execution batches return `BATCH_INCOMPLETE`
+when a venue throws or returns a batch error. `CancelOrdersResult.failures` and
+`ClosePositionsResult.failures` retain every venue detail as
+`{ providerId, error }[]`; discovery failures remain separate from execution
+failures and per-item `results`. Successful work on other venues is preserved.
+For close-all, a venue whose position discovery throws contributes one failure
+when the number
+of unclosed positions is unknown. Direct single-venue batch errors are preserved.
+
+Batch closes resolve fees only for venues that consume fee resolutions or
+discounts, exposed by `PerpsProvider.supportsFeeResolution(providerId)`.
+Resolutions are computed sequentially: subscription notional allocated to an
+earlier venue is subtracted from the allowance available to later venues.
+Unused allowance is not persisted locally; the backend remains its source of truth.
+
+Existing lenient reads remain unchanged. `getPositions` and
+`getOpenOrders` (both venues, including standalone reads) accept `{ throwOnUnavailable: true }` for callers
+that must distinguish failed discovery from an empty venue. Strict aggregated
+open-order reads throw the exported `OrderDiscoveryError`, whose `orders` retain
+successful reads and whose `failures` identify unavailable venues. These are
+additive contracts: no state migration or existing call-site changes are needed,
+but consumers of batch results should handle partial discovery before rollout.
+
+## Per-exchange account data
+
+In aggregated mode, `getAccountState` and `subscribeToAccount` query every
+enabled venue. The result keeps the top-level `AccountState` numeric fields as
+combined totals — `totalBalance`, `spendableBalance`, `withdrawableBalance`,
+`marginUsed` and `unrealizedPnl` are decimal-safe sums over the venues that
+reported data, and `returnOnEquity` is the margin-weighted combined rate
+(`100 × Σ unrealizedPnl ÷ Σ marginUsed`; `0` when no margin is used).
+
+Each venue's own snapshot is in `providerStates[providerId]`: either
+`{ status: 'available', state, providerId }` with that venue's balances,
+`crossMarginSummary` and `subAccountBreakdown` (never merged into the top
+level — cross-venue collateral is not mutually usable), or
+`{ status: 'unavailable', error?, providerId }` for a venue whose read failed
+or whose snapshot has a missing or non-finite additive field. Aggregated
+account reads request that failure strictly: a HyperLiquid DEX clearinghouse
+read or spot clearinghouse read that fails rejects the venue, so the combined
+total is `partial` instead of a complete portfolio value. Aggregated account
+streams ask each venue for `requireCompleteAccount`: HyperLiquid emits `null`
+until every configured DEX has published and its spot balance has loaded, so a
+failed DEX subscription keeps the total `partial` too. A stream venue
+is `{ status: 'pending', providerId }` until its first snapshot, even if it
+emits `null`. A rejected subscription setup is immediately `unavailable` instead
+of pending. Lighter can only serve the selected wallet: requesting another
+`accountId` excludes Lighter rather than mixing wallets, and a scoped stream
+never starts emitting another wallet's balances after selection changes.
+After a snapshot, `null` makes it unavailable. `aggregate`
+metadata (`{ status: 'complete' | 'partial', availableProviders,
+unavailableProviders, pendingProviders? }`) says whether the totals cover
+every enabled venue. A `partial` total is a
+subtotal: never present it as the user's complete portfolio value. A failed
+read is never shown as a zero balance; a confirmed zero or nonexistent venue
+account is an `available` entry with zero balances. When no venue has usable
+data the read throws (REST) or the stream emits `null`. The account callback's
+optional second argument carries this completeness metadata even when the
+state is `null`, so pending and unavailable venues remain distinguishable.
+
+The controller writes `perpsBalances[providerId]` from live account updates —
+one entry per available venue with `totalBalance`, `unrealizedPnl` and
+`lastUpdated`. Live updates leave `accountValue1dAgo` unset. A venue whose
+data becomes unavailable has its entry removed rather than left looking live.
+A pending venue keeps its stored entry for the same wallet until it reports a
+snapshot, including when the first stream update is `null`. A `null` total
+clears `accountState` and removes explicitly unavailable venues' entries.
+A wallet change, deselection, or network toggle clears all balance entries. A
+stream for an explicit `accountId` other than the selected account only
+reaches its own callback: it neither writes nor clears `accountState` or
+balance entries.
+Combined `spendableBalance` and `withdrawableBalance` span venues: neither is
+a limit any single venue will enforce on a new order or a withdrawal.
+
+Market streams (`subscribeToCandles`, `subscribeToOICaps`,
+`subscribeToOrderBook`) take an optional `providerId`. An explicit route
+reaches that venue — required when both venues list the same symbol — and
+stays pinned when the routing default changes. Omitting it keeps the
+default-routed behavior. `getDepositRoutes` and `getWithdrawalRoutes` return
+every active venue's routes, each tagged with a `providerId`; identical
+asset/chain routes from different venues are distinct entries.
+`depositWithConfirmation` funds the route for its `providerId`, or the
+routing default when that is omitted, and fails closed when that venue has
+no route. The chosen route's venue is captured on the deposit or withdrawal
+record it initiates.
+
 ## Rewards discounts and fee previews
 
 The client-owned RewardsController exposes two independent fee candidates.

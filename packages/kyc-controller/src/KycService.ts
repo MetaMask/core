@@ -397,6 +397,11 @@ export type CreateDeletionParams = {
    * `ukyc_capability_token`, so the deletion server can open that box.
    */
   sessionClientPublicKey: string;
+  /**
+   * AAL2 authentication token sent as the `Authorization` bearer value.
+   * `POST /deletions` rejects a canonical JWT whose `ext.aal` is below 2.
+   */
+  aal2Token: string;
 };
 
 export type CompleteDeletionParams = {
@@ -407,6 +412,12 @@ export type CompleteDeletionParams = {
   deletionId: string;
   /** `delete`-scoped uKYC capability token, sealed with `wrapEncryptionKey`. */
   wrappedUkycCapabilityToken: CapabilityAuthorization;
+  /**
+   * AAL2 authentication token sent as the `Authorization` bearer value.
+   * `DELETE /deletions/{deletionId}` rejects a canonical JWT whose `ext.aal`
+   * is below 2.
+   */
+  aal2Token: string;
 };
 
 export type GetSessionStatusParams = {
@@ -948,21 +959,36 @@ export class KycService extends BaseDataService<
    * a `delete`-scoped capability token and submit it via
    * {@link KycService.completeDeletion}.
    *
+   * Authenticated with `params.aal2Token` as the `Authorization` bearer
+   * value. The KYC API requires `ext.aal` of at least 2.
+   *
    * @param params - The deletion parameters.
    * @param params.sessionClientPublicKey - Per-request X25519 public key
    * (unpadded base64url).
+   * @param params.aal2Token - AAL2 authentication token used as the
+   * Authorization bearer value.
    * @returns The deletion id and the capability-token encryption schema.
    */
   async createDeletion(
     params: CreateDeletionParams,
   ): Promise<CreateDeletionResponse> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycService.createDeletion: aal2Token is required to authenticate deletion preparation.',
+      );
+    }
+
     const url = new URL('/deletions', this.#baseUrl);
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        sessionClientPublicKey: params.sessionClientPublicKey,
-      }),
-    });
+    const data = await this.#requestJson(
+      url,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionClientPublicKey: params.sessionClientPublicKey,
+        }),
+      },
+      { bearerToken: params.aal2Token },
+    );
     return this.#validateResponse(
       data,
       CreateDeletionResponseStruct,
@@ -975,21 +1001,36 @@ export class KycService extends BaseDataService<
    * forwarding the wrapped `delete`-scoped uKYC capability token. Relay
    * redacts the encrypted blobs for the user named by that token.
    *
+   * Authenticated with `params.aal2Token` as the `Authorization` bearer
+   * value. The KYC API requires `ext.aal` of at least 2.
+   *
    * @param params - The wrapped deletion.
    * @param params.deletionId - Deletion id from {@link KycService.createDeletion}.
    * @param params.wrappedUkycCapabilityToken - Sealed `delete`-scoped token.
+   * @param params.aal2Token - AAL2 authentication token used as the
+   * Authorization bearer value.
    */
   async completeDeletion(params: CompleteDeletionParams): Promise<void> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycService.completeDeletion: aal2Token is required to authenticate deletion.',
+      );
+    }
+
     const url = new URL(
       `/deletions/${encodeURIComponent(params.deletionId)}`,
       this.#baseUrl,
     );
-    await this.#requestJson(url, {
-      method: 'DELETE',
-      body: JSON.stringify({
-        wrappedUkycCapabilityToken: params.wrappedUkycCapabilityToken,
-      }),
-    });
+    await this.#requestJson(
+      url,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({
+          wrappedUkycCapabilityToken: params.wrappedUkycCapabilityToken,
+        }),
+      },
+      { bearerToken: params.aal2Token },
+    );
   }
 
   /**

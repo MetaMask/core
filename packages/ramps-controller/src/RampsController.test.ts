@@ -203,6 +203,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -284,6 +285,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -2660,6 +2662,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -2707,6 +2710,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaCustomerAbilities": null,
           }
         `);
@@ -2798,6 +2802,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "userSelectedProviderId": null,
             "vbaAutorampListFetchedAt": null,
             "vbaCustomerAbilities": null,
           }
@@ -5935,6 +5940,429 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected).toStrictEqual(compatible);
         },
       );
+    });
+  });
+
+  describe('selectProviderForAsset', () => {
+    const ETH = 'eip155:1/slip44:60';
+    const PEPE = 'eip155:1/erc20:0x6982508145454ce325ddbe47a25d4ec3d2311933';
+
+    const makeProvider = (id: string, assetIds: string[]): Provider =>
+      createMockProvider({
+        id,
+        name: id,
+        supportedCryptoCurrencies: Object.fromEntries(
+          assetIds.map((assetId) => [assetId, true]),
+        ),
+      });
+
+    // API ranking order: transak-native first, as in US regions.
+    const transakNative = makeProvider('transak-native', [ETH]);
+    const crossmint = makeProvider('crossmint', [PEPE]);
+    const paypal = makeProvider('paypal', [ETH, PEPE]);
+    const robinhood = makeProvider('robinhood', [ETH]);
+    const moonpay = makeProvider('moonpay', [ETH, PEPE]);
+    const providers = [transakNative, crossmint, paypal, robinhood, moonpay];
+
+    const completedBuy = (
+      providerId: string,
+      createdAt: number | string,
+      overrides: Partial<RampsOrder> = {},
+    ): RampsOrder =>
+      createMockOrder({
+        id: `/providers/${providerId}/orders/${String(createdAt)}`,
+        provider: createMockProvider({ id: providerId }),
+        createdAt: createdAt as number,
+        status: RampsOrderStatus.Completed,
+        orderType: 'BUY',
+        ...overrides,
+      });
+
+    const withProviders = <ReturnValue>(
+      state: Partial<RampsControllerState>,
+      callback: WithControllerCallback<ReturnValue>,
+    ): Promise<ReturnValue> =>
+      withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-az'),
+              providers: createResourceState(providers, null),
+              ...state,
+            },
+          },
+        },
+        callback,
+      );
+
+    it('picks the API ranking when there is no history', async () => {
+      await withProviders({}, ({ controller }) => {
+        expect(controller.selectProviderForAsset(ETH)).toBe('transak-native');
+        expect(controller.state.providers.selected).toStrictEqual(
+          transakNative,
+        );
+        expect(controller.state.providerAutoSelected).toBe(true);
+      });
+    });
+
+    it('picks the provider of the most recent completed buy', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
+
+    it('counts completed buys from every account', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('moonpay', Date.parse('2026-10-10'), {
+              walletAddress: '0x2222222222222222222222222222222222222222',
+            }),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+        },
+      );
+    });
+
+    it('matches prefixed provider ids and text dates from older orders', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('/providers/paypal', '2026-06-15T10:00:00.000Z'),
+            completedBuy('moonpay', Date.parse('2026-10-10')),
+            completedBuy('/providers/robinhood', '2026-08-01T10:00:00.000Z'),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+        },
+      );
+    });
+
+    it('picks a prefixed provider id with a text date when it is the only history', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('/providers/moonpay', '2026-08-01T10:00:00.000Z'),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+        },
+      );
+    });
+
+    it('walks history until a provider offers the asset', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('moonpay', Date.parse('2026-09-01')),
+            completedBuy('robinhood', Date.parse('2026-10-10')),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(PEPE)).toBe('moonpay');
+          expect(controller.selectProviderForAsset(ETH)).toBe('robinhood');
+        },
+      );
+    });
+
+    it('ignores sell orders and orders that are not completed', async () => {
+      await withProviders(
+        {
+          orders: [
+            completedBuy('moonpay', Date.parse('2026-09-01'), {
+              orderType: 'SELL',
+            }),
+            completedBuy('paypal', Date.parse('2026-10-01'), {
+              status: RampsOrderStatus.Failed,
+            }),
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('transak-native');
+        },
+      );
+    });
+
+    it('merges extraHistory with controller orders by date', async () => {
+      await withProviders(
+        { orders: [completedBuy('paypal', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              extraHistory: [
+                {
+                  providerId: '/providers/moonpay',
+                  completedAt: Date.parse('2025-12-01'),
+                },
+              ],
+            }),
+          ).toBe('paypal');
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              extraHistory: [
+                {
+                  providerId: '/providers/moonpay',
+                  completedAt: '2026-11-01T00:00:00.000Z',
+                },
+              ],
+            }),
+          ).toBe('moonpay');
+        },
+      );
+    });
+
+    it('puts aheadOfHistory ahead of history when the provider offers the asset', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(PEPE, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('crossmint');
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('moonpay');
+          expect(
+            controller.selectProviderForAsset(PEPE, { aheadOfHistory: [] }),
+          ).toBe('moonpay');
+        },
+      );
+    });
+
+    it('leaves out excludeProviderIds', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(ETH, {
+              excludeProviderIds: ['/providers/moonpay'],
+            }),
+          ).toBe('transak-native');
+        },
+      );
+    });
+
+    it('returns null and keeps the selection when no provider offers the asset', async () => {
+      await withProviders(
+        { providers: createResourceState(providers, robinhood) },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset('eip155:1/erc20:0xdead'),
+          ).toBeNull();
+          expect(controller.state.providers.selected).toStrictEqual(robinhood);
+        },
+      );
+    });
+
+    it('picks from every provider for a null asset and ignores aheadOfHistory', async () => {
+      await withProviders(
+        { orders: [completedBuy('robinhood', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          expect(
+            controller.selectProviderForAsset(null, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('robinhood');
+        },
+      );
+      await withProviders({}, ({ controller }) => {
+        expect(
+          controller.selectProviderForAsset(null, {
+            aheadOfHistory: ['crossmint'],
+          }),
+        ).toBe('transak-native');
+      });
+    });
+
+    it('replaces a stale copy of the selected provider with the listed one', async () => {
+      const staleMoonpay = { ...moonpay, supportedCryptoCurrencies: {} };
+      await withProviders(
+        {
+          providers: createResourceState(providers, staleMoonpay),
+          orders: [completedBuy('moonpay', Date.parse('2026-10-10'))],
+        },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBe('moonpay');
+          expect(controller.state.providers.selected).toStrictEqual(moonpay);
+        },
+      );
+    });
+
+    it('returns null when providers are not loaded', async () => {
+      await withProviders(
+        { providers: createResourceState([], null) },
+        ({ controller }) => {
+          expect(controller.selectProviderForAsset(ETH)).toBeNull();
+          expect(controller.state.providers.selected).toBeNull();
+        },
+      );
+    });
+
+    it('keeps the user pick ahead of aheadOfHistory and history', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          controller.setSelectedProvider('paypal', { userSelected: true });
+
+          expect(
+            controller.selectProviderForAsset(PEPE, {
+              aheadOfHistory: ['crossmint'],
+            }),
+          ).toBe('paypal');
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('returns to the user pick after a token it does not offer', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller }) => {
+          controller.setSelectedProvider('robinhood', { userSelected: true });
+
+          expect(controller.selectProviderForAsset(PEPE)).toBe('moonpay');
+          expect(controller.state.providerAutoSelected).toBe(true);
+          expect(controller.state.userSelectedProviderId).toBe('robinhood');
+
+          expect(controller.selectProviderForAsset(ETH)).toBe('robinhood');
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('skips the user pick when it is excluded', async () => {
+      await withProviders({}, ({ controller }) => {
+        controller.setSelectedProvider('robinhood', { userSelected: true });
+
+        expect(
+          controller.selectProviderForAsset(ETH, {
+            excludeProviderIds: ['robinhood'],
+          }),
+        ).toBe('transak-native');
+        expect(controller.state.userSelectedProviderId).toBe('robinhood');
+      });
+    });
+
+    it('does not publish a state change when the pick is unchanged', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ controller, rootMessenger }) => {
+          controller.selectProviderForAsset(ETH);
+          const listener = vi.fn();
+          rootMessenger.subscribe('RampsController:stateChange', listener);
+
+          controller.selectProviderForAsset(ETH);
+
+          expect(listener).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('is exposed through the messenger', async () => {
+      await withProviders(
+        { orders: [completedBuy('moonpay', Date.parse('2026-10-10'))] },
+        ({ rootMessenger }) => {
+          expect(
+            rootMessenger.call('RampsController:selectProviderForAsset', ETH),
+          ).toBe('moonpay');
+        },
+      );
+    });
+  });
+
+  describe('userSelectedProviderId', () => {
+    const ETH = 'eip155:1/slip44:60';
+    const moonpay = createMockProvider({
+      id: 'moonpay',
+      supportedCryptoCurrencies: { [ETH]: true },
+    });
+    const paypal = createMockProvider({
+      id: 'paypal',
+      supportedCryptoCurrencies: { [ETH]: true },
+    });
+
+    const withProviders = <ReturnValue>(
+      callback: WithControllerCallback<ReturnValue>,
+    ): Promise<ReturnValue> =>
+      withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([moonpay, paypal], null),
+            },
+          },
+        },
+        callback,
+      );
+
+    it('is set only when the selection is marked as the user pick', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('moonpay');
+        controller.setSelectedProvider(paypal, { autoSelected: true });
+        expect(controller.state.userSelectedProviderId).toBeNull();
+
+        controller.setSelectedProvider(paypal, { userSelected: true });
+        expect(controller.state.userSelectedProviderId).toBe('paypal');
+
+        controller.setSelectedProvider('moonpay');
+        expect(controller.state.userSelectedProviderId).toBe('paypal');
+      });
+    });
+
+    it('ignores an unknown provider id', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('unknown', { userSelected: true });
+
+        expect(controller.state.userSelectedProviderId).toBeNull();
+        expect(controller.state.providers.selected).toBeNull();
+      });
+    });
+
+    it('is cleared when the selection is cleared', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('paypal', { userSelected: true });
+
+        controller.setSelectedProvider(null);
+
+        expect(controller.state.userSelectedProviderId).toBeNull();
+      });
+    });
+
+    it('is cleared when the region changes', async () => {
+      await withProviders(async ({ controller }) => {
+        controller.setSelectedProvider('paypal', { userSelected: true });
+
+        await controller.setUserRegion('fr');
+
+        expect(controller.state.userSelectedProviderId).toBeNull();
+      });
+    });
+
+    it('is not persisted', async () => {
+      await withProviders(({ controller }) => {
+        controller.setSelectedProvider('paypal', { userSelected: true });
+
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).not.toHaveProperty('userSelectedProviderId');
+      });
     });
   });
 
@@ -9329,6 +9757,50 @@ describe('RampsController', () => {
             });
 
             expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('matches a prefixed order provider id with a text date to a canonical provider', async () => {
+        const canonicalMoonpay = { ...moonpay, id: 'moonpay' };
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [transak, canonicalMoonpay],
+                  null,
+                ),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: '2026-08-01T10:00:00.000Z' as unknown as number,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['moonpay']);
           },
         );
       });
@@ -12998,6 +13470,90 @@ describe('RampsController', () => {
       });
     });
 
+    it('persists a polled status when the fetched order id carries a different code than the stored order', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        const storedOrder = createMockOrder({
+          id: '/providers/transak/orders/stored-1',
+          providerOrderId: 'stored-1',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', storedOrder);
+
+        const fetchedOrder = {
+          ...storedOrder,
+          id: '/providers/transak/orders/alias-1',
+          providerOrderId: 'native-1',
+          status: RampsOrderStatus.Completed,
+        };
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => fetchedOrder,
+        );
+
+        const statusChangedListener = vi.fn();
+        messenger.subscribe(
+          'RampsController:orderStatusChanged',
+          statusChangedListener,
+        );
+
+        rootMessenger.call('RampsController:startOrderPolling');
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]).toMatchObject({
+          id: '/providers/transak/orders/stored-1',
+          providerOrderId: 'stored-1',
+          status: RampsOrderStatus.Completed,
+        });
+        expect(statusChangedListener).toHaveBeenCalledTimes(1);
+
+        rootMessenger.call('RampsController:stopOrderPolling');
+      });
+    });
+
+    it('does not publish orderStatusChanged when the polled order was removed mid-request', async () => {
+      await withController(async ({ rootMessenger, messenger }) => {
+        const storedOrder = createMockOrder({
+          id: '/providers/transak/orders/removed-1',
+          providerOrderId: 'removed-1',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', storedOrder);
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => {
+            rootMessenger.call('RampsController:removeOrder', 'removed-1');
+            return { ...storedOrder, status: RampsOrderStatus.Completed };
+          },
+        );
+
+        const statusChangedListener = vi.fn();
+        messenger.subscribe(
+          'RampsController:orderStatusChanged',
+          statusChangedListener,
+        );
+
+        rootMessenger.call('RampsController:startOrderPolling');
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(statusChangedListener).not.toHaveBeenCalled();
+
+        rootMessenger.call('RampsController:stopOrderPolling');
+      });
+    });
+
     it('removes polling metadata when order reaches terminal status', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const pendingOrder = createMockOrder({
@@ -13232,6 +13788,48 @@ describe('RampsController', () => {
 
         rootMessenger.call('RampsController:stopOrderPolling');
       });
+    });
+
+    it('does not extend polling backoff while network access is denied', async () => {
+      let allowed = true;
+
+      await withController(
+        { options: { isNetworkAccessAllowed: () => allowed } },
+        async ({ rootMessenger }) => {
+          const order = createMockOrder({
+            providerOrderId: 'denied-poll-1',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: '/providers/transak',
+              name: 'Transak',
+            }),
+            walletAddress: '0xabc',
+          });
+          rootMessenger.call('RampsController:addOrder', order);
+
+          const handler = vi.fn(async () => ({
+            ...order,
+            status: RampsOrderStatus.Completed,
+          }));
+          rootMessenger.registerActionHandler('RampsService:getOrder', handler);
+
+          allowed = false;
+          rootMessenger.call('RampsController:startOrderPolling');
+          await vi.advanceTimersByTimeAsync(0);
+          // Three denied polls then a skipped tick: the normal error path
+          // would be at a 120 second backoff by now.
+          await vi.advanceTimersByTimeAsync(90_000);
+
+          expect(handler).not.toHaveBeenCalled();
+
+          allowed = true;
+          await vi.advanceTimersByTimeAsync(30_000);
+
+          expect(handler).toHaveBeenCalledTimes(1);
+
+          rootMessenger.call('RampsController:stopOrderPolling');
+        },
+      );
     });
 
     it('respects pollingSecondsMinimum on orders', async () => {
@@ -15027,6 +15625,556 @@ describe('RampsController', () => {
           );
         });
       });
+    });
+  });
+
+  describe('network access gate', () => {
+    type GatedCase = {
+      name: string;
+      invoke: (payload: {
+        controller: RampsController;
+        rootMessenger: RootMessenger;
+      }) => unknown;
+    };
+
+    const gatedCases: GatedCase[] = [
+      {
+        name: 'executeRequest',
+        invoke: ({ controller }) =>
+          controller.executeRequest('direct-key', async () => 'data'),
+      },
+      {
+        name: 'init',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:init'),
+      },
+      {
+        name: 'getCountries',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getCountries'),
+      },
+      {
+        name: 'getTokens',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getTokens'),
+      },
+      {
+        name: 'getProviders',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getProviders'),
+      },
+      {
+        name: 'getPaymentMethods',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getPaymentMethods'),
+      },
+      {
+        name: 'getPaymentMethodsForContext',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getPaymentMethodsForContext', {
+            assetId: 'eip155:1/slip44:60',
+          }),
+      },
+      {
+        name: 'getQuotes',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getQuotes', {
+            amount: 1,
+            walletAddress: '0xabc',
+          }),
+      },
+      {
+        name: 'getQuoteWithFees',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getQuoteWithFees', {
+            amount: 1,
+            assetId: 'eip155:1/slip44:60',
+            walletAddress: '0xabc',
+          }),
+      },
+      {
+        name: 'syncOrdersWithUserStorage',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:syncOrdersWithUserStorage'),
+      },
+      {
+        name: 'createAutoramp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:createAutoramp',
+            buildBrazilMusdAutorampRequest('0xabc'),
+          ),
+      },
+      {
+        name: 'resolveAutorampCustomerId',
+        invoke: ({ controller }) => controller.resolveAutorampCustomerId(),
+      },
+      {
+        name: 'registerMoneyAccountWallet',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:registerMoneyAccountWallet', {
+            address: '0xabc',
+          }),
+      },
+      {
+        name: 'hydrateVbaOnboarding',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:hydrateVbaOnboarding', {
+            walletAddress: '0xabc',
+          }),
+      },
+      {
+        name: 'refreshAutoramp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:refreshAutoramp', 'autoramp-1'),
+      },
+      {
+        name: 'refreshAutoramps',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:refreshAutoramps'),
+      },
+      {
+        name: 'refreshAutorampTransactions',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:refreshAutorampTransactions',
+            'autoramp-1',
+          ),
+      },
+      {
+        name: 'refreshCustomerAbilities',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:refreshCustomerAbilities'),
+      },
+      {
+        name: 'getBuyWidgetData',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getBuyWidgetData', {
+            quote: {},
+          } as Quote),
+      },
+      {
+        name: 'getFallbackBuyWidgetData',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:getFallbackBuyWidgetData', {
+            url: 'https://example.com/fallback',
+            browser: 'IN_APP_OS_BROWSER' as const,
+          }),
+      },
+      {
+        name: 'getOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:getOrder',
+            'transak',
+            'abc-123',
+            '0xabc',
+          ),
+      },
+      {
+        name: 'getOrderFromCallback',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:getOrderFromCallback',
+            'transak',
+            'https://example.com/callback',
+            '0xabc',
+          ),
+      },
+      {
+        name: 'transakSendUserOtp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSendUserOtp',
+            'user@example.com',
+          ),
+      },
+      {
+        name: 'transakVerifyUserOtp',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakVerifyUserOtp',
+            'user@example.com',
+            '123456',
+            'state-token',
+          ),
+      },
+      {
+        name: 'transakGetUserDetails',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakGetUserDetails'),
+      },
+      {
+        name: 'transakGetBuyQuote',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetBuyQuote',
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+          ),
+      },
+      {
+        name: 'transakGetKycRequirement',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetKycRequirement',
+            'quote-1',
+          ),
+      },
+      {
+        name: 'transakGetAdditionalRequirements',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetAdditionalRequirements',
+            'quote-1',
+          ),
+      },
+      {
+        name: 'transakCreateOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakCreateOrder',
+            'quote-1',
+            '0xabc',
+            'credit_debit_card',
+          ),
+      },
+      {
+        name: 'transakGetOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetOrder',
+            'order-1',
+            '0xabc',
+          ),
+      },
+      {
+        name: 'transakGetUserLimits',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetUserLimits',
+            'USD',
+            'credit_debit_card',
+            'L1',
+          ),
+      },
+      {
+        name: 'transakRequestOtt',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakRequestOtt'),
+      },
+      {
+        name: 'transakCreateWidgetUrl',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakCreateWidgetUrl',
+            {} as TransakBuyQuote,
+            '0xabc',
+          ),
+      },
+      {
+        name: 'transakSubmitPurposeOfUsageForm',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSubmitPurposeOfUsageForm',
+            ['investment'],
+          ),
+      },
+      {
+        name: 'transakPatchUser',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakPatchUser', {
+            personalDetails: { firstName: 'Jane', lastName: 'Doe' },
+          }),
+      },
+      {
+        name: 'transakSubmitSsnDetails',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakSubmitSsnDetails',
+            '123-45-6789',
+            'quote-1',
+          ),
+      },
+      {
+        name: 'transakConfirmPayment',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakConfirmPayment',
+            'order-1',
+            'credit_debit_card',
+          ),
+      },
+      {
+        name: 'transakGetTranslation',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakGetTranslation', {}),
+      },
+      {
+        name: 'transakGetIdProofStatus',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call(
+            'RampsController:transakGetIdProofStatus',
+            'workflow-run-1',
+          ),
+      },
+      {
+        name: 'transakCancelOrder',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakCancelOrder', 'order-1'),
+      },
+      {
+        name: 'transakCancelAllActiveOrders',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakCancelAllActiveOrders'),
+      },
+      {
+        name: 'transakGetActiveOrders',
+        invoke: ({ rootMessenger }) =>
+          rootMessenger.call('RampsController:transakGetActiveOrders'),
+      },
+    ];
+
+    /**
+     * Methods that keep their local behavior when the gate denies network
+     * access: they apply the change and skip only the remote call.
+     */
+    const localCleanupMethodNames = [
+      'addOrder',
+      'addPrecreatedOrder',
+      'removeOrder',
+      'transakLogout',
+    ];
+
+    const gatedMethodNames = [
+      ...gatedCases.map(({ name }) => name),
+      ...localCleanupMethodNames,
+    ];
+
+    const ungatedMethodNames = [
+      'abortRequest',
+      'getRequestState',
+      'setUserRegion',
+      'setSelectedProvider',
+      'setSelectedProviderForAsset',
+      'selectProviderForAsset',
+      'setSelectedToken',
+      'setSelectedPaymentMethod',
+      'addAutoramp',
+      'removeAutoramp',
+      'markAutorampAsNotified',
+      'applyAutorampStatusFromPush',
+      'startOrderPolling',
+      'stopOrderPolling',
+      'destroy',
+      'transakSetApiKey',
+      'transakSetAccessToken',
+      'transakClearAccessToken',
+      'transakSetAuthenticated',
+      'transakResetState',
+      'transakGeneratePaymentWidgetUrl',
+      'setIsOrderSyncingInProgress',
+      'setIsApplyingOrderSyncChanges',
+      'getPendingRemoteDeletes',
+      'acknowledgePendingRemoteDeletes',
+      'clearPendingResourceCountForTest',
+    ];
+
+    for (const testCase of gatedCases) {
+      it(`rejects ${testCase.name} without a request when the check returns false`, async () => {
+        await withController(
+          { options: { isNetworkAccessAllowed: () => false } },
+          async ({ controller, messenger, rootMessenger }) => {
+            const callSpy = vi.spyOn(messenger, 'call');
+            const stateBefore = structuredClone(controller.state);
+
+            let thrown: unknown;
+            try {
+              await testCase.invoke({ controller, rootMessenger });
+            } catch (error) {
+              thrown = error;
+            }
+
+            expect(thrown).toMatchObject({
+              errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED,
+            });
+            expect(callSpy).not.toHaveBeenCalled();
+            expect(controller.state).toStrictEqual(stateBefore);
+          },
+        );
+      });
+    }
+
+    it('re-reads the check on every call', async () => {
+      let allowed = false;
+
+      await withController(
+        { options: { isNetworkAccessAllowed: () => allowed } },
+        async ({ controller, rootMessenger }) => {
+          const getCountriesHandler = vi.fn(async () => []);
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            getCountriesHandler,
+          );
+
+          await expect(
+            rootMessenger.call('RampsController:getCountries'),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED,
+          });
+          expect(getCountriesHandler).not.toHaveBeenCalled();
+          expect(controller.state.countries.data).toStrictEqual([]);
+
+          allowed = true;
+
+          const countries = await rootMessenger.call(
+            'RampsController:getCountries',
+          );
+          expect(countries).toStrictEqual([]);
+          expect(getCountriesHandler).toHaveBeenCalledTimes(1);
+          expect(controller.state.countries.data).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('does not invoke a direct executeRequest fetcher while denied', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller }) => {
+          const fetcher = vi.fn(async () => 'data');
+
+          await expect(
+            controller.executeRequest('direct-key', fetcher),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.NETWORK_ACCESS_DENIED,
+          });
+          expect(fetcher).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('addOrder keeps the local order and skips the remote write', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller, messenger, rootMessenger }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+          const order = createMockOrder();
+
+          rootMessenger.call('RampsController:addOrder', order);
+
+          expect(controller.state.orders).toHaveLength(1);
+          expect(controller.state.orders[0]).toMatchObject({
+            providerOrderId: getInternalOrderCode(order),
+            status: order.status,
+          });
+          expect(callSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('addPrecreatedOrder keeps the local stub and skips the remote write', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller, messenger, rootMessenger }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+
+          rootMessenger.call('RampsController:addPrecreatedOrder', {
+            orderId: 'abc-123',
+            providerCode: 'transak',
+            walletAddress: '0xabc',
+            chainId: 'eip155:1',
+          });
+
+          expect(controller.state.orders).toHaveLength(1);
+          expect(controller.state.orders[0]).toMatchObject({
+            providerOrderId: 'abc-123',
+            provider: expect.objectContaining({ id: 'transak' }),
+            walletAddress: '0xabc',
+            status: RampsOrderStatus.Precreated,
+          });
+          expect(callSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('removeOrder clears local state and skips the remote delete', async () => {
+      await withController(
+        {
+          options: {
+            state: { orders: [createMockOrder()] },
+            isNetworkAccessAllowed: () => false,
+          },
+        },
+        async ({ controller, messenger, rootMessenger }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+
+          rootMessenger.call('RampsController:removeOrder', 'abc-123');
+
+          expect(controller.state.orders).toStrictEqual([]);
+          expect(controller.getPendingRemoteDeletes()).toHaveLength(1);
+          expect(callSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('transakLogout clears the local session and skips the remote call', async () => {
+      await withController(
+        { options: { isNetworkAccessAllowed: () => false } },
+        async ({ controller, rootMessenger }) => {
+          const logoutHandler = vi.fn(async () => 'logged out');
+          rootMessenger.registerActionHandler(
+            'TransakService:logout',
+            logoutHandler,
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:setAccessToken',
+            vi.fn(),
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:clearAccessToken',
+            vi.fn(),
+          );
+          rootMessenger.call('RampsController:transakSetAccessToken', {
+            accessToken: 'tok',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          });
+
+          const result = await rootMessenger.call(
+            'RampsController:transakLogout',
+          );
+
+          expect(result).toBe('Transak session cleared without network access');
+          expect(logoutHandler).not.toHaveBeenCalled();
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+          expect(
+            controller.state.nativeProviders.transak.userDetails.data,
+          ).toBeNull();
+        },
+      );
+    });
+
+    it('classifies every public method as gated or ungated', () => {
+      const prototype = RampsController.prototype as unknown as Record<
+        string,
+        unknown
+      >;
+      const methodNames = Object.getOwnPropertyNames(prototype)
+        .filter(
+          (name) =>
+            typeof Object.getOwnPropertyDescriptor(prototype, name)?.value ===
+            'function',
+        )
+        .filter((name) => name !== 'constructor');
+
+      const classified = [...gatedMethodNames, ...ungatedMethodNames];
+      expect(new Set(classified).size).toBe(classified.length);
+      expect([...methodNames].sort()).toStrictEqual(classified.sort());
     });
   });
 });

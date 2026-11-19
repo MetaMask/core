@@ -17,7 +17,8 @@ export type AuthenticationControllerPerformSignInAction = {
  * stores nothing: SRP sessions remain the source of truth for
  * `getBearerToken`.
  *
- * Throws when the wallet has no social vault or no social token, and
+ * Throws when the wallet has no social login (no known `authConnection`,
+ * whether or not the vault is written yet) or no social token, and
  * `SocialIdentifierNotPairedError` when the identifier was never paired to
  * a profile.
  *
@@ -130,6 +131,56 @@ export type AuthenticationControllerBeginCredentialVerificationAction = {
 export type AuthenticationControllerCompleteCredentialVerificationAction = {
   type: `AuthenticationController:completeCredentialVerification`;
   handler: AuthenticationController['completeCredentialVerification'];
+};
+
+/**
+ * Refreshes the credentials enrolled on the profile a social login is
+ * paired to, while the wallet is locked, for the recovery of a social login
+ * wallet.
+ *
+ * Takes its access token from the social login (see
+ * `exchangeSocialAccessToken`), so no keyring or signing is involved. Throws
+ * when the wallet is unlocked: unlocked features use
+ * `refreshEnrolledCredentials`. Nothing is cached.
+ *
+ * @returns The current supported credentials.
+ */
+export type AuthenticationControllerRefreshSocialLoginCredentialsAction = {
+  type: `AuthenticationController:refreshSocialLoginCredentials`;
+  handler: AuthenticationController['refreshSocialLoginCredentials'];
+};
+
+/**
+ * Begins verification with an enrolled credential, while the wallet is
+ * locked, for the recovery of a social login wallet.
+ *
+ * Takes its access token from the social login, like
+ * `refreshSocialLoginCredentials`. Throws when the wallet is unlocked:
+ * unlocked features use `beginCredentialVerification`.
+ *
+ * @param request - Credential type and trace reason.
+ * @returns A challenge for the client-owned ceremony.
+ */
+export type AuthenticationControllerBeginSocialLoginVerificationAction = {
+  type: `AuthenticationController:beginSocialLoginVerification`;
+  handler: AuthenticationController['beginSocialLoginVerification'];
+};
+
+/**
+ * Completes verification while the wallet is locked and returns the
+ * verification token, for the recovery of a social login wallet.
+ *
+ * Unlike `completeCredentialVerification`, no verification session is
+ * opened: the token goes to the caller alone, so nothing proven here is
+ * readable once the wallet unlocks. Takes its access token from the social
+ * login. Throws when the wallet is unlocked.
+ *
+ * @param request - Flow identifier, platform or email proof, and trace reason.
+ * @returns The verification token.
+ */
+export type AuthenticationControllerCompleteSocialLoginVerificationAction = {
+  type: `AuthenticationController:completeSocialLoginVerification`;
+  handler: AuthenticationController['completeSocialLoginVerification'];
 };
 
 /**
@@ -307,6 +358,9 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerCompleteCredentialEnrollmentAction
   | AuthenticationControllerBeginCredentialVerificationAction
   | AuthenticationControllerCompleteCredentialVerificationAction
+  | AuthenticationControllerRefreshSocialLoginCredentialsAction
+  | AuthenticationControllerBeginSocialLoginVerificationAction
+  | AuthenticationControllerCompleteSocialLoginVerificationAction
   | AuthenticationControllerGetVerificationTokenAction
   | AuthenticationControllerRequestMfaApprovalAction
   | AuthenticationControllerClearVerificationSessionAction

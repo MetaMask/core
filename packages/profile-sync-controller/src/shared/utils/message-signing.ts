@@ -100,7 +100,7 @@ export async function deriveSip6PrivateKey({
 
   const { privateKey } = await SLIP10Node.fromSeed({
     derivationPath: [
-      seed,
+      seed as Uint8Array<ArrayBuffer>,
       `bip32:${SIP_6_MAGIC_VALUE}`,
       ...computedDerivationPath,
     ],
