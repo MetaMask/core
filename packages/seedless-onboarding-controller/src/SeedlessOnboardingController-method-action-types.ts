@@ -359,21 +359,24 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * first `pbek` is written by the first password change.
  *
  * The writes happen in this order: `rbek` under a fresh Recovery Secret
- * OPRF key, then the control record (written once, under the vault's
- * metadata lock, only if the vault has none), then the Recovery Secret
- * OPRF key is registered on the recovery verifier. That registration is
- * the commit: the migration is complete once the recovery verifier holds a
- * key, so every call checks it first and needs a valid aal2 session, even
- * on an already envelope-managed vault. A failed attempt leaves an `rbek`
- * whose OPRF key was never registered, so it can never be opened; a retry
- * writes a new `rbek` under another fresh OPRF key, keeping the control
- * record already written.
+ * OPRF key, then the Recovery Secret OPRF key is registered on the
+ * recovery verifier, then the control record is written under the vault's
+ * metadata lock. The control record is the commit: a vault with one is
+ * envelope-managed on every device, and its `rbek` opens with the
+ * registered key. Every call checks the recovery verifier first, so it
+ * needs a valid aal2 session, even on an already envelope-managed vault.
  *
- * The vault must be unlocked and in sync with the global password: without
- * control records, the vault keys must derive from the global password;
- * with them, one must match the global password, e.g. after a password
- * change on a partially migrated vault. Register the Recovery Secret at the
- * escrows first, then call {@link authenticateForRecovery}.
+ * A failed attempt leaves either an `rbek` whose OPRF key was never
+ * registered, which can never be opened, or a registered key without a
+ * control record. A retry writes a new `rbek` under another fresh OPRF key
+ * in the first case. In the second, it derives the `rbek` keys of the
+ * registered key from the Recovery Secret, seals `K_v` again if the newest
+ * `rbek` does not hold it, e.g. after a legacy password change rotated it,
+ * and writes the control record.
+ *
+ * The vault must be unlocked and its keys must derive from the global
+ * password. Register the Recovery Secret at the escrows first, then call
+ * {@link authenticateForRecovery}.
  *
  * @param params - The function parameters.
  * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
@@ -381,10 +384,11 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * @throws `OutdatedPassword` if the vault is not in sync with the global
  * password, `EnvelopeControlRecordNotFound` if no control record matching
  * the global password reads back, `EnvelopeMigrationInconsistent` if the
- * recovery verifier holds a key but the vault has no control record,
- * `InvalidEnvelope` if `rbek` does not read back, `Aal2Required` without a
- * valid aal2 session, or `EnvelopeMigrationRequiresDataTypes` before the
- * data type migration.
+ * vault has a control record but the recovery verifier holds no key,
+ * `RecoveryKeyShareConflict` if the recovery verifier holds the key of
+ * another Recovery Secret, `InvalidEnvelope` if `rbek` does not read back,
+ * `Aal2Required` without a valid aal2 session, or
+ * `EnvelopeMigrationRequiresDataTypes` before the data type migration.
  */
 export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
   type: `SeedlessOnboardingController:migrateToEnvelope`;
@@ -411,8 +415,10 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
  * @returns The secret data of the vault, also when no control record
  * matches the live password OPRF key.
  * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
- * Recovery Secret, `RecoveryKeyShareConflict` if the nodes hold the key of
- * another Recovery Secret, or `Aal2Required` without a valid aal2 session.
+ * Recovery Secret or the vault they open has no control record, as its
+ * migration is not committed, `RecoveryKeyShareConflict` if the nodes hold
+ * the key of another Recovery Secret, or `Aal2Required` without a valid
+ * aal2 session.
  */
 export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
   type: `SeedlessOnboardingController:recoverWithRecoverySecret`;
