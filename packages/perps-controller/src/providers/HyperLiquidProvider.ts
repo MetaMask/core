@@ -76,6 +76,7 @@ import type {
   OrderProcessingStatus,
   SDKOrderParams,
   MetaResponse,
+  HyperLiquidAbstractionMode,
   PerpsAssetCtx,
   SpotMetaResponse,
 } from '../types/hyperliquid-types.js';
@@ -14992,6 +14993,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
+    return this.#readAccountState(params);
+  }
+
+  async #readAccountState(
+    params?: GetAccountStateParams,
+    expectedMode?: HyperLiquidAbstractionMode,
+  ): Promise<AccountState> {
     try {
       // Path 0: Standalone mode for lightweight account state queries
       // Creates a standalone InfoClient without requiring full initialization
@@ -15128,6 +15136,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         abstractionResult.status === 'fulfilled'
           ? abstractionResult.value
           : null;
+      if (expectedMode !== undefined && abstractionMode !== expectedMode) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
       if (abstractionResult.status === 'rejected') {
         this.#deps.debugLogger.log(
           'User abstraction fetch failed; spot fold disabled until the mode resolves',
@@ -17569,7 +17580,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     let spotCollateral: string | undefined;
     if (mode === HL_UNIFIED_ACCOUNT_MODE) {
       const [account, positions] = await Promise.all([
-        this.getAccountState({ accountId, throwOnUnavailable: true }),
+        this.#readAccountState({ accountId, throwOnUnavailable: true }, mode),
         this.getPositions({
           accountId,
           throwOnUnavailable: true,
@@ -17600,8 +17611,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       return null;
     }
 
+    // Account setup can migrate the same wallet while the exchange reads are
+    // in flight. A snapshot from a different collateral mode cannot price it.
+    const [currentMode, currentAccount] = await Promise.all([
+      infoClient.userAbstraction({ user: userAddress }),
+      this.getCurrentAccountId(),
+    ]);
     if (
-      (await this.getCurrentAccountId()) !== accountId ||
+      currentMode !== mode ||
+      currentAccount !== accountId ||
       generation !== this.#lifecycleGeneration
     ) {
       return null;

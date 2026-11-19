@@ -946,20 +946,27 @@ describe('HyperLiquidProvider', () => {
     it('estimates a cross opening from scoped account equity and free spot', async () => {
       const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
       vi.spyOn(provider, 'getCurrentAccountId').mockResolvedValue(accountId);
-      const account = vi.spyOn(provider, 'getAccountState').mockResolvedValue({
-        totalBalance: '500',
-        spendableBalance: '400',
-        withdrawableBalance: '400',
-        marginUsed: '100',
-        unrealizedPnl: '0',
-        returnOnEquity: '0',
-        spotCollateral: '100',
-        crossMarginSummary: {
-          accountValue: '400',
-          maintenanceMargin: '50',
-          marginUsed: '100',
-          notional: '2000',
-        },
+      const info = mockClientService.getInfoClient();
+      const user = '0x1234567890123456789012345678901234567890';
+      const state = await info.clearinghouseState({ user });
+      vi.mocked(info.clearinghouseState)
+        .mockClear()
+        .mockResolvedValue({
+          ...state,
+          assetPositions: [],
+          crossMaintenanceMarginUsed: '50',
+          crossMarginSummary: {
+            ...state.crossMarginSummary,
+            accountValue: '400',
+            totalMarginUsed: '100',
+            totalNtlPos: '2000',
+          },
+        });
+      vi.mocked(info.spotClearinghouseState).mockResolvedValue({
+        balances: [
+          { coin: 'USDC', token: 0, total: '100', hold: '0', entryNtl: '0' },
+        ],
+        tokenToAvailableAfterMaintenance: [[0, '100']],
       });
       const positions = vi
         .spyOn(provider, 'getPositions')
@@ -976,9 +983,9 @@ describe('HyperLiquidProvider', () => {
 
       // With the new position, maintenance is 50 + (50000 * 0.1 / 40).
       expect(Number(price)).toBeCloseTo(46666.66667, 4);
-      expect(account).toHaveBeenCalledWith({
-        accountId,
-        throwOnUnavailable: true,
+      expect(info.clearinghouseState).toHaveBeenCalledExactlyOnceWith({ user });
+      expect(info.spotClearinghouseState).toHaveBeenCalledExactlyOnceWith({
+        user,
       });
       expect(positions).toHaveBeenCalledWith({
         accountId,
@@ -986,7 +993,6 @@ describe('HyperLiquidProvider', () => {
         throwOnUnavailable: true,
         includeProtection: false,
       });
-      account.mockRestore();
       positions.mockRestore();
       vi.mocked(provider.getCurrentAccountId).mockRestore();
     });
@@ -1038,6 +1044,43 @@ describe('HyperLiquidProvider', () => {
       expect(aggregate).not.toHaveBeenCalled();
       aggregate.mockRestore();
     });
+
+    it.each([
+      ['disabled', 'unifiedAccount'],
+      ['unifiedAccount', 'disabled'],
+    ] as const)(
+      'rejects cross liquidation when the mode changes from %s to %s during the read',
+      async (initialMode, settledMode) => {
+        const info = mockClientService.getInfoClient();
+        const state = await info.clearinghouseState({
+          user: '0x1234567890123456789012345678901234567890',
+        });
+        vi.mocked(info.clearinghouseState).mockResolvedValue({
+          ...state,
+          assetPositions: [],
+          crossMaintenanceMarginUsed: '50',
+          crossMarginSummary: {
+            ...state.crossMarginSummary,
+            accountValue: '400',
+            totalNtlPos: '0',
+          },
+        });
+        vi.mocked(info.userAbstraction)
+          .mockResolvedValueOnce(initialMode)
+          .mockResolvedValue(settledMode);
+
+        await expect(
+          provider.calculateLiquidationPrice({
+            asset: 'BTC',
+            entryPrice: 50000,
+            leverage: 10,
+            direction: 'short',
+            marginType: 'cross',
+            positionSize: 0.1,
+          }),
+        ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+      },
+    );
 
     it('refuses a cross estimate for a disabled HIP-3 market', async () => {
       const info = mockClientService.getInfoClient();
