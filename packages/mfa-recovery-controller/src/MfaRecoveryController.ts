@@ -5,7 +5,12 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
+import {
+  bytesToHex,
+  hexToBytes,
+  isHexAddress,
+  isValidJson,
+} from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
@@ -21,6 +26,7 @@ import {
   IncompleteMutationError,
   MfaRecoveryError,
   MutationRejectedError,
+  isMfaRecoveryError,
   mutationSupersededError,
 } from './errors.js';
 import {
@@ -319,10 +325,7 @@ export class MfaRecoveryController extends BaseController<
         await this.#lockProvider.release(lockId);
       } catch (error) {
         // A conflict means another ID holds the lease, so it is not ours.
-        if (
-          !(error instanceof MfaRecoveryError) ||
-          error.code !== 'recovery_lock_conflict'
-        ) {
+        if (!isMfaRecoveryError(error, 'recovery_lock_conflict')) {
           throw error;
         }
       }
@@ -1123,6 +1126,15 @@ export class MfaRecoveryController extends BaseController<
     for (const identifier of identifiers) {
       getIdentifierAuthMode(identifier.type);
       if (
+        identifier.verifier !== undefined &&
+        !isValidJson(identifier.verifier)
+      ) {
+        throw new MfaRecoveryError(
+          'Identifier verifier must be JSON',
+          'invalid_identifier',
+        );
+      }
+      if (
         identifier.type === 'siwe' &&
         (!isHexAddress(identifier.value.toLowerCase()) ||
           identifier.namespace !== getSiweNamespace(identifier))
@@ -1215,10 +1227,7 @@ export class MfaRecoveryController extends BaseController<
     } catch (error) {
       // A conflict means another ID holds the lease. Other failures may have
       // acquired it, so keep the ID for a retry.
-      if (
-        error instanceof MfaRecoveryError &&
-        error.code === 'recovery_lock_conflict'
-      ) {
+      if (isMfaRecoveryError(error, 'recovery_lock_conflict')) {
         this.update((state) => {
           state.lockId = null;
         });
