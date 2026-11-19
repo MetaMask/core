@@ -174,7 +174,7 @@
       "path": "./packages/logging-controller"
     },
     {
-      "path": "./packages/marketing-consent-controller"
+      "path": "./packages/marketing-consent-sync-service"
     },
     {
       "path": "./packages/message-manager"

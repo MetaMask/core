@@ -3,6 +3,7 @@ import { hasProperty, Hex, isHexString } from '@metamask/utils';
 import {
   BASIS_POINTS_DIVISOR,
   HIP3_ASSET_ID_CONFIG,
+  isUnrestrictedMarginMode,
 } from '../constants/hyperLiquidConfig.js';
 import {
   DECIMAL_PRECISION_CONFIG,
@@ -486,13 +487,18 @@ export function adaptPositionTriggerOrderFromSDK(params: {
 export function adaptMarketFromSDK(
   sdkMarket: MetaResponse['universe'][number],
 ): MarketInfo {
+  // The venue also sends `normal` (no restriction), which the SDK type omits.
+  // `MarketInfo.marginMode` carries restrictions only, so drop it.
+  const venueMarginMode: string | undefined = sdkMarket.marginMode;
   return {
     name: sdkMarket.name,
     szDecimals: sdkMarket.szDecimals,
     maxLeverage: sdkMarket.maxLeverage,
     marginTableId: sdkMarket.marginTableId,
     onlyIsolated: sdkMarket.onlyIsolated,
-    marginMode: sdkMarket.marginMode,
+    ...(!isUnrestrictedMarginMode(venueMarginMode) && {
+      marginMode: sdkMarket.marginMode,
+    }),
     isDelisted: sdkMarket.isDelisted,
   };
 }
