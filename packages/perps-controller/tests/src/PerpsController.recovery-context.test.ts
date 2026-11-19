@@ -201,6 +201,41 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     vi.mocked(HyperLiquidProvider).mockReset();
   });
 
+  it('review: keeps a newer wallet balance when the old opening refuses', () => {
+    const { controller, provider, selectAccount } = createFixture();
+    const callback = vi.fn();
+    provider.subscribeToAccount.mockImplementationOnce(() => {
+      selectAccount(ACCOUNT_B);
+      provider.subscribeToAccount.mockImplementationOnce((params) => {
+        params.callback(ACCOUNT_BALANCE);
+        return vi.fn();
+      });
+      controller.subscribeToAccount({ callback: vi.fn() });
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    });
+
+    controller.subscribeToAccount({ callback });
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith(null);
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+  });
+
+  it('review: clears state when the selected wallet cannot open a stream', async () => {
+    const { controller, provider, selectAccount } = createFixture();
+    controller.subscribeToOrders({ callback: vi.fn() });
+    selectAccount(ACCOUNT_B);
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+    provider.subscribeToAccount.mockImplementationOnce(() => {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    });
+    const callback = vi.fn();
+    controller.subscribeToAccount({ callback });
+    expect(callback).toHaveBeenCalledExactlyOnceWith(null);
+    expect(controller.state.accountState).toBeNull();
+  });
+
   const startChaseOwnership = async (
     fixture: Fixture,
   ): Promise<{
@@ -295,28 +330,34 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     expect(getChaseOrderOwnership).not.toHaveBeenCalled();
   });
 
-  it('keeps synchronous replay out of selected state when stream opening changes wallets', async () => {
+  it('stores a valid synchronous replay after reconciliation returns to the provider wallet', async () => {
     const { controller, provider, host } = createFixture();
     provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
     await controller.getAccountState();
-    const accountC = '0xcccccccccccccccccccccccccccccccccccccccc';
-    provider.subscribeToAccount.mockImplementation(({ callback }) => {
-      callback(ACCOUNT_BALANCE);
-      return vi.fn();
-    });
+
+    provider.subscribeToAccount.mockImplementation(
+      ({ accountId, callback }) => {
+        expect(accountId).toBeUndefined();
+        expect(
+          host.messenger.call('AccountsController:getSelectedAccount').address,
+        ).toBe(ACCOUNT_A);
+        callback(ACCOUNT_BALANCE);
+        return vi.fn();
+      },
+    );
+
     host.selectAccount(ACCOUNT_B);
     host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
-      host.selectAccount(accountC);
+      host.selectAccount(ACCOUNT_A);
     });
-    const consumer = vi.fn();
-    controller.subscribeToAccount({ callback: consumer });
 
-    expect(consumer).toHaveBeenCalledWith(ACCOUNT_BALANCE);
-    expect(controller.state.accountState).toBeNull();
-    expect(controller.state.perpsBalances).toStrictEqual({});
-    const [stream] = provider.subscribeToAccount.mock.calls[0];
-    stream.callback({ ...ACCOUNT_BALANCE, totalBalance: '234' });
-    expect(controller.state.accountState?.totalBalance).toBe('234');
+    const callback = vi.fn();
+    controller.subscribeToAccount({ callback });
+    expect(callback).toHaveBeenCalledWith(ACCOUNT_BALANCE);
+    expect(controller.state.accountState).toStrictEqual(ACCOUNT_BALANCE);
+    expect(controller.state.perpsBalances.hyperliquid?.totalBalance).toBe(
+      '123',
+    );
   });
 
   it('binds an implicit stream after balance reconciliation publishes its state change', async () => {

@@ -7829,29 +7829,28 @@ export class PerpsController extends BaseController<
           // Capture each opening's account, including implicit selection, so
           // late emissions after an account switch cannot own selected state.
           // A malformed explicit id names no account and never owns state.
-          const reconciledAddress =
-            accountId === undefined
-              ? this.#reconcileSelectedTradingAddress()
-              : undefined;
+          if (accountId === undefined) {
+            this.#reconcileSelectedTradingAddress();
+          }
           const streamAddress =
             accountId === undefined
               ? getSelectedEvmAccountFromMessenger(
                   this.messenger,
                 )?.address.toLowerCase()
               : getCaipAccountAddress(accountId);
-          // A state listener may change wallets during reconciliation. A
-          // synchronous cache replay during that open has no known owner.
-          let skipInitialReplay =
-            accountId === undefined && streamAddress !== reconciledAddress;
-          const unsubscribe = nextProvider.subscribeToAccount({
+          const subscriptionParams: SubscribeAccountParams = {
             ...params,
             callback: (account, aggregate) => {
-              const ownsState =
-                !skipInitialReplay &&
+              const selectedAddress =
                 this.activeProviderInstance === nextProvider &&
+                streamAddress !== undefined
+                  ? this.#reconcileSelectedTradingAddress(accountId)
+                  : undefined;
+              const ownsState =
                 streamAddress !== undefined &&
-                streamAddress ===
-                  this.#reconcileSelectedTradingAddress(accountId);
+                streamAddress === selectedAddress &&
+                streamAddress === this.#selectedTradingAddress &&
+                this.activeProviderInstance === nextProvider;
               if (ownsState && account) {
                 this.update((state) => {
                   state.accountState = account;
@@ -7936,9 +7935,18 @@ export class PerpsController extends BaseController<
                 originalCallback(account);
               }
             },
-          });
-          skipInitialReplay = false;
-          return unsubscribe;
+          };
+          try {
+            return nextProvider.subscribeToAccount(subscriptionParams);
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message === PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE
+            ) {
+              subscriptionParams.callback(null);
+            }
+            throw error;
+          }
         },
         () => originalCallback(null),
       );

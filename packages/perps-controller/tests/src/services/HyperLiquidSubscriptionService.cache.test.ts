@@ -28,6 +28,7 @@ import {
   parseAssetName,
 } from '../../../src/utils/hyperLiquidAdapter.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
+import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import {
   createDeferred,
   createMockInfrastructure,
@@ -479,6 +480,10 @@ describe('HyperLiquidSubscriptionService', () => {
     mockWalletService = {
       createWalletAdapter: vi.fn(() => mockWalletAdapter),
       getUserAddressWithDefault: vi.fn().mockResolvedValue('0x123' as Hex),
+      getAccountStreamAddress: vi.fn(
+        (accountId?: CaipAccountId) =>
+          (accountId?.split(':').at(-1) ?? '0x123') as Hex,
+      ),
     } as any;
 
     service = new HyperLiquidSubscriptionService(
@@ -551,6 +556,58 @@ describe('HyperLiquidSubscriptionService', () => {
   });
 
   describe('Account Subscriptions', () => {
+    it('review: reserves wallet before reentrant client initialization', async () => {
+      const callback = vi.fn();
+      const result: unknown[] = [];
+      mockClientService.ensureSubscriptionClient.mockImplementationOnce(
+        async () => {
+          try {
+            result.push(
+              service.subscribeToAccount({
+                accountId: 'eip155:1:0x456',
+                callback: vi.fn(),
+              }),
+            );
+          } catch (error) {
+            result.push(error);
+          }
+        },
+      );
+      const stopA = service.subscribeToAccount({ callback });
+      await vi.runAllTimersAsync();
+      expect({
+        rejected: result[0] instanceof Error,
+        called: callback.mock.calls.length > 0,
+      }).toEqual({ rejected: true, called: true });
+      stopA();
+    });
+    it('review: allows a new wallet after replay disconnects the old stream', async () => {
+      const stopA = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
+      const stopReplay = service.subscribeToAccount({
+        callback: () => service.clearAll(),
+      });
+
+      const callback = vi.fn();
+      const stopB = service.subscribeToAccount({
+        accountId: 'eip155:1:0x456',
+        callback,
+      });
+      stopA();
+      stopReplay();
+      await vi.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.webData3).toHaveBeenNthCalledWith(
+        2,
+        { user: '0x456' },
+        expect.any(Function),
+      );
+      expect(callback).toHaveBeenCalled();
+      stopB();
+      service.subscribeToAccount({ callback: vi.fn() })();
+      await vi.runAllTimersAsync();
+    });
+
     it('subscribes to account updates successfully', async () => {
       const mockCallback = vi.fn();
 
@@ -583,6 +640,147 @@ describe('HyperLiquidSubscriptionService', () => {
 
       unsubscribe1();
       unsubscribe2();
+    });
+
+    it('reserves the first wallet while the shared feed is opening', async () => {
+      let selectedAddress: Hex = '0x123';
+      mockWalletService.getAccountStreamAddress.mockImplementation(
+        (id) => (id?.split(':').at(-1) ?? selectedAddress) as Hex,
+      );
+      mockWalletService.getUserAddressWithDefault.mockImplementation(
+        async (id) => (id?.split(':').at(-1) ?? selectedAddress) as Hex,
+      );
+      const first = vi.fn();
+      const stopFirst = service.subscribeToAccount({
+        callback: first,
+        requireCompleteAccount: true,
+      });
+
+      selectedAddress = '0x456';
+      expect(() => service.subscribeToAccount({ callback: vi.fn() })).toThrow(
+        'PROVIDER_NOT_AVAILABLE',
+      );
+      await vi.runAllTimersAsync();
+
+      expect(first).toHaveBeenLastCalledWith(expect.any(Object));
+      expect(mockSubscriptionClient.webData3).toHaveBeenCalledExactlyOnceWith(
+        { user: '0x123' },
+        expect.any(Function),
+      );
+      expect(mockSpotClearinghouseState).toHaveBeenCalledExactlyOnceWith({
+        user: '0x123',
+      });
+      stopFirst();
+    });
+
+    it('reports an incompatible HyperLiquid wallet as unavailable in aggregation', async () => {
+      const stopOriginal = service.subscribeToAccount({ callback: vi.fn() });
+      await vi.runAllTimersAsync();
+      const aggregate = new AggregatedPerpsProvider({
+        providers: new Map<PerpsProviderType, PerpsProvider>([
+          [
+            'hyperliquid',
+            {
+              ...createMockHyperLiquidProvider(),
+              protocolId: 'hyperliquid',
+              subscribeToAccount: service.subscribeToAccount.bind(service),
+            },
+          ],
+          [
+            'lighter',
+            {
+              ...createMockHyperLiquidProvider(),
+              protocolId: 'lighter',
+              subscribeToAccount: ({ callback }: SubscribeAccountParams) => {
+                callback({
+                  totalBalance: '250',
+                  spendableBalance: '250',
+                  withdrawableBalance: '250',
+                  marginUsed: '0',
+                  unrealizedPnl: '0',
+                  returnOnEquity: '0',
+                });
+                return vi.fn();
+              },
+            },
+          ],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockDeps,
+      });
+      const callback = vi.fn();
+      const stopAggregate = aggregate.subscribeToAccount({
+        accountId: 'eip155:1:0x456',
+        callback,
+      });
+
+      expect(callback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ totalBalance: '250' }),
+        expect.objectContaining({ unavailableProviders: ['hyperliquid'] }),
+      );
+      stopAggregate();
+      stopOriginal();
+    });
+
+    it('keeps its bound wallet while refusing a replay for another wallet', async () => {
+      let selectedAddress: Hex = '0x123';
+      mockWalletService.getAccountStreamAddress.mockImplementation(
+        (id) => (id?.split(':').at(-1) ?? selectedAddress) as Hex,
+      );
+      mockWalletService.getUserAddressWithDefault.mockImplementation(
+        async () => selectedAddress,
+      );
+      const original = vi.fn();
+      const stopOriginal = service.subscribeToAccount({
+        callback: original,
+        requireCompleteAccount: true,
+      });
+      await vi.runAllTimersAsync();
+      const initialAccount = original.mock.lastCall?.[0];
+      expect(initialAccount).toEqual(expect.any(Object));
+
+      const sameWallet = vi.fn();
+      const stopSame = service.subscribeToAccount({ callback: sameWallet });
+      expect(sameWallet).toHaveBeenLastCalledWith(initialAccount);
+
+      selectedAddress = '0x456';
+      const otherWallet = vi.fn();
+      expect(() =>
+        service.subscribeToAccount({ callback: otherWallet }),
+      ).toThrow('PROVIDER_NOT_AVAILABLE');
+      expect(otherWallet).not.toHaveBeenCalled();
+      await vi.runAllTimersAsync();
+      expect(original).toHaveBeenLastCalledWith(initialAccount);
+      expect(mockSubscriptionClient.webData3).toHaveBeenCalledExactlyOnceWith(
+        { user: '0x123' },
+        expect.any(Function),
+      );
+      expect(mockSubscriptionClient.spotState).not.toHaveBeenCalledWith(
+        { user: '0x456' },
+        expect.any(Function),
+      );
+      const oldSpotFrame = mockSubscriptionClient.spotState.mock.calls[0][1];
+      stopSame();
+      stopOriginal();
+
+      const reopened = vi.fn();
+      const stopReopened = service.subscribeToAccount({ callback: reopened });
+      await vi.runAllTimersAsync();
+      expect(mockSubscriptionClient.webData3).toHaveBeenLastCalledWith(
+        { user: '0x456' },
+        expect.any(Function),
+      );
+      const reopenedAccount = reopened.mock.lastCall?.[0];
+      expect(reopenedAccount).toEqual(
+        expect.objectContaining({ spendableBalance: '1100.765317' }),
+      );
+
+      oldSpotFrame({
+        user: '0x123',
+        spotState: { balances: [{ coin: 'USDC', total: '500' }] },
+      });
+      expect(reopened).toHaveBeenLastCalledWith(reopenedAccount);
+      stopReopened();
     });
 
     it('clears unavailable balances without reporting positions as flat', async () => {
@@ -1875,6 +2073,7 @@ describe('HyperLiquidSubscriptionService', () => {
       await discoveryService.updateFeatureFlags(true, [], [], [], false);
       const newAccountCallback = vi.fn();
       const unsubscribeNew = discoveryService.subscribeToAccount({
+        accountId,
         callback: newAccountCallback,
       });
       expect(newAccountCallback).not.toHaveBeenCalled();
@@ -1943,6 +2142,7 @@ describe('HyperLiquidSubscriptionService', () => {
       mockWalletService.getUserAddressWithDefault.mockResolvedValue(
         firstAddress,
       );
+      mockWalletService.getAccountStreamAddress.mockReturnValue(firstAddress);
       const discoveryService = new HyperLiquidSubscriptionService(
         mockClientService,
         mockWalletService,
@@ -1966,6 +2166,7 @@ describe('HyperLiquidSubscriptionService', () => {
       mockWalletService.getUserAddressWithDefault.mockResolvedValue(
         secondAddress,
       );
+      mockWalletService.getAccountStreamAddress.mockReturnValue(secondAddress);
       const callback = vi.fn();
       const unsubscribeSecond = discoveryService.subscribeToAccount({
         callback,
@@ -2642,6 +2843,7 @@ describe('HyperLiquidSubscriptionService', () => {
       spotListeners.get(userA)?.({ user: userA, spotState });
       expect(userACalls).toBe(2);
 
+      unsubscribeA();
       const callbackB = vi.fn();
       const unsubscribeB = service.subscribeToAccount({
         accountId: accountB,
@@ -2663,7 +2865,6 @@ describe('HyperLiquidSubscriptionService', () => {
       await vi.runAllTimersAsync();
 
       unsubscribeB();
-      unsubscribeA();
     });
 
     it('refreshes abstraction mode on the first spotState tick even inside the throttle window', async () => {

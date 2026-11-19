@@ -1935,6 +1935,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           accountId?: CaipAccountId,
         ): Promise<Hex> =>
           await this.#walletService.getUserAddressWithDefault(accountId),
+        getAccountStreamAddress: (accountId?: CaipAccountId): Hex =>
+          this.#walletService.getAccountStreamAddress(accountId),
       },
       this.#deps,
       this.#hip3Enabled,

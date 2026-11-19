@@ -36,6 +36,7 @@ import {
   InitializationState,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
+import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import * as accountServiceModule from '../../src/services/AccountService.js';
@@ -711,6 +712,18 @@ describe('PerpsController', () => {
         unrealizedPnl: '0',
         lastUpdated: expect.any(Number),
       });
+    });
+
+    it('notifies a single-venue account subscriber when the provider cannot open its wallet', () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.subscribeToAccount.mockImplementationOnce(() => {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      });
+      const callback = vi.fn();
+      controller.subscribeToAccount({ callback });
+
+      expect(callback).toHaveBeenCalledExactlyOnceWith(null);
     });
 
     it('keeps live balances when the account tree re-emits the same selection', () => {

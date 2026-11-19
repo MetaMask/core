@@ -1,4 +1,4 @@
-import type { CaipAccountId } from '@metamask/utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 import type {
   ISubscription,
@@ -25,6 +25,7 @@ import {
   TP_SL_CONFIG,
   ABSTRACTION_MODE_REFRESH_THROTTLE_MS,
 } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
   SpotClearinghouseStateResponse,
   HyperLiquidAbstractionMode,
@@ -95,12 +96,19 @@ import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
  * What the service needs from the wallet: the account, and the wallet
  * adapters it (re)initializes the SDK clients with.
  */
-type UserDataBinding = { address?: string; discoveringDexs: boolean };
+type UserDataBinding = { address: Hex; discoveringDexs: boolean };
 
 type SubscriptionWallet = Pick<
   HyperLiquidWalletService,
-  'createWalletAdapter' | 'getUserAddressWithDefault'
+  | 'createWalletAdapter'
+  | 'getUserAddressWithDefault'
+  | 'getAccountStreamAddress'
 >;
+
+type AccountSubscriber = (
+  account: AccountState | null,
+  sourceAddress: string | undefined,
+) => void;
 
 /**
  * Cap on *terminal* TWAP schedules retained per account from the venue's
@@ -204,7 +212,7 @@ export class HyperLiquidSubscriptionService {
     Set<(twapOrders: TwapOrder[], isSnapshot?: boolean) => void>
   >();
 
-  readonly #accountSubscribers = new Set<SubscribeAccountParams['callback']>();
+  readonly #accountSubscribers = new Set<AccountSubscriber>();
 
   // Track which subscribers want market data
   readonly #marketDataSubscribers = new Map<
@@ -344,8 +352,6 @@ export class HyperLiquidSubscriptionService {
   #positionSubscriberCount = 0;
 
   #orderSubscriberCount = 0;
-
-  #accountSubscriberCount = 0;
 
   #oiCapSubscriberCount = 0;
 
@@ -1607,7 +1613,7 @@ export class HyperLiquidSubscriptionService {
         returnOnEquity,
         ...(unavailableSubAccounts.length > 0 && { unavailableSubAccounts }),
       },
-      this.#cachedSpotState,
+      this.#hasSpotForBoundWallet() ? this.#cachedSpotState : null,
       this.#getSpotBalanceOptions(),
     );
   }
@@ -1629,6 +1635,15 @@ export class HyperLiquidSubscriptionService {
       return null;
     }
     return this.#abstractionModeByUser.get(userAddress.toLowerCase()) ?? null;
+  }
+
+  #hasSpotForBoundWallet(): boolean {
+    const address = this.#userDataBinding?.address;
+    return (
+      address !== undefined &&
+      this.#cachedSpotState !== null &&
+      this.#cachedSpotStateUserAddress === address.toLowerCase()
+    );
   }
 
   #getSpotBalanceOptions(): AddSpotBalanceOptions {
@@ -1767,9 +1782,7 @@ export class HyperLiquidSubscriptionService {
     return undefined;
   }
 
-  async #ensureSpotState(accountId?: CaipAccountId): Promise<void> {
-    const userAddress =
-      await this.#walletService.getUserAddressWithDefault(accountId);
+  async #ensureSpotState(userAddress: Hex): Promise<void> {
     const lowerUserAddress = userAddress.toLowerCase();
 
     // Fast-path only when we have spot for this user AND a resolved
@@ -1903,6 +1916,10 @@ export class HyperLiquidSubscriptionService {
         return;
       }
 
+      const boundAddress = this.#userDataBinding?.address.toLowerCase();
+      if (boundAddress !== undefined && boundAddress !== lowerUserAddress) {
+        return;
+      }
       if (spotResult.status === 'rejected') {
         throw spotResult.reason;
       }
@@ -1929,10 +1946,7 @@ export class HyperLiquidSubscriptionService {
     }
   }
 
-  async #ensureSpotStateSubscription(accountId?: CaipAccountId): Promise<void> {
-    const userAddress =
-      await this.#walletService.getUserAddressWithDefault(accountId);
-
+  async #ensureSpotStateSubscription(userAddress: Hex): Promise<void> {
     if (this.#spotStateSubscriptions.has(userAddress)) {
       return;
     }
@@ -1958,7 +1972,13 @@ export class HyperLiquidSubscriptionService {
         { user: userAddress },
         (event: SpotStateWsEvent) => {
           try {
-            if (event.user.toLowerCase() !== userAddress.toLowerCase()) {
+            const boundAddress = this.#userDataBinding?.address.toLowerCase();
+            const address = userAddress.toLowerCase();
+            if (
+              startGeneration !== this.#spotStateSubscriptionGeneration ||
+              event.user.toLowerCase() !== address ||
+              (boundAddress !== undefined && boundAddress !== address)
+            ) {
               return;
             }
             // Invalidate any in-flight REST refreshSpotState so it drops
@@ -2274,7 +2294,10 @@ export class HyperLiquidSubscriptionService {
    * @returns A promise that resolves when the operation completes.
    */
   async #createUserDataSubscription(accountId?: CaipAccountId): Promise<void> {
-    this.#userDataBinding ??= { discoveringDexs: false };
+    this.#userDataBinding ??= {
+      address: this.#walletService.getAccountStreamAddress(accountId),
+      discoveringDexs: false,
+    };
     const binding = this.#userDataBinding;
     await this.#clientService.ensureSubscriptionClient(
       this.#walletService.createWalletAdapter(),
@@ -2285,13 +2308,10 @@ export class HyperLiquidSubscriptionService {
       throw new Error('Subscription client not initialized');
     }
 
-    const userAddress =
-      binding.address ??
-      (await this.#walletService.getUserAddressWithDefault(accountId));
     if (this.#userDataBinding !== binding) {
       return;
     }
-    binding.address = userAddress;
+    const userAddress = binding.address;
 
     const dexName = ''; // Use empty string as key for single subscription
 
@@ -2678,7 +2698,7 @@ export class HyperLiquidSubscriptionService {
 
           if (
             this.#positionSubscriberCount > 0 ||
-            this.#accountSubscriberCount > 0 ||
+            this.#accountSubscribers.size > 0 ||
             (latestRawOrders && this.#orderSubscriberCount > 0)
           ) {
             // Aggregate only when a consumer needs positions/account updates.
@@ -2921,7 +2941,7 @@ export class HyperLiquidSubscriptionService {
    */
   #isAccountSnapshotComplete(): boolean {
     return (
-      this.#cachedSpotState !== null &&
+      this.#hasSpotForBoundWallet() &&
       this.#positionSnapshotDexs.size > 0 &&
       Array.from(this.#positionSnapshotDexs).every(
         (dexName) =>
@@ -3045,18 +3065,23 @@ export class HyperLiquidSubscriptionService {
   }
 
   #notifyAccountSubscribers(): void {
+    const sourceAddress = this.#userDataBinding?.address.toLowerCase();
     const account = this.#aggregateAccountStates();
     if (!account) {
       if (this.#cachedAccountHash) {
         this.#cachedAccountHash = '';
-        this.#accountSubscribers.forEach((callback) => callback(null));
+        this.#accountSubscribers.forEach((callback) =>
+          callback(null, sourceAddress),
+        );
       }
       return;
     }
     const hash = this.#hashAccountAvailability(account);
     if (hash !== this.#cachedAccountHash) {
       this.#cachedAccountHash = hash;
-      this.#accountSubscribers.forEach((callback) => callback(account));
+      this.#accountSubscribers.forEach((callback) =>
+        callback(account, sourceAddress),
+      );
     }
   }
 
@@ -3067,7 +3092,7 @@ export class HyperLiquidSubscriptionService {
     const totalSubscribers =
       this.#positionSubscriberCount +
       this.#orderSubscriberCount +
-      this.#accountSubscriberCount +
+      this.#accountSubscribers.size +
       this.#oiCapSubscriberCount;
 
     if (totalSubscribers <= 0) {
@@ -3169,7 +3194,6 @@ export class HyperLiquidSubscriptionService {
       // Clear subscriber counts
       this.#positionSubscriberCount = 0;
       this.#orderSubscriberCount = 0;
-      this.#accountSubscriberCount = 0;
       this.#oiCapSubscriberCount = 0;
 
       // Clear per-DEX caches
@@ -3861,50 +3885,78 @@ export class HyperLiquidSubscriptionService {
    */
   public subscribeToAccount(params: SubscribeAccountParams): () => void {
     const { callback, accountId, requireCompleteAccount } = params;
-    // A strict subscriber gets null rather than a total that is missing a
-    // configured DEX or the spot balance, so it never reads as complete.
-    const deliver = requireCompleteAccount
-      ? (account: AccountState | null): void =>
-          callback(this.#isAccountSnapshotComplete() ? account : null)
-      : callback;
-    const unsubscribe = this.#createSubscription(
-      this.#accountSubscribers,
-      deliver,
-    );
-
-    // Increment account subscriber count
-    this.#accountSubscriberCount += 1;
-
-    // Immediately provide cached data if available. May be spot-less if the
-    // spot fetch has not resolved yet (or permanently failed) — subscribers
-    // prefer stale-but-present data over silent starvation; the next
-    // aggregation after #ensureSpotState / next WebSocket update pushes the
-    // spot-inclusive value.
-    const account = this.#aggregateAccountStates();
-    if (account) {
-      if (this.#accountSubscribers.size === 1) {
-        this.#cachedAccountHash = this.#hashAccountAvailability(account);
+    const wallet = this.#walletService.getAccountStreamAddress(accountId);
+    const requestedAddress = wallet.toLowerCase();
+    const boundAddress = this.#userDataBinding?.address.toLowerCase();
+    if (boundAddress !== undefined && boundAddress !== requestedAddress) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    // Setup can synchronously call connection listeners. Claim the wallet
+    // before starting transport work or delivering cached data.
+    this.#userDataBinding ??= {
+      address: wallet,
+      discoveringDexs: false,
+    };
+    const binding = this.#userDataBinding;
+    const deliver: AccountSubscriber = (account, sourceAddress) => {
+      if (sourceAddress === requestedAddress) {
+        callback(
+          requireCompleteAccount && !this.#isAccountSnapshotComplete()
+            ? null
+            : account,
+        );
       }
-      deliver(account);
-    } else if (requireCompleteAccount && this.#cachedAccountHash) {
-      deliver(null);
+    };
+    this.#accountSubscribers.add(deliver);
+    const unsubscribe = (): void => {
+      if (this.#accountSubscribers.delete(deliver)) {
+        this.#cleanupSharedWebData3ISubscription();
+      }
+    };
+    const isCurrent = (): boolean =>
+      this.#userDataBinding === binding &&
+      this.#accountSubscribers.has(deliver);
+
+    // Replay the bound wallet's cache synchronously. A callback that throws
+    // during setup has not received its cleanup handle yet.
+    try {
+      const account = this.#aggregateAccountStates();
+      if (account && boundAddress === requestedAddress) {
+        if (this.#accountSubscribers.size === 1) {
+          this.#cachedAccountHash = this.#hashAccountAvailability(account);
+        }
+        deliver(account, boundAddress);
+      } else if (requireCompleteAccount && this.#cachedAccountHash) {
+        deliver(null, boundAddress);
+      }
+    } catch (error) {
+      unsubscribe();
+      throw error;
     }
 
-    this.#ensureSpotState(accountId).catch((error) => {
+    if (!isCurrent()) {
+      return unsubscribe;
+    }
+    this.#ensureSpotState(wallet).catch((error) => {
       this.#logErrorUnlessClearing(
         ensureError(error, 'HyperLiquidSubscriptionService.subscribeToAccount'),
         this.#getErrorContext('subscribeToAccount.ensureSpotState'),
       );
     });
 
-    this.#ensureSpotStateSubscription(accountId).catch((error) => {
+    if (!isCurrent()) {
+      return unsubscribe;
+    }
+    this.#ensureSpotStateSubscription(wallet).catch((error) => {
       this.#logErrorUnlessClearing(
         ensureError(error, 'HyperLiquidSubscriptionService.subscribeToAccount'),
         this.#getErrorContext('subscribeToAccount.ensureSpotStateSubscription'),
       );
     });
 
-    // Ensure shared subscription is active (reuses existing connection)
+    if (!isCurrent()) {
+      return unsubscribe;
+    }
     this.#ensureSharedWebData3Subscription(accountId).catch((error) => {
       this.#logErrorUnlessClearing(
         ensureError(error, 'HyperLiquidSubscriptionService.subscribeToAccount'),
@@ -3912,11 +3964,7 @@ export class HyperLiquidSubscriptionService {
       );
     });
 
-    return () => {
-      unsubscribe();
-      this.#accountSubscriberCount -= 1;
-      this.#cleanupSharedWebData3ISubscription();
-    };
+    return unsubscribe;
   }
 
   /**
