@@ -159,6 +159,9 @@ const PredictBenefitUsageStruct = type({
 
 export const SubscriptionBenefitsResponseStruct = type({
   eligible: boolean(),
+  benefitPeriodId: optional(nullable(string())),
+  benefitPeriodStart: optional(nullable(string())),
+  benefitPeriodEnd: optional(nullable(string())),
   billingPeriodId: nullable(string()),
   products: type({
     swaps: SwapsBenefitUsageStruct,

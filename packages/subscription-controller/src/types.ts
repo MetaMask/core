@@ -299,6 +299,11 @@ type SubscriptionBenefitsProducts = {
 
 export type SubscriptionBenefitsResponse = {
   eligible: boolean;
+  benefitPeriodId?: string | null;
+  benefitPeriodStart?: string | null;
+  /** Exclusive end of the monthly benefit window (ISO 8601). */
+  benefitPeriodEnd?: string | null;
+  /** @deprecated Use `benefitPeriodId`. */
   billingPeriodId: string | null;
   products: SubscriptionBenefitsProducts;
 };
@@ -308,6 +313,10 @@ export type SubscriptionBenefitsResponse = {
  */
 export type SubscriptionBenefitsState = SubscriptionBenefitsProducts & {
   billingPeriodId: string | null;
+  benefitPeriodId?: string | null;
+  benefitPeriodStart?: string | null;
+  /** Exclusive end of the monthly benefit window (ISO 8601). */
+  benefitPeriodEnd?: string | null;
 };
 
 export type StartSubscriptionRequest = {

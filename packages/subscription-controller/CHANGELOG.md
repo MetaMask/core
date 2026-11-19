@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `benefitPeriodId`, `benefitPeriodStart`, and `benefitPeriodEnd` to `SubscriptionBenefitsResponse` and `SubscriptionBenefitsState` (monthly reset window from the benefits API); keep `billingPeriodId` as a deprecated alias on the response
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
