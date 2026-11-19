@@ -133,7 +133,9 @@ describe('retry logic in middleware connected to a port', () => {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let messageConsumer: any;
-  let clientStream: ReturnType<typeof createStreamMiddleware>['stream'] | undefined;
+  let clientStream:
+    | ReturnType<typeof createStreamMiddleware>['stream']
+    | undefined;
   beforeEach(() => {
     // create guest
     engineA = new JsonRpcEngine();
