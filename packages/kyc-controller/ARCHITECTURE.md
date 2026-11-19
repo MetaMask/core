@@ -187,10 +187,17 @@ touches `KycController` state.
   both encryption schemas' `jwtChain`. It does not create a vendor customer.
 - **Injected adapters.** `vendorRequestSigners` signs Kalshi calls
   (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
-  key. The controller attaches them to session creation and the email calls
-  on `kalshi_email_link`. `kalshi_phone_link` is the phone and its code, and
-  it is not signed here. kyc-api forwards the signed calls to the relay,
-  which is the only Kalshi client. Iron uses `terms`, `mfa`, `sumsub`, and
+  key into `{ path, headers, body }` objects, where `body` is the exact signed
+  string. The controller sends them as `signedRequests` with the typed `email`
+  on session creation (`[intents, link]`, or `[link]` when the intent is
+  already open), and as `signedRequest` on the email calls on
+  `kalshi_email_link` (resend signs a fresh `users/link`, verify signs
+  `users/link/verify` with the code in its body and sends no `otp`). It signs
+  right before each call, because a signature lasts 60 seconds.
+  `kalshi_phone_link` is the phone and its code, and it is not signed here.
+  kyc-api forwards the signed calls to the relay, which is the only Kalshi
+  client. Relay errors reach the client as a `KycApiError` whose `code`
+  `getKycKalshiErrorCode` reads. Iron uses `terms`, `mfa`, `sumsub`, and
   `decision`.
   `sumsubLauncher` presents SumSub.
 

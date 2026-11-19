@@ -78,6 +78,7 @@ export type {
   KycAnalyticsVerificationOutcomePayload,
 } from './analytics.js';
 
+export { KycApiError, getKycKalshiErrorCode } from './KycApiError.js';
 export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
@@ -151,7 +152,9 @@ export {
   KYC_STATUSES,
   KYC_STEP_STATUSES,
   KYC_STEPS,
+  KYC_KALSHI_ERROR_CODES,
   KYC_VENDOR_SIGN_OPERATIONS,
+  KYC_VENDOR_SIGN_PATHS,
   TERMINAL_SESSION_STATUSES,
   toKycStep,
   toKycStepStatus,
@@ -171,7 +174,8 @@ export type {
   KycSessionDisclaimers,
   KycClientContext,
   KycSessionStatus,
-  KycSignedVendorRequest,
+  KycKalshiErrorCode,
+  KycSignedRequest,
   KycVendorRequestSigner,
   KycVendorSignOperation,
   KycVendorSignRequest,

@@ -402,6 +402,16 @@ export type KycVendorSignOperation =
   (typeof KYC_VENDOR_SIGN_OPERATIONS)[number];
 
 /**
+ * The Kalshi path each signed call carries. The controller checks a signer's
+ * answer against these, so a call signed for the wrong route never goes out.
+ */
+export const KYC_VENDOR_SIGN_PATHS: Record<KycVendorSignOperation, string> = {
+  'enrollment/intents': '/trade-api/v2/isv/enrollment/intents',
+  'users/link': '/trade-api/v2/isv/users/link',
+  'users/link/verify': '/trade-api/v2/isv/users/link/verify',
+};
+
+/**
  * A Kalshi call waiting to be signed.
  *
  * `email` is the address inside `users/link`. `code` is the code inside
@@ -414,26 +424,55 @@ export type KycVendorSignRequest = {
 };
 
 /**
- * A Kalshi call the phone has signed.
+ * A Kalshi call the phone has signed, in the shape the relay takes.
  *
- * `venueAuthorization` is the `Venue-Authorization` header value. kyc-api
- * forwards it to the relay and does not check it.
+ * `headers` is exactly what Kalshi verifies: `Authorization`,
+ * `Kalshi-Device-Key`, `Kalshi-Device-Key-Salt`, `Kalshi-Device-Request-Id`,
+ * `Content-Type`, `Content-Digest`, `Idempotency-Key`, `Signature-Input` and
+ * `Signature`. `body` is the exact string that was signed: `""` for
+ * `enrollment/intents`, `{"email":...}` for `users/link` and `{"code":...}`
+ * for `users/link/verify`. kyc-api and the relay pass it on as it is and
+ * never serialize it again. A signature lasts 60 seconds.
  */
-export type KycSignedVendorRequest = {
-  operation: KycVendorSignOperation;
-  venueAuthorization: string;
+export type KycSignedRequest = {
+  path: string;
+  headers: Record<string, string>;
+  body: string;
 };
 
 /**
- * Builds the signed Kalshi calls for one vendor.
+ * Signs the Kalshi calls for one vendor.
  *
  * Injected by the client. The signing key lives on the device, so the
- * controller decides which calls to sign and the client only signs them.
+ * controller decides which calls to sign and the client only signs them. It
+ * answers with one {@link KycSignedRequest} per request, in the same order.
  */
 export type KycVendorRequestSigner = (params: {
   vendor: OnboardingVendor;
   requests: readonly KycVendorSignRequest[];
-}) => Promise<readonly KycSignedVendorRequest[]>;
+}) => Promise<readonly KycSignedRequest[]>;
+
+/**
+ * Codes the relay puts on a failed Kalshi step, which kyc-api keeps as they
+ * are. The client picks its message and screen from them.
+ */
+export const KYC_KALSHI_ERROR_CODES = [
+  'kalshi_signed_request_path_not_allowed',
+  'kalshi_signed_requests_sequence_invalid',
+  'kalshi_signed_request_a2t_missing',
+  'kalshi_signed_request_a2t_invalid',
+  'kalshi_signed_request_sub_mismatch',
+  'kalshi_signed_request_signature_missing',
+  'kalshi_signed_request_body_invalid',
+  'kalshi_signed_request_email_mismatch',
+  'kalshi_signed_request_rejected',
+  'kalshi_signed_request_required',
+  'invalid_or_expired_code',
+  'session_not_in_email_verification',
+] as const;
+
+/** A code from {@link KYC_KALSHI_ERROR_CODES}. */
+export type KycKalshiErrorCode = (typeof KYC_KALSHI_ERROR_CODES)[number];
 
 /**
  * The steps kyc-api can send for a vendor. The client maps each step to a

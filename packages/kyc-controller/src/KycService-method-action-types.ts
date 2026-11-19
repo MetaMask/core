@@ -334,7 +334,7 @@ export type KycServiceAcceptVendorTermsAction = {
  * @param params.sessionId - UKYC session id.
  * @param params.step - The onboarding step.
  * @param params.body - Step payload: `{ otp }`, `{ phoneNumber }`, and for
- * Kalshi's email steps the signed call the relay forwards.
+ * Kalshi's email steps `{ signedRequest }` with no `otp`.
  * @returns The session status after the step.
  */
 export type KycServicePostOnboardingStepAction = {

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `VendorOnboardingController`, which follows the onboarding step kyc-api decides for a vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
   - State is `vendors[vendor] = { step, status, sessionId }`. Terms, consents and account link state stay on the server. `step` and `status` are `null` until kyc-api has answered, so a saved session id never reads as a step
   - Actions: `refreshStep`, `acceptTerms`, `startSession`, `fetchSessionDisclaimers`, `acceptSessionDisclaimers`, `launchProviderFlow`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`, `resendEmailCode` and `reset`
-  - Kalshi's email link is signed on the phone and forwarded by kyc-api to the relay. `vendorRequestSigners` signs `enrollment/intents`, `users/link` and `users/link/verify`. `startSession` sends the first two for a new Kalshi session, `resendEmailCode` sends a new `users/link`, and `submitEmailCode` sends `users/link/verify`. The controller does not call Kalshi itself
+  - Kalshi's email link is signed on the phone and forwarded by kyc-api to the relay. `vendorRequestSigners` signs `enrollment/intents`, `users/link` and `users/link/verify` into `KycSignedRequest` objects (`{ path, headers, body }`). `startSession` sends `email` and `signedRequests` (`[enrollment/intents, users/link]`, or `[users/link]` with `intentOpen`) for a new Kalshi session, `resendEmailCode` sends `{ signedRequest }` with a new `users/link`, and `submitEmailCode` sends `{ signedRequest }` with `users/link/verify` and no `otp`. Signing happens right before each call, because a signature lasts 60 seconds. The controller does not call Kalshi itself
   - `acceptSessionDisclaimers` records the idOS and identity provider consents with kyc-api at once. `credentialReusabilityConsentGiven` is an argument, never stored or defaulted
   - `launchProviderFlow` presents SumSub through the `sumsubLauncher` option, then reads the next step. It reports `submitted`, `abandoned` or `failed` and keeps nothing on the phone. A review decision the SDK opens on counts as `submitted` only after `Pending`, `Completed` or `ActionCompleted` in the same launch, and a later `Ready`, `Initial` or `Incomplete` clears an earlier `Pending`. kyc-api works out from the relay whether the applicant still has something to do, so nothing records that they submitted
   - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has, and sends the wrapped encryption key and capability token. It does not create a vendor customer
@@ -25,10 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reported next to the step, because a user asked to redo the identity provider is on the same step as one doing it the first time. `OnboardingVendorState` carries both
 - Add the `KycClientContext` type, sent with a step request for the few facts only the device knows ([#11441](https://github.com/MetaMask/core/pull/11441))
 
+- Add `KycApiError`, which `KycService` throws for a failed kyc-api call with the `code` from the response body, and `getKycKalshiErrorCode`, which finds a relay code (`KYC_KALSHI_ERROR_CODES`) on a failure ([#11634](https://github.com/MetaMask/core/pull/11634))
+  - A client uses it to keep a wrong email code on the code screen and to ask for a retry after `kalshi_signed_request_rejected`
+- Add `KYC_VENDOR_SIGN_PATHS`, which the controller checks a signer's answer against ([#11634](https://github.com/MetaMask/core/pull/11634))
+
 ### Changed
 
 - Onboarding steps are `terms`, `mfa`, `kalshi_email_link`, `kalshi_phone_link`, `sumsub`, and `decision`. Kalshi uses all of them. Iron uses `terms`, `mfa`, `sumsub`, and `decision`. Signing `users/link` and `users/link/verify` stays on the email calls ([#11634](https://github.com/MetaMask/core/pull/11634))
-- Kalshi session creation and the email steps send the phone-signed `Venue-Authorization` objects. `vendorRequestSigners` replaces `accountLinkAdapters`, and `startAccountLink` and `verifyAccountLink` are removed ([#11634](https://github.com/MetaMask/core/pull/11634))
+- Kalshi session creation and the email steps send phone-signed `KycSignedRequest` objects. `vendorRequestSigners` replaces `accountLinkAdapters`, and `startAccountLink` and `verifyAccountLink` are removed ([#11634](https://github.com/MetaMask/core/pull/11634))
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
 - `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))

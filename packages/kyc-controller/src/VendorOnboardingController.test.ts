@@ -10,10 +10,13 @@ import type { Mock, MockedFunction } from 'vitest';
 import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type { CreateUkycSessionParams } from './KycService.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
+import { KYC_VENDOR_SIGN_PATHS } from './types.js';
 import type {
   KycSessionStatus,
+  KycSignedRequest,
   KycStepInfo,
   KycVendorRequestSigner,
+  KycVendorSignOperation,
 } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
@@ -44,6 +47,34 @@ const mockWrapEncryptionKey = wrapEncryptionKey as MockedFunction<
 >;
 
 const KALSHI_EMAIL = 'a@b.co';
+
+/**
+ * The call the test signer answers with for one operation.
+ *
+ * @param operation - The signed call.
+ * @param body - The exact signed body.
+ * @returns The signed request.
+ */
+function signedRequest(
+  operation: KycVendorSignOperation,
+  body: string,
+): KycSignedRequest {
+  return {
+    path: KYC_VENDOR_SIGN_PATHS[operation],
+    headers: { Signature: `signed:${operation}` },
+    body,
+  };
+}
+
+const SIGNED_INTENT = signedRequest('enrollment/intents', '');
+const SIGNED_LINK = signedRequest(
+  'users/link',
+  JSON.stringify({ email: KALSHI_EMAIL }),
+);
+const SIGNED_VERIFY = signedRequest(
+  'users/link/verify',
+  JSON.stringify({ code: '123456' }),
+);
 
 const AAL2_TOKEN = 'aal2-token';
 
@@ -523,6 +554,34 @@ describe('VendorOnboardingController', () => {
       );
     });
 
+    it('rejects a signer that signs the wrong route', async () => {
+      const signer: KycVendorRequestSigner = vi
+        .fn()
+        .mockResolvedValue([signedRequest('users/link', '')]);
+      await withController(
+        {
+          options: {
+            state: {
+              vendors: {
+                kalshi: {
+                  step: 'kalshi_email_link',
+                  status: 'none',
+                  sessionId: 'sid-1',
+                },
+              },
+            },
+            vendorRequestSigners: { kalshi: signer },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.submitEmailCode({ vendor: 'kalshi', code: '123456' }),
+          ).rejects.toThrow('did not return the requested calls');
+          expect(handlers.postOnboardingStep).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('rejects a signer that skips a call', async () => {
       const signer: KycVendorRequestSigner = vi.fn().mockResolvedValue([]);
       await withController(
@@ -584,7 +643,8 @@ describe('VendorOnboardingController', () => {
           CreateUkycSessionParams,
         ];
         expect(params.vendor).toBe('iron');
-        expect(params).not.toHaveProperty('signedVendorRequests');
+        expect(params).not.toHaveProperty('signedRequests');
+        expect(params).not.toHaveProperty('email');
       });
     });
 
@@ -678,13 +738,7 @@ describe('VendorOnboardingController', () => {
         { code: '123456' },
         'email/verify-otp',
         {
-          otp: '123456',
-          signedVendorRequests: [
-            {
-              operation: 'users/link/verify',
-              venueAuthorization: 'signed:users/link/verify',
-            },
-          ],
+          signedRequest: SIGNED_VERIFY,
         },
       ],
     ] as const)(
@@ -757,12 +811,7 @@ describe('VendorOnboardingController', () => {
             sessionId: 'sid-1',
             step: 'email/resend-otp',
             body: {
-              signedVendorRequests: [
-                {
-                  operation: 'users/link',
-                  venueAuthorization: 'signed:users/link',
-                },
-              ],
+              signedRequest: SIGNED_LINK,
             },
           });
         },
@@ -786,13 +835,7 @@ describe('VendorOnboardingController', () => {
           sessionId: 'sid-1',
           step: 'email/verify-otp',
           body: {
-            otp: '123456',
-            signedVendorRequests: [
-              {
-                operation: 'users/link/verify',
-                venueAuthorization: 'signed:users/link/verify',
-              },
-            ],
+            signedRequest: SIGNED_VERIFY,
           },
         });
         expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
@@ -836,16 +879,8 @@ describe('VendorOnboardingController', () => {
           vendor: 'kalshi',
           aal2Token: AAL2_TOKEN,
           partnerIdentityToken: 'partner-token',
-          signedVendorRequests: [
-            {
-              operation: 'enrollment/intents',
-              venueAuthorization: 'signed:enrollment/intents',
-            },
-            {
-              operation: 'users/link',
-              venueAuthorization: 'signed:users/link',
-            },
-          ],
+          email: KALSHI_EMAIL,
+          signedRequests: [SIGNED_INTENT, SIGNED_LINK],
         });
         expect(handlers.setAuthorizations).toHaveBeenCalledWith({
           sessionId: 'sid-1',
@@ -860,7 +895,7 @@ describe('VendorOnboardingController', () => {
       });
     });
 
-    it('signs the typed Kalshi email into users/link and keeps it off the session body', async () => {
+    it('signs the trimmed Kalshi email into users/link and sends it with the session', async () => {
       await withController(async ({ controller, handlers }) => {
         await controller.startSession({
           vendor: 'kalshi',
@@ -871,18 +906,70 @@ describe('VendorOnboardingController', () => {
         const [params] = handlers.createUkycSession.mock.calls[0] as [
           CreateUkycSessionParams,
         ];
-        expect(params).not.toHaveProperty('email');
-        expect(params.signedVendorRequests).toStrictEqual([
-          {
-            operation: 'enrollment/intents',
-            venueAuthorization: 'signed:enrollment/intents',
-          },
-          {
-            operation: 'users/link',
-            venueAuthorization: 'signed:users/link',
-          },
+        expect(params.email).toBe(KALSHI_EMAIL);
+        expect(params.signedRequests).toStrictEqual([
+          SIGNED_INTENT,
+          SIGNED_LINK,
         ]);
       });
+    });
+
+    it('signs users/link alone when the intent is already open', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: KALSHI_EMAIL,
+          intentOpen: true,
+        });
+
+        const [params] = handlers.createUkycSession.mock.calls[0] as [
+          CreateUkycSessionParams,
+        ];
+        expect(params.signedRequests).toStrictEqual([SIGNED_LINK]);
+      });
+    });
+
+    it('signs after every other call that comes before session creation', async () => {
+      const order: string[] = [];
+      const signer: KycVendorRequestSigner = async ({ requests }) => {
+        order.push('sign');
+        return requests.map((request) => signedRequest(request.operation, ''));
+      };
+      await withController(
+        { options: { vendorRequestSigners: { kalshi: signer } } },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockImplementation(async () => {
+            order.push('geo');
+            return 'USA';
+          });
+          handlers.putIdentitySharingConsent.mockImplementation(async () => {
+            order.push('consent');
+          });
+          handlers.getPartnerIdentityToken.mockImplementation(async () => {
+            order.push('token');
+            return 'partner-token';
+          });
+          handlers.createUkycSession.mockImplementation(async () => {
+            order.push('create');
+            return UKYC_SESSION;
+          });
+
+          await controller.startSession({
+            vendor: 'kalshi',
+            aal2Token: AAL2_TOKEN,
+            email: KALSHI_EMAIL,
+          });
+
+          expect(order).toStrictEqual([
+            'geo',
+            'consent',
+            'token',
+            'sign',
+            'create',
+          ]);
+        },
+      );
     });
 
     it('verifies both wrapping keys before it trusts them', async () => {
@@ -1804,14 +1891,27 @@ function withController<ReturnValue>(
 }
 
 /**
- * Signs each requested call with a recognizable header value.
+ * Signs each requested call with a recognizable `Signature` header and the
+ * body the relay expects.
  *
  * @returns The signer.
  */
 function getSigner(): KycVendorRequestSigner {
   return async ({ requests }) =>
-    requests.map((request) => ({
-      operation: request.operation,
-      venueAuthorization: `signed:${request.operation}`,
-    }));
+    requests.map((request) => {
+      switch (request.operation) {
+        case 'users/link':
+          return signedRequest(
+            request.operation,
+            JSON.stringify({ email: request.email }),
+          );
+        case 'users/link/verify':
+          return signedRequest(
+            request.operation,
+            JSON.stringify({ code: request.code }),
+          );
+        default:
+          return signedRequest(request.operation, '');
+      }
+    });
 }

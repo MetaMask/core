@@ -9,7 +9,7 @@ import type {
 } from '../KycService.js';
 import type {
   KycSessionStatus,
-  KycSignedVendorRequest,
+  KycSignedRequest,
   OnboardingVendor,
 } from '../types.js';
 import { deriveClientMaterial } from './deriveClientMaterial.js';
@@ -59,7 +59,8 @@ export type UkycSessionDeps = Pick<
  * creation.
  * @param params.partnerIdentityToken - Partner identity token. kyc-api takes
  * the MetaMask user's email from its verified claim.
- * @param params.signedVendorRequests - Kalshi calls the phone signed.
+ * @param params.email - The Kalshi email the signed `users/link` carries.
+ * @param params.signedRequests - Kalshi calls the phone signed.
  * kyc-api forwards them to the relay with session creation.
  * @returns The session status after the authorizations are applied.
  */
@@ -69,7 +70,8 @@ export async function createAuthorizedSession(params: {
   residenceCountry: string;
   aal2Token: string;
   partnerIdentityToken: string;
-  signedVendorRequests?: readonly KycSignedVendorRequest[];
+  email?: string;
+  signedRequests?: readonly KycSignedRequest[];
 }): Promise<KycSessionStatus> {
   const { deps } = params;
   // A per-session X25519 keypair seals both secrets. The private half stays
@@ -89,8 +91,9 @@ export async function createAuthorizedSession(params: {
     vendor: params.vendor,
     aal2Token: params.aal2Token,
     partnerIdentityToken: params.partnerIdentityToken,
-    ...(params.signedVendorRequests && {
-      signedVendorRequests: params.signedVendorRequests,
+    ...(params.email && { email: params.email }),
+    ...(params.signedRequests && {
+      signedRequests: params.signedRequests,
     }),
   });
 

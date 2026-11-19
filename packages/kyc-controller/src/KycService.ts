@@ -24,6 +24,7 @@ import { Duration, inMilliseconds } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
+import { KycApiError } from './KycApiError.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import { patchKycSessionStatus, toKycStep, toKycStepStatus } from './types.js';
 import type {
@@ -35,7 +36,7 @@ import type {
   KycSessionDisclaimers,
   KycSessionStatus,
   KycClientContext,
-  KycSignedVendorRequest,
+  KycSignedRequest,
   KycStepInfo,
   KycVendor,
   KycVendorSigning,
@@ -396,24 +397,32 @@ export type CreateUkycSessionParams = {
    */
   partnerIdentityToken?: string;
   /**
-   * Kalshi calls the phone signed (`enrollment/intents` and `users/link` at
-   * session creation). kyc-api forwards them to the relay, which checks the
-   * signature and sends them to Kalshi. Omitted for vendors that do not
-   * link an account this way.
+   * The Kalshi email the user typed. Sent with `signedRequests`, which carry
+   * the same address in `users/link`. Omitted for vendors that do not link an
+   * account this way.
    */
-  signedVendorRequests?: readonly KycSignedVendorRequest[];
+  email?: string;
+  /**
+   * Kalshi calls the phone signed: `[enrollment/intents, users/link]`, or
+   * `[users/link]` when an intent is already open. kyc-api forwards them to
+   * the relay, which checks the signatures and sends them to Kalshi. A
+   * signature lasts 60 seconds, so sign right before this call. Omitted for
+   * vendors that do not link an account this way.
+   */
+  signedRequests?: readonly KycSignedRequest[];
 };
 
 /**
  * Body of `POST /sessions/{id}/onboarding/{step}`.
  *
- * Phone steps send `phoneNumber` or `otp`. Kalshi's email steps also send
- * the phone-signed call the relay forwards.
+ * Phone steps send `phoneNumber` or `otp`. Kalshi's email steps send the
+ * phone-signed call the relay forwards as `signedRequest` and no `otp`: the
+ * code is inside the signed body.
  */
 export type KycOnboardingStepBody = {
   otp?: string;
   phoneNumber?: string;
-  signedVendorRequests?: readonly KycSignedVendorRequest[];
+  signedRequest?: KycSignedRequest;
 };
 
 /**
@@ -920,8 +929,9 @@ export class KycService extends BaseDataService<
           ...(params.partnerIdentityToken && {
             partnerIdentityToken: params.partnerIdentityToken,
           }),
-          ...(params.signedVendorRequests && {
-            signedVendorRequests: params.signedVendorRequests,
+          ...(params.email && { email: params.email }),
+          ...(params.signedRequests && {
+            signedRequests: params.signedRequests,
           }),
         }),
       },
@@ -1218,7 +1228,7 @@ export class KycService extends BaseDataService<
    * @param params.sessionId - UKYC session id.
    * @param params.step - The onboarding step.
    * @param params.body - Step payload: `{ otp }`, `{ phoneNumber }`, and for
-   * Kalshi's email steps the signed call the relay forwards.
+   * Kalshi's email steps `{ signedRequest }` with no `otp`.
    * @returns The session status after the step.
    */
   async postOnboardingStep(params: {
@@ -1375,6 +1385,7 @@ export class KycService extends BaseDataService<
     });
     if (!response.ok) {
       let detail = '';
+      let code: string | undefined;
       try {
         const errorBody: unknown = await response.json();
         if (errorBody && typeof errorBody === 'object') {
@@ -1384,15 +1395,21 @@ export class KycService extends BaseDataService<
           } else if (typeof record.error === 'string') {
             detail = record.error;
           }
+          if (typeof record.code === 'string') {
+            code = record.code;
+          } else if (typeof record.error === 'string') {
+            code = record.error;
+          }
         }
       } catch {
         // Ignore body parse failures; status alone is still useful.
       }
-      throw new HttpError(
+      throw new KycApiError(
         response.status,
         `Fetching '${url.toString()}' failed with status '${response.status}'${
           detail ? `: ${detail}` : ''
         }`,
+        code,
       );
     }
 
