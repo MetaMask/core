@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `verified` to `ProfileIdentity` and `ProfileIdentityStruct`
+- Add optional `verified` to `ProfileIdentity` and `ProfileIdentityStruct` ([#11670](https://github.com/MetaMask/core/pull/11670))
   - Every profile shape that carries the Profile API identity gets it: `ProfileSummary`, `FeedActorSummary`, `LeaderboardEntry` and `TraderProfile`, including realtime feed actors.
   - Responses without it still validate. Treat a missing or `null` value as not verified.
 
