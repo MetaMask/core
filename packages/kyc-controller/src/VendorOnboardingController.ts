@@ -12,10 +12,6 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 
-import type {
-  KycAccountLinkAdapter,
-  KycAccountLinkMfaMethod,
-} from './accountLink.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep } from './KycService.js';
 import {
@@ -39,6 +35,10 @@ import {
 } from './ukyc/sessionAuthorization.js';
 import type { UkycSessionDeps } from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
+import type {
+  KalshiAccountLinkAdapter,
+  KalshiAccountLinkMfaMethod,
+} from './vendors/KalshiAccountLink.js';
 
 // === GENERAL ===
 
@@ -163,12 +163,10 @@ export type VendorOnboardingControllerOptions = {
   messenger: VendorOnboardingControllerMessenger;
   state?: Partial<VendorOnboardingControllerState>;
   /**
-   * The device-signed account link calls, by vendor. Only needed for vendors
-   * that link an account (Kalshi).
+   * The device-signed Kalshi account link calls. Only needed when onboarding
+   * Kalshi.
    */
-  accountLinkAdapters?: Partial<
-    Record<OnboardingVendor, KycAccountLinkAdapter>
-  >;
+  kalshiAccountLinkAdapter?: KalshiAccountLinkAdapter;
   /**
    * Platform adapter that presents the SumSub SDK. Injected by each client so
    * the controller stays platform-agnostic. Without it, `launchProviderFlow`
@@ -193,9 +191,7 @@ export class VendorOnboardingController extends BaseController<
   VendorOnboardingControllerState,
   VendorOnboardingControllerMessenger
 > {
-  readonly #accountLinkAdapters: Partial<
-    Record<OnboardingVendor, KycAccountLinkAdapter>
-  >;
+  readonly #kalshiAccountLinkAdapter?: KalshiAccountLinkAdapter;
 
   readonly #sumsubLauncher?: KycSumSubLauncher;
 
@@ -218,14 +214,14 @@ export class VendorOnboardingController extends BaseController<
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this controller.
    * @param options.state - Partial initial state; merged over defaults.
-   * @param options.accountLinkAdapters - The device-signed account link
-   * calls, by vendor.
+   * @param options.kalshiAccountLinkAdapter - The device-signed Kalshi
+   * account link calls.
    * @param options.sumsubLauncher - The platform SumSub launcher adapter.
    */
   constructor({
     messenger,
     state,
-    accountLinkAdapters,
+    kalshiAccountLinkAdapter,
     sumsubLauncher,
   }: VendorOnboardingControllerOptions) {
     super({
@@ -235,7 +231,7 @@ export class VendorOnboardingController extends BaseController<
       state: { ...getDefaultVendorOnboardingControllerState(), ...state },
     });
 
-    this.#accountLinkAdapters = accountLinkAdapters ?? {};
+    this.#kalshiAccountLinkAdapter = kalshiAccountLinkAdapter;
     this.#sumsubLauncher = sumsubLauncher;
 
     this.messenger.registerMethodActionHandlers(
@@ -299,7 +295,7 @@ export class VendorOnboardingController extends BaseController<
     vendor: OnboardingVendor;
     email: string;
   }): Promise<KycStep> {
-    await this.#requireAdapter(params.vendor).startLink({
+    await this.#requireKalshiAccountLinkAdapter(params.vendor).startLink({
       email: params.email,
     });
     return this.#readStep(params.vendor, { join: false });
@@ -319,8 +315,10 @@ export class VendorOnboardingController extends BaseController<
   async verifyAccountLink(params: {
     vendor: OnboardingVendor;
     code: string;
-  }): Promise<{ step: KycStep; mfaMethod?: KycAccountLinkMfaMethod }> {
-    const { mfaMethod } = await this.#requireAdapter(params.vendor).verifyLink({
+  }): Promise<{ step: KycStep; mfaMethod?: KalshiAccountLinkMfaMethod }> {
+    const { mfaMethod } = await this.#requireKalshiAccountLinkAdapter(
+      params.vendor,
+    ).verifyLink({
       code: params.code,
     });
     const step = await this.#readStep(params.vendor, { join: false });
@@ -684,9 +682,11 @@ export class VendorOnboardingController extends BaseController<
     return status.id;
   }
 
-  #requireAdapter(vendor: OnboardingVendor): KycAccountLinkAdapter {
-    const adapter = this.#accountLinkAdapters[vendor];
-    if (!adapter) {
+  #requireKalshiAccountLinkAdapter(
+    vendor: OnboardingVendor,
+  ): KalshiAccountLinkAdapter {
+    const adapter = this.#kalshiAccountLinkAdapter;
+    if (vendor !== 'kalshi' || !adapter) {
       throw new Error(
         `VendorOnboardingController: no account link adapter for ${vendor}.`,
       );

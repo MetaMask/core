@@ -8,7 +8,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
-import type { KycAccountLinkAdapter } from './accountLink.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
 import type { KycSessionStatus, KycStepInfo } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
@@ -21,6 +20,7 @@ import type {
   VendorOnboardingControllerMessenger,
   VendorOnboardingControllerOptions,
 } from './VendorOnboardingController.js';
+import type { KalshiAccountLinkAdapter } from './vendors/KalshiAccountLink.js';
 
 vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -263,7 +263,7 @@ describe('VendorOnboardingController', () => {
 
       it('does not join a read that started before the change', async () => {
         await withController(
-          { options: { accountLinkAdapters: { kalshi: linked } } },
+          { options: { kalshiAccountLinkAdapter: linked } },
           async ({ controller, handlers }) => {
             let answerOld: (info: KycStepInfo) => void = () => undefined;
             handlers.getStep
@@ -291,7 +291,7 @@ describe('VendorOnboardingController', () => {
 
       it('lets a later plain read join the read the change started', async () => {
         await withController(
-          { options: { accountLinkAdapters: { kalshi: linked } } },
+          { options: { kalshiAccountLinkAdapter: linked } },
           async ({ controller, handlers }) => {
             let answer: (info: KycStepInfo) => void = () => undefined;
             handlers.getStep.mockReturnValueOnce(
@@ -456,7 +456,7 @@ describe('VendorOnboardingController', () => {
     it('starts the link through the adapter, then reads the step', async () => {
       const adapter = getAdapter();
       await withController(
-        { options: { accountLinkAdapters: { kalshi: adapter } } },
+        { options: { kalshiAccountLinkAdapter: adapter } },
         async ({ controller, handlers }) => {
           handlers.getStep.mockResolvedValue({
             step: 'account_link',
@@ -478,7 +478,7 @@ describe('VendorOnboardingController', () => {
     it('verifies the code through the adapter, then reads the step', async () => {
       const adapter = getAdapter();
       await withController(
-        { options: { accountLinkAdapters: { kalshi: adapter } } },
+        { options: { kalshiAccountLinkAdapter: adapter } },
         async ({ controller, handlers }) => {
           handlers.getStep.mockResolvedValue({
             step: 'confirm_identity',
@@ -500,7 +500,7 @@ describe('VendorOnboardingController', () => {
       const adapter = getAdapter();
       adapter.verifyLink.mockResolvedValue({ mfaMethod: 'sms' });
       await withController(
-        { options: { accountLinkAdapters: { kalshi: adapter } } },
+        { options: { kalshiAccountLinkAdapter: adapter } },
         async ({ controller, handlers }) => {
           handlers.getStep.mockResolvedValue({
             step: 'account_link',
@@ -529,7 +529,7 @@ describe('VendorOnboardingController', () => {
       const adapter = getAdapter();
       adapter.startLink.mockRejectedValue(new Error('link failed'));
       await withController(
-        { options: { accountLinkAdapters: { kalshi: adapter } } },
+        { options: { kalshiAccountLinkAdapter: adapter } },
         async ({ controller, handlers }) => {
           await expect(
             controller.startAccountLink({ vendor: 'kalshi', email: 'a@b.co' }),
@@ -542,6 +542,9 @@ describe('VendorOnboardingController', () => {
 
     it('throws when the vendor has no adapter', async () => {
       await withController(async ({ controller }) => {
+        await expect(
+          controller.startAccountLink({ vendor: 'kalshi', email: 'a@b.co' }),
+        ).rejects.toThrow('no account link adapter for kalshi');
         await expect(
           controller.startAccountLink({ vendor: 'iron', email: 'a@b.co' }),
         ).rejects.toThrow('no account link adapter for iron');
@@ -1372,7 +1375,7 @@ describe('VendorOnboardingController', () => {
         verifyLink: vi.fn().mockResolvedValue({}),
       };
       await withController(
-        { options: { accountLinkAdapters: { kalshi: adapter } } },
+        { options: { kalshiAccountLinkAdapter: adapter } },
         async ({ controller, handlers }) => {
           handlers.getStep.mockResolvedValue({
             step: 'confirm_identity',
@@ -1401,7 +1404,7 @@ describe('VendorOnboardingController', () => {
         verifyLink: vi.fn().mockResolvedValue({ mfaMethod: 'sms' }),
       };
       await withController(
-        { options: { accountLinkAdapters: { kalshi: adapter } } },
+        { options: { kalshiAccountLinkAdapter: adapter } },
         async ({ controller, handlers }) => {
           handlers.getStep.mockResolvedValue({
             step: 'account_link',
@@ -1696,7 +1699,7 @@ function withController<ReturnValue>(
 function getAdapter(): {
   startLink: Mock;
   verifyLink: Mock;
-} & KycAccountLinkAdapter {
+} & KalshiAccountLinkAdapter {
   return {
     startLink: vi.fn().mockResolvedValue(undefined),
     verifyLink: vi.fn().mockResolvedValue({}),

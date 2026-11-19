@@ -45,9 +45,9 @@ export {
   getDefaultVendorOnboardingControllerState,
 } from './VendorOnboardingController.js';
 export type {
-  KycAccountLinkAdapter,
-  KycAccountLinkMfaMethod,
-} from './accountLink.js';
+  KalshiAccountLinkAdapter,
+  KalshiAccountLinkMfaMethod,
+} from './vendors/KalshiAccountLink.js';
 export type {
   VendorOnboardingControllerActions,
   VendorOnboardingControllerEvents,

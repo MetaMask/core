@@ -185,8 +185,8 @@ touches `KycController` state.
   `startSession` opens or resumes the UKYC session, then wraps the
   `data_encryption_key` and a `ukyc_capability_token` for idOS after verifying
   both encryption schemas' `jwtChain`. It does not create a vendor customer.
-- **Injected adapters.** `accountLinkAdapters` supplies the device-signed
-  account link calls per vendor; `sumsubLauncher` presents SumSub.
+- **Injected adapters.** `kalshiAccountLinkAdapter` supplies the device-signed
+  Kalshi account link calls; `sumsubLauncher` presents SumSub.
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
