@@ -3137,6 +3137,11 @@ export type UpdatePositionTPSLParams = {
   stopLossSize?: string;
   /** Pair-only opt-in for partial position coverage; omission keeps the provider default. */
   partialPairLinkage?: 'equal-quantity-oco' | 'independent';
+  /**
+   * HyperLiquid: max slippage in basis points for a whole-position market leg. Omit
+   * to use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
   // Optional tracking data for MetaMetrics events
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing

@@ -1,4 +1,5 @@
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { isPerpsProviderType } from '../routing/isPerpsProviderType.js';
 import type {
   CancelOrdersParams,
   CancelOrdersResult,
@@ -14,6 +15,40 @@ export type CancelSelection =
   | { kind: 'symbols'; symbols: string[] };
 
 /**
+ * Reject malformed batch filters at the runtime API boundary.
+ *
+ * @param params - Batch cancellation request.
+ */
+function assertCancelOrderFilters(params: CancelOrdersParams): void {
+  for (const key of ['orders', 'orderIds', 'symbols'] as const) {
+    if (params[key] !== undefined && !Array.isArray(params[key])) {
+      throw new Error(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED, {
+        cause: new TypeError(`${key} must be an array`),
+      });
+    }
+  }
+
+  const selection: readonly unknown[] = params.orders ?? [];
+  for (const order of selection) {
+    if (
+      typeof order !== 'object' ||
+      order === null ||
+      !('providerId' in order) ||
+      !isPerpsProviderType(order.providerId) ||
+      !('orderId' in order) ||
+      typeof order.orderId !== 'string' ||
+      !order.orderId.trim()
+    ) {
+      throw new Error(PERPS_ERROR_CODES.BATCH_CANCEL_FAILED, {
+        cause: new TypeError(
+          'Each qualified order requires a venue and order ID',
+        ),
+      });
+    }
+  }
+}
+
+/**
  * Resolve cancel-all > scoped orders > bare IDs > symbols in one place.
  *
  * @param params - The caller's cancellation selectors.
@@ -22,6 +57,7 @@ export type CancelSelection =
 export function resolveCancelSelection(
   params: CancelOrdersParams,
 ): CancelSelection {
+  assertCancelOrderFilters(params);
   if (params.cancelAll === true) {
     return { kind: 'all' };
   }

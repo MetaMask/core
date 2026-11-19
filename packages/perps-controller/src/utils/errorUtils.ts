@@ -195,10 +195,43 @@ export function isHyperLiquidUserNotFoundError(error: unknown): boolean {
  * @returns True if the error indicates multi-sig signing is required.
  */
 export function isHyperLiquidMultiSigRequiredError(error: unknown): boolean {
-  const lower = ensureError(error).message.toLowerCase();
+  const cause = ensureError(error);
+  const lower = cause.message.toLowerCase();
   return (
-    lower.includes('multi-sig required') || lower.includes('multisig required')
+    getHyperLiquidWriteGuardCode(cause) ===
+      PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED ||
+    lower.includes('multi-sig required') ||
+    lower.includes('multisig required')
   );
+}
+
+const HYPERLIQUID_WRITE_GUARD_CODES = [
+  PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+  PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+  // Thrown inside signing for a TP/SL replacement. The SDK wraps them, and
+  // the public result still has to name the refusal after restoration.
+  PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+  PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+] as const;
+
+type HyperLiquidWriteGuardCode = (typeof HYPERLIQUID_WRITE_GUARD_CODES)[number];
+
+/**
+ * Read a local write refusal, including one the SDK wrapped while signing.
+ *
+ * @param error - The caught failure.
+ * @returns The local refusal code, when present.
+ */
+export function getHyperLiquidWriteGuardCode(
+  error: unknown,
+): HyperLiquidWriteGuardCode | undefined {
+  const sdkError = ensureError(error);
+  const refusal =
+    sdkError.name === 'AbstractWalletError' ? sdkError.cause : sdkError;
+  if (!(refusal instanceof Error)) {
+    return undefined;
+  }
+  return HYPERLIQUID_WRITE_GUARD_CODES.find((code) => code === refusal.message);
 }
 
 /**
@@ -239,7 +272,10 @@ export function normalizeHyperLiquidError(
   const cause = ensureError(error, 'normalizeHyperLiquidError');
   let errorCode: HyperLiquidErrorDetails['code'] | undefined;
 
-  if (isHyperLiquidUserNotFoundError(cause)) {
+  const guardCode = getHyperLiquidWriteGuardCode(cause);
+  if (guardCode) {
+    errorCode = guardCode;
+  } else if (isHyperLiquidUserNotFoundError(cause)) {
     errorCode = PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND;
   } else if (
     isPerpsErrorCode(cause.message) &&
