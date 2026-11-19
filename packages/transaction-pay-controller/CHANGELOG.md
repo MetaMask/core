@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Send `ServerStrategy` status requests as `POST` including source transaction receipt logs ([#00000](https://github.com/MetaMask/core/pull/00000))
+- Send `ServerStrategy` status requests as `POST` including source transaction receipt logs ([#11652](https://github.com/MetaMask/core/pull/11652))
   - Include the `address`, `data`, and `topics` of each log from the receipt of the local transaction matching the source hash, so providers can resolve their order.
   - Stop polling and fail immediately when the status request returns a `4xx` response, while still retrying on `408`, `429`, `5xx` and network errors.
 
