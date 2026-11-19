@@ -5,6 +5,7 @@ import type { MetaResponse } from '@nktkas/hyperliquid';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
+import { HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS } from '../../../src/constants/hyperLiquidConfig.js';
 import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -2854,6 +2855,111 @@ describe('HyperLiquidProvider', () => {
       expect(result.success).toBe(true);
       expect(cancelledOrderIds()).toStrictEqual([TP_OID, 801]);
     });
+
+    it.each([
+      ['cancel', 'multi-sig', []],
+      ['replacement', 'multi-sig', ['cancel']],
+      ['restoration', 'multi-sig', ['cancel', 'replacement']],
+      ['cancel', 'unavailable', []],
+    ] as const)(
+      'does not sign or dispatch a TP/SL %s when support expires and becomes %s',
+      async (blockedWrite, support, allowed) => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+          setOpenOrders([rawPositionTrigger('tp')]);
+          const info = mockClientService.getInfoClient();
+          const readSupport = vi.fn().mockResolvedValue(null);
+          info.userToMultiSigSigners = readSupport;
+          const exchange = mockClientService.getExchangeClient();
+          const sign = vi.fn();
+          const dispatch = vi.fn();
+
+          mockClientService.getExchangeClient.mockImplementation(
+            (beforeDispatch, hooks) => {
+              const write = async (stage: string): Promise<void> => {
+                if (stage === blockedWrite) {
+                  vi.advanceTimersByTime(
+                    HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
+                  );
+                  if (support === 'unavailable') {
+                    readSupport.mockRejectedValue(
+                      new Error('Support read unavailable'),
+                    );
+                  } else {
+                    readSupport.mockResolvedValue({
+                      authorizedUsers: [
+                        '0x1234567890123456789012345678901234567890',
+                      ],
+                      threshold: 2,
+                    });
+                  }
+                }
+                await hooks?.beforeSign?.();
+                sign(stage);
+                await beforeDispatch?.();
+                dispatch(stage);
+              };
+              const overrides = {
+                cancel: async () => {
+                  await write('cancel');
+                  return {
+                    status: 'ok',
+                    response: {
+                      type: 'cancel',
+                      data: { statuses: ['success'] },
+                    },
+                  };
+                },
+                order: async ({ orders }) => {
+                  const orderType = orders[0].t;
+                  if (!('trigger' in orderType)) {
+                    throw new Error('Expected a position trigger order');
+                  }
+                  const stage =
+                    orderType.trigger.triggerPx === '61000'
+                      ? 'replacement'
+                      : 'restoration';
+                  await write(stage);
+                  if (stage === 'replacement') {
+                    throw Object.assign(new Error('Rejected take profit'), {
+                      response: {
+                        status: 'ok',
+                        response: {
+                          type: 'order',
+                          data: {
+                            statuses: [{ error: 'Rejected take profit' }],
+                          },
+                        },
+                      },
+                    });
+                  }
+                  return {
+                    status: 'ok',
+                    response: {
+                      type: 'order',
+                      data: { statuses: [{ resting: { oid: 703 } }] },
+                    },
+                  };
+                },
+              } satisfies Pick<typeof exchange, 'cancel' | 'order'>;
+              return Object.assign({}, exchange, overrides);
+            },
+          );
+
+          const result = await provider.replacePositionTPSLLeg({
+            symbol: 'BTC',
+            leg: 'tp',
+            triggerPrice: '61000',
+          });
+
+          expect(result.success).toBe(false);
+          expect(sign.mock.calls.flat()).toStrictEqual(allowed);
+          expect(dispatch.mock.calls.flat()).toStrictEqual(allowed);
+        } finally {
+          vi.useRealTimers();
+        }
+      },
+    );
 
     it('restores only its own leg when the new leg is rejected', async () => {
       setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);

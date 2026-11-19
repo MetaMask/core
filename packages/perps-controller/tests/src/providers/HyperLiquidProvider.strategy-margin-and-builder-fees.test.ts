@@ -1005,6 +1005,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
                 code: 'EXISTING',
               },
             }),
+            userToMultiSigSigners: vi.fn().mockResolvedValue(null),
             maxBuilderFee: vi.fn().mockResolvedValue(100000),
             frontendOpenOrders: vi
               .fn()

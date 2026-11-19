@@ -3122,13 +3122,17 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param context - An operation-scoped account context. Defaults to the
    * currently active account and network.
+   * @param refreshPositiveSupport - Recheck even a current positive decision.
    * @returns Whether the account can submit Hyperliquid actions.
    */
-  async #getAccountSupportForContext(context?: {
-    userAddress: string;
-    network: 'mainnet' | 'testnet';
-    infoClient?: InfoClient;
-  }): Promise<PerpsAccountSupport> {
+  async #getAccountSupportForContext(
+    context?: {
+      userAddress: string;
+      network: 'mainnet' | 'testnet';
+      infoClient?: InfoClient;
+    },
+    refreshPositiveSupport = false,
+  ): Promise<PerpsAccountSupport> {
     const userAddress =
       context?.userAddress ??
       (await this.#walletService.getUserAddressWithDefault());
@@ -3139,17 +3143,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     const cachedSupport = this.#accountSupportByContext.get(cacheKey);
     if (cachedSupport) {
       const expiresAt = this.#accountSupportExpiresAt.get(cacheKey);
-      if (expiresAt === undefined || Date.now() < expiresAt) {
+      if (
+        expiresAt === undefined ||
+        (!refreshPositiveSupport && Date.now() < expiresAt)
+      ) {
         return cachedSupport;
       }
       const cachedResult = await cachedSupport;
       if (this.#accountSupportByContext.get(cacheKey) !== cachedSupport) {
         // Replaced while awaiting (venue rejection or a concurrent re-probe).
-        return await this.#getAccountSupportForContext({
-          userAddress,
-          network,
-          infoClient: context?.infoClient,
-        });
+        return await this.#getAccountSupportForContext(
+          { userAddress, network, infoClient: context?.infoClient },
+          refreshPositiveSupport,
+        );
       }
       if (!cachedResult.isSupported) {
         return cachedResult;
@@ -3263,15 +3269,28 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param context - The account, network, and lifecycle captured by the action.
    * @param operation - Operation name included in lifecycle diagnostics.
-   * @param retryMissingSupport - Whether to retry after a transient failure.
-   * @param rollbackInfoClient - Captured HTTP reader for cleanup after teardown.
+   * @param options - Requirements for the captured write.
+   * @param options.retryMissingSupport - Retry a missing support decision.
+   * @param options.requireVerifiedSupport - Refuse writes if support is unavailable.
+   * @param options.refreshPositiveSupport - Recheck support after signing even before expiry.
+   * @param options.rollbackInfoClient - Captured HTTP reader for cleanup after teardown.
    */
   async #assertNoKnownUnsupportedAccount(
     context: AccountSupportContext,
     operation: string,
-    retryMissingSupport = false,
-    rollbackInfoClient?: InfoClient,
+    options: {
+      retryMissingSupport?: boolean;
+      requireVerifiedSupport?: boolean;
+      refreshPositiveSupport?: boolean;
+      rollbackInfoClient?: InfoClient;
+    } = {},
   ): Promise<void> {
+    const {
+      requireVerifiedSupport,
+      retryMissingSupport,
+      refreshPositiveSupport,
+      rollbackInfoClient,
+    } = options;
     const assertScope = rollbackInfoClient
       ? async (): Promise<void> =>
           await this.#assertAccountIdentityCurrent(context)
@@ -3283,8 +3302,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       context.userAddress,
     );
     const supportContext = { ...context, infoClient: rollbackInfoClient };
-    if (retryMissingSupport && !this.#accountSupportByContext.has(cacheKey)) {
-      await this.#getAccountSupportForContext(supportContext);
+    if (
+      refreshPositiveSupport ||
+      ((retryMissingSupport || requireVerifiedSupport) &&
+        !this.#accountSupportByContext.has(cacheKey))
+    ) {
+      await this.#getAccountSupportForContext(
+        supportContext,
+        refreshPositiveSupport,
+      );
     }
     let supportRequest: Promise<PerpsAccountSupport> | undefined;
     let expiresAt = this.#accountSupportExpiresAt.get(cacheKey);
@@ -3296,7 +3322,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       const support = await supportRequest;
       await assertScope();
       this.#assertCachedAccountWritable(cacheKey, support);
-      if (rollbackInfoClient && !this.#accountSupportByContext.has(cacheKey)) {
+      if (
+        requireVerifiedSupport &&
+        !this.#accountSupportByContext.has(cacheKey)
+      ) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       }
       // The decision can expire or be replaced during the identity lookup.
@@ -3339,12 +3368,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     // The HTTP reader remains usable after disconnect clears the SDK clients.
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const assertWritable = async (): Promise<void> =>
-      await this.#assertNoKnownUnsupportedAccount(
-        accountContext,
-        'Rollback',
-        true,
-        infoClient,
-      );
+      await this.#assertNoKnownUnsupportedAccount(accountContext, 'Rollback', {
+        requireVerifiedSupport: true,
+        rollbackInfoClient: infoClient,
+      });
     return this.#clientService.getExchangeClient(assertWritable, {
       beforeSign: assertWritable,
       onExchangeResult: (outcome) =>
@@ -3355,7 +3382,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
   }
 
-  async #captureAccountContext(): Promise<AccountSupportContext> {
+  async #captureAccountContext(): Promise<
+    AccountSupportContext & { userAddress: Hex }
+  > {
     return {
       lifecycleGeneration: this.#lifecycleGeneration,
       network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
@@ -12272,24 +12301,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      const lifecycle = this.#lifecycleGeneration;
-      const isTestnet = this.#clientService.isTestnetMode();
-      const userAddress = await this.#walletService.getUserAddressWithDefault();
-      const accountContext: AccountSupportContext = {
-        lifecycleGeneration: lifecycle,
-        network: isTestnet ? 'testnet' : 'mainnet',
-        userAddress,
-      };
-      const assertScope = async (): Promise<void> => {
-        const current = await this.#walletService.getUserAddressWithDefault();
-        this.#assertProviderLifecycleCurrent(lifecycle, operationName);
-        if (
-          current.toLowerCase() !== userAddress.toLowerCase() ||
-          this.#clientService.isTestnetMode() !== isTestnet
-        ) {
-          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
-        }
-      };
+      const accountContext = await this.#captureAccountContext();
+      const { userAddress } = accountContext;
+      const assertScope = async (): Promise<void> =>
+        await this.#assertAccountContextCurrent(accountContext, operationName);
       await assertScope();
       this.#deps.debugLogger.log('Updating position TP/SL:', params);
 
@@ -12828,39 +12843,56 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       };
       await assertCurrentPosition();
-      // These operation-local reads run inside the SDK signing semaphore.
-      // The extra round trips deliberately serialize with the signed write,
-      // preventing stale account-shape/position dispatch after wallet prompts.
-      const assertWritableScope = async (): Promise<void> => {
-        await assertScope();
-        const isMultiSig = await this.#isHyperliquidMultiSigAccount(
-          userAddress,
-          infoClient,
+      const assertWritableScope = async (
+        refreshPositiveSupport = false,
+      ): Promise<void> =>
+        await this.#assertNoKnownUnsupportedAccount(
+          accountContext,
+          operationName,
+          { requireVerifiedSupport: true, refreshPositiveSupport },
         );
-        await assertScope();
-        if (isMultiSig) {
-          throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
-        }
+      const assertWritablePosition = async (
+        refreshPositiveSupport = false,
+      ): Promise<void> => {
+        await assertWritableScope(refreshPositiveSupport);
+        await assertCurrentPosition();
       };
+      const recordOutcome = (
+        outcome: { answer: unknown } | { error: unknown },
+      ): void =>
+        this.#recordUnsupportedAccountFromExchangeOutcome(
+          outcome,
+          accountContext,
+        );
+
       let cancelGuardFailure: unknown;
-      const exchangeClient = this.#clientService.getExchangeClient(async () => {
+      const assertCanCancel = async (
+        refreshPositiveSupport = false,
+      ): Promise<void> => {
         try {
-          await assertWritableScope();
-          await assertCurrentPosition();
+          await assertWritablePosition(refreshPositiveSupport);
         } catch (error) {
           cancelGuardFailure = error;
           throw error;
         }
-      });
-      const recoveryExchangeClient =
-        this.#clientService.getExchangeClient(assertWritableScope);
+      };
+      const exchangeClient = this.#clientService.getExchangeClient(
+        async () => await assertCanCancel(true),
+        { beforeSign: assertCanCancel, onExchangeResult: recordOutcome },
+      );
+      // Restoration belongs to the same account and network, but does not use
+      // the requested replacement's position precondition.
+      const recoveryExchangeClient = this.#clientService.getExchangeClient(
+        async () => await assertWritableScope(true),
+        { beforeSign: assertWritableScope, onExchangeResult: recordOutcome },
+      );
       let replacementMayHaveDispatched = false;
       const replacementExchangeClient = this.#clientService.getExchangeClient(
         async () => {
-          await assertWritableScope();
-          await assertCurrentPosition();
+          await assertWritablePosition(true);
           replacementMayHaveDispatched = true;
         },
+        { beforeSign: assertWritablePosition, onExchangeResult: recordOutcome },
       );
 
       const rollbackRequiresBuilderFee = [
@@ -12932,9 +12964,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           let statuses: unknown[];
           let restorationFailure: Error | undefined;
           try {
-            // Restore the exact pre-call reduce-only intent. Scope and account
-            // shape are still probed after signing, but the requested new
-            // protection's position precondition does not apply to rollback.
+            // Restore the exact pre-call reduce-only intent.
             await assertScope();
             const result = await recoveryExchangeClient.order({
               orders: sentRestorationOrders,
@@ -18486,7 +18516,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       await this.#assertNoKnownUnsupportedAccount(
         accountContext,
         'SDK exchange write',
-        true,
+        { retryMissingSupport: true },
       );
     return this.#clientService.getExchangeClient(assertWritable, {
       beforeSign: assertWritable,
