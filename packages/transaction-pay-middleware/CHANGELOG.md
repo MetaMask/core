@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.5]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.2.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605))
-- Bump `@metamask/perps-controller` from `^24.0.0` to `^24.1.0` ([#11567](https://github.com/MetaMask/core/pull/11567))
+- Bump `@metamask/transaction-controller` from `^74.0.0` to `^74.3.0` ([#11579](https://github.com/MetaMask/core/pull/11579), [#11605](https://github.com/MetaMask/core/pull/11605), [#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@metamask/perps-controller` from `^24.0.0` to `^25.0.0` ([#11567](https://github.com/MetaMask/core/pull/11567), [#11653](https://github.com/MetaMask/core/pull/11653))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
 
 ## [2.0.4]
@@ -76,7 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/perps-controller` from `^20.1.0` to `^21.0.0` ([#10988](https://github.com/MetaMask/core/pull/10988))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.5...HEAD
+[2.0.5]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.4...@metamask/transaction-pay-middleware@2.0.5
 [2.0.4]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.3...@metamask/transaction-pay-middleware@2.0.4
 [2.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.2...@metamask/transaction-pay-middleware@2.0.3
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.1...@metamask/transaction-pay-middleware@2.0.2
