@@ -24,6 +24,7 @@ import {
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
+import { rpcRequest } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
   buildCaipAssetType,
@@ -51,6 +52,10 @@ vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
 }));
 vi.mock(import('../../utils/feature-flags.js'));
 vi.mock(import('../../utils/polymarket/withdraw.js'));
+vi.mock(import('../../utils/provider.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  rpcRequest: vi.fn(),
+}));
 vi.mock(import('../../utils/second-leg.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -716,6 +721,7 @@ describe('submitServerQuotes', () => {
 
   describe('status logs', () => {
     const getTransactionMock = vi.mocked(getTransaction);
+    const rpcRequestMock = vi.mocked(rpcRequest);
 
     const LOG_MOCK = {
       address: '0x9999999999999999999999999999999999999999',
@@ -769,12 +775,64 @@ describe('submitServerQuotes', () => {
       });
     });
 
-    it('omits logs when the matching transaction has no receipt logs', async () => {
+    it('fetches receipt logs from the network when the matching transaction has none', async () => {
       currentTransaction = {
         ...currentTransaction,
         hash: SOURCE_HASH_MOCK,
         txReceipt: {},
       };
+
+      rpcRequestMock.mockResolvedValue({
+        logs: [{ ...LOG_MOCK, logIndex: '0x0' }],
+      });
+
+      await submitServerQuotes(request);
+
+      expect(rpcRequestMock).toHaveBeenCalledWith({
+        messenger,
+        chainId: currentTransaction.chainId,
+        method: 'eth_getTransactionReceipt',
+        params: [SOURCE_HASH_MOCK],
+      });
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: [LOG_MOCK] }),
+      );
+    });
+
+    it('reuses fetched logs across polls', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockResolvedValue({ logs: [LOG_MOCK] });
+
+      getServerStatusMock
+        .mockResolvedValueOnce({ status: ServerStatus.Pending })
+        .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledTimes(2);
+      expect(rpcRequestMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits logs when the network receipt is unavailable', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockResolvedValue(null);
+
+      await submitServerQuotes(request);
+
+      expect(getServerStatusMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ logs: undefined }),
+      );
+    });
+
+    it('omits logs when fetching the network receipt fails', async () => {
+      currentTransaction = { ...currentTransaction, hash: SOURCE_HASH_MOCK };
+
+      rpcRequestMock.mockRejectedValue(new Error('rpc error'));
 
       await submitServerQuotes(request);
 
