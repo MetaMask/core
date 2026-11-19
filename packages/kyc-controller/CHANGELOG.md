@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the `KycClientContext` type, sent with a step request for the few facts only the device knows ([#11441](https://github.com/MetaMask/core/pull/11441))
 
 - Add `KycApiError`, which `KycService` throws for a failed kyc-api call with the `code` from the response body, and `getKycKalshiErrorCode`, which finds a code kyc-api answers with (`KYC_KALSHI_ERROR_CODES`: the relay's `kalshi_*` codes, `invalid_or_expired_code`, `session_not_in_email_verification`, `kalshi_account_exists`, `not_found` and `idos_relay_unavailable`) on a failure ([#11634](https://github.com/MetaMask/core/pull/11634))
+  - The code is written into the error message when the body's message does not already contain it, so a wrapped failure, which keeps only the message, still names the code
   - A client uses it to keep a wrong email code on the code screen and to ask for a retry after `kalshi_signed_request_rejected`
 - Add `KYC_VENDOR_SIGN_PATHS` and `KYC_SIGNED_REQUEST_LIMITS`, which the controller checks a signer's answer against: the route for each call, at most 16 string headers, and a body of at most 4 KB ([#11634](https://github.com/MetaMask/core/pull/11634))
 

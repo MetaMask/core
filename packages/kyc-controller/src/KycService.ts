@@ -1404,13 +1404,17 @@ export class KycService extends BaseDataService<
       } catch {
         // Ignore body parse failures; status alone is still useful.
       }
-      throw new KycApiError(
-        response.status,
-        `Fetching '${url.toString()}' failed with status '${response.status}'${
-          detail ? `: ${detail}` : ''
-        }`,
-        code,
-      );
+      // The code rides in the message too. A wrapped failure keeps only the
+      // message, and the body's message can be human text that does not name
+      // the code.
+      let text = `Fetching '${url.toString()}' failed with status '${response.status}'`;
+      if (detail) {
+        text += `: ${detail}`;
+      }
+      if (code !== undefined && !detail.includes(code)) {
+        text += `: ${code}`;
+      }
+      throw new KycApiError(response.status, text, code);
     }
 
     // DELETE (and similar) endpoints return 204 No Content.

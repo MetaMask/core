@@ -977,7 +977,9 @@ describe('KycService', () => {
         name: 'KycApiError',
         httpStatus: 400,
         code: 'kalshi_signed_request_rejected',
-        message: expect.stringContaining('Kalshi refused the signature'),
+        message: expect.stringContaining(
+          'Kalshi refused the signature: kalshi_signed_request_rejected',
+        ),
       });
     });
 
@@ -993,6 +995,9 @@ describe('KycService', () => {
       ).rejects.toMatchObject({
         httpStatus: 400,
         code: 'invalid_or_expired_code',
+        message: expect.stringContaining(
+          'That code is wrong: invalid_or_expired_code',
+        ),
       });
     });
 
