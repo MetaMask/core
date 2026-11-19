@@ -183,7 +183,10 @@ describe('VendorOnboardingController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.getStep.mockResolvedValue({ step: 'decision', status: 'none' });
+          handlers.getStep.mockResolvedValue({
+            step: 'decision',
+            status: 'none',
+          });
 
           await controller.refreshStep({ vendor: 'kalshi' });
 
@@ -272,9 +275,7 @@ describe('VendorOnboardingController', () => {
 
         await expect(first).rejects.toThrow('down');
         await expect(second).rejects.toThrow('down');
-        expect(await controller.refreshStep({ vendor: 'kalshi' })).toBe(
-          'mfa',
-        );
+        expect(await controller.refreshStep({ vendor: 'kalshi' })).toBe('mfa');
       });
     });
 
@@ -303,9 +304,7 @@ describe('VendorOnboardingController', () => {
 
           expect(step).toBe('mfa');
           expect(handlers.getStep).toHaveBeenCalledTimes(2);
-          expect(controller.state.vendors.kalshi?.step).toBe(
-            'mfa',
-          );
+          expect(controller.state.vendors.kalshi?.step).toBe('mfa');
         });
       });
 
@@ -357,9 +356,7 @@ describe('VendorOnboardingController', () => {
           answerOld({ step: 'terms', status: 'none' });
           await old;
 
-          expect(controller.state.vendors.kalshi?.step).toBe(
-            'mfa',
-          );
+          expect(controller.state.vendors.kalshi?.step).toBe('mfa');
         });
       });
 
@@ -415,9 +412,7 @@ describe('VendorOnboardingController', () => {
             controller.refreshStep({ vendor: 'kalshi' }),
           ).rejects.toThrow('down');
 
-          expect(controller.state.vendors.kalshi?.step).toBe(
-            'mfa',
-          );
+          expect(controller.state.vendors.kalshi?.step).toBe('mfa');
         },
       );
     });
@@ -960,7 +955,10 @@ describe('VendorOnboardingController', () => {
     it('does not create a session when kyc-api already has one', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
-        handlers.getStep.mockResolvedValue({ step: 'decision', status: 'none' });
+        handlers.getStep.mockResolvedValue({
+          step: 'decision',
+          status: 'none',
+        });
 
         const step = await controller.startSession({ vendor: 'kalshi' });
 
@@ -1131,7 +1129,10 @@ describe('VendorOnboardingController', () => {
 
     it('records the consents with kyc-api, then reads the step', async () => {
       await withController(saved, async ({ controller, handlers }) => {
-        handlers.getStep.mockResolvedValue({ step: 'decision', status: 'none' });
+        handlers.getStep.mockResolvedValue({
+          step: 'decision',
+          status: 'none',
+        });
 
         const step = await controller.acceptSessionDisclaimers({
           vendor: 'kalshi',
@@ -1218,7 +1219,10 @@ describe('VendorOnboardingController', () => {
           handlers.createJourney.mockResolvedValue({
             applicantAccessToken: 'token-1',
           });
-          handlers.getStep.mockResolvedValue({ step: 'decision', status: 'none' });
+          handlers.getStep.mockResolvedValue({
+            step: 'decision',
+            status: 'none',
+          });
 
           const outcome = await controller.launchProviderFlow({
             vendor: 'kalshi',
@@ -1694,9 +1698,7 @@ function withController<ReturnValue>(
   });
 
   const handlers: ServiceHandlers = {
-    getStep: vi
-      .fn()
-      .mockResolvedValue({ step: 'terms', status: 'none' }),
+    getStep: vi.fn().mockResolvedValue({ step: 'terms', status: 'none' }),
     acceptVendorTerms: vi.fn().mockResolvedValue(undefined),
     postOnboardingStep: vi.fn().mockResolvedValue(SESSION_STATUS),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
