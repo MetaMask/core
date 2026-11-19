@@ -1,8 +1,8 @@
 # `@metamask/mfa-recovery-controller`
 
-Coordinates MFA recovery through injected auth and escrow providers.
+Coordinates MFA recovery through `AuthenticationController` and injected identifier and escrow providers.
 
-Pending mutations are encrypted in controller state. `resume()` completes them;
+Pending mutations are encrypted in controller state with a key returned by the `getPendingOperationKey` constructor option. The host must provision that key in its own secret storage, separate from controller state; the controller never creates or persists it. `resume()` completes pending mutations;
 `abort()` is allowed before writing, or once the write approval expired more
 than 5 minutes ago and no escrow applied the mutation. If the identifier an update started with can no
 longer authenticate, pass another enrolled one to `resume(identifier)`. See
@@ -31,27 +31,9 @@ The controller acquires the 6-minute lease before every 5-minute approval, and
 escrows reject expired approvals. So once another operation can take the lease,
 this operation's approvals are dead.
 
-## Recovery Lock
-
-Configure `RecoveryRegistrationLockProvider` with the registration service URL,
-`fetch`, and a messenger that can call
-`AuthenticationController:getBearerToken` and
-`AuthenticationController:refreshCanonicalProfileId`.
-
-Call `acquireLock()` before reading identifiers, hold it while changing Auth
-identifiers and mutating, then call `releaseLock()`. Call `acquireLock()` again
-after long user interaction to extend the lease.
-
-The controller acquires the 6-minute lease before every 5-minute approval, and
-escrows reject expired approvals. So once another operation can take the lease,
-this operation's approvals are dead.
-
 ## Auth API Integration
 
-Configure `AuthApiRecoveryAuthProvider` with a messenger that can call
-`AuthenticationController:refreshCanonicalProfileId` and
-`AuthenticationController:requestMfaApproval`. It resolves the current canonical
-profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
+The controller's messenger must delegate `AuthenticationController:refreshCanonicalProfileId` and `AuthenticationController:requestMfaApproval`. It resolves the current canonical profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
 request-bound AAL2 approval; updates and reads also require an identifier proof.
 Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
 verify, then call `resume()` or retry the read.

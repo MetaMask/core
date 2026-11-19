@@ -1,4 +1,5 @@
 import type { CubeSignerClient } from '@cubist-labs/cubesigner-sdk';
+import { ErrResponse, SessionExpiredError } from '@cubist-labs/cubesigner-sdk';
 import { bytesToHex } from '@metamask/utils';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
@@ -129,19 +130,18 @@ describe('CubistEscrowProvider', () => {
       expect(await provider.isAvailable()).toBe(false);
     });
 
-    it('returns false when ping does not report ok', async () => {
-      const { provider } = createProvider({ stdout: { ok: false } });
-      expect(await provider.isAvailable()).toBe(false);
-    });
-
-    it('returns false when getClient throws', async () => {
-      const { provider, invoke } = createProvider({
-        getClient: async () => {
-          throw new MfaRecoveryError('Feature disabled', 'feature_disabled');
+    it('returns false when policyInvoke fails with a non-session error', async () => {
+      const { provider } = createProvider({
+        invoke: async () => {
+          throw new ErrResponse({ message: 'unavailable', status: 500 });
         },
       });
       expect(await provider.isAvailable()).toBe(false);
-      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('returns false when ping does not report ok', async () => {
+      const { provider } = createProvider({ stdout: { ok: false } });
+      expect(await provider.isAvailable()).toBe(false);
     });
   });
 
@@ -509,6 +509,18 @@ describe('CubistEscrowProvider', () => {
       await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_request_failed',
         message: 'offline',
+      });
+    });
+
+    it('throws session_expired when the session has expired', async () => {
+      const { provider } = createProvider({
+        invoke: async () => {
+          throw new SessionExpiredError('invokePolicy');
+        },
+      });
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
+        code: 'session_expired',
+        message: 'Session has expired',
       });
     });
 

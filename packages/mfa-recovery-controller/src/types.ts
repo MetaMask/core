@@ -1,8 +1,9 @@
+import type { SeedlessAuthData } from '@metamask/seedless-onboarding-controller';
+import type { Json } from '@metamask/utils';
+
 /**
  * MFA recovery protocol types from the recovery ADR.
  */
-
-import type { SeedlessAuthData } from '@metamask/seedless-onboarding-controller';
 
 export type { SeedlessAuthData };
 
@@ -259,17 +260,6 @@ export type PendingOperation =
 
 export type RecoveryPhase = 'idle' | PendingOperation['phase'];
 
-/**
- * Encoded ciphertext of {@link PendingOperation}. Wallet secure storage
- * encrypts this blob (including any hex recovery secret). A raw recovery
- * secret is never persisted in BaseController state.
- *
- * The recovery spec's pseudocode represents this as `Uint8Array`, but the
- * controller stores the encoded ciphertext as a string so BaseController state
- * persistence and serialization preserve it without binary coercion.
- */
-export type EncryptedPendingOperation = string;
-
 export type GetRecoverySecretResponse = {
   recoverySecret: WrappedSecretOutput;
   version: number;
@@ -306,22 +296,6 @@ export type RecoveryIdentifiers = {
   identifiers: Identifier[];
   epoch: number;
   authIdentifiers: Identifier[];
-};
-
-/**
- * Authenticates the MetaMask profile and issues request-bound attestations.
- */
-export type RecoveryAuthProvider = {
-  getAuthenticatedProfileId: () => Promise<string>;
-  /**
-   * Returns the Auth API's approval and current recovery identifiers.
-   * `requireTwoFactor` requests recent AAL2 authentication.
-   */
-  authorizeRecoveryRequest: (params: {
-    requestHash: string;
-    audiences: string[];
-    requireTwoFactor?: boolean;
-  }) => Promise<RecoveryApproval>;
 };
 
 /**
@@ -419,9 +393,36 @@ export type RecoveryEscrowProvider = {
 };
 
 /**
- * Encrypts pending mutation state using wallet secure storage.
+ * Default encryption key type of {@link PendingOperationEncryptor}.
  */
-export type PendingOperationEncryptor = {
-  encrypt: (operation: PendingOperation) => Promise<EncryptedPendingOperation>;
-  decrypt: (ciphertext: EncryptedPendingOperation) => Promise<PendingOperation>;
+export type DefaultEncryptionKey = unknown;
+
+/**
+ * Default encryption result type of {@link PendingOperationEncryptor}, matching
+ * the KeyringController encryptor's result.
+ */
+export type DefaultEncryptionResult = {
+  data: string;
+  iv: string;
+  salt?: string;
+  keyMetadata?: unknown;
+};
+
+/**
+ * Imports the host-provided pending operation key and encrypts pending
+ * mutation state with it. The KeyringController encryptor satisfies this; pass
+ * the same instance given to KeyringController.
+ */
+export type PendingOperationEncryptor<
+  EncryptionKey = DefaultEncryptionKey,
+  EncryptionResult = DefaultEncryptionResult,
+> = {
+  // Method syntax keeps parameters bivariant, so encryptors with a narrower
+  // key type still satisfy the default `unknown` key.
+  importKey(key: string): Promise<EncryptionKey>;
+  encryptWithKey(key: EncryptionKey, object: Json): Promise<EncryptionResult>;
+  decryptWithKey(
+    key: EncryptionKey,
+    encryptedObject: EncryptionResult,
+  ): Promise<unknown>;
 };

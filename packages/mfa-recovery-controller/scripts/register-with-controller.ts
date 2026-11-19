@@ -18,7 +18,8 @@ import {
   StubAuthProvider,
   StubIdentifierAuthProvider,
   StubRecoveryLockProvider,
-  passthroughEncryptor,
+  getStubPendingOperationKey,
+  stubEncryptor,
 } from '../tests/stubs.js';
 
 /**
@@ -96,14 +97,32 @@ function parseVersion(value: string | undefined): Version {
   throw new Error(`Invalid CubeSigner version: ${value}`);
 }
 
-function getControllerMessenger(): MfaRecoveryControllerMessenger {
+function getControllerMessenger(
+  authProvider: StubAuthProvider,
+): MfaRecoveryControllerMessenger {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
-  return new Messenger({
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:refreshCanonicalProfileId',
+    async () => await authProvider.refreshCanonicalProfileId(),
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:requestMfaApproval',
+    async (request) => await authProvider.requestMfaApproval(request),
+  );
+  const messenger: MfaRecoveryControllerMessenger = new Messenger({
     namespace: 'MfaRecoveryController',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AuthenticationController:refreshCanonicalProfileId',
+      'AuthenticationController:requestMfaApproval',
+    ],
+  });
+  return messenger;
 }
 
 async function main(flags: Record<string, string>): Promise<void> {
@@ -132,12 +151,12 @@ async function main(flags: Record<string, string>): Promise<void> {
     version: parseVersion(flags.version),
   });
   const controller = new MfaRecoveryController({
-    messenger: getControllerMessenger(),
-    authProvider: new StubAuthProvider([PASSKEY, SOCIAL]),
+    messenger: getControllerMessenger(new StubAuthProvider([PASSKEY, SOCIAL])),
     lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrow],
-    pendingOperationEncryptor: passthroughEncryptor,
+    encryptor: stubEncryptor,
+    getPendingOperationKey: getStubPendingOperationKey,
   });
 
   const recoverySecret = new Uint8Array(randomBytes(32));
