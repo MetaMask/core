@@ -1,11 +1,20 @@
+import type { Messenger } from '@metamask/messenger';
 import { stringToBytes, wrapError } from '@metamask/utils';
 
 import { generateKeyPair } from '../crypto.js';
 import { toBase64Url } from '../encoding.js';
 import type {
+  KycServiceCreateUkycSessionAction,
+  KycServiceFetchIdosEnclaveJwksAction,
+  KycServiceFetchIdosRelayJwksAction,
+  KycServiceResetWrappingKeysAction,
+  KycServiceSetAuthorizationsAction,
+} from '../KycService-method-action-types.js';
+import type {
   CapabilityAuthorization,
   EncryptionSchema,
-  KycService,
+  JwksResponse,
+  UkycSessionResponse,
 } from '../KycService.js';
 import type { OnboardingVendor, KycSessionStatus } from '../types.js';
 import { deriveClientMaterial } from './deriveClientMaterial.js';
@@ -27,19 +36,25 @@ import { wrapEncryptionKey } from './wrapEncryptionKey.js';
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 /**
- * What session authorization calls out to: the `KycService` requests and
- * Encrypted User Storage for the `local_user_secret`. The controller builds
- * this from its own messenger, so the helpers need no messenger type.
+ * Messenger that can call the `KycService` actions session authorization uses.
+ *
+ * `Messenger` is invariant in its action union, so this is the `call` shape
+ * rather than `Messenger` itself. A controller messenger that allows more
+ * actions is still assignable.
  */
-export type UkycSessionDeps = Pick<
-  KycService,
-  | 'createUkycSession'
-  | 'resetWrappingKeys'
-  | 'setAuthorizations'
-  | 'fetchIdosEnclaveJwks'
-  | 'fetchIdosRelayJwks'
-> & {
-  localUserSecretStore: UkycLocalUserSecretStore;
+type SessionAuthorizationMessenger = {
+  call: (
+    ...args: Parameters<
+      Messenger<
+        string,
+        | KycServiceCreateUkycSessionAction
+        | KycServiceFetchIdosEnclaveJwksAction
+        | KycServiceFetchIdosRelayJwksAction
+        | KycServiceResetWrappingKeysAction
+        | KycServiceSetAuthorizationsAction
+      >['call']
+    >
+  ) => unknown;
 };
 
 /**
@@ -48,7 +63,9 @@ export type UkycSessionDeps = Pick<
  * and submits both. Only the wrapped (encrypted) material leaves the device.
  *
  * @param params - The session parameters.
- * @param params.deps - The calls session authorization makes.
+ * @param params.messenger - Messenger that can call `KycService`.
+ * @param params.localUserSecretStore - Encrypted User Storage for the
+ * `local_user_secret`.
  * @param params.vendor - Vendor for the session.
  * @param params.residenceCountry - ISO 3166-1 alpha-3 country of residence.
  * @param params.aal2Token - AAL2 token, sent as the bearer value for session
@@ -58,13 +75,14 @@ export type UkycSessionDeps = Pick<
  * @returns The session status after the authorizations are applied.
  */
 export async function createUkycSession(params: {
-  deps: UkycSessionDeps;
+  messenger: SessionAuthorizationMessenger;
+  localUserSecretStore: UkycLocalUserSecretStore;
   vendor: OnboardingVendor;
   residenceCountry: string;
   aal2Token: string;
   partnerIdentityToken: string;
 }): Promise<KycSessionStatus> {
-  const { deps } = params;
+  const { messenger, localUserSecretStore } = params;
   // A per-session X25519 keypair seals both secrets. The private half stays
   // on the device. The public half is registered on the session so the
   // server can open the authorizations.
@@ -76,16 +94,17 @@ export async function createUkycSession(params: {
     sessionId,
     encryptionDataKey: encryptionDataKeySchema,
     ukycCapabilityToken: capabilityTokenSchema,
-  } = await deps.createUkycSession({
+  } = (await messenger.call('KycService:createUkycSession', {
     sessionClientPublicKey,
     residenceCountry: params.residenceCountry,
     vendor: params.vendor,
     aal2Token: params.aal2Token,
     partnerIdentityToken: params.partnerIdentityToken,
-  });
+  })) as UkycSessionResponse;
 
   return setAuthorizations({
-    deps,
+    messenger,
+    localUserSecretStore,
     sessionId,
     sessionClientPrivateKey,
     encryptionDataKeySchema,
@@ -99,15 +118,18 @@ export async function createUkycSession(params: {
  * as `new` or `expired`.
  *
  * @param params - The parameters.
- * @param params.deps - The calls session authorization makes.
+ * @param params.messenger - Messenger that can call `KycService`.
+ * @param params.localUserSecretStore - Encrypted User Storage for the
+ * `local_user_secret`.
  * @param params.sessionId - The UKYC session id.
  * @returns The session status after the authorizations are applied.
  */
 export async function refreshAuthorizations(params: {
-  deps: UkycSessionDeps;
+  messenger: SessionAuthorizationMessenger;
+  localUserSecretStore: UkycLocalUserSecretStore;
   sessionId: string;
 }): Promise<KycSessionStatus> {
-  const { deps, sessionId } = params;
+  const { messenger, localUserSecretStore, sessionId } = params;
   const { privateKey: sessionClientPrivateKey, publicKey } =
     await generateKeyPair();
   const sessionClientPublicKey = toBase64Url(publicKey);
@@ -115,13 +137,14 @@ export async function refreshAuthorizations(params: {
   const {
     encryptionDataKey: encryptionDataKeySchema,
     ukycCapabilityToken: capabilityTokenSchema,
-  } = await deps.resetWrappingKeys({
+  } = (await messenger.call('KycService:resetWrappingKeys', {
     sessionId,
     sessionClientPublicKey,
-  });
+  })) as UkycSessionResponse;
 
   return setAuthorizations({
-    deps,
+    messenger,
+    localUserSecretStore,
     sessionId,
     sessionClientPrivateKey,
     encryptionDataKeySchema,
@@ -133,7 +156,9 @@ export async function refreshAuthorizations(params: {
  * Verifies the encryption schemas, wraps both secrets and submits them.
  *
  * @param params - Session key material and encryption schemas.
- * @param params.deps - The calls session authorization makes.
+ * @param params.messenger - Messenger that can call `KycService`.
+ * @param params.localUserSecretStore - Encrypted User Storage for the
+ * `local_user_secret`.
  * @param params.sessionId - UKYC session id to authorize.
  * @param params.sessionClientPrivateKey - Per-session X25519 private key.
  * @param params.encryptionDataKeySchema - Schema for the data encryption key.
@@ -141,14 +166,16 @@ export async function refreshAuthorizations(params: {
  * @returns The session status after the authorizations are applied.
  */
 async function setAuthorizations(params: {
-  deps: UkycSessionDeps;
+  messenger: SessionAuthorizationMessenger;
+  localUserSecretStore: UkycLocalUserSecretStore;
   sessionId: string;
   sessionClientPrivateKey: Uint8Array;
   encryptionDataKeySchema: EncryptionSchema;
   capabilityTokenSchema: EncryptionSchema;
 }): Promise<KycSessionStatus> {
   const {
-    deps,
+    messenger,
+    localUserSecretStore,
     sessionId,
     sessionClientPrivateKey,
     encryptionDataKeySchema,
@@ -156,12 +183,12 @@ async function setAuthorizations(params: {
   } = params;
 
   await verifyWrappingKeys(
-    deps,
+    messenger,
     encryptionDataKeySchema,
     capabilityTokenSchema,
   );
 
-  const clientMaterial = await getClientMaterial(deps.localUserSecretStore);
+  const clientMaterial = await getClientMaterial(localUserSecretStore);
   const wrappedEncryptionDataKey = wrapEncryptionKey(
     sessionClientPrivateKey,
     encryptionDataKeySchema.serverPublicKey.x,
@@ -173,11 +200,11 @@ async function setAuthorizations(params: {
     serverPublicKeyX: capabilityTokenSchema.serverPublicKey.x,
   });
 
-  return deps.setAuthorizations({
+  return (await messenger.call('KycService:setAuthorizations', {
     sessionId,
     wrappedEncryptionDataKey,
     wrappedUkycCapabilityToken,
-  });
+  })) as KycSessionStatus;
 }
 
 /**
@@ -186,23 +213,23 @@ async function setAuthorizations(params: {
  * verified token. The idOS enclave attests `encryptionDataKey`, and the idOS
  * relay attests `ukycCapabilityToken`.
  *
- * @param deps - The calls session authorization makes.
+ * @param messenger - Messenger that can call `KycService`.
  * @param encryptionDataKey - Schema for the data encryption key.
  * @param capabilityTokenSchema - Schema for the capability token.
  * @throws When the issuer keys cannot be fetched, or a schema does not verify.
  */
 async function verifyWrappingKeys(
-  deps: UkycSessionDeps,
+  messenger: SessionAuthorizationMessenger,
   encryptionDataKey: EncryptionSchema,
   capabilityTokenSchema: EncryptionSchema,
 ): Promise<void> {
   let idosEnclaveKeys: Jwk[];
   let idosRelayKeys: Jwk[];
   try {
-    [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] = await Promise.all([
-      deps.fetchIdosEnclaveJwks(),
-      deps.fetchIdosRelayJwks(),
-    ]);
+    [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] = (await Promise.all([
+      messenger.call('KycService:fetchIdosEnclaveJwks'),
+      messenger.call('KycService:fetchIdosRelayJwks'),
+    ])) as [JwksResponse, JwksResponse];
   } catch (error) {
     throw wrapError(
       error,

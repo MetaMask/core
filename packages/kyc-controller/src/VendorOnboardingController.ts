@@ -34,7 +34,6 @@ import {
   createUkycSession,
   refreshAuthorizations,
 } from './ukyc/sessionAuthorization.js';
-import type { UkycSessionDeps } from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
 import type {
   KalshiAccountLinkAdapter,
@@ -363,7 +362,8 @@ export class VendorOnboardingController extends BaseController<
       this.#write(vendor, { sessionId: existing.id });
       if (needsCapabilityAuthorizationRefresh(existing)) {
         await refreshAuthorizations({
-          deps: this.#getSessionDeps(),
+          messenger: this.messenger,
+          localUserSecretStore: this.#localUserSecretStore,
           sessionId: existing.id,
         });
       }
@@ -379,7 +379,8 @@ export class VendorOnboardingController extends BaseController<
       'KycService:getGeoCountry',
     );
     const session = await createUkycSession({
-      deps: this.#getSessionDeps(),
+      messenger: this.messenger,
+      localUserSecretStore: this.#localUserSecretStore,
       vendor,
       residenceCountry,
       aal2Token: params.aal2Token,
@@ -610,27 +611,6 @@ export class VendorOnboardingController extends BaseController<
         state.vendors = {};
       }
     });
-  }
-
-  /**
-   * The calls session authorization makes, on this controller's messenger.
-   *
-   * @returns The calls.
-   */
-  #getSessionDeps(): UkycSessionDeps {
-    return {
-      createUkycSession: async (params) =>
-        this.messenger.call('KycService:createUkycSession', params),
-      resetWrappingKeys: async (params) =>
-        this.messenger.call('KycService:resetWrappingKeys', params),
-      setAuthorizations: async (params) =>
-        this.messenger.call('KycService:setAuthorizations', params),
-      fetchIdosEnclaveJwks: async () =>
-        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
-      fetchIdosRelayJwks: async () =>
-        this.messenger.call('KycService:fetchIdosRelayJwks'),
-      localUserSecretStore: this.#localUserSecretStore,
-    };
   }
 
   async #runOnboardingStep(
