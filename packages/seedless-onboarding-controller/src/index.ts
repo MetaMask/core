@@ -17,6 +17,7 @@ export type {
   SeedlessOnboardingControllerCreateToprfKeyAndBackupSeedPhraseAction,
   SeedlessOnboardingControllerAddNewSecretDataAction,
   SeedlessOnboardingControllerFetchAllSecretDataAction,
+  SeedlessOnboardingControllerRestoreVaultWithPasswordAction,
   SeedlessOnboardingControllerChangePasswordAction,
   SeedlessOnboardingControllerUpdateBackupMetadataStateAction,
   SeedlessOnboardingControllerVerifyVaultPasswordAction,
