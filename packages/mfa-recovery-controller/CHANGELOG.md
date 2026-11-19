@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `MfaRecoveryController` no longer takes an `authProvider` option; it requests approvals through `AuthenticationController:requestMfaApproval` and resolves the canonical profile id through `AuthenticationController:refreshCanonicalProfileId` on its messenger ([#11643](https://github.com/MetaMask/core/pull/11643))
+  - Delegate both actions to the controller's messenger and remove the `authProvider` option.
+- **BREAKING:** Replace the `pendingOperationEncryptor` option with `encryptor` and a required `getPendingOperationKey` callback ([#11644](https://github.com/MetaMask/core/pull/11644))
+  - `PendingOperationEncryptor` is now an `importKey` / `encryptWithKey` / `decryptWithKey` interface, which KeyringController's `Encryptor` satisfies; pass the same instance given to `KeyringController`.
+  - `getPendingOperationKey` returns the serialized key from host-owned secret storage. The controller never creates or persists the key, and rejects with `missing_encryption_key` when the callback returns none.
+  - `MfaRecoveryController` and `MfaRecoveryControllerOptions` take optional `EncryptionKey` and `EncryptionResult` type parameters.
+  - Pending state encrypted by a previous `pendingOperationEncryptor` cannot be decrypted with the new `encryptor`.
+
+### Removed
+
+- **BREAKING:** Remove `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions`, `AuthApiRecoveryAuthProviderMessenger`, and the `RecoveryAuthProvider` type ([#11643](https://github.com/MetaMask/core/pull/11643))
+- **BREAKING:** Remove the `EncryptedPendingOperation` type ([#11644](https://github.com/MetaMask/core/pull/11644))
+
 ## [0.1.0]
 
 ### Added
@@ -17,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validates that the key-bound token matches the requested identifier, proof key, and request hash. Empty request `identifier.value` (provider-discovered subject) is allowed only on `authenticateIdentifier`, not on mutation writes.
   - `seedlessAuthData` is `SeedlessAuthData` from `@metamask/seedless-onboarding-controller` (the `authenticate` parameters, without `skipLock`; based on `AuthenticatedUserDetails` without `nodeAuthTokens`). Shape checks use that package's `parseSeedlessAuthData`, and the issuer-namespace map is its `AUTH_CONNECTION_BY_NAMESPACE`. `authConnection` is still checked against the social identifier's issuer namespace (provider check only; subject / `userId` are not compared).
 - Initial release of `MfaRecoveryController`, which manages MFA recovery flows and persists in-flight operations in its state ([#10022](https://github.com/MetaMask/core/pull/10022), [#11280](https://github.com/MetaMask/core/pull/11280))
-  - Requires recent, request-bound AAL2 approvals for writes and reads. Approvals are requested through `AuthenticationController:requestMfaApproval`, and the canonical profile id is resolved through `AuthenticationController:refreshCanonicalProfileId`, both on the controller's messenger. Pending state is encrypted with a key returned by the required `getPendingOperationKey` constructor option, which the host keeps in its own secret storage; the controller never creates or persists the key, and rejects with `missing_encryption_key` when the callback returns none. The key is imported with the injected `encryptor`, which should be the same instance passed to `KeyringController`.
+  - Requires recent, request-bound AAL2 approvals for writes and reads.
   - Sends the approval's identifiers to escrows as `approvedIdentifiers` with `register` and `updateIdentifiers` mutations, and rejects payload identifiers that are not exactly among them before writing ([#10883](https://github.com/MetaMask/core/pull/10883))
   - Adds `getIdentifiers`, which returns the enrolled identifiers and their escrow version as `epoch` along with Auth's identifiers, for building `updateIdentifiers` calls ([#11149](https://github.com/MetaMask/core/pull/11149))
   - Passes the operation's AuthController token to `RecoveryEscrowProvider.generateChallenge`, and requires `RecoveryEscrowProvider.getIdentifiers` ([#11149](https://github.com/MetaMask/core/pull/11149))
@@ -37,10 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compares only the secret, not `lastMutationId`, when checking replicas at the highest version on reads ([#11200](https://github.com/MetaMask/core/pull/11200))
   - Requires `RecoveryEscrowProvider.getIdentifiers` to report a missing record as `{ identifiers: [], version: 0 }`, so `getIdentifiers` returns `epoch: 0` before registration ([#11200](https://github.com/MetaMask/core/pull/11200))
   - Exports `MfaRecoveryController`, `getDefaultMfaRecoveryControllerState`, and the controller's action, event, messenger, state, and options types.
+  - Exports `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions` and `AuthApiRecoveryAuthProviderMessenger` for requesting approvals through `AuthenticationController:requestMfaApproval`, using the profile id from `AuthenticationController:refreshCanonicalProfileId` ([#10883](https://github.com/MetaMask/core/pull/10883))
   - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner. `CubistEscrowProviderOptions` takes a `getClient` callback instead of a CubeSigner client so callers can create and refresh the session lazily ([#11280](https://github.com/MetaMask/core/pull/11280))
   - Exports `MfaRecoveryError`, `IncompleteMutationError`, and `MutationRejectedError`.
   - Exports `MIN_IDENTIFIERS`, `IDENTIFIER_AUTH_MODES`, and `getIdentifierAuthMode` for identifier authentication.
-  - Exports types for the recovery providers (`RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider`) and `PendingOperationEncryptor`, the `importKey` / `encryptWithKey` / `decryptWithKey` interface used for pending state, which KeyringController's `Encryptor` satisfies, along with the related identifier, mutation, and recovery phase types, including `GetIdentifiersResponse` and `RecoveryIdentifiers` ([#11149](https://github.com/MetaMask/core/pull/11149))
+  - Exports types for the recovery providers (`RecoveryAuthProvider`, `RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider`) and the pending operation encryptor (`PendingOperationEncryptor`), along with the related identifier, mutation, and recovery phase types, including `GetIdentifiersResponse` and `RecoveryIdentifiers` ([#11149](https://github.com/MetaMask/core/pull/11149))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
