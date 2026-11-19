@@ -401,6 +401,10 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
  * password: open `rbek` to get the vault key set `K_v`, fetch the secret
  * data with it, and create the local vault under `password`.
  *
+ * An existing local vault is replaced, e.g. a locked vault whose password
+ * is forgotten. If this device has `envelope` state, the recovered vault
+ * keys must be the ones it names.
+ *
  * `password` only encrypts the local vault. This sets `isLocalPassword`,
  * which {@link resetPasswordWithVaultKeys}, {@link changePassword} and
  * {@link syncLatestGlobalPassword} clear once the password is global.
@@ -416,8 +420,9 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
  * @param params.password - The password of the new local vault.
  * @returns The secret data of the vault.
  * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
- * Recovery Secret or the vault they open has no control record, as its
- * migration is not committed, `EnvelopeControlRecordNotFound` if no control
+ * Recovery Secret, they are not the vault keys named by the `envelope`
+ * state, or the vault they open has no control record, as its migration is
+ * not committed, `EnvelopeControlRecordNotFound` if no control
  * record matches the live password OPRF key, since the password could never
  * be reset, `RecoveryKeyShareConflict` if the nodes hold the key of another
  * Recovery Secret, or `Aal2Required` without a valid aal2 session. No local

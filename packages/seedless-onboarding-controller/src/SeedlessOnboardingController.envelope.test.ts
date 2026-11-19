@@ -3761,6 +3761,70 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it('replaces the vault of a device whose envelope state names the recovered vault keys', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          // @ts-expect-error Accessing protected method for testing
+          controller.update((state) => {
+            state.envelope = {
+              v: 1,
+              vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+              passwordAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            };
+          });
+
+          await recover(args);
+
+          expect(controller.state.envelope).toStrictEqual({
+            v: 1,
+            vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
+            passwordAuthPubKey: authPubKeyOf(NEW_PASSWORD),
+          });
+          expect(
+            await controller.verifyVaultPassword(RECOVERED_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
+      it('throws RecoveryEnvelopeNotFound without touching the state when the envelope state names other vault keys', async () => {
+        const store = await createMigratedAccount();
+
+        await withNewDeviceController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient, {
+            store,
+            globalPassword: NEW_PASSWORD,
+            recoverySecret: RECOVERY_SECRET_HEX,
+          });
+          const envelope = {
+            v: 1 as const,
+            vaultAuthPubKey: authPubKeyOf('other-password'),
+            passwordAuthPubKey: authPubKeyOf('other-password'),
+          };
+          // @ts-expect-error Accessing protected method for testing
+          controller.update((state) => {
+            state.envelope = envelope;
+          });
+
+          await expect(recover(args)).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.RecoveryEnvelopeNotFound,
+          );
+          expect(network.spies.fetchAllSecretDataItems).toHaveBeenCalledTimes(
+            1,
+          );
+          expect(controller.state.vault).toBeUndefined();
+          expect(controller.state.envelope).toStrictEqual(envelope);
+          expect(controller.state.isLocalPassword).toBeUndefined();
+        });
+      });
+
       it('throws EnvelopeControlRecordNotFound without creating a vault when no control record matches the live password key', async () => {
         const store = await createMigratedAccount();
         deleteControlRecords(store);
