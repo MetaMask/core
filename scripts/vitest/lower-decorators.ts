@@ -1,4 +1,5 @@
-import ts from 'typescript';
+import { ScriptTarget } from 'typescript/ast';
+import { API, ModuleKind } from 'typescript/sync';
 import type { Plugin } from 'vitest/config';
 
 // A line that starts with a decorator, e.g. `@trackAssetsLoading`.
@@ -15,21 +16,30 @@ const DECORATOR_PATTERN = /^\s*@[A-Za-z_$][\w$]*/mu;
  * @returns The Vite plugin.
  */
 export function lowerDecorators(): Plugin {
+  // Each `API` instance spawns a compiler process, so share one and release it
+  // when the build ends.
+  let api: API | undefined;
+
   return {
     name: 'lower-decorators',
     enforce: 'pre',
+    closeBundle() {
+      api?.close();
+      api = undefined;
+    },
     transform(code, id) {
       const fileName = id.split('?')[0] ?? id;
       if (!fileName.endsWith('.ts') || !DECORATOR_PATTERN.test(code)) {
         return null;
       }
 
-      const { outputText, sourceMapText } = ts.transpileModule(code, {
+      api ??= new API();
+      const { outputText, sourceMapText } = api.transpileModule(code, {
         fileName,
         compilerOptions: {
-          module: ts.ModuleKind.ESNext,
+          module: ModuleKind.ESNext,
           sourceMap: true,
-          target: ts.ScriptTarget.ES2022,
+          target: ScriptTarget.ES2022,
         },
       });
 

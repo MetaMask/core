@@ -383,6 +383,36 @@ class EmptyLineDocController {
     });
   });
 
+  it('ignores line comments that precede the JSDoc block', async () => {
+    expect.assertions(2);
+
+    await withinParseSourceSandbox(async ({ directoryPath }) => {
+      const controllerFile = path.join(directoryPath, 'CommentedController.ts');
+      await fs.promises.writeFile(
+        controllerFile,
+        `
+const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
+
+class CommentedController {
+  // TODO: Rename this method.
+  /**
+   * Does stuff.
+   */
+  doStuff() {
+    return true;
+  }
+}
+`,
+        'utf8',
+      );
+
+      const result = await parseSourceFile(controllerFile);
+
+      expect(result?.methods[0].jsDoc).toBe('/**\n * Does stuff.\n */');
+      expect(result?.methods[0].jsDoc).not.toContain('TODO');
+    });
+  });
+
   it('extracts JSDoc with non-standard middle lines', async () => {
     expect.assertions(3);
 

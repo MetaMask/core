@@ -3005,9 +3005,6 @@
   "packages/messenger-cli/src/parse-source.ts": {
     "jsdoc/require-param": {
       "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
     }
   },
   "packages/messenger/src/Messenger.test.ts": {
