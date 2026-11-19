@@ -355,8 +355,9 @@ export const PERPS_ERROR_COPY: Readonly<
     defaultMessage: 'Max chase distance is outside the allowed range',
   },
   [PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED]: {
-    key: 'perps.errors.orderValidation.chaseAbandoned',
-    defaultMessage: 'Chase order was cancelled because the connection dropped',
+    key: 'perps.errors.orderValidation.chaseStoppedCheckOpenOrders',
+    defaultMessage:
+      'The chase stopped. Check open orders for any remaining orders.',
   },
   [PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED]: {
     key: 'perps.errors.orderValidation.chaseLimitReached',
@@ -432,12 +433,12 @@ export const PERPS_ERROR_COPY: Readonly<
     defaultMessage: 'This order is no longer open.',
   },
   [PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS]: {
-    key: 'perps.errors.orderPostOnlyWouldCross',
+    key: 'perps.errors.postOnlyWouldCross',
     defaultMessage:
       'This post-only order would execute immediately. Check the order status before trying a different price.',
   },
   [PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW]: {
-    key: 'perps.errors.orderPostOnlyWindow',
+    key: 'perps.errors.postOnlyWindow',
     defaultMessage: 'Only post-only orders are available right now.',
   },
   [PERPS_ERROR_CODES.BATCH_CANCEL_FAILED]: {
@@ -481,8 +482,9 @@ export const PERPS_ERROR_COPY: Readonly<
     defaultMessage: 'Unable to update take profit/stop loss. Try again.',
   },
   [PERPS_ERROR_CODES.TPSL_PROTECTION_LOST]: {
-    key: 'perps.errors.tpslUpdateFailed',
-    defaultMessage: 'Unable to update take profit/stop loss. Try again.',
+    key: 'perps.errors.tpslProtectionLost',
+    defaultMessage:
+      "We could not confirm the previous protection was restored. Check the position's take profit and stop loss.",
   },
   [PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED]: {
     key: 'perps.errors.tpslLegReplaceUnsupported',

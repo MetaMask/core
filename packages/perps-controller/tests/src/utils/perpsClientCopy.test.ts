@@ -35,6 +35,37 @@ describe('PERPS_ERROR_COPY', () => {
     },
   );
 
+  it.each([
+    {
+      code: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+      key: 'perps.errors.orderValidation.chaseStoppedCheckOpenOrders',
+      defaultMessage:
+        'The chase stopped. Check open orders for any remaining orders.',
+    },
+    {
+      code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+      key: 'perps.errors.tpslProtectionLost',
+      defaultMessage:
+        "We could not confirm the previous protection was restored. Check the position's take profit and stop loss.",
+    },
+    {
+      code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      key: 'perps.errors.postOnlyWouldCross',
+      defaultMessage:
+        'This post-only order would execute immediately. Check the order status before trying a different price.',
+    },
+    {
+      code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+      key: 'perps.errors.postOnlyWindow',
+      defaultMessage: 'Only post-only orders are available right now.',
+    },
+  ])(
+    'preserves the user-facing copy contract for $code',
+    ({ code, key, defaultMessage }) => {
+      expect(getPerpsErrorCopy(code)).toStrictEqual({ key, defaultMessage });
+    },
+  );
+
   it('cannot be changed by a consumer', () => {
     expect(Object.isFrozen(PERPS_ERROR_COPY)).toBe(true);
     expect(Object.values(PERPS_ERROR_COPY).every(Object.isFrozen)).toBe(true);

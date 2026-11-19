@@ -52,7 +52,9 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 
 ## Error copy
 
-`PERPS_ERROR_COPY` maps every `PERPS_ERROR_CODES` value to `{ key, defaultMessage }`. Keys are the Mobile locale keys; the default is English. `getPerpsErrorCopy(code)` returns the `UNKNOWN_ERROR` copy for anything that is not a known code, so a code added by a newer controller still renders.
+`PERPS_ERROR_COPY` maps every `PERPS_ERROR_CODES` value to `{ key, defaultMessage }`. It reuses Mobile locale keys where the messages agree, including `perps.errors.postOnlyWouldCross` and `perps.errors.postOnlyWindow`. The English defaults are provided by Core and may differ from Mobile's text. `getPerpsErrorCopy(code)` returns the `UNKNOWN_ERROR` copy for an unknown code.
+
+The keys `perps.errors.orderValidation.chaseStoppedCheckOpenOrders` and `perps.errors.tpslProtectionLost` have dedicated messages. A stopped chase can leave a child order open. Lost TP/SL protection means the controller could not confirm that the previous protection was restored. Use `defaultMessage` when a locale has no translation for a key.
 
 Defaults can carry `{{name}}` placeholders (for example `ORDER_SIZE_MIN` uses `{{amount}}`). `IOC_CANCEL` needs `{{maxSlippage}}`; when the tolerance is unknown, show `perps.errors.iocCancelUnknownTolerance`.
 
@@ -70,7 +72,7 @@ Defaults can carry `{{name}}` placeholders (for example `ORDER_SIZE_MIN` uses `{
 | `partial` | Some succeeded, some failed (`failureCount > 0` or `error`) | Warning naming failed items and venues; keep the affected items on screen                    |
 | `none`    | Nothing succeeded                                           | Show item, venue and discovery errors. With no failures and no batch error, nothing matched. |
 
-Read individual outcomes from `results`, venue execution errors from `failures`, and unresolved cancellation discovery from `discoveryFailures`. Use all three when showing a partial result. An undiscovered cancel target has no per-order result. A tagged close target that is no longer open can return an explicit failure row.
+Read individual outcomes from `results`, venue execution errors from `failures`, and unresolved cancellation discovery from `discoveryFailures`. Use these fields for `partial` and `none`. A cancel target absent from discovery has no per-order result. An order that disappears after discovery can return an `ORDER_NO_LONGER_OPEN` failure row. A tagged close target that is no longer open can return an explicit failure row.
 
 `getBatchOperationStatus(result)` derives the same value from a provider-level result.
 

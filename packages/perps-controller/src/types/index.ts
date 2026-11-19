@@ -1211,8 +1211,9 @@ export type ClosePositionsTarget = {
 /**
  * Outcome of a batch cancel or close. `all`: every attempted item succeeded.
  * `partial`: some succeeded and some failed. `none`: nothing succeeded,
- * including when nothing matched the request. Requested items that were no
- * longer open are not attempted and do not appear in `results`.
+ * including when nothing matched the request. A cancel target absent from
+ * discovery has no result row. An order that disappears after discovery can
+ * produce an `ORDER_NO_LONGER_OPEN` failure row.
  */
 export type BatchOperationStatus = 'all' | 'partial' | 'none';
 
