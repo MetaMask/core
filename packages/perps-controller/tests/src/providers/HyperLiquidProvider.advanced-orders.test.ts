@@ -3002,6 +3002,204 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each([
+      ['restore signer probe recovers', 'sign', 'recovers'],
+      ['restore transport probe recovers', 'dispatch', 'recovers'],
+      ['restore probe stays unavailable', 'sign', 'unavailable'],
+      ['venue denial arrives during restore probe', 'sign', 'denied'],
+      ['wallet changes during restore probe', 'sign', 'wallet'],
+      ['network changes during restore probe', 'sign', 'network'],
+      ['venue denial wins over positive retry', 'sign', 'denied', true],
+      ['wallet changes during positive retry', 'sign', 'wallet', true],
+      ['network changes during positive retry', 'sign', 'network', true],
+    ] as const)(
+      'guards restore after TP/SL cancellation when %s',
+      async (_label, heldRestorePhase, outcome, holdOnRetry = false) => {
+        setOpenOrders([rawPositionTrigger('tp')]);
+        const exchange = mockClientService.getExchangeClient();
+        const info = mockClientService.getInfoClient();
+        const replacementRead = createDeferred<void>();
+        const releaseReplacementRead = createDeferred<void>();
+        const restorationRead = createDeferred<void>();
+        const releaseRestorationRead = createDeferred<void>();
+        const attempted: string[] = [];
+        const signed: string[] = [];
+        const dispatched: string[] = [];
+        const requestedCancels: number[] = [];
+        const requestedRestores: { reduceOnly: boolean; trigger: string }[] =
+          [];
+        let stage = 'setup';
+        let phase = 'setup';
+        let restoreReads = 0;
+        let cancelAcknowledged = false;
+        let recordDenial: (() => void) | undefined;
+
+        info.userToMultiSigSigners = vi.fn(async () => {
+          if (stage === 'replacement') {
+            if (!cancelAcknowledged || phase !== 'dispatch') {
+              throw new Error('Unexpected replacement support read');
+            }
+            replacementRead.resolve();
+            await releaseReplacementRead.promise;
+            throw new Error('replacement support temporarily unavailable');
+          }
+          if (stage === 'restoration') {
+            restoreReads += 1;
+            const firstProbe = heldRestorePhase === 'sign' ? 1 : 2;
+            if (holdOnRetry && restoreReads === firstProbe) {
+              throw new Error('restoration support temporarily unavailable');
+            }
+            if (restoreReads === firstProbe + Number(holdOnRetry)) {
+              expect(phase).toBe(heldRestorePhase);
+              restorationRead.resolve();
+              await releaseRestorationRead.promise;
+              if (holdOnRetry) {
+                return null;
+              }
+              throw new Error('restoration support temporarily unavailable');
+            }
+            if (outcome === 'unavailable') {
+              throw new Error('restoration support remains unavailable');
+            }
+          }
+          return null;
+        });
+
+        mockClientService.getExchangeClient.mockImplementation(
+          (beforeDispatch, hooks) => {
+            const write = async (kind: string): Promise<void> => {
+              stage = kind;
+              attempted.push(stage);
+              phase = 'sign';
+              await hooks?.beforeSign?.();
+              signed.push(stage);
+              phase = 'dispatch';
+              await beforeDispatch?.();
+              dispatched.push(stage);
+            };
+            const overrides = {
+              cancel: async ({ cancels }) => {
+                requestedCancels.push(...cancels.map(({ o }) => o));
+                await write('cancel');
+                recordDenial = () =>
+                  hooks?.onExchangeResult?.({
+                    error: new Error('ApiRequestError: Multi-sig required'),
+                  });
+                cancelAcknowledged = true;
+                setOpenOrders([]);
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'cancel',
+                    data: { statuses: ['success'] },
+                  },
+                };
+              },
+              order: async ({ orders }) => {
+                const order = orders[0];
+                if (!('trigger' in order.t)) {
+                  throw new Error('Expected a TP/SL trigger');
+                }
+                const trigger = order.t.trigger.triggerPx;
+                if (trigger === '61000') {
+                  await write('replacement');
+                  throw new Error('Replacement must never reach transport');
+                }
+                requestedRestores.push({ reduceOnly: order.r, trigger });
+                await write('restoration');
+                return {
+                  status: 'ok',
+                  response: {
+                    type: 'order',
+                    data: { statuses: [{ resting: { oid: 703 } }] },
+                  },
+                };
+              },
+            } satisfies Pick<typeof exchange, 'cancel' | 'order'>;
+            return Object.assign({}, exchange, overrides);
+          },
+        );
+
+        const operation = provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg: 'tp',
+          triggerPrice: '61000',
+          expectedPosition: { size: '0.1', entryPrice: '50000' },
+        });
+        try {
+          expect(
+            await Promise.race([
+              replacementRead.promise.then(() => 'replacement-read'),
+              operation.then(() => 'finished'),
+            ]),
+          ).toBe('replacement-read');
+          expect(cancelAcknowledged).toBe(true);
+          expect(signed).toStrictEqual(['cancel', 'replacement']);
+          expect(dispatched).toStrictEqual(['cancel']);
+
+          releaseReplacementRead.resolve();
+          expect(
+            await Promise.race([
+              restorationRead.promise.then(() => 'restore-read'),
+              operation.then(() => 'finished'),
+            ]),
+          ).toBe('restore-read');
+          if (outcome === 'denied') {
+            recordDenial?.();
+            expect(await provider.getAccountSupport()).toStrictEqual({
+              isSupported: false,
+              reason: 'multi_sig_account',
+            });
+          } else if (outcome === 'wallet') {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            );
+          } else if (outcome === 'network') {
+            mockClientService.isTestnetMode.mockReturnValue(true);
+          }
+        } finally {
+          releaseReplacementRead.resolve();
+          releaseRestorationRead.resolve();
+        }
+
+        const result = await operation;
+        expect(requestedCancels).toStrictEqual([TP_OID]);
+        expect(requestedRestores).toStrictEqual([
+          { reduceOnly: true, trigger: '60000' },
+        ]);
+        expect(attempted).toStrictEqual([
+          'cancel',
+          'replacement',
+          'restoration',
+        ]);
+        expect(result.success).toBe(false);
+        if (outcome === 'recovers') {
+          expect(restoreReads).toBe(3);
+          expect(dispatched).toStrictEqual(['cancel', 'restoration']);
+          expect(signed).toStrictEqual([
+            'cancel',
+            'replacement',
+            'restoration',
+          ]);
+          expect(result.childOrderIds).toStrictEqual(['703']);
+          expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        } else {
+          expect(restoreReads).toBe(
+            holdOnRetry || outcome === 'unavailable' ? 2 : 1,
+          );
+          expect(dispatched).toStrictEqual(['cancel']);
+          expect(signed).toStrictEqual(['cancel', 'replacement']);
+          if (outcome === 'unavailable' || outcome === 'denied') {
+            expect(result.error).toBe(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST);
+          } else {
+            expect(result.error).toBe(
+              PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+            );
+          }
+        }
+      },
+    );
+
     it('restores only its own leg when the new leg is rejected', async () => {
       setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
       const order = mockClientService.getExchangeClient().order as Mock;

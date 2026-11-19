@@ -12886,9 +12886,28 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
       // Restoration belongs to the same account and network, but does not use
       // the requested replacement's position precondition.
+      const assertRestorationWritable = async (
+        refreshPositiveSupport = false,
+      ): Promise<void> => {
+        try {
+          await assertWritableScope(refreshPositiveSupport);
+        } catch (error) {
+          if (
+            !(error instanceof Error) ||
+            error.message !== PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE
+          ) {
+            throw error;
+          }
+          // Retry the read before restoring confirmed cancellations.
+          await assertWritableScope(refreshPositiveSupport);
+        }
+      };
       const recoveryExchangeClient = this.#clientService.getExchangeClient(
-        async () => await assertWritableScope(true),
-        { beforeSign: assertWritableScope, onExchangeResult: recordOutcome },
+        async () => await assertRestorationWritable(true),
+        {
+          beforeSign: assertRestorationWritable,
+          onExchangeResult: recordOutcome,
+        },
       );
       let replacementMayHaveDispatched = false;
       const replacementExchangeClient = this.#clientService.getExchangeClient(
