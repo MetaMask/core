@@ -675,6 +675,332 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('withdrawal route resolution', () => {
+    beforeEach(() => {
+      mockAccountServiceInstance.withdraw.mockImplementation(
+        ({ provider, params }) => provider.withdraw(params),
+      );
+    });
+
+    const createLighterProvider = (): PerpsProvider =>
+      ({
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'lighter',
+      }) as unknown as PerpsProvider;
+
+    const setDirectMode = (providerId: PerpsProviderType): PerpsProvider => {
+      const provider =
+        providerId === 'hyperliquid' ? mockProvider : createLighterProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([[providerId, provider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = providerId;
+        state.effectiveProvider = providerId;
+      });
+      return provider;
+    };
+
+    const setAggregatedMode = (
+      defaultProvider: PerpsProviderType,
+      providers = new Map<PerpsProviderType, PerpsProvider>([
+        ['hyperliquid', mockProvider],
+        ['lighter', createLighterProvider()],
+      ]),
+    ): AggregatedPerpsProvider => {
+      const aggregatedProvider = new AggregatedPerpsProvider({
+        providers,
+        defaultProvider,
+        infrastructure: mockInfrastructure as never,
+      });
+      markControllerAsInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+        state.defaultProvider = defaultProvider;
+        state.effectiveProvider = defaultProvider;
+      });
+      controller.testSetProviders(providers);
+      controller.testSetActiveProvider(aggregatedProvider);
+      return aggregatedProvider;
+    };
+
+    it('resolves the direct hyperliquid venue and delegates withdrawal to that provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.resolveWithdrawalRoute()).resolves.toStrictEqual({
+        status: 'resolved',
+        providerId: 'hyperliquid',
+      });
+
+      mockAccountServiceInstance.withdraw.mockResolvedValue({ success: true });
+      await controller.withdraw({ amount: '10' });
+      expect(
+        mockAccountServiceInstance.withdraw.mock.calls[0][0].provider,
+      ).toBe(mockProvider);
+    });
+
+    it('resolves the direct lighter venue and delegates withdrawal to that provider', async () => {
+      const lighterProvider = createLighterProvider();
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['lighter', lighterProvider]]));
+      controller.testUpdate((state) => {
+        state.activeProvider = 'lighter';
+      });
+
+      await expect(controller.resolveWithdrawalRoute()).resolves.toStrictEqual({
+        status: 'resolved',
+        providerId: 'lighter',
+      });
+
+      mockAccountServiceInstance.withdraw.mockResolvedValue({ success: true });
+      await controller.withdraw({ amount: '10' });
+      expect(
+        mockAccountServiceInstance.withdraw.mock.calls[0][0].provider,
+      ).toBe(lighterProvider);
+    });
+
+    it('uses the direct protocol identity when the provider is not in the registry', async () => {
+      const provider = setDirectMode('lighter');
+      controller.testSetProviders(new Map());
+      vi.mocked(provider.withdraw).mockResolvedValue({ success: true });
+
+      await expect(controller.resolveWithdrawalRoute()).resolves.toStrictEqual({
+        status: 'resolved',
+        providerId: 'lighter',
+      });
+      await expect(
+        controller.withdraw({ amount: '10' }),
+      ).resolves.toStrictEqual({
+        success: true,
+      });
+      expect(provider.withdraw).toHaveBeenCalledExactlyOnceWith({
+        amount: '10',
+      });
+    });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'accepts an explicit matching route in direct %s mode',
+      async (providerId) => {
+        const provider = setDirectMode(providerId);
+        const params = { amount: '10', providerId };
+        mockAccountServiceInstance.withdraw.mockResolvedValue({
+          success: true,
+        });
+
+        await expect(
+          controller.resolveWithdrawalRoute({ providerId }),
+        ).resolves.toStrictEqual({ status: 'resolved', providerId });
+        await expect(controller.withdraw(params)).resolves.toStrictEqual({
+          success: true,
+        });
+        expect(
+          mockAccountServiceInstance.withdraw,
+        ).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ provider, params }),
+        );
+      },
+    );
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'rejects a conflicting explicit route before withdrawal side effects in direct %s mode',
+      async (providerId) => {
+        setDirectMode(providerId);
+        const conflictingProviderId =
+          providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid';
+        const stateBefore = controller.state;
+
+        await expect(
+          controller.resolveWithdrawalRoute({
+            providerId: conflictingProviderId,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        await expect(
+          controller.withdraw({
+            amount: '10',
+            providerId: conflictingProviderId,
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        expect(mockAccountServiceInstance.withdraw).not.toHaveBeenCalled();
+        expect(controller.state).toBe(stateBefore);
+      },
+    );
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'rejects an unknown explicit route before withdrawal side effects in direct %s mode',
+      async (providerId) => {
+        setDirectMode(providerId);
+        const unknownProviderId = 'unknown' as never;
+        const stateBefore = controller.state;
+
+        await expect(
+          controller.resolveWithdrawalRoute({ providerId: unknownProviderId }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        await expect(
+          controller.withdraw({ amount: '10', providerId: unknownProviderId }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        expect(mockAccountServiceInstance.withdraw).not.toHaveBeenCalled();
+        expect(controller.state).toBe(stateBefore);
+      },
+    );
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'refuses a withdrawal checked for %s if direct mode changes to the other venue before submission',
+      async (providerId) => {
+        setAggregatedMode('hyperliquid');
+        await expect(
+          controller.resolveWithdrawalRoute({ providerId }),
+        ).resolves.toStrictEqual({ status: 'resolved', providerId });
+
+        setDirectMode(providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid');
+        const stateBefore = controller.state;
+
+        await expect(
+          controller.withdraw({ amount: '10', providerId }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        expect(mockAccountServiceInstance.withdraw).not.toHaveBeenCalled();
+        expect(controller.state).toBe(stateBefore);
+      },
+    );
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'resolves the sole aggregated %s venue and delegates withdrawal through the wrapper',
+      async (providerId) => {
+        const provider =
+          providerId === 'hyperliquid' ? mockProvider : createLighterProvider();
+        const aggregatedProvider = setAggregatedMode(
+          providerId,
+          new Map([[providerId, provider]]),
+        );
+        const params = { amount: '10' };
+        vi.mocked(provider.withdraw).mockResolvedValue({ success: true });
+
+        await expect(
+          controller.resolveWithdrawalRoute(),
+        ).resolves.toStrictEqual({
+          status: 'resolved',
+          providerId,
+        });
+        await expect(controller.withdraw(params)).resolves.toStrictEqual({
+          success: true,
+        });
+        expect(
+          mockAccountServiceInstance.withdraw,
+        ).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ provider: aggregatedProvider, params }),
+        );
+        expect(provider.withdraw).toHaveBeenCalledExactlyOnceWith(params);
+      },
+    );
+
+    it('reports route-required for an unrouted withdrawal while both venues are registered, and withdraw refuses the same way', async () => {
+      setAggregatedMode('hyperliquid');
+
+      await expect(controller.resolveWithdrawalRoute()).resolves.toStrictEqual({
+        status: 'route_required',
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      await expect(
+        controller.withdraw({ amount: '10' }),
+      ).resolves.toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      expect(mockProvider.getAccountSupport).not.toHaveBeenCalled();
+      expect(mockAccountServiceInstance.withdraw).not.toHaveBeenCalled();
+    });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'resolves an explicit %s venue and withdraws there rather than the aggregated default',
+      async (providerId) => {
+        const lighterProvider = createLighterProvider();
+        const providers = new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]);
+        setAggregatedMode(
+          providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid',
+          providers,
+        );
+        const provider = providers.get(providerId)!;
+        const otherProvider = providers.get(
+          providerId === 'hyperliquid' ? 'lighter' : 'hyperliquid',
+        )!;
+        const params = { amount: '10', providerId };
+        vi.mocked(provider.withdraw).mockResolvedValue({ success: true });
+
+        await expect(
+          controller.resolveWithdrawalRoute({ providerId }),
+        ).resolves.toStrictEqual({ status: 'resolved', providerId });
+        await expect(controller.withdraw(params)).resolves.toStrictEqual({
+          success: true,
+        });
+        expect(provider.withdraw).toHaveBeenCalledExactlyOnceWith(params);
+        expect(otherProvider.withdraw).not.toHaveBeenCalled();
+      },
+    );
+
+    it('keeps no-argument account support on the saved default even when withdrawal requires a route', async () => {
+      const lighterProvider = createLighterProvider();
+      const accountSupport = { isSupported: true } as const;
+      vi.mocked(lighterProvider.getAccountSupport!).mockResolvedValue(
+        accountSupport,
+      );
+      setAggregatedMode(
+        'lighter',
+        new Map<PerpsProviderType, PerpsProvider>([
+          ['hyperliquid', mockProvider],
+          ['lighter', lighterProvider],
+        ]),
+      );
+
+      await expect(controller.resolveWithdrawalRoute()).resolves.toStrictEqual({
+        status: 'route_required',
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      await expect(
+        controller.withdraw({ amount: '10' }),
+      ).resolves.toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      await expect(controller.getAccountSupport()).resolves.toStrictEqual(
+        accountSupport,
+      );
+      expect(lighterProvider.getAccountSupport).toHaveBeenCalledExactlyOnceWith(
+        undefined,
+      );
+      expect(mockProvider.getAccountSupport).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown explicit venue in aggregated mode without signing', async () => {
+      const { AccountService } = await vi.importActual<
+        typeof accountServiceModule
+      >('../../src/services/AccountService.js');
+      const accountService = new AccountService(
+        mockInfrastructure,
+        createMockMessenger(),
+      );
+      mockAccountServiceInstance.withdraw.mockImplementation((options) =>
+        accountService.withdraw(options),
+      );
+      setAggregatedMode('hyperliquid');
+      const providerId = 'unknown' as never;
+
+      await expect(
+        controller.resolveWithdrawalRoute({ providerId }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+      // Unlike a direct-mode conflict, this error is caught by AccountService
+      // and returned as a failed withdrawal; retain that existing contract.
+      await expect(
+        controller.withdraw({ amount: '10', providerId }),
+      ).resolves.toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      });
+      expect(mockProvider.withdraw).not.toHaveBeenCalled();
+    });
+  });
+
   describe('validation methods', () => {
     it('validates close position', async () => {
       const closeParams = {

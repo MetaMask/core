@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PerpsController.resolveWithdrawalRoute` (messenger action `PerpsController:resolveWithdrawalRoute`) to report which venue a withdrawal will sign on, using the same provider resolution and `PROVIDER_ROUTE_REQUIRED` refusal as `withdraw`
+  - Returns `{ status: 'resolved', providerId }` with the resolved `PerpsProviderType`, or `{ status: 'route_required', error: 'PROVIDER_ROUTE_REQUIRED' }` when several venues are registered and no route is named — returned as a value rather than thrown, so clients cannot fail open around the refusal
+  - Explicit routes that name an unknown venue or conflict with the active direct provider still throw `PROVIDER_NOT_FOUND`, matching `getAccountSupport`
+  - New types `WithdrawalRoute` and `ResolveWithdrawalRouteParams`
+
+### Fixed
+
+- Reject `withdraw` calls whose explicit `providerId` conflicts with the active direct provider with `PROVIDER_NOT_FOUND` before withdrawal tracking or signing begins
+
 ## [25.0.0]
 
 ### Added
