@@ -155,6 +155,8 @@ import type {
   TransakServiceCancelOrderAction,
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
+  TransakServiceSubmitMicaConsentAction,
+  TransakServiceSubmitSourceOfIncomeAction,
 } from './TransakService-method-action-types.js';
 import type {
   TransakAccessToken,
@@ -1206,6 +1208,8 @@ type AllowedActions =
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
+  | TransakServiceSubmitMicaConsentAction
+  | TransakServiceSubmitSourceOfIncomeAction
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
