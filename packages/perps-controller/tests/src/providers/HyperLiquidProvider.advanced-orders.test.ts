@@ -30,6 +30,7 @@ import {
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -2861,8 +2862,10 @@ describe('HyperLiquidProvider', () => {
       ['replacement', 'multi-sig', ['cancel']],
       ['restoration', 'multi-sig', ['cancel', 'replacement']],
       ['cancel', 'unavailable', []],
+      ['cancel', 'denied during the position read', []],
+      ['replacement', 'denied during the position read', ['cancel']],
     ] as const)(
-      'does not sign or dispatch a TP/SL %s when support expires and becomes %s',
+      'does not sign or dispatch a TP/SL %s when support is %s',
       async (blockedWrite, support, allowed) => {
         vi.useFakeTimers({ toFake: ['Date'] });
         try {
@@ -2870,28 +2873,45 @@ describe('HyperLiquidProvider', () => {
           const info = mockClientService.getInfoClient();
           const readSupport = vi.fn().mockResolvedValue(null);
           info.userToMultiSigSigners = readSupport;
+          const holdPositionRead =
+            support === 'denied during the position read';
+          const readingPosition = createDeferred<void>();
+          const releasePosition = createDeferred<void>();
+          const positionState =
+            await createMockInfoClient().clearinghouseState();
           const exchange = mockClientService.getExchangeClient();
           const sign = vi.fn();
           const dispatch = vi.fn();
+
+          const denySupport = (): void => {
+            vi.advanceTimersByTime(HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS);
+            readSupport.mockResolvedValue({
+              authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+              threshold: 2,
+            });
+          };
 
           mockClientService.getExchangeClient.mockImplementation(
             (beforeDispatch, hooks) => {
               const write = async (stage: string): Promise<void> => {
                 if (stage === blockedWrite) {
-                  vi.advanceTimersByTime(
-                    HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
-                  );
-                  if (support === 'unavailable') {
+                  if (holdPositionRead) {
+                    vi.mocked(info.clearinghouseState).mockImplementationOnce(
+                      async () => {
+                        readingPosition.resolve();
+                        await releasePosition.promise;
+                        return positionState;
+                      },
+                    );
+                  } else if (support === 'unavailable') {
+                    vi.advanceTimersByTime(
+                      HYPERLIQUID_ACCOUNT_SUPPORT_RECHECK_MS,
+                    );
                     readSupport.mockRejectedValue(
                       new Error('Support read unavailable'),
                     );
                   } else {
-                    readSupport.mockResolvedValue({
-                      authorizedUsers: [
-                        '0x1234567890123456789012345678901234567890',
-                      ],
-                      threshold: 2,
-                    });
+                    denySupport();
                   }
                 }
                 await hooks?.beforeSign?.();
@@ -2946,15 +2966,36 @@ describe('HyperLiquidProvider', () => {
             },
           );
 
-          const result = await provider.replacePositionTPSLLeg({
+          const operation = provider.replacePositionTPSLLeg({
             symbol: 'BTC',
             leg: 'tp',
             triggerPrice: '61000',
+            ...(holdPositionRead && {
+              expectedPosition: { size: '0.1', entryPrice: '50000' },
+            }),
           });
 
+          if (holdPositionRead) {
+            try {
+              const reachedRead = await Promise.race([
+                readingPosition.promise.then(() => true),
+                operation.then(() => false),
+              ]);
+              expect(reachedRead).toBe(true);
+              denySupport();
+              expect(await provider.getAccountSupport()).toStrictEqual({
+                isSupported: false,
+                reason: 'multi_sig_account',
+              });
+            } finally {
+              releasePosition.resolve();
+              await operation;
+            }
+          }
+          const result = await operation;
           expect(result.success).toBe(false);
-          expect(sign.mock.calls.flat()).toStrictEqual(allowed);
           expect(dispatch.mock.calls.flat()).toStrictEqual(allowed);
+          expect(sign.mock.calls.flat()).toStrictEqual(allowed);
         } finally {
           vi.useRealTimers();
         }

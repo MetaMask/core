@@ -12856,6 +12856,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       ): Promise<void> => {
         await assertWritableScope(refreshPositiveSupport);
         await assertCurrentPosition();
+        if (expectedPosition) {
+          // The position read can outlive a positive account-support decision.
+          await assertWritableScope();
+        }
       };
       const recordOutcome = (
         outcome: { answer: unknown } | { error: unknown },
