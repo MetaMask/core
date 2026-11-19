@@ -229,7 +229,8 @@ export type SeedlessOnboardingControllerSetLockedAction = {
  * @returns A promise that resolves to the success of the operation.
  * @throws `PasswordEnvelopeNotFound` if the vault is envelope-managed, but
  * no vault keys are sealed for the global password and it does not derive
- * the vault keys either.
+ * the vault keys either, or the envelope sealed for the global password
+ * holds another vault key set.
  */
 export type SeedlessOnboardingControllerSyncLatestGlobalPasswordAction = {
   type: `SeedlessOnboardingController:syncLatestGlobalPassword`;

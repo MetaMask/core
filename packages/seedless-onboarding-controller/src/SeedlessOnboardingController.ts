@@ -1154,7 +1154,8 @@ export class SeedlessOnboardingController<
    * @returns A promise that resolves to the success of the operation.
    * @throws `PasswordEnvelopeNotFound` if the vault is envelope-managed, but
    * no vault keys are sealed for the global password and it does not derive
-   * the vault keys either.
+   * the vault keys either, or the envelope sealed for the global password
+   * holds another vault key set.
    */
   async syncLatestGlobalPassword({
     globalPassword,
@@ -1170,6 +1171,19 @@ export class SeedlessOnboardingController<
         const vaultKeySet = await this.#openPasswordEnvelope(envelopeKeys);
 
         if (vaultKeySet) {
+          // K_v never changes once this device has envelope state
+          const { envelope } = this.state;
+          if (
+            envelope &&
+            !pubKeysEqual(
+              vaultKeySet.authKeyPair.pk,
+              base64ToBytes(envelope.vaultAuthPubKey),
+            )
+          ) {
+            throw new SeedlessOnboardingError(
+              SeedlessOnboardingControllerErrorMessage.PasswordEnvelopeNotFound,
+            );
+          }
           // envelope-managed: keep K_v and re-encrypt under the new password
           await this.#createNewVaultWithAuthData({
             password: globalPassword,

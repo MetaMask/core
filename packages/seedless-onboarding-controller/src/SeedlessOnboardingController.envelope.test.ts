@@ -2977,6 +2977,40 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it('throws PasswordEnvelopeNotFound without touching the vault when the password envelope holds another vault key set', async () => {
+        await withUnlockedController(async (args) => {
+          const { controller, toprfClient } = args;
+          const network = mockNetwork(toprfClient);
+          await migrate(args, network);
+          const { envelopeKeys } = keysFor(NEW_PASSWORD);
+          await network.envelopeStore.writeEnvelope(
+            envelopeKeys,
+            await sealEnvelope(
+              envelopeKeys.wrapKey,
+              'password',
+              vaultKeySetFor('other-password'),
+            ),
+          );
+          network.setGlobalPassword(NEW_PASSWORD);
+          const { vault, envelope, authPubKey } = controller.state;
+
+          await expect(
+            controller.syncLatestGlobalPassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.PasswordEnvelopeNotFound,
+          );
+
+          expect(controller.state.vault).toBe(vault);
+          expect(controller.state.envelope).toStrictEqual(envelope);
+          expect(controller.state.authPubKey).toBe(authPubKey);
+          expect(
+            await controller.verifyVaultPassword(MOCK_PASSWORD),
+          ).toBeUndefined();
+        });
+      });
+
       it('throws PasswordEnvelopeNotFound when the password envelope is missing from the store', async () => {
         const store = await createMigratedAccount();
         store.delete(

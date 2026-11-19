@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `syncLatestGlobalPassword` and `submitGlobalPassword` open the envelope sealed for the global password first, and fall back to the existing key chain if there is none. A failed envelope fetch is reported as an error, not treated as a missing envelope ([#11220](https://github.com/MetaMask/core/pull/11220))
   - When `syncLatestGlobalPassword` falls back on a vault without `envelope` state, it sets `envelope` state if a control record's `passwordNamespace.authSk` matches the password's auth public key.
   - On a vault with `envelope` state, `syncLatestGlobalPassword` only falls back when the global password still derives the vault keys and a control record matches it, as for a migrated vault before its first envelope password change. Otherwise it throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state.
+  - On a vault with `envelope` state, `syncLatestGlobalPassword` also throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state when the envelope sealed for the global password holds vault keys other than `envelope.vaultAuthPubKey`.
 - `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on an envelope-managed vault ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Bump `@metamask/auth-network-utils` from `^0.3.0` to `^0.4.0` ([#11494](https://github.com/MetaMask/core/pull/11494))
 
