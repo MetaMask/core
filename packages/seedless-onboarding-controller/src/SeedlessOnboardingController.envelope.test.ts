@@ -2545,6 +2545,29 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
+      it.each([
+        ['empty', new Uint8Array(0)],
+        ['31 bytes', new Uint8Array(31).fill(1)],
+        ['33 bytes', new Uint8Array(33).fill(1)],
+        ['not a Uint8Array', Array(32).fill(1) as unknown as Uint8Array],
+      ])(
+        'throws InvalidRecoverySecret without any call when the Recovery Secret is %s',
+        async (_name, recoverySecret) => {
+          await withUnlockedController(async (args) => {
+            const network = mockNetwork(args.toprfClient);
+            await authenticateAal2(args, { hasRecoveryShare: false });
+
+            await expect(
+              migrateToEnvelope(args, recoverySecret),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.InvalidRecoverySecret,
+            );
+            expect(network.spies.fetchAuthPubKey).not.toHaveBeenCalled();
+            expectNoMigrationWrites(network);
+          });
+        },
+      );
+
       it('throws ControllerLocked when locked', async () => {
         await withUnlockedController(async (args) => {
           await args.baseMessenger.call(
@@ -4073,6 +4096,35 @@ describe('SeedlessOnboardingController', () => {
           },
         );
       });
+
+      it.each([
+        ['empty', new Uint8Array(0)],
+        ['31 bytes', new Uint8Array(31).fill(1)],
+        ['33 bytes', new Uint8Array(33).fill(1)],
+        ['not a Uint8Array', Array(32).fill(1) as unknown as Uint8Array],
+      ])(
+        'throws InvalidRecoverySecret without any call when the Recovery Secret is %s',
+        async (_name, recoverySecret) => {
+          await withNewDeviceController(async (args) => {
+            const { controller, toprfClient, baseMessenger } = args;
+            const network = mockNetwork(toprfClient, {
+              recoverySecret: RECOVERY_SECRET_HEX,
+            });
+            await authenticateAal2(args, { hasRecoveryShare: true });
+
+            await expect(
+              baseMessenger.call(
+                'SeedlessOnboardingController:recoverWithRecoverySecret',
+                { recoverySecret, password: RECOVERED_PASSWORD },
+              ),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.InvalidRecoverySecret,
+            );
+            expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+            expect(controller.state.vault).toBeUndefined();
+          });
+        },
+      );
 
       it('does not create a vault when the vault holds no secret data', async () => {
         const store = await createMigratedAccount();

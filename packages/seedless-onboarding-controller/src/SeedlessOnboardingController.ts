@@ -128,6 +128,8 @@ export { getInitialSeedlessOnboardingControllerStateWithDefaults } from './state
 
 const log = createModuleLogger(projectLogger, controllerName);
 
+const RECOVERY_SECRET_LENGTH = 32;
+
 /**
  * @param vaultData - The decrypted vault data.
  * @returns The vault's key set, as the envelope vault key set `K_v`.
@@ -157,6 +159,21 @@ async function sealFor(
     keys,
     envelope: await sealEnvelope(keys.wrapKey, path, vaultKeySet),
   };
+}
+
+/**
+ * @param recoverySecret - The Recovery Secret.
+ * @throws `InvalidRecoverySecret` unless it is a 32-byte `Uint8Array`.
+ */
+function assertIsRecoverySecret(recoverySecret: unknown): void {
+  if (
+    !(recoverySecret instanceof Uint8Array) ||
+    recoverySecret.length !== RECOVERY_SECRET_LENGTH
+  ) {
+    throw new SeedlessOnboardingError(
+      SeedlessOnboardingControllerErrorMessage.InvalidRecoverySecret,
+    );
+  }
 }
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -2703,6 +2720,8 @@ export class SeedlessOnboardingController<
    * @param params - The function parameters.
    * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
    * @returns A promise that resolves once the vault is envelope-managed.
+   * @throws `InvalidRecoverySecret` unless `recoverySecret` is a 32-byte
+   * `Uint8Array`, before any request.
    * @throws `OutdatedPassword` if the vault is not in sync with the global
    * password, `EnvelopeControlRecordNotFound` if no control record matching
    * the global password reads back, `EnvelopeMigrationInconsistent` if the
@@ -2717,6 +2736,7 @@ export class SeedlessOnboardingController<
   }: {
     recoverySecret: Uint8Array;
   }): Promise<void> {
+    assertIsRecoverySecret(recoverySecret);
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsUnlocked();
@@ -2805,6 +2825,8 @@ export class SeedlessOnboardingController<
    * @param params.recoverySecret - The 32-byte Recovery Secret from escrow.
    * @param params.password - The password of the new local vault.
    * @returns The secret data of the vault.
+   * @throws `InvalidRecoverySecret` unless `recoverySecret` is a 32-byte
+   * `Uint8Array`, before any request.
    * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
    * Recovery Secret, they are not the vault keys named by the `envelope`
    * state, or the vault they open has no control record, as its migration is
@@ -2821,6 +2843,7 @@ export class SeedlessOnboardingController<
     recoverySecret: Uint8Array;
     password: string;
   }): Promise<SecretMetadata[]> {
+    assertIsRecoverySecret(recoverySecret);
     return await this.#withControllerLock(async () =>
       this.#executeWithTokenRefresh(async () => {
         this.#assertIsAuthenticatedUser(this.state);

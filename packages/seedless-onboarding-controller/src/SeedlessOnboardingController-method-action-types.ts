@@ -382,6 +382,8 @@ export type SeedlessOnboardingControllerAuthenticateForRecoveryAction = {
  * @param params - The function parameters.
  * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
  * @returns A promise that resolves once the vault is envelope-managed.
+ * @throws `InvalidRecoverySecret` unless `recoverySecret` is a 32-byte
+ * `Uint8Array`, before any request.
  * @throws `OutdatedPassword` if the vault is not in sync with the global
  * password, `EnvelopeControlRecordNotFound` if no control record matching
  * the global password reads back, `EnvelopeMigrationInconsistent` if the
@@ -419,6 +421,8 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
  * @param params.recoverySecret - The 32-byte Recovery Secret from escrow.
  * @param params.password - The password of the new local vault.
  * @returns The secret data of the vault.
+ * @throws `InvalidRecoverySecret` unless `recoverySecret` is a 32-byte
+ * `Uint8Array`, before any request.
  * @throws `RecoveryEnvelopeNotFound` if no vault keys are sealed for the
  * Recovery Secret, they are not the vault keys named by the `envelope`
  * state, or the vault they open has no control record, as its migration is
