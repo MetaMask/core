@@ -192,16 +192,14 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
     vi.mocked(HyperLiquidProvider).mockReset();
   });
 
-  it('keeps a Chase ownership read current when startup refreshes restored balances', async () => {
-    const { controller, provider } = createFixture(true, {
-      perpsBalances: {
-        hyperliquid: {
-          totalBalance: '123',
-          unrealizedPnl: '0',
-          lastUpdated: 1,
-        },
-      },
-    });
+  const startChaseOwnership = async (
+    fixture: Fixture,
+  ): Promise<{
+    pending: Promise<PerpsChaseOrderOwnership>;
+    ownership: PerpsChaseOrderOwnership;
+    complete: () => void;
+  }> => {
+    const { controller, provider } = fixture;
     const ownership: PerpsChaseOrderOwnership = {
       status: 'unsupported',
       providerId: 'hyperliquid',
@@ -225,14 +223,68 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       returnOnEquity: '0',
     });
 
-    const pendingRead = controller.getChaseOrderOwnership({
+    const pending = controller.getChaseOrderOwnership({
       providerId: 'hyperliquid',
       handle: 'original-chase',
     });
     await entered.promise;
+    return {
+      pending,
+      ownership,
+      complete: (): void => pendingOwnership.resolve(ownership),
+    };
+  };
+
+  it.each([
+    {
+      name: 'startup refresh',
+      update: async ({ controller }: Fixture): Promise<void> => {
+        await controller.getAccountState();
+      },
+    },
+    {
+      name: 'repeat selection',
+      update: ({ host }: Fixture): Promise<void> => {
+        host.rootMessenger.publish(
+          'AccountTreeController:selectedAccountGroupChange',
+          'entropy:default/0',
+          'entropy:default/0',
+        );
+        return Promise.resolve();
+      },
+    },
+  ])(
+    'keeps a Chase ownership read current across $name',
+    async ({ update }) => {
+      const fixture = createFixture(true, {
+        perpsBalances: {
+          hyperliquid: {
+            totalBalance: '123',
+            unrealizedPnl: '0',
+            lastUpdated: 1,
+          },
+        },
+      });
+      const { pending, ownership, complete } =
+        await startChaseOwnership(fixture);
+      await update(fixture);
+      complete();
+      expect(await pending).toStrictEqual(ownership);
+    },
+  );
+
+  it('invalidates an in-flight Chase ownership read after an observed wallet round trip', async () => {
+    const fixture = createFixture();
+    const { controller, host } = fixture;
+    const { pending, complete } = await startChaseOwnership(fixture);
+    host.selectAccount(ACCOUNT_B);
     await controller.getAccountState();
-    pendingOwnership.resolve(ownership);
-    expect(await pendingRead).toStrictEqual(ownership);
+    host.selectAccount(ACCOUNT_A);
+    await controller.getAccountState();
+    complete();
+    await expect(pending).rejects.toThrow(
+      PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+    );
   });
 
   it.each(CONTEXT_CHANGES)(

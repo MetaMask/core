@@ -1539,20 +1539,17 @@ export class PerpsController extends BaseController<
     // preload-scoped account handler is torn down on disconnect, so it cannot
     // carry this.
     // A restored balance does not record which wallet it belongs to.
-    const hasRestoredBalances =
+    this.#hasUnverifiedAccountBalances =
       this.state.accountState !== null ||
       Object.keys(this.state.perpsBalances).length > 0;
-    this.#selectedTradingAddress = hasRestoredBalances
-      ? undefined
-      : getSelectedEvmAccountFromMessenger(
-          this.messenger,
-        )?.address.toLowerCase();
+    this.#selectedTradingAddress = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
     const updateSelectedTradingAccount = (
       switchedAccount: ReturnType<
         typeof getSelectedEvmAccountFromMessenger
       > | null,
     ): void => {
-      this.#selectedAccountGeneration += 1;
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
       this.#setSelectedTradingAddress(
         switchedAccount === null
@@ -5447,15 +5444,7 @@ export class PerpsController extends BaseController<
       accountId === undefined
         ? selectedAddress
         : getCaipAccountAddress(accountId);
-    if (
-      this.#selectedTradingAddress === undefined &&
-      selectedAddress &&
-      requestAddress === selectedAddress
-    ) {
-      // Invalidate restored balances before the first selected-wallet refresh.
-      this.#setSelectedTradingAddress(selectedAddress);
-    }
-    const accountStateGeneration = this.#accountStateGeneration;
+    const selectedAccountGeneration = this.#selectedAccountGeneration;
     return this.#marketDataService.getAccountState({
       provider,
       params,
@@ -5477,7 +5466,7 @@ export class PerpsController extends BaseController<
             if (
               requestAddress === undefined ||
               requestAddress !== currentAddress ||
-              this.#accountStateGeneration !== accountStateGeneration
+              this.#selectedAccountGeneration !== selectedAccountGeneration
             ) {
               return false;
             }
@@ -5709,13 +5698,13 @@ export class PerpsController extends BaseController<
 
   #lifecycleGeneration = 0;
 
-  // Account events also fence round trips that finish at the original address.
+  // Observed wallet changes also fence round trips to the original address.
   #selectedAccountGeneration = 0;
 
-  // Undefined when restored balances have no known owner. Null on deselection.
+  // Null records an explicit deselection while legacy selection catches up.
   #selectedTradingAddress: string | null | undefined;
 
-  #accountStateGeneration = 0;
+  #hasUnverifiedAccountBalances: boolean;
 
   readonly #userSnapshotRequests = new Map<
     string,
@@ -7779,10 +7768,8 @@ export class PerpsController extends BaseController<
       this.messenger,
     )?.address.toLowerCase();
     if (
-      this.#selectedTradingAddress !== undefined &&
-      this.#selectedTradingAddress !== address &&
-      (accountId === undefined ||
-        (address !== undefined && getCaipAccountAddress(accountId) === address))
+      accountId === undefined ||
+      (address !== undefined && getCaipAccountAddress(accountId) === address)
     ) {
       this.#setSelectedTradingAddress(address);
     }
@@ -7796,15 +7783,19 @@ export class PerpsController extends BaseController<
    * @param address - Resolved wallet address, or null for explicit deselection.
    */
   #setSelectedTradingAddress(address: string | null | undefined): void {
-    if (address !== undefined && address === this.#selectedTradingAddress) {
-      return;
-    }
+    const walletChanged =
+      (this.#selectedTradingAddress ?? undefined) !== (address ?? undefined);
     this.#selectedTradingAddress = address;
-    this.#accountStateGeneration += 1;
-    this.update((state) => {
-      state.accountState = null;
-      state.perpsBalances = {};
-    });
+    if (walletChanged) {
+      this.#selectedAccountGeneration += 1;
+    }
+    if (walletChanged || this.#hasUnverifiedAccountBalances) {
+      this.#hasUnverifiedAccountBalances = false;
+      this.update((state) => {
+        state.accountState = null;
+        state.perpsBalances = {};
+      });
+    }
   }
 
   /**
@@ -7836,6 +7827,12 @@ export class PerpsController extends BaseController<
                   this.messenger,
                 )?.address.toLowerCase()
               : getCaipAccountAddress(accountId);
+          if (
+            accountId === undefined &&
+            this.#selectedTradingAddress !== null
+          ) {
+            this.#setSelectedTradingAddress(streamAddress);
+          }
           return nextProvider.subscribeToAccount({
             ...params,
             callback: (account, aggregate) => {
@@ -7845,13 +7842,7 @@ export class PerpsController extends BaseController<
                 streamAddress ===
                   this.#getCurrentAccountStateAddress(accountId);
               if (ownsState && account) {
-                const sameWallet =
-                  streamAddress === this.#selectedTradingAddress;
-                this.#selectedTradingAddress = streamAddress;
                 this.update((state) => {
-                  if (!sameWallet) {
-                    state.perpsBalances = {};
-                  }
                   state.accountState = account;
                   state.lastUpdateTimestamp = Date.now();
                   state.lastError = null;
@@ -7917,10 +7908,7 @@ export class PerpsController extends BaseController<
                 this.update((state) => {
                   state.accountState = null;
                   state.lastUpdateTimestamp = Date.now();
-                  if (
-                    aggregate &&
-                    streamAddress === this.#selectedTradingAddress
-                  ) {
+                  if (aggregate) {
                     // A null total may still contain pending venues. For the
                     // same wallet, only explicit unavailability clears them.
                     for (const providerId of aggregate.unavailableProviders) {

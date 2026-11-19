@@ -84,6 +84,7 @@ function isAccountLike(
     typeof value === 'object' &&
     value !== null &&
     typeof account?.address === 'string' &&
+    account.address.length > 0 &&
     typeof account.type === 'string'
   );
 }

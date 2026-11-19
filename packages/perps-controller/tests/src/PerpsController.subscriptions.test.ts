@@ -888,6 +888,8 @@ describe('PerpsController', () => {
       expect(controller.state.accountState?.totalBalance).toBe('200');
 
       groupHasEvm = false;
+      controller.subscribeToAccount({ callback: vi.fn() });
+      expect(controller.state.accountState).toBeNull();
       callback(accountState('300'));
       expect(controller.state.accountState).toBeNull();
       expect(controller.state.perpsBalances).toStrictEqual({});
