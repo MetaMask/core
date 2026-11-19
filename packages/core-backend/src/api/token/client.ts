@@ -19,7 +19,7 @@ import type {
 } from '@tanstack/query-core';
 
 import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
-import { getQueryOptionsOverrides } from '../shared-types.js';
+import { getQueryOptionsOverrides, API_URLS } from '../shared-types.js';
 import type { FetchOptions } from '../shared-types.js';
 import type {
   TokenMetadata,

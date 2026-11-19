@@ -265,6 +265,7 @@ describe('TokenApiClient', () => {
       if (!options.queryFn) {
         throw new Error('queryFn is required');
       }
+      // @ts-expect-error - queryFn is typed as possibly being a symbol in @tanstack/query-core
       const result = await options.queryFn({
         queryKey: options.queryKey,
         signal: new AbortController().signal,
