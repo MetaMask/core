@@ -3216,30 +3216,41 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param context - The account, network, and lifecycle captured by the action.
    * @param operation - Operation name included in lifecycle diagnostics.
    * @param retryMissingSupport - Whether to retry after a transient failure.
+   * @param rollbackInfoClient - Captured HTTP reader for cleanup after teardown.
    */
   async #assertNoKnownUnsupportedAccount(
     context: AccountSupportContext,
     operation: string,
     retryMissingSupport = false,
+    rollbackInfoClient?: InfoClient,
   ): Promise<void> {
-    await this.#assertAccountContextCurrent(context, operation);
+    const assertScope = rollbackInfoClient
+      ? async (): Promise<void> =>
+          await this.#assertAccountIdentityCurrent(context)
+      : async (): Promise<void> =>
+          await this.#assertAccountContextCurrent(context, operation);
+    await assertScope();
     const cacheKey = this.#getAccountSupportCacheKey(
       context.network,
       context.userAddress,
     );
+    const supportContext = { ...context, infoClient: rollbackInfoClient };
     if (retryMissingSupport && !this.#accountSupportByContext.has(cacheKey)) {
-      await this.#getAccountSupportForContext(context);
+      await this.#getAccountSupportForContext(supportContext);
     }
     let supportRequest: Promise<PerpsAccountSupport> | undefined;
     let expiresAt = this.#accountSupportExpiresAt.get(cacheKey);
     do {
       if (expiresAt !== undefined && Date.now() >= expiresAt) {
-        await this.#getAccountSupportForContext(context);
+        await this.#getAccountSupportForContext(supportContext);
       }
       supportRequest = this.#accountSupportByContext.get(cacheKey);
       const support = await supportRequest;
-      await this.#assertAccountContextCurrent(context, operation);
+      await assertScope();
       this.#assertCachedAccountWritable(cacheKey, support);
+      if (rollbackInfoClient && !this.#accountSupportByContext.has(cacheKey)) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
       // The decision can expire or be replaced during the identity lookup.
       expiresAt = this.#accountSupportExpiresAt.get(cacheKey);
     } while (
@@ -3277,8 +3288,17 @@ export class HyperLiquidProvider implements PerpsProvider {
   #getRollbackExchangeClient(
     accountContext: AccountSupportContext,
   ): ExchangeClient {
-    return this.#clientService.getExchangeClient(async () => {
-      await this.#assertRollbackAccountWritable(accountContext);
+    // The HTTP reader remains usable after disconnect clears the SDK clients.
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const assertWritable = async (): Promise<void> =>
+      await this.#assertNoKnownUnsupportedAccount(
+        accountContext,
+        'Rollback',
+        true,
+        infoClient,
+      );
+    return this.#clientService.getExchangeClient(assertWritable, {
+      beforeSign: assertWritable,
     });
   }
 
@@ -12232,9 +12252,21 @@ export class HyperLiquidProvider implements PerpsProvider {
       const isPartialTpsl =
         takeProfitSize !== undefined || stopLossSize !== undefined;
 
-      const maxSlippageBps =
-        legScope?.maxSlippageBps ??
-        (legScope || isPartialTpsl ? undefined : params.maxSlippageBps);
+      // The price each leg fills at once triggered; undefined executes at
+      // market. A whole-position update fills TP as a limit at its trigger and
+      // SL at market. A leg replace fills at its limit price, else at market.
+      const takeProfitFillPrice = legScope
+        ? legScope.limitPrice
+        : takeProfitPrice;
+      const stopLossFillPrice = legScope?.limitPrice;
+
+      const usesSlippageCap =
+        !isPartialTpsl &&
+        ((Boolean(takeProfitPrice) && takeProfitFillPrice === undefined) ||
+          (Boolean(stopLossPrice) && stopLossFillPrice === undefined));
+      const maxSlippageBps = usesSlippageCap
+        ? (legScope?.maxSlippageBps ?? params.maxSlippageBps)
+        : undefined;
       if (
         maxSlippageBps !== undefined &&
         (!Number.isFinite(maxSlippageBps) ||
@@ -12388,14 +12420,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       // HyperLiquid accepts one builder context for the whole TP/SL action.
       // Position TP/SL has no parent policy to inherit, so resolve every
       // included trigger and charge the batch when any child policy charges.
-      // The price each leg fills at once triggered; undefined executes at
-      // market. A whole-position update fills TP as a limit at its trigger and
-      // SL at market. A leg replace fills at its limit price, else at market.
-      const takeProfitFillPrice = legScope
-        ? legScope.limitPrice
-        : takeProfitPrice;
-      const stopLossFillPrice = legScope?.limitPrice;
-
       const feePolicyContexts = [
         ...(takeProfitPrice
           ? [

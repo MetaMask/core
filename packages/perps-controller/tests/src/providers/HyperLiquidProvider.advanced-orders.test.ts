@@ -2985,6 +2985,48 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it('ignores an unused slippage cap on a limit leg replacement', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.replacePositionTPSLLeg({
+        symbol: 'BTC',
+        leg: 'sl',
+        triggerPrice: '44000',
+        limitPrice: '43000',
+        maxSlippageBps: NaN,
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([SL_OID]);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orders: [
+            expect.objectContaining({
+              p: '43000',
+              t: {
+                trigger: { isMarket: false, triggerPx: '44000', tpsl: 'sl' },
+              },
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('removes both legs when the unused slippage cap is invalid', async () => {
+      setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        maxSlippageBps: -1,
+      });
+
+      expect(result.success).toBe(true);
+      expect(cancelledOrderIds()).toStrictEqual([TP_OID, SL_OID]);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
     it('keeps updatePositionTPSL sweeping both legs', async () => {
       setOpenOrders([rawPositionTrigger('tp'), rawPositionTrigger('sl')]);
 
