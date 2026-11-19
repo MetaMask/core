@@ -2692,6 +2692,80 @@ describe('HyperLiquidProvider', () => {
       },
     );
 
+    it.each([
+      ['long', '0.1', '1.2345', 3, '1.2342', 1.23412965],
+      ['short', '-0.1', '1.2345', 3, '1.2348', 1.23487035],
+      [
+        'short at a power of ten',
+        '-0.1',
+        '9.9999',
+        0.1000010000099,
+        '9.9999',
+        10,
+      ],
+    ] as const)(
+      'keeps a %s whole-position market stop on the permitted side of its cap',
+      async (_side, szi, triggerPrice, maxSlippageBps, price, cap) => {
+        const info = mockClientService.getInfoClient();
+        const normalInfo = createMockInfoClient();
+        const withPriceGrid = ({
+          universe,
+        }: {
+          universe: {
+            name: string;
+            szDecimals: number;
+            maxLeverage: number;
+          }[];
+        }) => ({
+          universe: universe.map((asset) =>
+            asset.name === 'BTC' ? { ...asset, szDecimals: 2 } : asset,
+          ),
+        });
+        (info.meta as Mock).mockResolvedValue(
+          withPriceGrid(await normalInfo.meta()),
+        );
+        const [metadata, assetContexts] = await normalInfo.metaAndAssetCtxs();
+        (info.metaAndAssetCtxs as Mock).mockResolvedValue([
+          withPriceGrid(metadata),
+          assetContexts,
+        ]);
+        const state = await normalInfo.clearinghouseState();
+        (info.clearinghouseState as Mock).mockResolvedValue({
+          ...state,
+          assetPositions: state.assetPositions.map(
+            (entry: { position: { coin: string } }) =>
+              entry.position.coin === 'BTC'
+                ? { ...entry, position: { ...entry.position, szi } }
+                : entry,
+          ),
+        });
+        setOpenOrders([]);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          stopLossPrice: triggerPrice,
+          maxSlippageBps,
+        });
+
+        expect(result.success).toBe(true);
+        const [request] = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0];
+        const [stopLoss] = request.orders;
+        expect(stopLoss).toMatchObject({
+          p: price,
+          b: szi.startsWith('-'),
+          t: {
+            trigger: { isMarket: true, triggerPx: triggerPrice, tpsl: 'sl' },
+          },
+        });
+        if (stopLoss.b) {
+          expect(Number(stopLoss.p)).toBeLessThanOrEqual(cap);
+        } else {
+          expect(Number(stopLoss.p)).toBeGreaterThanOrEqual(cap);
+        }
+      },
+    );
+
     it('replaces only this side from the warm order cache', async () => {
       const cachedTrigger = (leg: Leg): Order => ({
         orderId: String(oidFor(leg)),

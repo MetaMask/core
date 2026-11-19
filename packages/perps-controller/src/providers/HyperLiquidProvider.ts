@@ -39,6 +39,7 @@ import { DETAILED_ORDER_TYPES, isTPSLOrder } from '../constants/orderTypes.js';
 import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
+  DECIMAL_PRECISION_CONFIG,
   HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
@@ -212,6 +213,7 @@ import type {
 } from '../utils/errorContext.js';
 import {
   ensureError,
+  getHyperLiquidWriteGuardCode,
   isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
@@ -2958,14 +2960,30 @@ export class HyperLiquidProvider implements PerpsProvider {
     return `${network}:${userAddress.toLowerCase()}`;
   }
 
-  #recordAccountSupport(
+  #recordUnsupportedAccount(
     network: 'mainnet' | 'testnet',
     userAddress: string,
-    support: PerpsAccountSupport,
   ): void {
     const cacheKey = this.#getAccountSupportCacheKey(network, userAddress);
-    this.#accountSupportByContext.set(cacheKey, Promise.resolve(support));
+    this.#accountSupportByContext.set(
+      cacheKey,
+      Promise.resolve({ isSupported: false, reason: 'multi_sig_account' }),
+    );
     this.#accountSupportExpiresAt.delete(cacheKey);
+  }
+
+  #assertCachedAccountWritable(
+    cacheKey: string,
+    support: PerpsAccountSupport | undefined,
+  ): void {
+    // A nonexpiring entry is a refusal recorded while a write can be
+    // awaiting a probe or checking that the captured account is still active.
+    const hasRecordedRefusal =
+      this.#accountSupportByContext.has(cacheKey) &&
+      !this.#accountSupportExpiresAt.has(cacheKey);
+    if (support?.isSupported === false || hasRecordedRefusal) {
+      throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
+    }
   }
 
   /**
@@ -2983,23 +3001,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     error: unknown,
     accountContext: AccountSupportContext,
   ): boolean {
-    const isMultiSigRequired =
-      isHyperLiquidMultiSigRequiredError(error) ||
-      ensureError(
-        error,
-        'HyperLiquidProvider.recordUnsupportedAccountFromError',
-      ).message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED;
-    if (!isMultiSigRequired) {
+    if (!isHyperLiquidMultiSigRequiredError(error)) {
       return false;
     }
 
-    this.#recordAccountSupport(
+    this.#recordUnsupportedAccount(
       accountContext.network,
       accountContext.userAddress,
-      {
-        isSupported: false,
-        reason: 'multi_sig_account',
-      },
     );
     return true;
   }
@@ -3161,20 +3169,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     context: AccountSupportContext,
   ): Promise<void> {
     await this.#assertAccountIdentityCurrent(context);
-    const cachedSupport = this.#accountSupportByContext.get(
-      this.#getAccountSupportCacheKey(context.network, context.userAddress),
+    const cacheKey = this.#getAccountSupportCacheKey(
+      context.network,
+      context.userAddress,
     );
-    const support = cachedSupport ? await cachedSupport : undefined;
+    const support = await this.#accountSupportByContext.get(cacheKey);
     await this.#assertAccountIdentityCurrent(context);
-    if (support && !support.isSupported) {
-      throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
-    }
+    this.#assertCachedAccountWritable(cacheKey, support);
   }
 
   /**
    * Block an action when another step has authoritatively corrected support
-   * for its captured account. A missing cache entry remains fail-open: this
-   * fence must not turn a transient probe failure into another network probe.
+   * for its captured account. Refresh a positive result when it expires.
+   * A missing cache entry stays fail-open after a transient probe failure.
    *
    * @param context - The account, network, and lifecycle captured by the action.
    * @param operation - Operation name included in lifecycle diagnostics.
@@ -3184,19 +3191,31 @@ export class HyperLiquidProvider implements PerpsProvider {
     operation: string,
   ): Promise<void> {
     await this.#assertAccountContextCurrent(context, operation);
-    const cachedSupport = this.#accountSupportByContext.get(
-      this.#getAccountSupportCacheKey(context.network, context.userAddress),
+    const cacheKey = this.#getAccountSupportCacheKey(
+      context.network,
+      context.userAddress,
     );
-    const support = cachedSupport ? await cachedSupport : undefined;
-    await this.#assertAccountContextCurrent(context, operation);
-    if (support && !support.isSupported) {
-      throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
-    }
+    let supportRequest: Promise<PerpsAccountSupport> | undefined;
+    let expiresAt = this.#accountSupportExpiresAt.get(cacheKey);
+    do {
+      if (expiresAt !== undefined && Date.now() >= expiresAt) {
+        await this.#getAccountSupportForContext(context);
+      }
+      supportRequest = this.#accountSupportByContext.get(cacheKey);
+      const support = await supportRequest;
+      await this.#assertAccountContextCurrent(context, operation);
+      this.#assertCachedAccountWritable(cacheKey, support);
+      // The decision can expire or be replaced during the identity lookup.
+      expiresAt = this.#accountSupportExpiresAt.get(cacheKey);
+    } while (
+      this.#accountSupportByContext.get(cacheKey) !== supportRequest ||
+      (expiresAt !== undefined && Date.now() >= expiresAt)
+    );
   }
 
   /**
    * Create an operation-local exchange client that revalidates its captured
-   * account after signing and immediately before transport dispatch.
+   * account before signing and again immediately before transport dispatch.
    *
    * @param context - Account, network, and lifecycle authorized for the write.
    * @param operation - Operation name included in lifecycle diagnostics.
@@ -3206,10 +3225,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     context: AccountSupportContext,
     operation: string,
   ): ExchangeClient {
-    return this.#clientService.getExchangeClient(
-      async (): Promise<void> =>
-        await this.#assertNoKnownUnsupportedAccount(context, operation),
-    );
+    const assertWritable = async (): Promise<void> =>
+      await this.#assertNoKnownUnsupportedAccount(context, operation);
+    return this.#clientService.getExchangeClient(assertWritable, {
+      beforeSign: assertWritable,
+    });
   }
 
   /**
@@ -3249,9 +3269,11 @@ export class HyperLiquidProvider implements PerpsProvider {
     const context = expectedContext ?? (await this.#captureAccountContext());
     const support = await this.#getAccountSupportForContext(context);
     await this.#assertAccountContextCurrent(context, 'Account support check');
-    if (!support.isSupported) {
-      throw new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED);
-    }
+    const cacheKey = this.#getAccountSupportCacheKey(
+      context.network,
+      context.userAddress,
+    );
+    this.#assertCachedAccountWritable(cacheKey, support);
     return context;
   }
 
@@ -3529,15 +3551,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           'Unified account migration',
         );
       }
-      const exchangeClient = this.#clientService.getExchangeClient(
-        accountContext
-          ? async (): Promise<void> =>
-              await this.#assertNoKnownUnsupportedAccount(
-                accountContext,
-                'Unified account migration dispatch',
-              )
-          : undefined,
-      );
+      const exchangeClient = accountContext
+        ? this.#getAccountGuardedExchangeClient(
+            accountContext,
+            'Unified account migration dispatch',
+          )
+        : this.#clientService.getExchangeClient();
       await exchangeClient.agentSetAbstraction({
         abstraction: HL_ABSTRACTION_WIRE.unifiedAccount,
       });
@@ -3609,10 +3628,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           '[ensureUnifiedAccountEnabled] Multi-sig account (race/probe fallback), skipping unified account migration',
           { user: userAddress, network, mode: currentMode },
         );
-        this.#recordAccountSupport(network, userAddress, {
-          isSupported: false,
-          reason: 'multi_sig_account',
-        });
+        this.#recordUnsupportedAccount(network, userAddress);
         this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
           ...(currentMode && {
             [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
@@ -3656,8 +3672,8 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       if (
         accountContext &&
-        ensureError(error, 'HyperLiquidProvider.ensureUnifiedAccountEnabled')
-          .message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+        getHyperLiquidWriteGuardCode(error) ===
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
       ) {
         completeInFlight();
         throw error;
@@ -5716,8 +5732,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     } catch (error) {
       this.#recordUnsupportedAccountFromError(error, supportContext);
       if (
-        ensureError(error, 'HyperLiquidProvider.ensureBuilderFeeApproval')
-          .message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+        getHyperLiquidWriteGuardCode(error) ===
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
       ) {
         completeInFlight();
         return;
@@ -12583,46 +12599,63 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
-      // Standalone partial triggers retain their trigger as the default fill price.
+      const formatLegPrice = (price: string): string =>
+        formatHyperLiquidPrice({
+          price,
+          szDecimals: assetInfo.szDecimals,
+        });
       const legOrderPrice = (
-        orderType: 'take_profit_market' | 'stop_market',
-        triggerPrice: string,
+        triggerPx: string,
         fillPrice: string | undefined,
-      ): string =>
-        fillPrice === undefined && !isPartialTpsl
-          ? calculateOrderPriceAndSize({
-              orderType,
-              isBuy: !isLong,
-              finalPositionSize: 0,
-              currentPrice: 0,
-              triggerPrice,
-              maxSlippageBps,
-              szDecimals: assetInfo.szDecimals,
-            }).formattedPrice
-          : formatHyperLiquidPrice({
-              price: parseFloat(fillPrice ?? triggerPrice),
-              szDecimals: assetInfo.szDecimals,
-            });
+      ): string => {
+        // Standalone partial triggers retain their trigger as the fill price.
+        if (fillPrice !== undefined) {
+          return formatLegPrice(fillPrice);
+        }
+        if (isPartialTpsl) {
+          return triggerPx;
+        }
+
+        // Derive the cap from the wire trigger and round toward it so the
+        // submitted limit cannot widen the chosen tolerance. Integers are
+        // always valid prices, even when the significant-figure grid is wider.
+        const tolerance = new BigNumber(
+          maxSlippageBps ?? ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps,
+        ).times(1 / BASIS_POINTS_DIVISOR);
+        const boundary = new BigNumber(triggerPx).times(
+          isLong ? tolerance.negated().plus(1) : tolerance.plus(1),
+        );
+        // Use the decimal exponent so a boundary just below a power of ten
+        // keeps its tick. A floating-point conversion can round it up.
+        const priceDecimals = Math.max(
+          0,
+          Math.min(
+            DECIMAL_PRECISION_CONFIG.MaxPriceDecimals - assetInfo.szDecimals,
+            DECIMAL_PRECISION_CONFIG.MaxSignificantFigures -
+              1 -
+              (boundary.e ?? 0),
+          ),
+        );
+        return boundary
+          .shiftedBy(priceDecimals)
+          .integerValue(isLong ? BigNumber.ROUND_CEIL : BigNumber.ROUND_FLOOR)
+          .shiftedBy(-priceDecimals)
+          .toFixed();
+      };
 
       // Take Profit order
       if (takeProfitPrice) {
+        const triggerPx = formatLegPrice(takeProfitPrice);
         const tpOrder: SDKOrderParams = {
           a: assetId,
           b: !isLong, // Opposite side to close position
-          p: legOrderPrice(
-            'take_profit_market',
-            takeProfitPrice,
-            takeProfitFillPrice,
-          ),
+          p: legOrderPrice(triggerPx, takeProfitFillPrice),
           s: resolveTpslSize(takeProfitSize),
           r: true, // Always reduce-only for position TP
           t: {
             trigger: {
               isMarket: takeProfitFillPrice === undefined,
-              triggerPx: formatHyperLiquidPrice({
-                price: parseFloat(takeProfitPrice),
-                szDecimals: assetInfo.szDecimals,
-              }),
+              triggerPx,
               tpsl: 'tp',
             },
           },
@@ -12632,19 +12665,17 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // Stop Loss order
       if (stopLossPrice) {
+        const triggerPx = formatLegPrice(stopLossPrice);
         const slOrder: SDKOrderParams = {
           a: assetId,
           b: !isLong, // Opposite side to close position
-          p: legOrderPrice('stop_market', stopLossPrice, stopLossFillPrice),
+          p: legOrderPrice(triggerPx, stopLossFillPrice),
           s: resolveTpslSize(stopLossSize),
           r: true, // Always reduce-only for position SL
           t: {
             trigger: {
               isMarket: stopLossFillPrice === undefined,
-              triggerPx: formatHyperLiquidPrice({
-                price: parseFloat(stopLossPrice),
-                szDecimals: assetInfo.szDecimals,
-              }),
+              triggerPx,
               tpsl: 'sl',
             },
           },
@@ -16797,16 +16828,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           'DEX transfer',
         );
       }
-      const exchangeClient = this.#clientService.getExchangeClient(
-        allowStaleLifecycle
-          ? async (): Promise<void> =>
-              await this.#assertRollbackAccountWritable(transferAccountContext)
-          : async (): Promise<void> =>
-              await this.#assertNoKnownUnsupportedAccount(
-                transferAccountContext,
-                'DEX transfer dispatch',
-              ),
-      );
+      const exchangeClient = allowStaleLifecycle
+        ? this.#getRollbackExchangeClient(transferAccountContext)
+        : this.#getAccountGuardedExchangeClient(
+            transferAccountContext,
+            'DEX transfer dispatch',
+          );
       const result = await exchangeClient.sendAsset({
         destination: userAddress,
         sourceDex: params.sourceDex,
@@ -17370,7 +17397,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         'HyperLiquidProvider.prepareTradingWallet',
       );
       const normalizedError = normalizeHyperLiquidError(caughtError);
-      if (caughtError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+      if (
+        normalizedError.errorCode === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
         this.#deps.debugLogger.log(
           '[prepareTradingWallet] Provider replaced during preparation',
         );
@@ -18699,7 +18728,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       if (
         accountContext &&
-        ensureError(error, 'HyperLiquidProvider.ensureReferralSet').message ===
+        getHyperLiquidWriteGuardCode(error) ===
           PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
       ) {
         completeInFlight();
@@ -18886,7 +18915,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     } catch (error) {
       if (
         accountContext &&
-        this.#recordUnsupportedAccountFromError(error, accountContext)
+        (getHyperLiquidWriteGuardCode(error) ===
+          PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE ||
+          this.#recordUnsupportedAccountFromError(error, accountContext))
       ) {
         throw error;
       }
