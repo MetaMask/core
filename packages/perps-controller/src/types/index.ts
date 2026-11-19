@@ -1208,8 +1208,28 @@ export type ClosePositionsTarget = {
   providerId: PerpsProviderType;
 };
 
+/**
+ * Outcome of a batch cancel or close. `all`: every attempted item succeeded.
+ * `partial`: some succeeded and some failed. `none`: nothing succeeded,
+ * including when nothing matched the request. A cancel target absent from
+ * discovery has no result row. An order that disappears after discovery can
+ * produce an `ORDER_NO_LONGER_OPEN` failure row.
+ */
+export type BatchOperationStatus = 'all' | 'partial' | 'none';
+
+/**
+ * A batch result as `PerpsController` returns it, with its derived `status`.
+ */
+export type WithBatchOperationStatus<
+  Result extends ClosePositionsResult | CancelOrdersResult,
+> = Result & { status: BatchOperationStatus };
+
 export type ClosePositionsResult = {
-  success: boolean; // Overall success (true if at least one position closed)
+  /**
+   * True when at least one position closed, so it is also true on partial
+   * failure. Render from `status` instead.
+   */
+  success: boolean;
   successCount: number; // Number of positions closed successfully
   /** Failed positions, or one per failed venue when its positions are unknown. */
   failureCount: number;
@@ -1604,7 +1624,11 @@ export type CancelOrdersParams = {
 };
 
 export type CancelOrdersResult = {
-  success: boolean; // Overall success (true if at least one order cancelled)
+  /**
+   * True when at least one order cancelled, so it is also true on partial
+   * failure. Render from `status` instead.
+   */
+  success: boolean;
   successCount: number; // Number of orders cancelled successfully
   /** Failed cancellations plus unresolved discovery targets. For an unscoped
    * discovery failure, counts one failure per unavailable venue (not its unknown order count). */
@@ -2635,6 +2659,56 @@ export type OrderCapabilitiesUnavailableReason =
   | RoutedOrderCapabilitiesUnavailableReason;
 
 /**
+ * Price grid a market accepts. `significant_figures` (HyperLiquid): at most
+ * `maxSignificantFigures` significant figures and `maxDecimals` decimals;
+ * integer prices are always valid. `fixed_decimals` (Lighter): every price is
+ * a multiple of `tickSize`, which is `10^-decimals`.
+ */
+export type PerpsPricePrecision =
+  | Readonly<{
+      type: 'significant_figures';
+      maxSignificantFigures: number;
+      maxDecimals: number;
+    }>
+  | Readonly<{
+      type: 'fixed_decimals';
+      decimals: number;
+      /** Decimal string, e.g. "0.01". */
+      tickSize: string;
+    }>;
+
+/**
+ * Order limits the provider enforces for a market. Each optional field is
+ * omitted when the venue does not report it; clients must not fall back to
+ * another venue's value.
+ */
+export type PerpsOrderLimits = Readonly<{
+  /** Decimals a base-asset size may carry. */
+  sizeDecimals: number;
+  /** Minimum value of one order in USD. */
+  minOrderNotionalUsd?: number;
+  /** Minimum base-asset size of one order, as a decimal string. */
+  minOrderSize?: string;
+  /**
+   * Orders the reported placement minimums apply to. Lighter reports
+   * `resting_limit_orders` even when its maker minimums are unavailable.
+   * Market and IOC orders there can go down to one size step.
+   * A verified full close can qualify for a minimum-order exception.
+   * The venue's size grid still applies.
+   */
+  minimumAppliesTo?: 'all_orders' | 'resting_limit_orders';
+  /** Rung count bounds of a Scale placement; present when Scale is supported. */
+  scaleOrderCount?: Readonly<{ min: number; max: number }>;
+  /** TWAP bounds; present when TWAP is supported. */
+  twap?: Readonly<{
+    minDurationMinutes: number;
+    maxDurationMinutes: number;
+    /** Minimum total TWAP value in USD. */
+    minNotionalUsd: number;
+  }>;
+}>;
+
+/**
  * Venue rules for the strategies a market supports, in venue-neutral units.
  * Read them with `getStrategyRules`; a strategy absent from
  * `supportedStrategies` has no rules and is unsupported on that market.
@@ -2670,6 +2744,10 @@ type ReadyPerpsOrderCapabilities = Readonly<{
   status: 'ready';
   providerId: PerpsProviderType;
   supportedStrategies: readonly StrategyOrderType[];
+  /** Price grid for this market. Omitted means not reported. */
+  pricePrecision?: PerpsPricePrecision;
+  /** Size, value, Scale and TWAP limits. Omitted means not reported. */
+  orderLimits?: PerpsOrderLimits;
   /** Venue rules for the supported strategies; omitted means unreported. */
   strategyRules?: PerpsStrategyRules;
   /**

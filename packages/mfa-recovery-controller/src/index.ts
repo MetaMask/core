@@ -45,7 +45,9 @@ export {
   IDENTIFIER_AUTH_MODES,
   MIN_IDENTIFIERS,
   expectedSeedlessAuthConnection,
+  getEscrowPasskeyChallenge,
   getIdentifierAuthMode,
+  isEscrowPasskeyChallenge,
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
