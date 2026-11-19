@@ -31,9 +31,9 @@ export type VendorOnboardingControllerRefreshStepAction = {
  * fetched for.
  * @returns The step the user is on once the terms are recorded.
  */
-export type VendorOnboardingControllerAcceptTermsAction = {
-  type: `VendorOnboardingController:acceptTerms`;
-  handler: VendorOnboardingController['acceptTerms'];
+export type VendorOnboardingControllerRecordVendorDisclaimersAction = {
+  type: `VendorOnboardingController:recordVendorDisclaimers`;
+  handler: VendorOnboardingController['recordVendorDisclaimers'];
 };
 
 /**
@@ -95,9 +95,9 @@ export type VendorOnboardingControllerFetchSessionDisclaimersAction = {
  * an argument and never a default.
  * @returns The next step.
  */
-export type VendorOnboardingControllerAcceptSessionDisclaimersAction = {
-  type: `VendorOnboardingController:acceptSessionDisclaimers`;
-  handler: VendorOnboardingController['acceptSessionDisclaimers'];
+export type VendorOnboardingControllerRecordSessionDisclaimersAction = {
+  type: `VendorOnboardingController:recordSessionDisclaimers`;
+  handler: VendorOnboardingController['recordSessionDisclaimers'];
 };
 
 /**
@@ -109,7 +109,7 @@ export type VendorOnboardingControllerAcceptSessionDisclaimersAction = {
  *
  * The session must already have its authorizations (see
  * {@link VendorOnboardingController.startSession}) and its consents (see
- * {@link VendorOnboardingController.acceptSessionDisclaimers}).
+ * {@link VendorOnboardingController.recordSessionDisclaimers}).
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor.
@@ -192,10 +192,10 @@ export type VendorOnboardingControllerResetAction = {
  */
 export type VendorOnboardingControllerMethodActions =
   | VendorOnboardingControllerRefreshStepAction
-  | VendorOnboardingControllerAcceptTermsAction
+  | VendorOnboardingControllerRecordVendorDisclaimersAction
   | VendorOnboardingControllerStartSessionAction
   | VendorOnboardingControllerFetchSessionDisclaimersAction
-  | VendorOnboardingControllerAcceptSessionDisclaimersAction
+  | VendorOnboardingControllerRecordSessionDisclaimersAction
   | VendorOnboardingControllerLaunchProviderFlowAction
   | VendorOnboardingControllerSendPhoneOtpAction
   | VendorOnboardingControllerVerifyPhoneOtpAction

@@ -103,10 +103,10 @@ export function getDefaultVendorOnboardingControllerState(): VendorOnboardingCon
 
 const MESSENGER_EXPOSED_METHODS = [
   'refreshStep',
-  'acceptTerms',
+  'recordVendorDisclaimers',
   'startSession',
   'fetchSessionDisclaimers',
-  'acceptSessionDisclaimers',
+  'recordSessionDisclaimers',
   'launchProviderFlow',
   'sendPhoneOtp',
   'verifyPhoneOtp',
@@ -280,7 +280,7 @@ export class VendorOnboardingController extends BaseController<
    * fetched for.
    * @returns The step the user is on once the terms are recorded.
    */
-  async acceptTerms(params: {
+  async recordVendorDisclaimers(params: {
     vendor: OnboardingVendor;
     disclaimerIds: string[];
     country?: string;
@@ -423,7 +423,7 @@ export class VendorOnboardingController extends BaseController<
    * an argument and never a default.
    * @returns The next step.
    */
-  async acceptSessionDisclaimers(params: {
+  async recordSessionDisclaimers(params: {
     vendor: OnboardingVendor;
     idOS: KycConsentRecord[];
     kycProvider: KycConsentRecord[];
@@ -449,7 +449,7 @@ export class VendorOnboardingController extends BaseController<
    *
    * The session must already have its authorizations (see
    * {@link VendorOnboardingController.startSession}) and its consents (see
-   * {@link VendorOnboardingController.acceptSessionDisclaimers}).
+   * {@link VendorOnboardingController.recordSessionDisclaimers}).
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor.

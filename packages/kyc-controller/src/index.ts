@@ -56,8 +56,8 @@ export type {
   OnboardingVendorState,
 } from './VendorOnboardingController.js';
 export type {
-  VendorOnboardingControllerAcceptSessionDisclaimersAction,
-  VendorOnboardingControllerAcceptTermsAction,
+  VendorOnboardingControllerRecordSessionDisclaimersAction,
+  VendorOnboardingControllerRecordVendorDisclaimersAction,
   VendorOnboardingControllerFetchSessionDisclaimersAction,
   VendorOnboardingControllerLaunchProviderFlowAction,
   VendorOnboardingControllerRefreshStepAction,

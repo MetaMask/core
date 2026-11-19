@@ -326,7 +326,7 @@ describe('VendorOnboardingController', () => {
             });
 
           const old = controller.refreshStep({ vendor: 'kalshi' });
-          const step = await controller.acceptTerms({
+          const step = await controller.recordVendorDisclaimers({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
           });
@@ -348,7 +348,7 @@ describe('VendorOnboardingController', () => {
             }),
           );
 
-          const action = controller.acceptTerms({
+          const action = controller.recordVendorDisclaimers({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
           });
@@ -380,7 +380,7 @@ describe('VendorOnboardingController', () => {
 
           const old = controller.refreshStep({ vendor: 'kalshi' });
           // An action starts its own read, which answers first.
-          await controller.acceptTerms({
+          await controller.recordVendorDisclaimers({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
           });
@@ -407,7 +407,7 @@ describe('VendorOnboardingController', () => {
             });
 
           const old = controller.refreshStep({ vendor: 'kalshi' });
-          await controller.acceptTerms({
+          await controller.recordVendorDisclaimers({
             vendor: 'kalshi',
             disclaimerIds: ['a'],
           });
@@ -449,7 +449,7 @@ describe('VendorOnboardingController', () => {
     });
   });
 
-  describe('acceptTerms', () => {
+  describe('recordVendorDisclaimers', () => {
     it('sends the terms to kyc-api, then saves the step it reads', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({
@@ -457,7 +457,7 @@ describe('VendorOnboardingController', () => {
           status: 'none',
         });
 
-        const step = await controller.acceptTerms({
+        const step = await controller.recordVendorDisclaimers({
           vendor: 'kalshi',
           disclaimerIds: ['tos-v1'],
           country: 'USA',
@@ -480,7 +480,7 @@ describe('VendorOnboardingController', () => {
           status: 'none',
         });
 
-        await controller.acceptTerms({
+        await controller.recordVendorDisclaimers({
           vendor: 'iron',
           disclaimerIds: ['tos-v1'],
         });
@@ -497,7 +497,10 @@ describe('VendorOnboardingController', () => {
         handlers.acceptVendorTerms.mockRejectedValue(new Error('rejected'));
 
         await expect(
-          controller.acceptTerms({ vendor: 'kalshi', disclaimerIds: ['a'] }),
+          controller.recordVendorDisclaimers({
+            vendor: 'kalshi',
+            disclaimerIds: ['a'],
+          }),
         ).rejects.toThrow('rejected');
 
         expect(controller.state.vendors).toStrictEqual({});
@@ -1314,7 +1317,7 @@ describe('VendorOnboardingController', () => {
           status: 'none',
         });
 
-        const step = await controller.acceptSessionDisclaimers({
+        const step = await controller.recordSessionDisclaimers({
           vendor: 'kalshi',
           idOS: [{ key: 'idos-tos', version: '1' }],
           kycProvider: [{ key: 'sumsub-tos', version: '1' }],
@@ -1334,7 +1337,7 @@ describe('VendorOnboardingController', () => {
 
     it('passes on a refusal to share credentials', async () => {
       await withController(saved, async ({ controller, handlers }) => {
-        await controller.acceptSessionDisclaimers({
+        await controller.recordSessionDisclaimers({
           vendor: 'kalshi',
           idOS: [],
           kycProvider: [],
@@ -1354,7 +1357,7 @@ describe('VendorOnboardingController', () => {
         );
 
         await expect(
-          controller.acceptSessionDisclaimers({
+          controller.recordSessionDisclaimers({
             vendor: 'kalshi',
             idOS: [],
             kycProvider: [],
@@ -1662,7 +1665,7 @@ describe('VendorOnboardingController', () => {
           status: 'none',
         });
 
-        const step = await controller.acceptTerms({
+        const step = await controller.recordVendorDisclaimers({
           vendor: 'kalshi',
           disclaimerIds: ['a'],
         });

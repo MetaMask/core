@@ -204,8 +204,8 @@ touches `KycController` state.
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`refreshStep`, `acceptTerms`, `startSession`, `fetchSessionDisclaimers`,
-`acceptSessionDisclaimers`, `launchProviderFlow`, `sendPhoneOtp`,
+`refreshStep`, `recordVendorDisclaimers`, `startSession`, `fetchSessionDisclaimers`,
+`recordSessionDisclaimers`, `launchProviderFlow`, `sendPhoneOtp`,
 `verifyPhoneOtp`, `verifyEmailOtp`, `sendEmailOtp`, `reset`.
 
 It uses these `KycService` endpoints on top of the ones above:
