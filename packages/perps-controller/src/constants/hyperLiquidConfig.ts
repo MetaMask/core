@@ -332,6 +332,8 @@ export const HYPERLIQUID_CONFIG = {
   // Exchange name used in predicted funding data
   // HyperLiquid uses 'HlPerp' as their perps exchange identifier
   ExchangeName: 'HlPerp',
+  DexDiscoveryInitialWaitMs: 5000,
+  DexDiscoveryRetryDelayMs: 5000,
   // Maximum allowed deviation of the market (mid) price from the oracle (reference)
   // price before HyperLiquid rejects orders. HyperLiquid enforces "Order price cannot
   // be more than 95% away from the reference price", which makes markets — most often

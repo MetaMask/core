@@ -3805,10 +3805,7 @@
   },
   "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
     "no-useless-return": {
-      "count": 10
-    },
-    "typescript/prefer-nullish-coalescing": {
-      "count": 1
+      "count": 9
     }
   },
   "packages/perps-controller/src/services/HyperLiquidWalletService.ts": {

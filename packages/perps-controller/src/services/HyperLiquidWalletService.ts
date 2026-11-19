@@ -283,6 +283,23 @@ export class HyperLiquidWalletService {
   }
 
   /**
+   * Resolve the wallet an account stream requests before replaying cache data.
+   *
+   * @param accountId - Explicit account, or the selected wallet when omitted.
+   * @returns The validated EVM address.
+   */
+  public getAccountStreamAddress(accountId?: CaipAccountId): Hex {
+    if (accountId !== undefined) {
+      return this.getUserAddress(accountId);
+    }
+    const address = this.#getSelectedMainAddress();
+    if (!isValidHexAddress(address)) {
+      throw new Error(PERPS_ERROR_CODES.INVALID_ADDRESS_FORMAT);
+    }
+    return address;
+  }
+
+  /**
    * Get current account ID using messenger
    *
    * @returns The CAIP account ID for the current EVM account.

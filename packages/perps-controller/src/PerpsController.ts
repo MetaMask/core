@@ -13,7 +13,7 @@ import type { StateChangeListener } from '@metamask/base-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { hasProperty } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
+import type { CaipAccountId, Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -284,7 +284,9 @@ function cloneUserDataSnapshot(
     positions: snapshot.positions.map((position) => ({
       ...position,
       leverage: { ...position.leverage },
-      cumulativeFunding: { ...position.cumulativeFunding },
+      ...(position.cumulativeFunding && {
+        cumulativeFunding: { ...position.cumulativeFunding },
+      }),
       ...(position.takeProfitOrders && {
         takeProfitOrders: position.takeProfitOrders.map((order) => ({
           ...order,
@@ -1538,22 +1540,29 @@ export class PerpsController extends BaseController<
     // must learn the new trading address after every account switch, and the
     // preload-scoped account handler is torn down on disconnect, so it cannot
     // carry this.
-    const forgetRegisteredTradingAddresses = (): void => {
-      this.#selectedAccountGeneration += 1;
+    // A restored balance does not record which wallet it belongs to.
+    this.#hasUnverifiedAccountBalances =
+      this.state.accountState !== null ||
+      Object.keys(this.state.perpsBalances).length > 0;
+    this.#selectedTradingAddress = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
+    const updateSelectedTradingAccount = (
+      switchedAccount: ReturnType<
+        typeof getSelectedEvmAccountFromMessenger
+      > | null,
+    ): void => {
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
-      // Balance entries belong to the selected account; another account's
-      // observations must not show as this one's.
-      this.update((draft) => {
-        draft.perpsBalances = {};
-      });
+      this.#setSelectedTradingAddress(
+        switchedAccount === null
+          ? null
+          : switchedAccount?.address.toLowerCase(),
+      );
       // Clearing alone only guarantees the *next preview* re-registers. An
       // order submitted straight after a switch, with no preview in between,
       // would otherwise be attributed to nothing, so the new address announces
       // itself here. Fire-and-forget: attribution plumbing must not block or
       // fail an account switch.
-      const switchedAccount = getSelectedEvmAccountFromMessenger(
-        this.messenger,
-      );
       if (switchedAccount) {
         this.#rewardsIntegrationService
           .registerTradingAddress(switchedAccount.address, {
@@ -1564,13 +1573,19 @@ export class PerpsController extends BaseController<
           });
       }
     };
-    this.messenger.subscribe(
-      'AccountsController:selectedAccountChange',
-      forgetRegisteredTradingAddresses,
+    this.messenger.subscribe('AccountsController:selectedAccountChange', () =>
+      updateSelectedTradingAccount(
+        getSelectedEvmAccountFromMessenger(this.messenger),
+      ),
     );
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      forgetRegisteredTradingAddresses,
+      (groupId) =>
+        updateSelectedTradingAccount(
+          groupId === ''
+            ? null
+            : getSelectedEvmAccountFromMessenger(this.messenger),
+        ),
     );
 
     this.providers = new Map();
@@ -3961,6 +3976,10 @@ export class PerpsController extends BaseController<
       );
     }
     const issuedContext = this.#getActionContext();
+    this.#reconcileSelectedTradingAddress();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
     const issuedInstance = this.activeProviderInstance;
@@ -4034,6 +4053,10 @@ export class PerpsController extends BaseController<
       );
     }
     const issuedContext = this.#getActionContext();
+    this.#reconcileSelectedTradingAddress();
+    if (issuedContext !== this.#getActionContext()) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
     const issuedInstance = this.activeProviderInstance;
@@ -5471,6 +5494,13 @@ export class PerpsController extends BaseController<
     }
 
     const provider = this.getActiveProvider();
+    const accountId = params?.accountId;
+    const selectedAddress = this.#reconcileSelectedTradingAddress(accountId);
+    const requestAddress =
+      accountId === undefined
+        ? selectedAddress
+        : getCaipAccountAddress(accountId);
+    const selectedAccountGeneration = this.#selectedAccountGeneration;
     return this.#marketDataService.getAccountState({
       provider,
       params,
@@ -5487,6 +5517,15 @@ export class PerpsController extends BaseController<
           // matched against the active venue, so a response from a previous
           // venue is dropped when the route changed while it was in flight.
           isCurrent: (accountState) => {
+            const currentAddress =
+              this.#reconcileSelectedTradingAddress(accountId);
+            if (
+              requestAddress === undefined ||
+              requestAddress !== currentAddress ||
+              this.#selectedAccountGeneration !== selectedAccountGeneration
+            ) {
+              return false;
+            }
             const active = this.activeProviderInstance;
             if (active instanceof AggregatedPerpsProvider) {
               const venueCount = active.getProviderIds().length;
@@ -5715,8 +5754,13 @@ export class PerpsController extends BaseController<
 
   #lifecycleGeneration = 0;
 
-  // Account events also fence round trips that finish at the original address.
+  // Observed wallet changes also fence round trips to the original address.
   #selectedAccountGeneration = 0;
+
+  // Null records an explicit deselection while legacy selection catches up.
+  #selectedTradingAddress: string | null | undefined;
+
+  #hasUnverifiedAccountBalances: boolean;
 
   readonly #userSnapshotRequests = new Map<
     string,
@@ -6390,8 +6434,9 @@ export class PerpsController extends BaseController<
           for (const [pid, entry] of Object.entries(
             accountState.providerStates,
           )) {
-            if (entry?.status === 'available') {
-              ensureBucket(pid).accountState = entry.state;
+            if (entry) {
+              ensureBucket(pid).accountState =
+                entry.status === 'available' ? entry.state : null;
             }
           }
         } else {
@@ -7762,6 +7807,54 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Refresh the live balance owner if the selected group's membership changed.
+   * Alignment does not always emit a new selection event.
+   *
+   * @param accountId - Explicit scope, when supplied. Reads and streams for
+   * another wallet do not reconcile the selected wallet's state.
+   * @returns The current trading address, if selected.
+   */
+  #reconcileSelectedTradingAddress(
+    accountId?: CaipAccountId,
+  ): string | undefined {
+    if (this.#selectedTradingAddress === null) {
+      return undefined;
+    }
+    const address = getSelectedEvmAccountFromMessenger(
+      this.messenger,
+    )?.address.toLowerCase();
+    if (
+      accountId === undefined ||
+      (address !== undefined && getCaipAccountAddress(accountId) === address)
+    ) {
+      this.#setSelectedTradingAddress(address);
+    }
+    return address;
+  }
+
+  /**
+   * Clear balances when the wallet changes or restored ownership is unknown.
+   * Account tree reinitialization may repeat a valid selection.
+   *
+   * @param address - Resolved wallet address, or null for explicit deselection.
+   */
+  #setSelectedTradingAddress(address: string | null | undefined): void {
+    const walletChanged =
+      (this.#selectedTradingAddress ?? undefined) !== (address ?? undefined);
+    this.#selectedTradingAddress = address;
+    if (walletChanged) {
+      this.#selectedAccountGeneration += 1;
+    }
+    if (walletChanged || this.#hasUnverifiedAccountBalances) {
+      this.#hasUnverifiedAccountBalances = false;
+      this.update((state) => {
+        state.accountState = null;
+        state.perpsBalances = {};
+      });
+    }
+  }
+
+  /**
    * Subscribe to live account updates.
    * Updates controller state (Redux) when new account data arrives so consumers
    * like usePerpsBalanceTokenFilter (PayWithModal) see the latest balance.
@@ -7777,29 +7870,35 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      const originalCallback = params.callback;
+      const { accountId, callback: originalCallback } = params;
       return this.#trackProviderSubscription(
         provider,
         (nextProvider) => {
           // Capture each opening's account, including implicit selection, so
           // late emissions after an account switch cannot own selected state.
           // A malformed explicit id names no account and never owns state.
+          if (accountId === undefined) {
+            this.#reconcileSelectedTradingAddress();
+          }
           const streamAddress =
-            params.accountId === undefined
+            accountId === undefined
               ? getSelectedEvmAccountFromMessenger(
                   this.messenger,
                 )?.address.toLowerCase()
-              : getCaipAccountAddress(params.accountId);
-          const isSelectedAccountStream = (): boolean =>
-            streamAddress !== undefined &&
-            streamAddress ===
-              getSelectedEvmAccountFromMessenger(
-                this.messenger,
-              )?.address.toLowerCase();
-          return nextProvider.subscribeToAccount({
+              : getCaipAccountAddress(accountId);
+          const subscriptionParams: SubscribeAccountParams = {
             ...params,
             callback: (account, aggregate) => {
-              const ownsState = isSelectedAccountStream();
+              const selectedAddress =
+                this.activeProviderInstance === nextProvider &&
+                streamAddress !== undefined
+                  ? this.#reconcileSelectedTradingAddress(accountId)
+                  : undefined;
+              const ownsState =
+                streamAddress !== undefined &&
+                streamAddress === selectedAddress &&
+                streamAddress === this.#selectedTradingAddress &&
+                this.activeProviderInstance === nextProvider;
               if (ownsState && account) {
                 this.update((state) => {
                   state.accountState = account;
@@ -7839,8 +7938,7 @@ export class PerpsController extends BaseController<
                         // rather than keep exposing a stale value as live.
                         delete state.perpsBalances[providerId];
                       }
-                      // A pending venue has not reported on this stream yet.
-                      // Its persisted entry stays until it reports a snapshot.
+                      // Keep pending venues' balances only for the same wallet.
                     }
                   } else {
                     const directVenueId =
@@ -7869,8 +7967,8 @@ export class PerpsController extends BaseController<
                   state.accountState = null;
                   state.lastUpdateTimestamp = Date.now();
                   if (aggregate) {
-                    // A null total may still contain pending venues. Only
-                    // explicit unavailability invalidates their balances.
+                    // A null total may still contain pending venues. For the
+                    // same wallet, only explicit unavailability clears them.
                     for (const providerId of aggregate.unavailableProviders) {
                       delete state.perpsBalances[providerId];
                     }
@@ -7885,7 +7983,18 @@ export class PerpsController extends BaseController<
                 originalCallback(account);
               }
             },
-          });
+          };
+          try {
+            return nextProvider.subscribeToAccount(subscriptionParams);
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              error.message === PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE
+            ) {
+              subscriptionParams.callback(null);
+            }
+            throw error;
+          }
         },
         () => originalCallback(null),
       );

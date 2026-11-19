@@ -3657,12 +3657,67 @@ describe('TradingService', () => {
           symbol: 'BTC',
         });
         expect(lighter.closePosition).not.toHaveBeenCalled();
+        expect(lighter.getPositions).not.toHaveBeenCalled();
         expect(lighter.setUserFeeResolution).toHaveBeenCalledExactlyOnceWith(
           undefined,
         );
         expect(hyperliquid.setUserFeeResolution).toHaveBeenLastCalledWith(
           undefined,
         );
+      });
+
+      it('prices a healthy batch even when another venue cannot report positions', async () => {
+        const hyperliquid = {
+          ...mockProvider,
+          protocolId: 'hyperliquid',
+          setUserFeeResolution: vi.fn(),
+          getPositions: vi
+            .fn()
+            .mockResolvedValue([
+              { symbol: 'BTC', size: '0.5', positionValue: '25000' },
+            ]),
+          closePositions: vi.fn().mockResolvedValue({
+            success: true,
+            successCount: 1,
+            failureCount: 0,
+            results: [{ symbol: 'BTC', success: true }],
+          }),
+        } satisfies PerpsProvider;
+        const lighter = {
+          ...mockProvider,
+          protocolId: 'lighter',
+          getPositions: vi.fn().mockRejectedValue(new Error('Lighter offline')),
+          closePositions: vi
+            .fn()
+            .mockRejectedValue(new Error('Lighter offline')),
+        } satisfies PerpsProvider;
+        const aggregated = new AggregatedPerpsProvider({
+          providers: new Map<PerpsProviderType, PerpsProvider>([
+            ['hyperliquid', hyperliquid],
+            ['lighter', lighter],
+          ]),
+          defaultProvider: 'lighter',
+          infrastructure: mockDeps,
+        });
+
+        await tradingService.closePositions({
+          provider: aggregated,
+          params: { closeAll: true },
+          context: mockContext,
+        });
+
+        expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+          25000,
+          hyperliquidMainnetScope,
+          0,
+        );
+        expect(lighter.getPositions).toHaveBeenCalledExactlyOnceWith({
+          throwOnUnavailable: true,
+          includeProtection: false,
+        });
+        expect(hyperliquid.closePositions).toHaveBeenCalledWith({
+          closeAll: true,
+        });
       });
 
       it.each(['rejected', 'empty', 'other venue only'])(
@@ -5446,6 +5501,26 @@ describe('TradingService', () => {
       expect(mockProvider.placeOrder).toHaveBeenCalledWith(
         expect.objectContaining({ providerId: 'lighter', maxSlippageBps: 300 }),
       );
+    });
+
+    it('omits unknown leverage from flip position analytics', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: { ...mockPosition, leverage: { type: 'cross' } },
+        context: mockContext,
+      });
+
+      const flipEvents = vi
+        .mocked(mockDeps.metrics.trackPerpsEvent)
+        .mock.calls.filter(
+          ([event]) => event === PerpsAnalyticsEvent.TradeTransaction,
+        );
+      expect(flipEvents).toHaveLength(2);
+      for (const [, properties] of flipEvents) {
+        expect(properties).not.toHaveProperty('leverage');
+      }
     });
 
     it('places order with 2x position size to flip position', async () => {
