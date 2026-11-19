@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [78.1.0]
 
-### Uncategorized
-
-- chore: bump vitest stack to 5.1.1 ([#11607](https://github.com/MetaMask/core/pull/11607))
-
 ### Changed
 
 - Split the swap/bridge-specific transactionStatusUpdated callback into a generic selector + txType router, and moved business logic into tx status handlers. To support a new tx type, add a selector, txType router, and update txStatus handlers ([#11403](https://github.com/MetaMask/core/pull/11403))
