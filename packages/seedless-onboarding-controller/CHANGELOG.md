@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add non-persisted `recoverySession` state and the `RecoverySession` type. The session holds recovery-node tokens, expiry, profile ID, verifier IDs, and whether the nodes hold a recovery share, and is cleared on lock and `clearState` ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Add `migrateToEnvelope` and the `SeedlessOnboardingController:migrateToEnvelope` messenger action, which make the current vault keys the stable vault key set of the account ([#11220](https://github.com/MetaMask/core/pull/11220))
   - Takes the 32-byte `recoverySecret` and no password. It throws `InvalidRecoverySecret` before any request unless `recoverySecret` is a 32-byte `Uint8Array`. It requires an unlocked vault that is in sync with the global password, an aal2 session from `authenticateForRecovery`, and `migrationVersion` `V1` or later.
-  - The migration is complete once the vault has a control record. Every call first fetches the Recovery Secret OPRF key from the recovery verifier with the aal2 session, so an aal2 session is required even when the vault is already envelope-managed. If the key exists and the vault has a control record, nothing is written and `envelope` state is set. If the vault has a control record but the recovery verifier holds no key, it throws `EnvelopeMigrationInconsistent`.
+  - The migration is complete once the vault has a control record. Every call first fetches the Recovery Secret OPRF key from the recovery verifier with the aal2 session, so an aal2 session is required even when the vault is already envelope-managed. If the key exists and the vault has a control record, it checks that the key belongs to `recoverySecret`, throwing `RecoveryKeyShareConflict` otherwise, seals the vault keys again if the newest Recovery Secret envelope does not hold them, and sets `envelope` state; nothing else is written. If the vault has a control record but the recovery verifier holds no key, it throws `EnvelopeMigrationInconsistent`.
   - Without a key at the recovery verifier, it re-checks that the password is in sync, creates a fresh Recovery Secret OPRF key and, in this order:
     - writes the `KeyEnvelope` sealed for the Recovery Secret into that key's partition and reads it back;
     - registers the Recovery Secret OPRF key on the recovery verifier;
@@ -67,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On a vault with `envelope` state, `syncLatestGlobalPassword` also throws `PasswordEnvelopeNotFound` without changing the vault or `envelope` state when the envelope sealed for the global password holds vault keys other than `envelope.vaultAuthPubKey`.
 - `checkIsPasswordOutdated` compares the global password key with `envelope.passwordAuthPubKey` on an envelope-managed vault ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Bump `@metamask/auth-network-utils` from `^0.3.0` to `^0.4.0` ([#11494](https://github.com/MetaMask/core/pull/11494))
+
+### Security
+
+- Exclude `envelope` from state logs. `vaultAuthPubKey` and `passwordAuthPubKey` are public keys, but they can fingerprint an account across logs
 
 ## [12.0.0]
 

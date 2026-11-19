@@ -2692,44 +2692,38 @@ export class SeedlessOnboardingController<
    * Migrate the vault to envelope encryption, adopting its current key set
    * as the vault key set `K_v`.
    *
-   * Writes `rbek` (sealed for the Recovery Secret) and the control record
-   * into their own partitions. No secret data item is moved, and no password
-   * is needed: the current password still derives `K_v` directly, so the
-   * first `pbek` is written by the first password change.
+   * Writes, in order: `rbek` (`K_v` sealed for the Recovery Secret) under a
+   * fresh OPRF key, the OPRF key on the recovery verifier, and the control
+   * record under the vault's metadata lock. The control record is the
+   * commit. No data item is moved and no password is needed; the first
+   * `pbek` is written by the first password change.
    *
-   * The writes happen in this order: `rbek` under a fresh Recovery Secret
-   * OPRF key, then the Recovery Secret OPRF key is registered on the
-   * recovery verifier, then the control record is written under the vault's
-   * metadata lock. The control record is the commit: a vault with one is
-   * envelope-managed on every device, and its `rbek` opens with the
-   * registered key. Every call checks the recovery verifier first, so it
-   * needs a valid aal2 session, even on an already envelope-managed vault.
+   * Retries are safe. An unregistered `rbek` is abandoned and a new one is
+   * written. If the key is registered, `K_v` is resealed when the newest
+   * `rbek` does not hold it (e.g. after a legacy password change), then the
+   * control record is written. On an already migrated vault, it only checks
+   * the recovery verifier and reseals `K_v` if needed.
    *
-   * A failed attempt leaves either an `rbek` whose OPRF key was never
-   * registered, which can never be opened, or a registered key without a
-   * control record. A retry writes a new `rbek` under another fresh OPRF key
-   * in the first case. In the second, it derives the `rbek` keys of the
-   * registered key from the Recovery Secret, seals `K_v` again if the newest
-   * `rbek` does not hold it, e.g. after a legacy password change rotated it,
-   * and writes the control record.
-   *
-   * The vault must be unlocked and its keys must derive from the global
-   * password. Register the Recovery Secret at the escrows first, then call
-   * {@link authenticateForRecovery}.
+   * Requires an unlocked vault whose keys derive from the global password,
+   * the Recovery Secret registered at the escrows, and a valid aal2 session
+   * from {@link authenticateForRecovery}.
    *
    * @param params - The function parameters.
    * @param params.recoverySecret - The 32-byte Recovery Secret held in escrow.
    * @returns A promise that resolves once the vault is envelope-managed.
-   * @throws `InvalidRecoverySecret` unless `recoverySecret` is a 32-byte
-   * `Uint8Array`, before any request.
-   * @throws `OutdatedPassword` if the vault is not in sync with the global
-   * password, `EnvelopeControlRecordNotFound` if no control record matching
-   * the global password reads back, `EnvelopeMigrationInconsistent` if the
-   * vault has a control record but the recovery verifier holds no key,
-   * `RecoveryKeyShareConflict` if the recovery verifier holds the key of
-   * another Recovery Secret, `InvalidEnvelope` if `rbek` does not read back,
-   * `Aal2Required` without a valid aal2 session, or
-   * `EnvelopeMigrationRequiresDataTypes` before the data type migration.
+   * @throws `InvalidRecoverySecret` if `recoverySecret` is not a 32-byte
+   * `Uint8Array`.
+   * @throws `OutdatedPassword` if the vault is behind the global password.
+   * @throws `EnvelopeControlRecordNotFound` if no control record matching the
+   * global password reads back.
+   * @throws `EnvelopeMigrationInconsistent` if a control record exists but
+   * the recovery verifier holds no key.
+   * @throws `RecoveryKeyShareConflict` if the recovery verifier holds another
+   * Recovery Secret's key.
+   * @throws `InvalidEnvelope` if `rbek` does not read back.
+   * @throws `Aal2Required` without a valid aal2 session.
+   * @throws `EnvelopeMigrationRequiresDataTypes` before the data type
+   * migration.
    */
   async migrateToEnvelope({
     recoverySecret,
@@ -2752,50 +2746,34 @@ export class SeedlessOnboardingController<
           await this.#unlockVaultAndGetVaultData(),
         );
         const recoveryAuthPubKey = await this.#fetchRecoveryAuthPubKey();
-        const controlRecords =
-          await this.#envelopeStore.fetchControlRecords(vaultKeySet);
-        if (controlRecords.length > 0) {
-          if (!recoveryAuthPubKey) {
-            throw new SeedlessOnboardingError(
-              SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationInconsistent,
-            );
-          }
-          const { authPubKey } = await this.#fetchGlobalAuthPubKey();
-          if (!selectControlRecord(controlRecords, authPubKey)) {
-            throw new Error(
-              SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
-            );
-          }
+        const { authPubKey, controlRecords } =
+          await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet);
+        const isCommitted = controlRecords.length > 0;
+        const partial = recoveryAuthPubKey !== undefined;
+        if (isCommitted && !partial) {
+          throw new SeedlessOnboardingError(
+            SeedlessOnboardingControllerErrorMessage.EnvelopeMigrationInconsistent,
+          );
+        }
+
+        if (!isCommitted) {
+          this.#trackEnvelopeMigrationCheckpoint('STARTED', partial);
+        }
+        if (partial) {
+          await this.#resealRecoveryEnvelope(recoverySecret, vaultKeySet);
+        } else {
+          await this.#sealAndRegisterRecoveryEnvelope(
+            recoverySecret,
+            vaultKeySet,
+          );
+        }
+        if (isCommitted) {
           this.#setEnvelopeState(vaultKeySet, authPubKey);
           return;
         }
 
-        const partial = recoveryAuthPubKey !== undefined;
-        this.#trackEnvelopeMigrationCheckpoint('STARTED', partial);
-        await this.#fetchEnvelopeMigrationPasswordKey(vaultKeySet);
-        if (partial) {
-          await this.#resealRecoveryEnvelope(recoverySecret, vaultKeySet);
-        } else {
-          const { oprfKey, seed, envelopeKeys, authKeyPair } =
-            await this.toprfClient.createLocalKey({
-              password: bytesToHex(recoverySecret),
-            });
-          // the controller only needs the envelope keys, so the seed is not kept
-          seed.fill(0);
-          await this.#writeAndVerifyEnvelope(
-            await sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
-          );
-          const isRegistered = await this.#registerRecoverySecretKey(
-            oprfKey,
-            authKeyPair.pk,
-          );
-          if (!isRegistered) {
-            await this.#resealRecoveryEnvelope(recoverySecret, vaultKeySet);
-          }
-        }
         const passwordAuthPubKey =
           await this.#writeEnvelopeMigrationControlRecord(vaultKeySet);
-
         this.#setEnvelopeState(vaultKeySet, passwordAuthPubKey);
         this.#trackEnvelopeMigrationCheckpoint('COMPLETED', partial);
       }, 'migrateToEnvelope'),
@@ -3180,6 +3158,34 @@ export class SeedlessOnboardingController<
     await this.#writeAndVerifyEnvelope(
       await sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
     );
+  }
+
+  /**
+   * Seal `K_v` for the Recovery Secret under a fresh OPRF key, then register
+   * the key. If another key got registered instead, seal `K_v` under that one.
+   *
+   * @param recoverySecret - The Recovery Secret.
+   * @param vaultKeySet - The vault key set `K_v`.
+   * @throws `InvalidEnvelope` if the new `rbek` does not read back, the
+   * registration error if the recovery verifier holds no key afterwards, or
+   * `RecoveryKeyShareConflict` if it holds another Recovery Secret's key.
+   */
+  async #sealAndRegisterRecoveryEnvelope(
+    recoverySecret: Uint8Array,
+    vaultKeySet: VaultKeySet,
+  ): Promise<void> {
+    const { oprfKey, seed, envelopeKeys, authKeyPair } =
+      await this.toprfClient.createLocalKey({
+        password: bytesToHex(recoverySecret),
+      });
+    // the controller only needs the envelope keys, so the seed is not kept
+    seed.fill(0);
+    await this.#writeAndVerifyEnvelope(
+      await sealFor(envelopeKeys, 'recovery-secret', vaultKeySet),
+    );
+    if (!(await this.#registerRecoverySecretKey(oprfKey, authKeyPair.pk))) {
+      await this.#resealRecoveryEnvelope(recoverySecret, vaultKeySet);
+    }
   }
 
   /**

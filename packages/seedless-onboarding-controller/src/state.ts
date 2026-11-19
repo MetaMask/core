@@ -128,7 +128,8 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       usedInUi: false,
     },
     envelope: {
-      includeInStateLogs: true,
+      // Public keys only, but they fingerprint the account across logs.
+      includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: false,

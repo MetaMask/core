@@ -585,6 +585,24 @@ describe('SeedlessOnboardingController', () => {
       return count;
     }
 
+    /**
+     * Deletes the Recovery Secret envelopes from every partition.
+     *
+     * @param store - The metadata store.
+     */
+    function deleteStoredRecoveryEnvelopes(store: MetadataStore): void {
+      for (const partition of store.values()) {
+        for (const [itemId, { dataType, data }] of partition) {
+          if (
+            dataType === EncAccountDataType.KeyEnvelope &&
+            parseEnvelope(data).path === 'recovery-secret'
+          ) {
+            partition.delete(itemId);
+          }
+        }
+      }
+    }
+
     type ControllerArgs = Parameters<
       NonNullable<Parameters<typeof withController<unknown>>[1]>
     >[0];
@@ -2171,7 +2189,7 @@ describe('SeedlessOnboardingController', () => {
       });
 
       describe('with a Recovery Secret OPRF key at the nodes', () => {
-        it('writes nothing when the vault has a control record', async () => {
+        it('checks the Recovery Secret and writes nothing when the vault has a control record', async () => {
           await withUnlockedController(async (args) => {
             const { controller, trackEvent } = args;
             const network = mockNetwork(args.toprfClient);
@@ -2183,7 +2201,10 @@ describe('SeedlessOnboardingController', () => {
             await migrateToEnvelope(args);
 
             expectNoMigrationWrites(network);
-            expect(network.spies.recoverEncKey).not.toHaveBeenCalled();
+            expect(network.spies.recoverEncKey).toHaveBeenCalledWith({
+              ...RECOVERY_REQUEST,
+              password: RECOVERY_SECRET_HEX,
+            });
             expect(network.spies.fetchAuthPubKey).toHaveBeenCalledWith(
               RECOVERY_REQUEST,
             );
@@ -2207,6 +2228,54 @@ describe('SeedlessOnboardingController', () => {
             );
             expectNoMigrationWrites(network);
             expect(trackEvent).not.toHaveBeenCalled();
+            expect(controller.state.envelope).toStrictEqual(
+              expectedEnvelopeState(),
+            );
+          });
+        });
+
+        it('throws RecoveryKeyShareConflict without writes when the vault is already envelope-managed and the Recovery Secret is another one', async () => {
+          await withUnlockedController(async (args) => {
+            const { controller, trackEvent } = args;
+            const network = mockNetwork(args.toprfClient);
+            await migrate(args, network);
+            const envelopeBefore = controller.state.envelope;
+
+            await expect(
+              migrateToEnvelope(args, new Uint8Array(32).fill(9)),
+            ).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.RecoveryKeyShareConflict,
+            );
+
+            expectNoMigrationWrites(network);
+            expect(trackEvent).not.toHaveBeenCalled();
+            expect(controller.state.envelope).toStrictEqual(envelopeBefore);
+          });
+        });
+
+        it('seals the vault keys for the Recovery Secret again when the vault is already envelope-managed and its Recovery Secret envelope is missing', async () => {
+          await withUnlockedController(async (args) => {
+            const { controller } = args;
+            const network = mockNetwork(args.toprfClient);
+            await migrate(args, network);
+            deleteStoredRecoveryEnvelopes(network.store);
+
+            await migrateToEnvelope(args);
+
+            expect(network.spies.createLocalKey).not.toHaveBeenCalled();
+            expect(network.spies.persistLocalKey).not.toHaveBeenCalled();
+            expect(
+              network.spies.batchAddSecretDataItems,
+            ).not.toHaveBeenCalled();
+            expect(network.spies.addSecretDataItem).toHaveBeenCalledTimes(1);
+            expect(countStoredRecoveryEnvelopes(network.store)).toBe(1);
+            expect(
+              await openStoredEnvelope(
+                network,
+                RECOVERY_SECRET_HEX,
+                'recovery-secret',
+              ),
+            ).toStrictEqual(vaultKeySetFor());
             expect(controller.state.envelope).toStrictEqual(
               expectedEnvelopeState(),
             );
@@ -2608,7 +2677,8 @@ describe('SeedlessOnboardingController', () => {
             expect(derive('persist')).toMatchObject({
               envelope: controller.state.envelope,
             });
-            expect(derive('includeInStateLogs')).toHaveProperty('envelope');
+            // Public keys only, but they fingerprint the account across logs.
+            expect(derive('includeInStateLogs')).not.toHaveProperty('envelope');
             expect(derive('includeInDebugSnapshot')).not.toHaveProperty(
               'envelope',
             );
