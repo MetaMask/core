@@ -57,7 +57,7 @@ export type UkycSessionDeps = Pick<
  * the session's email from its verified claim.
  * @returns The session status after the authorizations are applied.
  */
-export async function createAuthorizedSession(params: {
+export async function createUkycSession(params: {
   deps: UkycSessionDeps;
   vendor: OnboardingVendor;
   residenceCountry: string;
@@ -84,7 +84,7 @@ export async function createAuthorizedSession(params: {
     partnerIdentityToken: params.partnerIdentityToken,
   });
 
-  return submitAuthorizations({
+  return setAuthorizations({
     deps,
     sessionId,
     sessionClientPrivateKey,
@@ -103,7 +103,7 @@ export async function createAuthorizedSession(params: {
  * @param params.sessionId - The UKYC session id.
  * @returns The session status after the authorizations are applied.
  */
-export async function refreshSessionAuthorizations(params: {
+export async function refreshAuthorizations(params: {
   deps: UkycSessionDeps;
   sessionId: string;
 }): Promise<KycSessionStatus> {
@@ -120,7 +120,7 @@ export async function refreshSessionAuthorizations(params: {
     sessionClientPublicKey,
   });
 
-  return submitAuthorizations({
+  return setAuthorizations({
     deps,
     sessionId,
     sessionClientPrivateKey,
@@ -140,7 +140,7 @@ export async function refreshSessionAuthorizations(params: {
  * @param params.capabilityTokenSchema - Schema for the capability token.
  * @returns The session status after the authorizations are applied.
  */
-async function submitAuthorizations(params: {
+async function setAuthorizations(params: {
   deps: UkycSessionDeps;
   sessionId: string;
   sessionClientPrivateKey: Uint8Array;

@@ -31,8 +31,8 @@ import type {
 } from './types.js';
 import { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
 import {
-  createAuthorizedSession,
-  refreshSessionAuthorizations,
+  createUkycSession,
+  refreshAuthorizations,
 } from './ukyc/sessionAuthorization.js';
 import type { UkycSessionDeps } from './ukyc/sessionAuthorization.js';
 import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
@@ -362,7 +362,7 @@ export class VendorOnboardingController extends BaseController<
     if (existing) {
       this.#write(vendor, { sessionId: existing.id });
       if (needsCapabilityAuthorizationRefresh(existing)) {
-        await refreshSessionAuthorizations({
+        await refreshAuthorizations({
           deps: this.#getSessionDeps(),
           sessionId: existing.id,
         });
@@ -378,7 +378,7 @@ export class VendorOnboardingController extends BaseController<
     const residenceCountry = await this.messenger.call(
       'KycService:getGeoCountry',
     );
-    const session = await createAuthorizedSession({
+    const session = await createUkycSession({
       deps: this.#getSessionDeps(),
       vendor,
       residenceCountry,
