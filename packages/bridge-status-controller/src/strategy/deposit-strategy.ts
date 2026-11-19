@@ -15,7 +15,6 @@ import { getReceivedAmountFromTxHash } from '../utils/swap-received-amount.js';
 import {
   getAddTransactionBatchParams,
   getTransactionMetaByBatchId,
-  shouldDisable7702,
 } from '../utils/transaction.js';
 import { withMmPayApproval } from '../utils/with-mm-pay-approval.js';
 import { SubmitStep } from './types.js';
@@ -159,11 +158,7 @@ export async function* submitDepositHandler(
     disableSequential: true,
     messenger,
     atomic: true,
-    disable7702: shouldDisable7702(
-      quoteResponse.quote.gasIncluded7702,
-      quoteResponse.quote.gasIncluded,
-      isDelegatedAccount,
-    ),
+    disable7702: false,
     selectedAccount: primaryMoneyAccount,
     isGasFeeSponsored: CHAIN_IDS.MONAD === vaultConfig.chainId,
     requiredAssets: [
