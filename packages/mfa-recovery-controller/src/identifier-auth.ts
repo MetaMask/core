@@ -6,9 +6,15 @@ import type {
   AuthConnection,
   SeedlessAuthData,
 } from '@metamask/seedless-onboarding-controller';
-import { areUint8ArraysEqual, isObject } from '@metamask/utils';
+import {
+  areUint8ArraysEqual,
+  concatBytes,
+  hexToBytes,
+  isObject,
+  stringToBytes,
+} from '@metamask/utils';
 
-import { generateSigningKey, hash, sign } from './crypto.js';
+import { fromBase64Url, generateSigningKey, hash, sign } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isEnrolledInEvery, isFulfilledResult } from './replica-utils.js';
 import type {
@@ -142,6 +148,41 @@ export async function requestIdentifierLogin({
     proofPrivateKey: proofKey.privateKey,
     seedlessAuthData: login.seedlessAuthData,
   };
+}
+
+const ESCROW_PASSKEY_CHALLENGE_PREFIX = stringToBytes('MetaMask escrow login:');
+
+/**
+ * @param request - Login request sent to the identifier provider.
+ * @returns The WebAuthn challenge for an escrow passkey login:
+ * `MetaMask escrow login:` followed by
+ * `hash([proofPublicKey, requestHash, notAfter])`.
+ */
+export async function getEscrowPasskeyChallenge(
+  request: KeyBoundIdentifierTokenRequest,
+): Promise<Uint8Array> {
+  const { proofPublicKey, requestHash, notAfter } = request;
+  return concatBytes([
+    ESCROW_PASSKEY_CHALLENGE_PREFIX,
+    hexToBytes(await hash([proofPublicKey, requestHash, notAfter])),
+  ]);
+}
+
+/**
+ * Clients must refuse to sign any non-escrow passkey challenge (e.g. Auth API
+ * MFA) for which this returns `true`, so a compromised Auth API cannot collect
+ * a passkey signature the escrow accepts.
+ *
+ * @param challenge - Base64url WebAuthn challenge.
+ * @returns Whether the challenge starts with the escrow passkey prefix.
+ * @throws If the challenge is not base64url. Treat this as a refusal too.
+ */
+export function isEscrowPasskeyChallenge(challenge: string): boolean {
+  const bytes = fromBase64Url(challenge);
+  return areUint8ArraysEqual(
+    bytes.subarray(0, ESCROW_PASSKEY_CHALLENGE_PREFIX.length),
+    ESCROW_PASSKEY_CHALLENGE_PREFIX,
+  );
 }
 
 /**
