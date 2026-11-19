@@ -890,7 +890,12 @@ describe('HyperLiquidProvider', () => {
         createMockInfoClient({
           meta: vi.fn().mockResolvedValue({
             universe: [
-              { name: 'BTC', szDecimals: 3, maxLeverage: 20 },
+              {
+                name: 'BTC',
+                szDecimals: 3,
+                maxLeverage: 20,
+                marginTableId: 20,
+              },
               { name: 'ETH', szDecimals: 4, maxLeverage: 20 },
             ],
           }),
@@ -938,6 +943,65 @@ describe('HyperLiquidProvider', () => {
       expect(parseFloat(result)).toBeCloseTo(53658.54, 2);
     });
 
+    it('estimates a cross opening from scoped account equity and free spot', async () => {
+      const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
+      vi.spyOn(provider, 'getCurrentAccountId').mockResolvedValue(accountId);
+      const account = vi.spyOn(provider, 'getAccountState').mockResolvedValue({
+        totalBalance: '500',
+        spendableBalance: '400',
+        withdrawableBalance: '400',
+        marginUsed: '100',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        spotCollateral: '100',
+        crossMarginSummary: {
+          accountValue: '400',
+          maintenanceMargin: '50',
+          marginUsed: '100',
+          notional: '2000',
+        },
+      });
+      const positions = vi
+        .spyOn(provider, 'getPositions')
+        .mockResolvedValue([]);
+
+      const price = await provider.calculateLiquidationPrice({
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        asset: 'BTC',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      // With the new position, maintenance is 50 + (50000 * 0.1 / 40).
+      expect(Number(price)).toBeCloseTo(46666.66667, 4);
+      expect(account).toHaveBeenCalledWith({
+        accountId,
+        throwOnUnavailable: true,
+      });
+      expect(positions).toHaveBeenCalledWith({
+        accountId,
+        skipCache: true,
+        throwOnUnavailable: true,
+      });
+      account.mockRestore();
+      positions.mockRestore();
+      vi.mocked(provider.getCurrentAccountId).mockRestore();
+    });
+
+    it('rejects a cross opening without a sized order', async () => {
+      await expect(
+        provider.calculateLiquidationPrice({
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          asset: 'BTC',
+          marginType: 'cross',
+        }),
+      ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+    });
+
     it('throws error for leverage exceeding maintenance leverage', async () => {
       mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
@@ -972,8 +1036,11 @@ describe('HyperLiquidProvider', () => {
       ];
 
       for (const params of invalidCases) {
-        const result = await provider.calculateLiquidationPrice(params);
-        expect(result).toBe('0.00');
+        await expect(
+          provider.calculateLiquidationPrice(params),
+        ).rejects.toMatchObject({
+          errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE',
+        });
       }
     });
 

@@ -97,6 +97,7 @@ import {
   toLighterInteger,
 } from '../constants/lighterConfig.js';
 import { createTpslLegReplaceUnsupportedError } from '../errors.js';
+import { PerpsControllerError } from '../errors.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
@@ -18006,9 +18007,8 @@ export class LighterProvider implements PerpsProvider {
     // from this per-position input. Live positions carry the venue's
     // authoritative liquidationPrice; previews support isolated only.
     if (params.marginType === 'cross') {
-      throw new Error(
-        'Lighter cross-margin liquidation previews require account-wide collateral and position inputs that are unavailable',
-      );
+      const unavailable = PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE;
+      throw new PerpsControllerError(unavailable, unavailable);
     }
     const { entryPrice, leverage, direction } = params;
     // Invalid input has no liquidation price; never report one as '0.00'.

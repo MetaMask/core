@@ -62,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** HyperLiquid `PerpsController.calculateLiquidationPrice` now rejects invalid input with `LIQUIDATION_PRICE_UNAVAILABLE` instead of resolving `'0.00'`. Valid prices still resolve as decimal strings. Cross openings use the selected account and market tiers, require a sized order, and reject unavailable estimates. Lighter rejects cross previews with the same code. ([#11629](https://github.com/MetaMask/core/pull/11629))
 - **BREAKING:** `Position.cumulativeFunding` and `Position.leverage.value` are optional. Lighter positions omit `cumulativeFunding` instead of reporting `'0'`, and a flat row without a usable initial margin fraction leaves `leverage.value` undefined instead of reporting 1x. Flip trade events omit `leverage` when it is unknown ([#11629](https://github.com/MetaMask/core/pull/11629))
 - **BREAKING:** `queryStandaloneClearinghouseStates` returns `{ results, failedDexs }` (new `StandaloneClearinghouseStatesResult` type) instead of only the states that answered ([#11629](https://github.com/MetaMask/core/pull/11629))
 - **BREAKING:** `aggregateAccountStates([])` throws `ACCOUNT_STATE_FAILED` instead of returning `'--'` in every numeric field ([#11629](https://github.com/MetaMask/core/pull/11629))

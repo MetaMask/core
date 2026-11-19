@@ -3491,7 +3491,9 @@ describe('LighterProvider', () => {
           marginType: 'cross',
           asset: 'BTC',
         }),
-      ).rejects.toThrow('cross-margin liquidation previews');
+      ).rejects.toMatchObject({
+        errorCode: PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE,
+      });
       expect(await provider.getMaxLeverage('BTC')).toBeGreaterThan(0);
       await expect(provider.getMaxLeverage('UNKNOWN')).rejects.toThrow(
         'margin metadata unavailable',

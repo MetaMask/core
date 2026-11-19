@@ -50,6 +50,12 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 - For an existing position, `maintenanceMargin` is `crossMarginSummary.maintenanceMargin` (it already includes the position) or `estimateCrossMaintenanceMargin` over every cross position.
 - For an opening order preview, require a current position snapshot confirming there is no existing position in the target market. Keep Mobile's guard for an existing position and for Scale orders. Pass the order price as `markPrice` and the order size as `positionSize`, and add the new position's maintenance at that price to the account's existing maintenance. Show the preview as unavailable when the snapshot is missing or the order adds to, reduces, or flips an existing position.
 
+### Controller liquidation previews
+
+`PerpsController.calculateLiquidationPrice` and `PerpsController:calculateLiquidationPrice` return `Promise<string>`. For a HyperLiquid cross opening, pass `marginType: 'cross'`, `asset`, `entryPrice`, `direction`, `leverage` and a positive `positionSize` in base units. In aggregated mode include `providerId: 'hyperliquid'`. The provider reads the selected wallet's current cross account and spot collateral, positions and market tiers.
+
+A preview without sufficient input rejects with `errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE'`. This replaces the old `'0.00'` sentinel on HyperLiquid. Handle it as an unavailable estimate and clear any stale price for that input. HyperLiquid returns unavailable for changes to an existing position or when the cross estimate has no positive solution. Lighter rejects a cross preview with the same code. Valid prices stay decimal strings; a determinate isolated zero is still possible.
+
 ## Error copy
 
 `PERPS_ERROR_COPY` maps every `PERPS_ERROR_CODES` value to `{ key, defaultMessage }`. It reuses Mobile locale keys where the messages agree, including `perps.errors.postOnlyWouldCross` and `perps.errors.postOnlyWindow`. Use the reused post-only placement copy for rejected placements. When an edit returns `ORDER_POST_ONLY_WOULD_CROSS`, the original resting order may have been canceled. Keep the client's edit-specific warning and check the order status. The English defaults are provided by Core and may differ from Mobile's text. `getPerpsErrorCopy(code)` returns the `UNKNOWN_ERROR` copy for an unknown code.

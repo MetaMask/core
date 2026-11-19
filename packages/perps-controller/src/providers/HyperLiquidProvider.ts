@@ -188,6 +188,7 @@ import type {
   ExtendedPerpDex,
 } from '../types/perps-types.js';
 import {
+  getCrossCollateral,
   addSpotBalanceToAccountState,
   aggregateAccountStates,
 } from '../utils/accountUtils.js';
@@ -236,6 +237,8 @@ import {
   readScaleGroupId,
 } from '../utils/hyperLiquidAdapter.js';
 import {
+  estimateCrossLiquidationPrice,
+  estimateCrossMaintenanceMargin,
   previewHyperLiquidIsolatedPositionModify,
   resolveHyperLiquidMarginTiers,
 } from '../utils/hyperLiquidPositionPreview.js';
@@ -17390,16 +17393,46 @@ export class HyperLiquidProvider implements PerpsProvider {
   async calculateLiquidationPrice(
     params: LiquidationPriceParams,
   ): Promise<string> {
-    const { entryPrice, leverage, direction, asset } = params;
+    const { entryPrice, leverage, direction, asset, positionSize } = params;
+    const unavailable = PERPS_ERROR_CODES.LIQUIDATION_PRICE_UNAVAILABLE;
 
     // Validate inputs
     if (
-      !isFinite(entryPrice) ||
-      !isFinite(leverage) ||
+      !Number.isFinite(entryPrice) ||
+      !Number.isFinite(leverage) ||
       entryPrice <= 0 ||
-      leverage <= 0
+      leverage <= 0 ||
+      (direction !== 'long' && direction !== 'short')
     ) {
-      return '0.00';
+      throw new PerpsControllerError(unavailable, unavailable);
+    }
+
+    if (params.marginType === 'cross') {
+      if (
+        !asset ||
+        positionSize === undefined ||
+        !Number.isFinite(positionSize) ||
+        positionSize <= 0
+      ) {
+        throw new PerpsControllerError(unavailable, unavailable);
+      }
+      let estimate: number | null;
+      try {
+        estimate = await this.#estimateOpeningCrossLiquidationPrice({
+          asset,
+          entryPrice,
+          positionSize,
+          isLong: direction === 'long',
+        });
+      } catch (error) {
+        throw new PerpsControllerError(unavailable, unavailable, undefined, {
+          cause: error,
+        });
+      }
+      if (estimate === null) {
+        throw new PerpsControllerError(unavailable, unavailable);
+      }
+      return String(estimate);
     }
 
     // Get asset's max leverage to calculate maintenance margin
@@ -17437,36 +17470,102 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
-    try {
-      // HyperLiquid liquidation formula
-      // For isolated margin: margin_available = isolated_margin - maintenance_margin_required
-      const marginAvailable = initialMargin - maintenanceMargin;
-
-      // Simplified calculation when position size is 1 unit
-      // liq_price = price - side * margin_available * price / (1 - maintenanceMarginRatio * side)
-      const denominator = 1 - maintenanceMarginRatio * side;
-      if (Math.abs(denominator) < 0.0001) {
-        // Avoid division by very small numbers
-        return String(entryPrice);
-      }
-
-      const liquidationPrice =
-        entryPrice - (side * marginAvailable * entryPrice) / denominator;
-
-      // Ensure liquidation price is non-negative
-      return String(Math.max(0, liquidationPrice));
-    } catch (error) {
-      this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.calculateLiquidationPrice'),
-        this.#getErrorContext('calculateLiquidationPrice', {
-          asset: params.asset,
-          entryPrice: params.entryPrice,
-          leverage: params.leverage,
-          direction: params.direction,
-        }),
-      );
-      return '0.00';
+    const marginAvailable = initialMargin - maintenanceMargin;
+    const denominator = 1 - maintenanceMarginRatio * side;
+    if (Math.abs(denominator) < 0.0001) {
+      return String(entryPrice);
     }
+    const liquidationPrice =
+      entryPrice - (side * marginAvailable * entryPrice) / denominator;
+    if (!Number.isFinite(liquidationPrice)) {
+      throw new PerpsControllerError(unavailable, unavailable);
+    }
+    // A determinate isolated long can have no positive liquidation price.
+    return String(Math.max(0, liquidationPrice));
+  }
+
+  /**
+   * Estimate a new cross position using the selected wallet and venue tiers.
+   *
+   * @param params - Sized order and its preview price.
+   * @param params.asset - Venue market symbol.
+   * @param params.entryPrice - Expected price at entry.
+   * @param params.positionSize - Absolute size in base units.
+   * @param params.isLong - Whether the new position is long.
+   * @returns The estimated price, or null if the preview is unavailable.
+   */
+  async #estimateOpeningCrossLiquidationPrice({
+    asset,
+    entryPrice,
+    positionSize,
+    isLong,
+  }: {
+    asset: string;
+    entryPrice: number;
+    positionSize: number;
+    isLong: boolean;
+  }): Promise<number | null> {
+    const generation = this.#lifecycleGeneration;
+    const accountId = await this.getCurrentAccountId();
+    const [account, positions, meta] = await Promise.all([
+      this.getAccountState({ accountId, throwOnUnavailable: true }),
+      this.getPositions({
+        accountId,
+        throwOnUnavailable: true,
+        skipCache: true,
+      }),
+      this.#getCachedMeta({ dexName: parseAssetName(asset).dex }),
+    ]);
+    const currentAccount = await this.getCurrentAccountId();
+    if (
+      currentAccount !== accountId ||
+      generation !== this.#lifecycleGeneration
+    ) {
+      return null;
+    }
+    const market = meta.universe.find((item) => item.name === asset);
+    // An add, close or flip changes the existing position's maintenance.
+    // The opening-order formula does not model that transition.
+    if (
+      !market ||
+      !this.#isCrossMarginSupported(market) ||
+      positions.some((position) => position.symbol === asset)
+    ) {
+      return null;
+    }
+
+    const summary = account.crossMarginSummary;
+    const accountValue = getCrossCollateral(summary, account.spotCollateral);
+    if (
+      accountValue === undefined ||
+      summary === undefined ||
+      summary.maintenanceMargin.trim() === ''
+    ) {
+      return null;
+    }
+    const priorMaintenance = Number(summary.maintenanceMargin);
+    if (!Number.isFinite(priorMaintenance) || priorMaintenance < 0) {
+      return null;
+    }
+    const marginTiers = resolveHyperLiquidMarginTiers({
+      marginTableId: market.marginTableId,
+      maxLeverage: market.maxLeverage,
+      marginTables: meta.marginTables,
+    });
+    const addedMaintenance = estimateCrossMaintenanceMargin([
+      { notional: entryPrice * positionSize, marginTiers },
+    ]);
+    if (addedMaintenance === null) {
+      return null;
+    }
+    return estimateCrossLiquidationPrice({
+      isLong,
+      markPrice: entryPrice,
+      positionSize,
+      accountValue,
+      maintenanceMargin: priorMaintenance + addedMaintenance,
+      marginTiers,
+    });
   }
 
   /**
