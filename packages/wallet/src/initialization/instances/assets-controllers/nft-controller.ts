@@ -35,6 +35,7 @@ export const nftController: InitializationConfiguration<
         'NetworkController:findNetworkClientIdByChainId',
         'NetworkController:getNetworkClientById',
         'PhishingController:bulkScanUrls',
+        'PreferencesController:getState',
       ],
       events: [
         'AccountsController:selectedEvmAccountChange',

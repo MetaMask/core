@@ -28,6 +28,7 @@ export const assetsContractController: InitializationConfiguration<
         'NetworkController:getNetworkConfigurationByNetworkClientId',
         'NetworkController:getSelectedNetworkClient',
         'NetworkController:getState',
+        'PreferencesController:getState',
       ],
       events: [
         'NetworkController:networkDidChange',

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Adds `AccountTrackerController`, `AssetsContractController`, `CurrencyRateController`, `DeFiPositionsController`, `MultichainAssetsController`, `MultichainAssetsRatesController`, `MultichainBalancesController`, `NftController`, `NftDetectionController`, `RatesController`, `TokenBalancesController`, `TokenDetectionController`, `TokenListController`, `TokenRatesController`, `TokensController` and `TokenSearchDiscoveryDataController`.
   - Hosts that already register any of these controllers on the wallet root messenger must remove that registration before upgrading, or messenger registration will collide.
   - Their constructors call no other controller, so they can be constructed in any order. `Wallet.init()` calls their `init` methods, which read the other controllers and start the initial fetches. Polling is still started by the client.
-  - Delegates the external actions and events each controller's messenger declares. `Wallet` does not construct `PreferencesController`, `SnapController`, `PhishingController`, `AccountTreeController`, `AuthenticationController` or `AccountActivityService`; clients must register them on the wallet messenger. `wallet.init()` does not fail when they are missing, but the controllers read `PreferencesController:getState` as soon as accounts, networks or the keyring change, so register it before unlocking the wallet.
+  - Delegates the external actions and events each controller's messenger declares. `Wallet` does not construct `PreferencesController`, `SnapController`, `PhishingController`, `AccountTreeController`, `AuthenticationController` or `AccountActivityService`; clients must register them on the wallet messenger. `wallet.init()` does not fail when they are missing, but the controllers read `PreferencesController:getState` as soon as accounts, networks or the keyring change, so register it before unlocking the wallet. Register it before `wallet.init()` as well: `NftDetectionController.init` sets `disabled` from `!useNftDetection` unless `instanceOptions.nftDetectionController.disabled` is set, and `NftController.init` and `AssetsContractController.init` read the persisted IPFS gateway and NFT media preferences.
   - `AccountTrackerController`'s `getStakedBalanceForChain` and `TokenDetectionController`'s `getBalancesInSingleCall` call `AssetsContractController` through the messenger, and `NftDetectionController`'s `addNfts`, `removeNft` and `getNftState` call `NftController`.
   - `CurrencyRateController`, `TokenRatesController` and `TokenSearchDiscoveryDataController` default `tokenPricesService` to a `CodefiTokenPricesServiceV2`. `TokensController` and `TokenDetectionController` default `tokenListService` to a `TokenListService`. `AssetsContractController` and `TokenListController` default `chainId` to Ethereum mainnet. Every option can be overridden through `instanceOptions`.
   - `DeFiPositionsController`, `NftDetectionController` and `TokenDetectionController` take no persisted state.
@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add `@metamask/assets-controllers` `^113.3.2` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
+
+### Fixed
+
+- `NftDetectionController` no longer ignores a persisted `useNftDetection: false`. Unless `instanceOptions.nftDetectionController.disabled` is set, `init` sets `disabled` to `!PreferencesController:getState().useNftDetection`, and `detectNfts` reads that preference again if `init` could not ([#11315](https://github.com/MetaMask/core/pull/11315))
+- `NftController` and `AssetsContractController` apply persisted IPFS gateway and NFT media preferences during `init`, instead of waiting for `PreferencesController:stateChange` ([#11315](https://github.com/MetaMask/core/pull/11315))
 
 ## [21.0.4]
 

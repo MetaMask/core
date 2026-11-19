@@ -196,6 +196,7 @@ const TEST_CASES: ConfigurationTestCase[] = [
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'NetworkController:getSelectedNetworkClient',
       'NetworkController:getState',
+      'PreferencesController:getState',
     ],
     events: [
       'NetworkController:networkDidChange',
@@ -299,6 +300,7 @@ const TEST_CASES: ConfigurationTestCase[] = [
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
       'PhishingController:bulkScanUrls',
+      'PreferencesController:getState',
     ],
     events: [
       'AccountsController:selectedEvmAccountChange',
@@ -590,15 +592,15 @@ describe('assets-controllers configurations', () => {
       );
     });
 
-    it('defaults NftDetectionController disabled to false', () => {
+    it('leaves NftDetectionController disabled unset so init can read useNftDetection', () => {
       initConfiguration(
         nftDetectionController as unknown as LooseConfiguration,
         getRootMessenger(),
       );
 
-      expect(constructorOptions.get('NftDetectionController')?.disabled).toBe(
-        false,
-      );
+      expect(
+        constructorOptions.get('NftDetectionController'),
+      ).not.toHaveProperty('disabled');
     });
 
     it('defaults TokenDetectionController trackMetaMetricsEvent to a no-op', () => {
@@ -694,6 +696,77 @@ describe('assets-controllers configurations', () => {
       expect(addNfts).toHaveBeenCalledWith([], '0x1', 'mainnet');
       expect(removeNft).toHaveBeenCalledWith('0x3', '1', 'mainnet');
     });
+
+    it('starts NFT detection disabled when persisted useNftDetection is false', async () => {
+      const rootMessenger = getRootMessenger();
+      const addNfts = vi.fn();
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      registerActionHandler(
+        rootMessenger,
+        'PreferencesController:getState',
+        () => ({
+          useNftDetection: false,
+        }),
+      );
+      registerActionHandler(rootMessenger, 'NftController:addNfts', addNfts);
+      registerActionHandler(rootMessenger, 'NftController:removeNft', vi.fn());
+      registerActionHandler(rootMessenger, 'NftController:getState', () => ({
+        allNfts: {},
+        ignoredNfts: [],
+      }));
+      const instance = initConfiguration(
+        nftDetectionController as unknown as LooseConfiguration,
+        rootMessenger,
+      ) as unknown as NftDetectionController;
+
+      try {
+        instance.init();
+        await instance.detectNfts(['0x1'], { userAddress: '0x1' });
+
+        expect(addNfts).not.toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('starts NFT detection enabled when persisted useNftDetection is true', async () => {
+      const rootMessenger = getRootMessenger();
+      const addNfts = vi.fn();
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ tokens: [], continuation: null }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      registerActionHandler(
+        rootMessenger,
+        'PreferencesController:getState',
+        () => ({
+          useNftDetection: true,
+        }),
+      );
+      registerActionHandler(rootMessenger, 'NftController:addNfts', addNfts);
+      registerActionHandler(rootMessenger, 'NftController:removeNft', vi.fn());
+      registerActionHandler(rootMessenger, 'NftController:getState', () => ({
+        allNfts: {},
+        ignoredNfts: [],
+      }));
+      const instance = initConfiguration(
+        nftDetectionController as unknown as LooseConfiguration,
+        rootMessenger,
+      ) as unknown as NftDetectionController;
+
+      try {
+        instance.init();
+        await instance.detectNfts(['0x1'], { userAddress: '0x1' });
+
+        expect(addNfts).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 
   describe('assets-controllers in the default Wallet', () => {
@@ -710,10 +783,12 @@ describe('assets-controllers configurations', () => {
     it('runs the controllers init from wallet.init(), which fulfills without the client-registered controllers', async () => {
       const references = [
         AccountTrackerController,
+        AssetsContractController,
         MultichainAssetsController,
         MultichainAssetsRatesController,
         MultichainBalancesController,
         NftController,
+        NftDetectionController,
         TokenBalancesController,
         TokenDetectionController,
         TokenListController,

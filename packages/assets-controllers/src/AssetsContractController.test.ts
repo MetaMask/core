@@ -75,18 +75,21 @@ const TEST_ACCOUNT_PUBLIC_ADDRESS =
  * provider that the network controller creates or to create a new one.
  * @param args.infuraProjectId - The Infura project ID to use when initializing
  * the network controller.
+ * @param args.captureException - Reports messenger errors from `init`.
  * @returns the objects.
  */
 async function setupAssetContractControllers({
   options,
   useNetworkControllerProvider = false,
   infuraProjectId = '341eacb578dd44a1a049cbc5f6fd4035',
+  captureException,
 }: {
   options?: Partial<
     Omit<ConstructorParameters<typeof AssetsContractController>[0], 'messenger'>
   >;
   useNetworkControllerProvider?: boolean;
   infuraProjectId?: string;
+  captureException?: (error: Error) => void;
 } = {}) {
   const networkClientConfiguration: InfuraNetworkClientConfiguration = {
     type: NetworkClientType.Infura,
@@ -100,6 +103,7 @@ async function setupAssetContractControllers({
 
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException,
   });
 
   messenger.registerActionHandler(
@@ -184,6 +188,7 @@ async function setupAssetContractControllers({
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'NetworkController:getSelectedNetworkClient',
       'NetworkController:getState',
+      'PreferencesController:getState',
     ],
     events: [
       'PreferencesController:stateChange',
@@ -254,6 +259,72 @@ describe('AssetsContractController', () => {
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     });
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('applies the persisted ipfs gateway during init', async () => {
+    const { messenger, assetsContract, triggerPreferencesStateChange } =
+      await setupAssetContractControllers();
+    const getState = vi.fn().mockReturnValue({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: 'https://persisted.example/ipfs/',
+    });
+    messenger.registerActionHandler('PreferencesController:getState', getState);
+
+    assetsContract.init();
+    assetsContract.init();
+
+    expect(assetsContract.ipfsGateway).toBe('https://persisted.example/ipfs/');
+    expect(getState).toHaveBeenCalledTimes(1);
+
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: 'https://changed.example/ipfs/',
+    });
+
+    expect(assetsContract.ipfsGateway).toBe('https://changed.example/ipfs/');
+  });
+
+  it('keeps the default ipfs gateway when PreferencesController is not registered', async () => {
+    const captureException = vi.fn();
+    const { assetsContract } = await setupAssetContractControllers({
+      captureException,
+    });
+
+    expect(() => {
+      assetsContract.init();
+    }).not.toThrow();
+
+    expect(assetsContract.ipfsGateway).toBe(IPFS_DEFAULT_GATEWAY_URL);
+    expect(captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a preference state change that arrived before init', async () => {
+    const { messenger, assetsContract, triggerPreferencesStateChange } =
+      await setupAssetContractControllers();
+    messenger.registerActionHandler('PreferencesController:getState', () => ({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: 'https://stale.example/ipfs/',
+    }));
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: 'https://event.example/ipfs/',
+    });
+
+    assetsContract.init();
+
+    expect(assetsContract.ipfsGateway).toBe('https://event.example/ipfs/');
+  });
+
+  it('ignores a preferences state that has no ipfs gateway', async () => {
+    const { messenger, assetsContract } = await setupAssetContractControllers();
+    messenger.registerActionHandler('PreferencesController:getState', () => ({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: undefined as unknown as string,
+    }));
+
+    assetsContract.init();
+
+    expect(assetsContract.ipfsGateway).toBe(IPFS_DEFAULT_GATEWAY_URL);
   });
 
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', async () => {

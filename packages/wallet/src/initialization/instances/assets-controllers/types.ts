@@ -106,7 +106,12 @@ export type NftControllerInstanceOptions = Omit<
  * through the messenger.
  */
 export type NftDetectionControllerInstanceOptions = {
-  /** Whether NFT detection is disabled. Defaults to `false`. */
+  /**
+   * Whether NFT detection is disabled.
+   *
+   * When omitted, `NftDetectionController.init` sets this from the persisted
+   * `useNftDetection` preference (`disabled` is `!useNftDetection`).
+   */
   disabled?: boolean;
 };
 

@@ -428,6 +428,19 @@ export class NftDetectionController extends BaseController<
 > {
   #disabled: boolean;
 
+  /**
+   * True when the constructor was given `disabled`. That value is kept until
+   * `PreferencesController:stateChange`. When it was omitted, `init` and
+   * `detectNfts` set `#disabled` from the persisted `useNftDetection` preference.
+   */
+  readonly #disabledIsExplicit: boolean;
+
+  #hasNftDetectionPreference = false;
+
+  #reportedMissingNftDetectionPreference = false;
+
+  #initialized = false;
+
   readonly #addNfts: NftController['addNfts'];
 
   readonly #removeNft: NftController['removeNft'];
@@ -441,20 +454,20 @@ export class NftDetectionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.messenger - A reference to the messaging system.
-   * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
+   * @param options.disabled - When set, NFT detection stays in this state until `PreferencesController:stateChange`. When omitted, `init` sets it from `!PreferencesController:getState().useNftDetection`.
    * @param options.addNfts - Add multiple NFTs.
    * @param options.removeNft - Remove a single NFT.
    * @param options.getNftState - Gets the current state of the Assets controller.
    */
   constructor({
     messenger,
-    disabled = false,
+    disabled,
     addNfts,
     removeNft,
     getNftState,
   }: {
     messenger: NftDetectionControllerMessenger;
-    disabled: boolean;
+    disabled?: boolean;
     addNfts: NftController['addNfts'];
     removeNft: NftController['removeNft'];
     getNftState: () => NftControllerState;
@@ -465,7 +478,8 @@ export class NftDetectionController extends BaseController<
       metadata: {},
       state: {},
     });
-    this.#disabled = disabled;
+    this.#disabledIsExplicit = disabled !== undefined;
+    this.#disabled = disabled ?? false;
     this.#inProcessNftFetchingUpdates = {};
 
     this.#getNftState = getNftState;
@@ -481,6 +495,24 @@ export class NftDetectionController extends BaseController<
       'PreferencesController:stateChange',
       this.#onPreferencesControllerStateChange.bind(this),
     );
+  }
+
+  /**
+   * Read the persisted `useNftDetection` preference once `PreferencesController`
+   * is registered.
+   *
+   * The constructor does not call other controllers, so it can run before they
+   * are constructed. When `disabled` was omitted, detection stays at its
+   * constructor value until this read succeeds. A missing
+   * `PreferencesController:getState` is reported once and tried again on the
+   * next `detectNfts`. Calling this more than once has no effect.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+    this.#readNftDetectionPreference();
   }
 
   /**
@@ -514,8 +546,35 @@ export class NftDetectionController extends BaseController<
   #onPreferencesControllerStateChange({
     useNftDetection,
   }: PreferencesState): void {
+    this.#hasNftDetectionPreference = true;
     if (!useNftDetection !== this.#disabled) {
       this.#disabled = !useNftDetection;
+    }
+  }
+
+  /**
+   * Set `#disabled` from the current `useNftDetection` preference.
+   *
+   * An explicit `disabled` option is left unchanged. A failed read leaves the
+   * current value in place so the next `detectNfts` can try again. The first
+   * failure is reported through `captureException`.
+   */
+  #readNftDetectionPreference(): void {
+    if (this.#disabledIsExplicit || this.#hasNftDetectionPreference) {
+      return;
+    }
+
+    try {
+      const { useNftDetection } = this.messenger.call(
+        'PreferencesController:getState',
+      );
+      this.#disabled = !useNftDetection;
+      this.#hasNftDetectionPreference = true;
+    } catch (error) {
+      if (!this.#reportedMissingNftDetectionPreference) {
+        this.#reportedMissingNftDetectionPreference = true;
+        this.messenger.captureException?.(error as Error);
+      }
     }
   }
 
@@ -588,6 +647,8 @@ export class NftDetectionController extends BaseController<
       signal?: AbortSignal;
     },
   ): Promise<void> {
+    this.#readNftDetectionPreference();
+
     const userAddress =
       options?.userAddress ??
       this.messenger.call('AccountsController:getSelectedAccount').address;

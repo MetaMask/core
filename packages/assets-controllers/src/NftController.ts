@@ -39,7 +39,11 @@ import {
   RecommendedAction,
   RequestSourceFlow,
 } from '@metamask/phishing-controller';
-import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  PreferencesControllerGetStateAction,
+  PreferencesControllerStateChangeEvent,
+  PreferencesState,
+} from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
@@ -328,7 +332,8 @@ export type AllowedActions =
   | AssetsContractControllerGetERC721TokenURIAction
   | AssetsContractControllerGetERC1155TokenURIAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | PhishingControllerBulkScanUrlsAction;
+  | PhishingControllerBulkScanUrlsAction
+  | PreferencesControllerGetStateAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -390,6 +395,16 @@ export class NftController extends BaseController<
 
   #isIpfsGatewayEnabled: boolean;
 
+  readonly #ipfsGatewayExplicit: boolean;
+
+  readonly #displayNftMediaExplicit: boolean;
+
+  readonly #isIpfsGatewayEnabledExplicit: boolean;
+
+  #nftPreferencesRead = false;
+
+  #reportedMissingNftPreferences = false;
+
   readonly #onNftAdded?: (data: {
     address: string;
     symbol: string | undefined;
@@ -412,10 +427,10 @@ export class NftController extends BaseController<
    * @param options.state - Initial state to set on this controller.
    */
   constructor({
-    ipfsGateway = IPFS_DEFAULT_GATEWAY_URL,
-    displayNftMedia = false,
+    ipfsGateway,
+    displayNftMedia,
     useIpfsSubdomains = true,
-    isIpfsGatewayEnabled = true,
+    isIpfsGatewayEnabled,
     onNftAdded,
     messenger,
     state = {},
@@ -444,10 +459,13 @@ export class NftController extends BaseController<
       },
     });
 
-    this.#ipfsGateway = ipfsGateway;
-    this.#displayNftMedia = displayNftMedia;
+    this.#ipfsGatewayExplicit = ipfsGateway !== undefined;
+    this.#displayNftMediaExplicit = displayNftMedia !== undefined;
+    this.#isIpfsGatewayEnabledExplicit = isIpfsGatewayEnabled !== undefined;
+    this.#ipfsGateway = ipfsGateway ?? IPFS_DEFAULT_GATEWAY_URL;
+    this.#displayNftMedia = displayNftMedia ?? false;
     this.#useIpfsSubdomains = useIpfsSubdomains;
-    this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+    this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled ?? true;
     this.#onNftAdded = onNftAdded;
 
     this.messenger.subscribe(
@@ -469,11 +487,14 @@ export class NftController extends BaseController<
   /**
    * Complete initialization once the controllers this controller reads from
    * have been constructed: read the selected account from
-   * `AccountsController`.
+   * `AccountsController`, and the IPFS gateway and NFT media preferences when
+   * those options were not passed to the constructor.
    *
    * The constructor does not call other controllers, so it can run before they
    * are constructed. Until this is called, the selected account is read on
-   * demand. Calling it more than once has no effect.
+   * demand and the preference-backed options stay at their constructor
+   * defaults. A missing `PreferencesController:getState` is reported once.
+   * Calling this more than once has no effect.
    */
   init(): void {
     if (this.#initialized) {
@@ -484,6 +505,67 @@ export class NftController extends BaseController<
     this.#selectedAccountId ??= this.messenger.call(
       'AccountsController:getSelectedAccount',
     ).id;
+
+    this.#readPersistedNftPreferences();
+  }
+
+  /**
+   * Apply `ipfsGateway`, `isIpfsGatewayEnabled`, and `displayNftMedia` from
+   * `PreferencesController` for any of those options the constructor did not
+   * receive. `openSeaEnabled` is honored the same way as
+   * `PreferencesController:stateChange`.
+   */
+  #readPersistedNftPreferences(): void {
+    if (
+      this.#nftPreferencesRead ||
+      (this.#ipfsGatewayExplicit &&
+        this.#displayNftMediaExplicit &&
+        this.#isIpfsGatewayEnabledExplicit)
+    ) {
+      return;
+    }
+
+    try {
+      const preferences = this.messenger.call('PreferencesController:getState');
+      this.#applyPersistedNftPreferences(preferences);
+      this.#nftPreferencesRead = true;
+    } catch (error) {
+      if (!this.#reportedMissingNftPreferences) {
+        this.#reportedMissingNftPreferences = true;
+        this.messenger.captureException?.(error as Error);
+      }
+    }
+  }
+
+  /**
+   * Copy preference fields that were not passed to the constructor.
+   *
+   * @param preferences - The current preferences state.
+   */
+  #applyPersistedNftPreferences(
+    preferences: PreferencesState & { openSeaEnabled?: boolean },
+  ): void {
+    if (
+      !this.#ipfsGatewayExplicit &&
+      typeof preferences.ipfsGateway === 'string'
+    ) {
+      this.#ipfsGateway = preferences.ipfsGateway;
+    }
+    if (
+      !this.#displayNftMediaExplicit &&
+      (typeof preferences.displayNftMedia === 'boolean' ||
+        typeof preferences.openSeaEnabled === 'boolean')
+    ) {
+      this.#displayNftMedia = Boolean(
+        preferences.displayNftMedia || preferences.openSeaEnabled,
+      );
+    }
+    if (
+      !this.#isIpfsGatewayEnabledExplicit &&
+      typeof preferences.isIpfsGatewayEnabled === 'boolean'
+    ) {
+      this.#isIpfsGatewayEnabled = preferences.isIpfsGatewayEnabled;
+    }
   }
 
   /**

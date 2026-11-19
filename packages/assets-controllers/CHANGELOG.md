@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `init` method to `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController`, `MultichainAssetsController` and `TokenListController` ([#11315](https://github.com/MetaMask/core/pull/11315))
+- Add `init` method to `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `NftDetectionController`, `AssetsContractController`, `MultichainBalancesController`, `MultichainAssetsRatesController`, `MultichainAssetsController` and `TokenListController` ([#11315](https://github.com/MetaMask/core/pull/11315))
   - `init` reads the other controllers that the constructor used to read. Calling it more than once has no effect.
   - `TokenListController.init` calls `initialize` once.
+  - When `disabled` is omitted, `NftDetectionController.init` sets it from `!PreferencesController:getState().useNftDetection`. `detectNfts` reads that preference again if the first read failed.
+  - `NftController.init` reads `ipfsGateway`, `isIpfsGatewayEnabled`, and `displayNftMedia` (`openSeaEnabled` is treated as `displayNftMedia`) when those options were not passed to the constructor.
+  - `AssetsContractController.init` reads `ipfsGateway`.
 - Expose `addNfts` through the `NftController` messenger ([#11315](https://github.com/MetaMask/core/pull/11315))
 
 ### Changed
@@ -27,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `MultichainAssetsRatesController` uses `usd` as the current currency.
     - `MultichainAssetsController` does not start the periodic Blockaid re-scan.
   - `TokenDetectionController.init` reports a failure to read `PreferencesController:getState` through `messenger.captureException` instead of throwing. The preference stays unset after a failed read and is read again the next time detection runs. While it is still unset, non-mainnet detection is skipped and mainnet uses the static token list. `PreferencesController:stateChange` also updates the preference.
+- **BREAKING:** `NftControllerMessenger` and `AssetsContractControllerMessenger` must allow the `PreferencesController:getState` action ([#11315](https://github.com/MetaMask/core/pull/11315))
+  - `NftController.init` and `AssetsContractController.init` call it. A missing handler is reported through `messenger.captureException` and does not reject `init`.
 - **BREAKING:** `TokensControllerMessenger` must allow the `NetworkController:getSelectedNetworkClient` action ([#11315](https://github.com/MetaMask/core/pull/11315))
 - **BREAKING:** `TokenRatesControllerMessenger` must allow the `NetworkEnablementController:stateChange` event ([#11315](https://github.com/MetaMask/core/pull/11315))
   - The controller subscribes to it and passes updated `nativeAssetIdentifiers` to the token prices service. It also re-reads them before each rate lookup.
@@ -45,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `NftDetectionController` applies a persisted `useNftDetection: false` preference at startup. `#disabled` was previously updated only on `PreferencesController:stateChange`, which is not replayed to new subscribers, so `detectNfts` kept running until that preference changed ([#11315](https://github.com/MetaMask/core/pull/11315))
+  - An explicit `disabled` constructor option is kept until `PreferencesController:stateChange`.
+- `NftController` and `AssetsContractController` apply persisted IPFS gateway and NFT media preferences during `init`, instead of waiting for `PreferencesController:stateChange` ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `TokenRatesController` applies `nativeAssetIdentifiers` that `NetworkEnablementController` fills or updates after `init`, so CAIP-19 native token rate lookups are not left on the map captured during `init` ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `TokenDetectionController` reads `useTokenDetection` again when detection runs if that preference is still unset, so a `PreferencesController` registered after `init` does not leave non-mainnet detection skipped ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `MultichainAssetsController` retries the Blockaid re-scan every minute when `PhishingController:bulkScanTokens` is not registered yet, then returns to the configured interval after that action can be called ([#11315](https://github.com/MetaMask/core/pull/11315))
