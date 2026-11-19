@@ -13,7 +13,7 @@ import type { UkycClientMaterial } from './deriveClientMaterial.js';
 import { assertAttestedServerPublicKey } from './jwtChain.js';
 import type { Jwk } from './jwtChain.js';
 import { getOrCreateLocalUserSecret } from './localUserSecret.js';
-import type { UkycLocalUserSecretStoreAccess } from './localUserSecret.js';
+import type { UkycLocalUserSecretStore } from './localUserSecret.js';
 import {
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
@@ -39,7 +39,7 @@ export type UkycSessionDeps = Pick<
   | 'fetchIdosEnclaveJwks'
   | 'fetchIdosRelayJwks'
 > & {
-  localUserSecretStore: UkycLocalUserSecretStoreAccess;
+  localUserSecretStore: UkycLocalUserSecretStore;
 };
 
 /**
@@ -231,7 +231,7 @@ async function verifyWrappingKeys(
  * @returns Client material derived from `local_user_secret`.
  */
 async function getClientMaterial(
-  store: UkycLocalUserSecretStoreAccess,
+  store: UkycLocalUserSecretStore,
 ): Promise<UkycClientMaterial> {
   const localUserSecret = await getOrCreateLocalUserSecret(store);
   return deriveClientMaterial(localUserSecret);

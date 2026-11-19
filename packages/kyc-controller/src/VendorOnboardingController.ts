@@ -29,6 +29,7 @@ import type {
   KycStep,
   KycStepStatus,
 } from './types.js';
+import { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
 import {
   createAuthorizedSession,
   refreshSessionAuthorizations,
@@ -193,6 +194,8 @@ export class VendorOnboardingController extends BaseController<
 > {
   readonly #kalshiAccountLinkAdapter?: KalshiAccountLinkAdapter;
 
+  readonly #localUserSecretStore: UkycLocalUserSecretStore;
+
   readonly #sumsubLauncher?: KycSumSubLauncher;
 
   /**
@@ -233,6 +236,7 @@ export class VendorOnboardingController extends BaseController<
 
     this.#kalshiAccountLinkAdapter = kalshiAccountLinkAdapter;
     this.#sumsubLauncher = sumsubLauncher;
+    this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -625,21 +629,7 @@ export class VendorOnboardingController extends BaseController<
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
       fetchIdosRelayJwks: async () =>
         this.messenger.call('KycService:fetchIdosRelayJwks'),
-      localUserSecretStore: {
-        get: async (path, entropySourceId) =>
-          this.messenger.call(
-            'UserStorageController:performGetStorage',
-            path as `${string}.${string}`,
-            entropySourceId,
-          ),
-        set: async (path, value, entropySourceId) =>
-          this.messenger.call(
-            'UserStorageController:performSetStorage',
-            path as `${string}.${string}`,
-            value,
-            entropySourceId,
-          ),
-      },
+      localUserSecretStore: this.#localUserSecretStore,
     };
   }
 
