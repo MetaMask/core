@@ -10,6 +10,7 @@ import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
+  AccountState,
   PerpsActiveProviderMode,
   PerpsChaseOrderOwnership,
   PerpsProvider,
@@ -35,6 +36,14 @@ vi.mock('../../src/utils/wait.js', () => ({ wait: vi.fn() }));
 const ACCOUNT_A = createMockEvmAccount().address;
 const ACCOUNT_B = '0xabcdef1234567890abcdef1234567890abcdef12';
 const LEGACY_ID = '42:nohash';
+const ACCOUNT_BALANCE: AccountState = {
+  totalBalance: '123',
+  spendableBalance: '123',
+  withdrawableBalance: '123',
+  marginUsed: '0',
+  unrealizedPnl: '0',
+  returnOnEquity: '0',
+};
 
 class RecoveryContextController extends PerpsController {
   /**
@@ -214,14 +223,7 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
         return pendingOwnership.promise;
       }),
     });
-    provider.getAccountState.mockResolvedValue({
-      totalBalance: '123',
-      spendableBalance: '123',
-      withdrawableBalance: '123',
-      marginUsed: '0',
-      unrealizedPnl: '0',
-      returnOnEquity: '0',
-    });
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
 
     const pending = controller.getChaseOrderOwnership({
       providerId: 'hyperliquid',
@@ -272,6 +274,38 @@ describe('PerpsController recovered-dispatch acknowledgment context', () => {
       expect(await pending).toStrictEqual(ownership);
     },
   );
+
+  it('binds an implicit stream after balance reconciliation publishes its state change', async () => {
+    const { controller, provider, host } = createFixture();
+    provider.getAccountState.mockResolvedValue(ACCOUNT_BALANCE);
+    await controller.getAccountState();
+    let addressAtOpen: string | undefined;
+    provider.subscribeToAccount.mockImplementation(() => {
+      addressAtOpen = host.messenger.call(
+        'AccountsController:getSelectedAccount',
+      ).address;
+      return vi.fn();
+    });
+    host.selectAccount(ACCOUNT_B);
+    host.rootMessenger.subscribeOnce('PerpsController:stateChanged', () => {
+      host.selectAccount(ACCOUNT_A);
+    });
+
+    controller.subscribeToAccount({ callback: vi.fn() });
+    const [stream] = provider.subscribeToAccount.mock.calls[0];
+    expect(addressAtOpen).toBe(ACCOUNT_A);
+    stream.callback({ ...ACCOUNT_BALANCE, totalBalance: '234' });
+    expect(controller.state.accountState?.totalBalance).toBe('234');
+  });
+
+  it('keeps a Chase read started after a silent wallet change current', async () => {
+    const fixture = createFixture();
+    fixture.host.selectAccount(ACCOUNT_B);
+    const { pending, ownership, complete } = await startChaseOwnership(fixture);
+    await fixture.controller.getAccountState();
+    complete();
+    expect(await pending).toStrictEqual(ownership);
+  });
 
   it('invalidates an in-flight Chase ownership read after an observed wallet round trip', async () => {
     const fixture = createFixture();

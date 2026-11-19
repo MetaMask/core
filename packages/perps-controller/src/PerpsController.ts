@@ -3973,6 +3973,7 @@ export class PerpsController extends BaseController<
         'Chase ownership requires an exact handle and explicit provider',
       );
     }
+    this.#reconcileSelectedTradingAddress();
     const issuedContext = this.#getActionContext();
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
@@ -4046,6 +4047,7 @@ export class PerpsController extends BaseController<
         'Chase cancellation reconciliation requires an exact handle, child and matching owner/provider',
       );
     }
+    this.#reconcileSelectedTradingAddress();
     const issuedContext = this.#getActionContext();
     const issuedGeneration = this.#lifecycleGeneration;
     const issuedAccountGeneration = this.#selectedAccountGeneration;
@@ -5439,7 +5441,7 @@ export class PerpsController extends BaseController<
 
     const provider = this.getActiveProvider();
     const accountId = params?.accountId;
-    const selectedAddress = this.#getCurrentAccountStateAddress(accountId);
+    const selectedAddress = this.#reconcileSelectedTradingAddress(accountId);
     const requestAddress =
       accountId === undefined
         ? selectedAddress
@@ -5462,7 +5464,7 @@ export class PerpsController extends BaseController<
           // venue is dropped when the route changed while it was in flight.
           isCurrent: (accountState) => {
             const currentAddress =
-              this.#getCurrentAccountStateAddress(accountId);
+              this.#reconcileSelectedTradingAddress(accountId);
             if (
               requestAddress === undefined ||
               requestAddress !== currentAddress ||
@@ -7758,7 +7760,7 @@ export class PerpsController extends BaseController<
    * another wallet do not reconcile the selected wallet's state.
    * @returns The current trading address, if selected.
    */
-  #getCurrentAccountStateAddress(
+  #reconcileSelectedTradingAddress(
     accountId?: CaipAccountId,
   ): string | undefined {
     if (this.#selectedTradingAddress === null) {
@@ -7821,18 +7823,16 @@ export class PerpsController extends BaseController<
           // Capture each opening's account, including implicit selection, so
           // late emissions after an account switch cannot own selected state.
           // A malformed explicit id names no account and never owns state.
+          if (accountId === undefined) {
+            // Reconciliation can synchronously notify state subscribers.
+            this.#reconcileSelectedTradingAddress();
+          }
           const streamAddress =
             accountId === undefined
               ? getSelectedEvmAccountFromMessenger(
                   this.messenger,
                 )?.address.toLowerCase()
               : getCaipAccountAddress(accountId);
-          if (
-            accountId === undefined &&
-            this.#selectedTradingAddress !== null
-          ) {
-            this.#setSelectedTradingAddress(streamAddress);
-          }
           return nextProvider.subscribeToAccount({
             ...params,
             callback: (account, aggregate) => {
@@ -7840,7 +7840,7 @@ export class PerpsController extends BaseController<
                 this.activeProviderInstance === nextProvider &&
                 streamAddress !== undefined &&
                 streamAddress ===
-                  this.#getCurrentAccountStateAddress(accountId);
+                  this.#reconcileSelectedTradingAddress(accountId);
               if (ownsState && account) {
                 this.update((state) => {
                   state.accountState = account;
