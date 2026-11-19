@@ -43,6 +43,8 @@ export const ProfileIdentityStruct = structType({
   updatedAt: optional(nullable(string())),
   /** Whether the owner linked an X account on their MetaMask profile. */
   connectedToX: optional(nullable(boolean())),
+  /** Whether the MetaMask Profile API verified the owner. */
+  verified: optional(nullable(boolean())),
   /** The owner's trading privacy. A private profile's addresses are withheld. */
   tradingPrivacy: optional(nullable(enums(TRADING_PRIVACY_VALUES))),
 });

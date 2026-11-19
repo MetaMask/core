@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `verified` to `ProfileIdentity` and `ProfileIdentityStruct`
+  - Every profile shape that carries the Profile API identity gets it: `ProfileSummary`, `FeedActorSummary`, `LeaderboardEntry` and `TraderProfile`, including realtime feed actors.
+  - Responses without it still validate. Treat a missing or `null` value as not verified.
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^36.1.1` to `^36.1.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
