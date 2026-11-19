@@ -12,7 +12,21 @@ import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
-import { CaipChainId, Duration, inMilliseconds, Json } from '@metamask/utils';
+import {
+  nullable,
+  number,
+  optional,
+  record,
+  string,
+  type,
+} from '@metamask/superstruct';
+import {
+  CaipChainId,
+  CaipChainIdStruct,
+  Duration,
+  inMilliseconds,
+  Json,
+} from '@metamask/utils';
 
 import type {
   ConfigRegistryApiServiceFetchConfigAction,
@@ -21,6 +35,10 @@ import type {
 import type {
   RegistryEventsConfig,
   RegistryNetworkConfig,
+} from './config-registry-api-service/types.js';
+import {
+  RegistryEventsConfigStruct,
+  RegistryNetworkConfigSchema,
 } from './config-registry-api-service/types.js';
 import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types.js';
 
@@ -106,6 +124,21 @@ const stateMetadata = {
 } satisfies StateMetadata<ConfigRegistryControllerState>;
 
 /**
+ * Struct describing the controller's state, used by `@metamask/wallet` to
+ * validate persisted state during initialization.
+ */
+export const ConfigRegistryControllerStateStruct = type({
+  configs: type({
+    networks: record(CaipChainIdStruct, RegistryNetworkConfigSchema),
+    eventsConfig: optional(nullable(RegistryEventsConfigStruct)),
+  }),
+  version: nullable(string()),
+  lastFetched: nullable(number()),
+  etag: nullable(string()),
+  eventsConfigEtag: optional(nullable(string())),
+});
+
+/**
  * Default fallback configuration when no configs are available.
  */
 const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
@@ -187,6 +220,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   ConfigRegistryControllerState,
   ConfigRegistryControllerMessenger
 > {
+  static readonly struct = ConfigRegistryControllerStateStruct;
+
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have

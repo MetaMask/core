@@ -97,23 +97,28 @@ export type RegistryConfigApiResponse = Infer<
 >;
 
 /**
+ * Shape of the events-config data itself, as stored in controller state.
+ */
+export const RegistryEventsConfigStruct = type({
+  schemaVersion: string(),
+  version: string(),
+  timestamp: number(),
+  events: record(string(), array(string())),
+});
+
+/**
  * Schema for the events-config API response.
  * Maps event names to their allowed analytics purposes.
  */
 export const RegistryEventsConfigApiResponseSchema = type({
-  data: type({
-    schemaVersion: string(),
-    version: string(),
-    timestamp: number(),
-    events: record(string(), array(string())),
-  }),
+  data: RegistryEventsConfigStruct,
 });
 
 export type RegistryEventsConfigApiResponse = Infer<
   typeof RegistryEventsConfigApiResponseSchema
 >;
 
-export type RegistryEventsConfig = RegistryEventsConfigApiResponse['data'];
+export type RegistryEventsConfig = Infer<typeof RegistryEventsConfigStruct>;
 
 export const FetchConfigResultStruct = union([
   type({
