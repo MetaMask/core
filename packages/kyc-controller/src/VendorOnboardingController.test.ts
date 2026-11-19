@@ -110,6 +110,23 @@ describe('VendorOnboardingController', () => {
   });
 
   describe('refreshStep', () => {
+    it.each(['account_link', 'phone_link'] as const)(
+      'keeps the Kalshi step %s',
+      async (stepName) => {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getStep.mockResolvedValue({
+            step: stepName,
+            status: 'none',
+          });
+
+          const step = await controller.refreshStep({ vendor: 'kalshi' });
+
+          expect(step).toBe(stepName);
+          expect(controller.state.vendors.kalshi?.step).toBe(stepName);
+        });
+      },
+    );
+
     it('saves the step kyc-api answers with', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getStep.mockResolvedValue({

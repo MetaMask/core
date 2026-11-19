@@ -164,10 +164,6 @@ describe('toKycStep', () => {
   it('does not accept the old step name', () => {
     expect(toKycStep('verify_email')).toBe('error');
   });
-
-  it('treats the removed account link step as unknown', () => {
-    expect(toKycStep('account_link')).toBe('error');
-  });
 });
 
 describe('toKycStepStatus', () => {

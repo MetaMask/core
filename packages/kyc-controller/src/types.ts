@@ -439,12 +439,17 @@ export type KycVendorRequestSigner = (params: {
  * The steps kyc-api can send for a vendor. The client maps each step to a
  * screen it already has; kyc-api never sends copy or layout.
  *
- * Kalshi's email link is not a step. The phone signs it into session
- * creation and the email-code calls, and the relay forwards those to Kalshi.
+ * Kalshi sends `account_link` for the email and its code, and `phone_link`
+ * for the phone and its code. Each is one step and two screens, and the
+ * phone owns the second screen. Signing `users/link` and `users/link/verify`
+ * stays on those email screens. Iron still sends `identity_email_code` and
+ * `identity_phone`.
  */
 export const KYC_STEPS = [
   'vendor_terms',
   'confirm_identity',
+  'account_link',
+  'phone_link',
   'identity_email_code',
   'identity_phone',
   'identity_provider',

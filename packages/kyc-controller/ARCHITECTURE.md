@@ -187,8 +187,11 @@ touches `KycController` state.
   both encryption schemas' `jwtChain`. It does not create a vendor customer.
 - **Injected adapters.** `vendorRequestSigners` signs Kalshi calls
   (`enrollment/intents`, `users/link`, `users/link/verify`) with the device
-  key. The controller attaches them to session creation and the email-code
-  calls. kyc-api forwards them to the relay, which is the only Kalshi client.
+  key. The controller attaches them to session creation and the email calls
+  on `account_link`. `phone_link` is the phone and its code, and it is not
+  signed here. kyc-api forwards the signed calls to the relay, which is the
+  only Kalshi client. Iron still uses `identity_email_code` and
+  `identity_phone`.
   `sumsubLauncher` presents SumSub.
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
