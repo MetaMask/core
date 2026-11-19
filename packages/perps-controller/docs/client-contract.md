@@ -64,13 +64,13 @@ Defaults can carry `{{name}}` placeholders (for example `ORDER_SIZE_MIN` uses `{
 
 `cancelOrders` and `closePositions` return `status` alongside the per-item `results`. `success` is true when at least one item succeeded, including a partial failure, so render from `status`:
 
-| `status`  | Meaning                                                     | Render                                                                                                      |
-| --------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `all`     | Every attempted item succeeded                              | Success                                                                                                     |
-| `partial` | Some succeeded, some failed (`failureCount > 0` or `error`) | Warning naming what failed from `results[].error`; keep the failed items on screen                          |
-| `none`    | Nothing succeeded                                           | Error from `error` or `results[].error`; with `failureCount: 0` and no `error`, nothing matched the request |
+| `status`  | Meaning                                                     | Render                                                                                       |
+| --------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `all`     | Every attempted item succeeded                              | Success                                                                                      |
+| `partial` | Some succeeded, some failed (`failureCount > 0` or `error`) | Warning naming failed items and venues; keep the affected items on screen                    |
+| `none`    | Nothing succeeded                                           | Show item, venue and discovery errors. With no failures and no batch error, nothing matched. |
 
-Requested items that were no longer open (an order that filled, a position already closed) are not attempted and do not appear in `results`; compare `results` with the request to name them.
+Read individual outcomes from `results`, venue execution errors from `failures`, and unresolved cancellation discovery from `discoveryFailures`. Use all three when showing a partial result. An undiscovered cancel target has no per-order result. A tagged close target that is no longer open can return an explicit failure row.
 
 `getBatchOperationStatus(result)` derives the same value from a provider-level result.
 

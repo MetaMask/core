@@ -267,8 +267,11 @@ export type {
   AccountState,
   CrossMarginSummary,
   HyperLiquidAbstractionMode,
+  PerpsProviderAccountStateEntry,
+  AccountAggregateMetadata,
   ClosePositionParams,
   ClosePositionsParams,
+  ClosePositionsTarget,
   ClosePositionsResult,
   BatchOperationStatus,
   WithBatchOperationStatus,
@@ -898,7 +901,12 @@ export type {
 // Error codes (explicit named exports)
 export { isPerpsErrorCode, PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 export type { PerpsErrorCode } from './perpsErrorCodes.js';
-export type { PerpsErrorDetails, PriceMovedErrorDetails } from './errors.js';
+export { OrderDiscoveryError } from './errors.js';
+export type {
+  HyperLiquidErrorDetails,
+  PerpsErrorDetails,
+  PriceMovedErrorDetails,
+} from './errors.js';
 
 // Selectors (explicit named exports)
 export {

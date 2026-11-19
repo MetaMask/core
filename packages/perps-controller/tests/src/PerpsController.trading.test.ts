@@ -1621,9 +1621,12 @@ describe('PerpsController', () => {
   });
 
   describe('closePositions', () => {
-    it('delegates to TradingService.closePositions', async () => {
+    it('delegates to TradingService.closePositions and forwards position read options', async () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const getPositions = vi
+        .spyOn(controller, 'getPositions')
+        .mockResolvedValue([]);
 
       vi.spyOn(mockTradingServiceInstance, 'closePositions').mockResolvedValue({
         success: true,
@@ -1643,6 +1646,12 @@ describe('PerpsController', () => {
           context: expect.any(Object),
         }),
       );
+      const { context } =
+        mockTradingServiceInstance.closePositions.mock.calls[0][0];
+      await context.getPositions?.({ throwOnUnavailable: true });
+      expect(getPositions).toHaveBeenCalledExactlyOnceWith({
+        throwOnUnavailable: true,
+      });
     });
   });
 

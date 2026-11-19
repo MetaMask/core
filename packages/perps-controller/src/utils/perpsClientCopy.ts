@@ -422,6 +422,24 @@ export const PERPS_ERROR_COPY: Readonly<
     key: 'perps.errors.unsupportedCollateral',
     defaultMessage: "This market's collateral is not supported",
   },
+  [PERPS_ERROR_CODES.BATCH_INCOMPLETE]: {
+    key: 'perps.errors.batchIncomplete',
+    defaultMessage:
+      'The action did not complete on every venue. Check the result for each venue.',
+  },
+  [PERPS_ERROR_CODES.ORDER_NO_LONGER_OPEN]: {
+    key: 'perps.errors.orderNoLongerOpen',
+    defaultMessage: 'This order is no longer open.',
+  },
+  [PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS]: {
+    key: 'perps.errors.orderPostOnlyWouldCross',
+    defaultMessage:
+      'This post-only order would execute immediately. Check the order status before trying a different price.',
+  },
+  [PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW]: {
+    key: 'perps.errors.orderPostOnlyWindow',
+    defaultMessage: 'Only post-only orders are available right now.',
+  },
   [PERPS_ERROR_CODES.BATCH_CANCEL_FAILED]: {
     key: 'perps.errors.batchCancelFailed',
     defaultMessage: "Some orders couldn't be cancelled. Please try again.",

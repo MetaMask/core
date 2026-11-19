@@ -1028,6 +1028,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await initializeResult).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       await clientDisconnectStarted.promise;
       expect(
@@ -1057,6 +1062,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await provider.initialize()).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
       });
       expect(mockClientService.initialize).not.toHaveBeenCalled();
 
@@ -1167,8 +1177,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(disconnectResult).toStrictEqual({
         success: false,
-        error: 'disconnect failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
+      expect(disconnectResult.error).not.toContain('disconnect failed');
       expect(await staleRead).toStrictEqual({
         status: 'unavailable',
         providerId: 'hyperliquid',
@@ -1496,7 +1512,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(await provider.toggleTestnet()).toMatchObject({
         success: false,
-        error: 'initialization failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
       expect(
         await provider.getOrderCapabilities({ symbol: 'ETH' }),
@@ -1517,7 +1538,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(await provider.toggleTestnet()).toStrictEqual({
         success: false,
         isTestnet: false,
-        error: 'disconnect failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
       expect(mockClientService.setTestnetMode).not.toHaveBeenCalled();
       expect(mockWalletService.setTestnetMode).not.toHaveBeenCalled();
@@ -4096,6 +4122,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorCode: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          provider: 'hyperliquid',
+        },
         submittedSize: '1',
       });
     });

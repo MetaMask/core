@@ -7,8 +7,14 @@ import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
 } from '../../../src/constants/lighterConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
-import type { OrderParams, OrderResult } from '../../../src/types/index.js';
+import type {
+  GetAccountStateParams,
+  OrderParams,
+  OrderResult,
+  PerpsProvider,
+} from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
   LighterSignerOperation,
@@ -905,6 +911,118 @@ describe('LighterProvider', () => {
       expect(state.providerId).toBe('lighter');
     });
 
+    describe('requested account scope', () => {
+      const otherAddress = `0x${'b'.repeat(40)}`;
+      const otherAccountId = `eip155:1:${otherAddress}` as const;
+      const scopes: GetAccountStateParams[] = [
+        { accountId: otherAccountId },
+        { standalone: true, userAddress: otherAddress },
+      ];
+
+      it.each(scopes)(
+        'excludes the selected Lighter wallet from an aggregate for $accountId / $userAddress',
+        async (scope) => {
+          const { provider, clientInstance } = buildProvider();
+          const selectedState = await provider.getAccountState();
+          expect(selectedState.totalBalance).toBe('10500');
+          const hyperliquid = {
+            protocolId: 'hyperliquid',
+            getAccountState: vi.fn().mockResolvedValue({
+              ...selectedState,
+              totalBalance: '250',
+              providerId: 'hyperliquid',
+            }),
+          } as unknown as PerpsProvider;
+          const aggregated = new AggregatedPerpsProvider({
+            providers: new Map([
+              ['hyperliquid', hyperliquid],
+              ['lighter', provider],
+            ]),
+            defaultProvider: 'hyperliquid',
+            infrastructure: createMockInfrastructure(),
+          });
+          clientInstance.getAccountByIndex.mockClear();
+
+          const result = await aggregated.getAccountState(scope);
+
+          expect(hyperliquid.getAccountState).toHaveBeenCalledWith({
+            ...scope,
+            throwOnUnavailable: true,
+          });
+          expect(result.totalBalance).toBe('250');
+          expect(result.aggregate).toStrictEqual({
+            status: 'partial',
+            availableProviders: ['hyperliquid'],
+            unavailableProviders: ['lighter'],
+          });
+          expect(result.providerStates?.lighter).toMatchObject({
+            status: 'unavailable',
+            providerId: 'lighter',
+          });
+          expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each(scopes)(
+        'rejects unsupported scopes even for lenient direct reads',
+        async (scope) => {
+          const { provider, clientInstance } = buildProvider();
+          await expect(provider.getAccountState(scope)).rejects.toThrow(
+            'Lighter account state can only query the selected wallet account',
+          );
+          expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+        },
+      );
+
+      it('accepts the selected wallet case-insensitively', async () => {
+        const { provider, getUserAddressMock } = buildProvider();
+        const address = String(getUserAddressMock()).toUpperCase();
+        const state = await provider.getAccountState({
+          accountId: `eip155:1:${address}`,
+          userAddress: address,
+          standalone: true,
+        });
+        expect(state.totalBalance).toBe('10500');
+      });
+
+      it.each([
+        ['a bare address', (address: string): string => address],
+        [
+          'an id with an extra segment',
+          (address: string): string => `eip155:1:x:${address}`,
+        ],
+      ])(
+        'rejects %s as accountId even when it ends with the selected wallet',
+        async (_label, toAccountId) => {
+          const { provider, clientInstance, getUserAddressMock } =
+            buildProvider();
+          await expect(
+            provider.getAccountState({
+              accountId: toAccountId(
+                String(getUserAddressMock()),
+              ) as `${string}:${string}:${string}`,
+            }),
+          ).rejects.toThrow(
+            'Lighter account state can only query the selected wallet account',
+          );
+          expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+        },
+      );
+
+      it('rejects a conflicting userAddress even when accountId matches the selected wallet', async () => {
+        const { provider, getUserAddressMock } = buildProvider();
+        await expect(
+          provider.getAccountState({
+            accountId: `eip155:1:${String(getUserAddressMock())}`,
+            userAddress: otherAddress,
+            standalone: true,
+          }),
+        ).rejects.toThrow(
+          'Lighter account state can only query the selected wallet account',
+        );
+      });
+    });
+
     it('returns empty account state on failure', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockRejectedValue(new Error('down'));
@@ -962,9 +1080,11 @@ describe('LighterProvider', () => {
       const state = await provider.getAccountState();
       expect(state.totalBalance).toBe('10500');
       expect(state).not.toHaveProperty('crossMarginSummary');
-      await expect(
-        provider.getAccountState({ throwOnUnavailable: true }),
-      ).rejects.toThrow('cross margin summary unavailable');
+      const strictState = await provider.getAccountState({
+        throwOnUnavailable: true,
+      });
+      expect(strictState.totalBalance).toBe('10500');
+      expect(strictState).not.toHaveProperty('crossMarginSummary');
     });
 
     it('keeps the account state without a summary when the response omits positions', async () => {
@@ -978,9 +1098,11 @@ describe('LighterProvider', () => {
       expect(state.totalBalance).toBe('10000');
       expect(state).not.toHaveProperty('crossMarginSummary');
       expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
-      await expect(
-        provider.getAccountState({ throwOnUnavailable: true }),
-      ).rejects.toThrow('cross margin summary unavailable');
+      const strictState = await provider.getAccountState({
+        throwOnUnavailable: true,
+      });
+      expect(strictState.totalBalance).toBe('10000');
+      expect(strictState).not.toHaveProperty('crossMarginSummary');
     });
 
     describe('with throwOnUnavailable', () => {
@@ -1015,12 +1137,14 @@ describe('LighterProvider', () => {
         ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
       });
 
-      it('throws when margin metadata for the summary is unavailable', async () => {
+      it('keeps balances without a summary when margin metadata for the summary is unavailable', async () => {
         const { provider, clientInstance } = buildProvider();
         clientInstance.getOrderBookDetails.mockRejectedValue(new Error('down'));
-        await expect(
-          provider.getAccountState({ throwOnUnavailable: true }),
-        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+        const state = await provider.getAccountState({
+          throwOnUnavailable: true,
+        });
+        expect(state.totalBalance).toBe('10500');
+        expect(state).not.toHaveProperty('crossMarginSummary');
       });
 
       it('still reads a wallet without a Lighter account as empty', async () => {
