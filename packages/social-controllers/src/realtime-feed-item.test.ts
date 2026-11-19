@@ -71,13 +71,6 @@ const fullHydratedPosition = {
         perpLeverage: null,
         comments: [
           {
-            uid: 'comment-0',
-            commentText: 'Earlier',
-            timestamp: 99,
-            metrics: null,
-            replies: null,
-          },
-          {
             uid: 'comment-1',
             commentText: 'Hello',
             timestamp: 100,
@@ -85,17 +78,10 @@ const fullHydratedPosition = {
             translations: { en: 'Hello' },
             metrics: {
               reactions: [
-                null,
-                { emotion: 1, count: 'invalid' },
-                { emotion: 'Invalid count', count: 'invalid' },
-                { emotion: 'No profiles', count: 1, profiles: null },
                 {
                   emotion: '👍',
                   count: 2,
-                  profiles: [
-                    { id: 'profile-2', name: 'Reacting trader' },
-                    { id: 1, name: 'Invalid profile' },
-                  ],
+                  profiles: [{ id: 'profile-2', name: 'Reacting trader' }],
                 },
               ],
               userReaction: '👍',
@@ -133,24 +119,6 @@ const fullHydratedPosition = {
   entryPriceUsd: 40,
 };
 
-const compactFeedItem = {
-  itemId: 'position-compact',
-  timestamp: 100,
-  cardLatestTradeAt: 101,
-  actor: {
-    type: 'user',
-    address: '0xactor',
-    name: 'Trader',
-    images: {},
-    profile: { id: 'profile-1', metadata: {} },
-  },
-  metadata: {
-    tokenChain: 'base',
-    tokenAddress: '0xtoken',
-    trades: [{ intent: 'enter', comments: [] }],
-  },
-};
-
 const socketAuthorComment = {
   uid: 'comment-1',
   text: 'Hello',
@@ -176,6 +144,7 @@ describe('parseRealtimeFeedItem', () => {
       ...fullHydratedPosition,
       authorComment: socketAuthorComment,
     };
+
     const item = normalizeRealtimeFeedItem(value);
     const parsed = parseRealtimeFeedItem(value);
 
@@ -204,10 +173,10 @@ describe('parseRealtimeFeedItem', () => {
         },
       },
     });
-    expect(item?.authorComment?.engagement.reactions).toContainEqual(
+    expect(item.authorComment?.engagement.reactions).toContainEqual(
       expect.objectContaining({ emotion: '👍', count: 2 }),
     );
-    expect(item?.trades[1]).toMatchObject({
+    expect(item.trades[1]).toMatchObject({
       category: 'spot',
       classification: 'spot',
       marketCap: 1000,
@@ -228,31 +197,11 @@ describe('parseRealtimeFeedItem', () => {
       },
     };
 
-    expect(normalizeRealtimeFeedItem(value)?.authorComment).toMatchObject({
+    expect(normalizeRealtimeFeedItem(value).authorComment).toMatchObject({
       uid: 'comment-2',
       sourceLanguage: null,
       translations: { en: 'Hello' },
     });
-  });
-
-  it('drops the realtime item when a translation is not a string', () => {
-    const value = {
-      ...fullHydratedPosition,
-      authorComment: {
-        uid: 'comment-2',
-        text: 'Hello',
-        timestamp: 100,
-        sourceLanguage: null,
-        translations: { en: 'Hello', pt: 1 },
-        engagement: { reactions: [], userReaction: null },
-      },
-    };
-
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
-  });
-
-  it('rejects compact event payloads', () => {
-    expect(parseRealtimeFeedItem(compactFeedItem)).toBeUndefined();
   });
 
   it('handles optional perp metadata without deriving an author comment', () => {
@@ -269,21 +218,7 @@ describe('parseRealtimeFeedItem', () => {
             classification: 'perp',
             perpPositionType: 'short',
             perpLeverage: 5,
-            comments: [
-              null,
-              {
-                uid: 'comment-invalid-metrics',
-                commentText: 'Invalid metrics',
-                timestamp: 98,
-                metrics: {
-                  reactions: null,
-                  userReaction: 1,
-                  replyCount: 'invalid',
-                },
-                replies: [],
-              },
-              { uid: 1 },
-            ],
+            comments: [],
           },
         ],
       },
@@ -339,7 +274,7 @@ describe('parseRealtimeFeedItem', () => {
       },
     };
 
-    expect(normalizeRealtimeFeedItem(value)?.trades[0].comments).toStrictEqual([
+    expect(normalizeRealtimeFeedItem(value).trades[0].comments).toStrictEqual([
       {
         uid: 'comment-1',
         text: 'Bought the dip',
@@ -361,35 +296,6 @@ describe('parseRealtimeFeedItem', () => {
         engagement: { reactions: [], userReaction: null, replyCount: 0 },
       },
     ]);
-  });
-
-  it('drops malformed trade comments and keeps the realtime item', () => {
-    const item = parseRealtimeFeedItem(fullHydratedPosition);
-
-    expect(item).toMatchObject({ positionId: 'position-1' });
-    expect(item?.trades.map((trade) => trade.comments)).toStrictEqual([
-      [],
-      [],
-      [],
-    ]);
-  });
-
-  it('rejects incomplete event data', () => {
-    expect(parseRealtimeFeedItem({ itemId: 'missing-fields' })).toBeUndefined();
-  });
-
-  it('rejects incomplete normalized feed items', () => {
-    expect(
-      parseRealtimeFeedItem({
-        positionId: 'position-1',
-        tokenSymbol: 'TKN',
-        tokenName: 'Token',
-        tokenAddress: '0xtoken',
-        chain: 'base',
-        trades: [],
-        actor: {},
-      }),
-    ).toBeUndefined();
   });
 
   it('normalizes a full position without optional comments or metrics', () => {
@@ -494,7 +400,7 @@ describe('parseRealtimeFeedItem', () => {
 
     const item = normalizeRealtimeFeedItem(value);
 
-    expect(item?.authorComment).toBe(socketAuthorComment);
+    expect(item.authorComment).toBe(socketAuthorComment);
   });
 
   it('keeps a null socket author comment as null', () => {
@@ -509,12 +415,6 @@ describe('parseRealtimeFeedItem', () => {
     const item = normalizeRealtimeFeedItem(fullHydratedPosition);
 
     expect(item).not.toHaveProperty('authorComment');
-  });
-
-  it('rejects a realtime item whose author comment is malformed', () => {
-    const value = { ...fullHydratedPosition, authorComment: { uid: 1 } };
-
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
   });
 
   it('copies position flags from the hydrated card and ignores metadata', () => {
@@ -535,9 +435,9 @@ describe('parseRealtimeFeedItem', () => {
     });
     const absent = normalizeRealtimeFeedItem(fullHydratedPosition);
 
-    expect(fromMetadataOnly?.flags).toBeUndefined();
-    expect(fromCard?.flags).toStrictEqual(['developer', 'future-flag']);
-    expect(absent?.flags).toBeUndefined();
+    expect(fromMetadataOnly.flags).toBeUndefined();
+    expect(fromCard.flags).toStrictEqual(['developer', 'future-flag']);
+    expect(absent.flags).toBeUndefined();
   });
 
   it('copies the prices the server marked the card to', () => {
@@ -568,26 +468,17 @@ describe('parseRealtimeFeedItem', () => {
 
     const result = normalizeRealtimeFeedItem(value);
 
-    expect(result?.currentValueUSD).toBe(0);
-    expect(result?.pnlValueUsd).toBeNull();
+    expect(result.currentValueUSD).toBe(0);
+    expect(result.pnlValueUsd).toBeNull();
     expect(result).not.toHaveProperty('positionValueUSD');
     expect(result).not.toHaveProperty('pnlPercent');
   });
 
-  it('rejects a realtime item whose price is not a number', () => {
-    const value = { ...fullHydratedPosition, currentValueUSD: '150' };
-
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
-  });
-
-  it('keeps flags on an already normalized feed item', () => {
+  it('passes an already normalized feed item through unchanged', () => {
     const normalized = normalizeRealtimeFeedItem(fullHydratedPosition);
     const flagged = { ...normalized, flags: ['insider'] };
 
-    expect(parseRealtimeFeedItem(flagged)?.flags).toStrictEqual(['insider']);
-    expect(
-      parseRealtimeFeedItem({ ...normalized, flags: 'insider' }),
-    ).toBeUndefined();
+    expect(parseRealtimeFeedItem(flagged)).toBe(flagged);
   });
 
   it('copies the Profile API identity from the actor profile', () => {
@@ -609,32 +500,17 @@ describe('parseRealtimeFeedItem', () => {
 
     const item = normalizeRealtimeFeedItem(value);
 
-    expect(item?.actor).toMatchObject(identity);
+    expect(item.actor).toMatchObject(identity);
   });
 
   it('leaves the Profile API identity absent when the actor profile has none', () => {
     const item = normalizeRealtimeFeedItem(fullHydratedPosition);
 
-    expect(item?.actor).not.toHaveProperty('displayName');
-    expect(item?.actor).not.toHaveProperty('bio');
-    expect(item?.actor).not.toHaveProperty('createdAt');
-    expect(item?.actor).not.toHaveProperty('updatedAt');
-    expect(item?.actor).not.toHaveProperty('connectedToX');
-    expect(item?.actor).not.toHaveProperty('tradingPrivacy');
-  });
-
-  it('rejects a realtime item whose actor trading privacy is unknown', () => {
-    const value = {
-      ...fullHydratedPosition,
-      actor: {
-        ...fullHydratedPosition.actor,
-        profile: {
-          ...fullHydratedPosition.actor.profile,
-          tradingPrivacy: 'friends',
-        },
-      },
-    };
-
-    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+    expect(item.actor).not.toHaveProperty('displayName');
+    expect(item.actor).not.toHaveProperty('bio');
+    expect(item.actor).not.toHaveProperty('createdAt');
+    expect(item.actor).not.toHaveProperty('updatedAt');
+    expect(item.actor).not.toHaveProperty('connectedToX');
+    expect(item.actor).not.toHaveProperty('tradingPrivacy');
   });
 });

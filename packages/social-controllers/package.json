@@ -58,7 +58,6 @@
     "@metamask/core-backend": "^14.1.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^36.1.2",
-    "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.2"
   },
   "devDependencies": {

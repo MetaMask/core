@@ -1,15 +1,3 @@
-import type { Infer } from '@metamask/superstruct';
-import {
-  array,
-  boolean,
-  enums,
-  nullable,
-  number,
-  optional,
-  record,
-  string,
-  type as structType,
-} from '@metamask/superstruct';
 import type { CaipAssetTypeOrId } from '@metamask/utils';
 
 // ---------------------------------------------------------------------------
@@ -28,26 +16,24 @@ export type TradingPrivacy = (typeof TRADING_PRIVACY_VALUES)[number];
  * Every field is omitted when the profile has no value, and on older
  * social-api builds. Only MetaMask-linked profiles carry them.
  */
-export const ProfileIdentityStruct = structType({
+export type ProfileIdentity = {
   /**
    * Display name set on the Profile API. Free text that anyone can copy, so
    * show it beside `name`, never in its place. Omitted when the profile's text
    * is flagged NSFW.
    */
-  displayName: optional(nullable(string())),
+  displayName?: string | null;
   /** Bio set on the Profile API. Omitted when the profile's text is flagged NSFW. */
-  bio: optional(nullable(string())),
+  bio?: string | null;
   /** When the MetaMask profile was created, as an ISO-8601 timestamp. */
-  createdAt: optional(nullable(string())),
+  createdAt?: string | null;
   /** When the owner last edited their MetaMask profile, as an ISO-8601 timestamp. */
-  updatedAt: optional(nullable(string())),
+  updatedAt?: string | null;
   /** Whether the owner linked an X account on their MetaMask profile. */
-  connectedToX: optional(nullable(boolean())),
+  connectedToX?: boolean | null;
   /** The owner's trading privacy. A private profile's addresses are withheld. */
-  tradingPrivacy: optional(nullable(enums(TRADING_PRIVACY_VALUES))),
-});
-
-export type ProfileIdentity = Infer<typeof ProfileIdentityStruct>;
+  tradingPrivacy?: TradingPrivacy | null;
+};
 
 /**
  * Minimal profile summary used across follow/follower responses.
@@ -107,63 +93,33 @@ export type SocialHandles = {
  */
 export type TradeAction = 'opened' | 'added' | 'reduced' | 'closed';
 
-export const CommentReactionProfileStruct = structType({
-  id: string(),
-  name: string(),
-});
-
-export const CommentEngagementStruct = structType({
-  reactions: array(
-    structType({
-      emotion: string(),
-      count: number(),
-      profiles: array(CommentReactionProfileStruct),
-    }),
-  ),
-  userReaction: nullable(string()),
-  replyCount: optional(number()),
-});
-
-export const AuthorCommentStruct = structType({
-  uid: string(),
-  text: string(),
-  timestamp: number(),
-  sourceLanguage: optional(nullable(string())),
-  translations: optional(record(string(), string())),
-  engagement: CommentEngagementStruct,
-});
-
-export const TradeStruct = structType({
-  direction: enums(['buy', 'sell']),
-  intent: enums(['enter', 'exit']),
+export type Trade = {
+  direction: 'buy' | 'sell';
+  intent: 'enter' | 'exit';
   /**
    * Lifecycle stage of this fill. Absent on responses from a social-api that
    * predates the field, so treat it as a hint and keep a client-side fallback.
    */
-  action: optional(enums(['opened', 'added', 'reduced', 'closed'])),
-  category: optional(string()),
+  action?: TradeAction;
+  category?: string;
   /** High-level trade classification. `null` when Clicker does not classify. */
-  classification: optional(
-    nullable(enums(['spot', 'perp', 'send', 'receive'])),
-  ),
+  classification?: 'spot' | 'perp' | 'send' | 'receive' | null;
   /** Perp side for this fill. `null` for spot trades. */
-  perpPositionType: optional(nullable(enums(['long', 'short']))),
+  perpPositionType?: 'long' | 'short' | null;
   /** Leverage multiplier for perp trades (e.g. `5` for 5x). `null` for spot. */
-  perpLeverage: optional(nullable(number())),
-  tokenAmount: number(),
-  usdCost: number(),
+  perpLeverage?: number | null;
+  tokenAmount: number;
+  usdCost: number;
   /** Token market cap in USD at trade time. `null` when Clicker has no mark. */
-  marketCap: optional(nullable(number())),
-  timestamp: number(),
-  transactionHash: string(),
+  marketCap?: number | null;
+  timestamp: number;
+  transactionHash: string;
   /**
    * Every author comment on this fill, newest first. An author may comment on
    * one fill more than once. Absent on older social-api builds.
    */
-  comments: optional(array(AuthorCommentStruct)),
-});
-
-export type Trade = Infer<typeof TradeStruct>;
+  comments?: AuthorComment[];
+};
 
 // ---------------------------------------------------------------------------
 // Leaderboard
@@ -1100,8 +1056,7 @@ export type GifItem = {
 /**
  * Body of `GET /api/v1/gifs/trending` and `GET /api/v1/gifs/search`.
  *
- * This is the GIF provider's page, passed through by social-api. Validation
- * only checks that `result` and `data` are present, so extra fields are kept.
+ * This is the GIF provider's page, passed through by social-api.
  */
 export type GifPageResponse = {
   result: boolean;

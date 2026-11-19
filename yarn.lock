@@ -8599,7 +8599,6 @@ __metadata:
     "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.2"
-    "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.3"

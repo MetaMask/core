@@ -237,42 +237,6 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ traders: 'not-an-array' }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchLeaderboard()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
-      );
-    });
-
-    it('throws when a trader entry has invalid socialHandles', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            traders: [
-              {
-                ...mockLeaderboardResponse.traders[0],
-                socialHandles: { twitter: 123 },
-              },
-            ],
-          }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchLeaderboard()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_LEADERBOARD_INVALID_RESPONSE,
-      );
-    });
-
     it('accepts entries with optional fields omitted', async () => {
       const minimalTrader = {
         rank: 1,
@@ -424,22 +388,6 @@ describe('SocialService', () => {
         service.fetchTraderProfile({ addressOrId: '0x1234' }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_TRADER_PROFILE_FAILED}: 404`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ profile: 'not-an-object' }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchTraderProfile({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
       );
     });
 
@@ -613,29 +561,6 @@ describe('SocialService', () => {
       expect(result.profile.createdAt).toBeNull();
     });
 
-    it('throws when createdAt is not a string', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            ...mockProfileResponse,
-            profile: {
-              ...mockProfileResponse.profile,
-              createdAt: 1700000000,
-            },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchTraderProfile({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
-      );
-    });
-
     it('accepts and returns the Profile API identity', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -653,28 +578,6 @@ describe('SocialService', () => {
       });
 
       expect(result.profile).toMatchObject(mockProfileIdentity);
-    });
-
-    it('throws when the trading privacy is unknown', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            ...mockProfileResponse,
-            profile: {
-              ...mockProfileResponse.profile,
-              tradingPrivacy: 'friends',
-            },
-          }),
-      });
-      const service = createService();
-
-      await expect(
-        service.fetchTraderProfile({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
-      );
     });
 
     it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
@@ -772,48 +675,6 @@ describe('SocialService', () => {
         service.fetchOpenPositions({ addressOrId: '0x1234' }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_FAILED}: 500`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({ positions: 'not-an-array', pagination: {} }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchOpenPositions({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
-      );
-    });
-
-    it('throws when a trade has invalid fields', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            positions: [
-              {
-                ...mockPosition,
-                trades: [{ ...mockTrade, tokenAmount: 'not-a-number' }],
-              },
-            ],
-            pagination: { hasMore: false },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchOpenPositions({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
       );
     });
 
@@ -930,7 +791,7 @@ describe('SocialService', () => {
     });
 
     // The social-api ships independently of this package, so a response from a
-    // deployment that predates `action`/`isOpen` must still validate — clients
+    // deployment that predates `action`/`isOpen` must still resolve — clients
     // fall back to deriving the stage from the trade history.
     it('accepts a position without the lifecycle fields', async () => {
       mockFetch.mockResolvedValue({
@@ -1027,91 +888,6 @@ describe('SocialService', () => {
 
       expect(result.positions[0].profileId).toBe('profile-1');
       expect(result.positions[1].profileId).toBeUndefined();
-    });
-
-    it('rejects a position whose owner profileId is not a string', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            positions: [{ ...mockPosition, profileId: 1 }],
-            pagination: { hasMore: false },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchOpenPositions({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
-      );
-    });
-
-    it('rejects a position whose flags are not an array of strings', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            positions: [{ ...mockPosition, flags: 'insider' }],
-            pagination: { hasMore: false },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchOpenPositions({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
-      );
-    });
-
-    it('rejects an unknown trade action', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            positions: [
-              {
-                ...mockPosition,
-                trades: [{ ...mockTrade, action: 'flipped' }],
-              },
-            ],
-            pagination: { hasMore: false },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchOpenPositions({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
-      );
-    });
-
-    it('rejects an invalid perpPositionType', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            positions: [{ ...mockPerpPosition, perpPositionType: 'sideways' }],
-            pagination: { hasMore: false },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchOpenPositions({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
-      );
     });
   });
 
@@ -1274,58 +1050,6 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchFollowers({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
-      );
-    });
-
-    it('throws when response schema is invalid with mutuals true', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchFollowers({ addressOrId: '0x1234', mutuals: true }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
-      );
-    });
-
-    it('throws when a profile summary has invalid fields', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            followers: [{ profileId: 123, address: '0x', name: 'test' }],
-            count: 1,
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchFollowers({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_FOLLOWERS_INVALID_RESPONSE,
-      );
-    });
-
     it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1389,22 +1113,6 @@ describe('SocialService', () => {
         service.fetchTraderFollowing({ addressOrId: '0x1234' }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_FAILED}: 500`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ following: 'not-an-array', count: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchTraderFollowing({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_TRADER_FOLLOWING_INVALID_RESPONSE,
       );
     });
 
@@ -1474,26 +1182,6 @@ describe('SocialService', () => {
       expect(result.profileId).toBeUndefined();
     });
 
-    it.each([
-      ['null', null],
-      ['a number', 1],
-      ['an object', { profileId: 'profile-1' }],
-    ])('throws when the owner profileId is %s', async (_label, profileId) => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ ...mockPosition, profileId }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchPositionById({ positionId: 'position-1' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
-      );
-    });
-
     it('keeps every author comment on each trade', async () => {
       const tradeComment = {
         uid: 'comment-1',
@@ -1527,29 +1215,6 @@ describe('SocialService', () => {
       ]);
     });
 
-    it('throws when a trade comment is malformed', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            ...mockPosition,
-            trades: mockPosition.trades.map((trade) => ({
-              ...trade,
-              comments: [{ uid: 'comment-1', text: 1 }],
-            })),
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchPositionById({ positionId: 'position-1' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
-      );
-    });
-
     it('encodes the positionId in the URL', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1575,22 +1240,6 @@ describe('SocialService', () => {
         service.fetchPositionById({ positionId: 'position-1' }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED}: 404`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ positionId: 123 }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchPositionById({ positionId: 'position-1' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
       );
     });
 
@@ -1804,7 +1453,7 @@ describe('SocialService', () => {
       );
     });
 
-    it('validates a perp feed item', async () => {
+    it('returns a perp feed item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -1837,72 +1486,6 @@ describe('SocialService', () => {
       );
     });
 
-    it('drops feed items that fail validation instead of rejecting the page', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            items: [{ ...mockPosition, timestamp: 1700000000 }, mockFeedItem],
-            pagination: { olderCursor: null, newerCursor: null },
-          }),
-      });
-
-      const service = createService();
-      const result = await service.fetchFeed();
-
-      expect(result.items).toStrictEqual([mockFeedItem]);
-    });
-
-    it('drops a feed item whose feedItemId is not a string', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            items: [{ ...mockFeedItem, feedItemId: 1 }, mockFeedItem],
-            pagination: { olderCursor: null, newerCursor: null },
-          }),
-      });
-
-      const service = createService();
-      const result = await service.fetchFeed({ scope: 'all' });
-
-      expect(result.items).toStrictEqual([mockFeedItem]);
-    });
-
-    it('throws when the feed envelope is missing pagination', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ items: [mockFeedItem] }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchFeed()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
-      );
-    });
-
-    it('throws when items is not an array', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            items: 'not-an-array',
-            pagination: { olderCursor: null, newerCursor: null },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchFeed()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
-      );
-    });
-
     it('accepts null buy-side money fields on an otherwise valid item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1928,24 +1511,6 @@ describe('SocialService', () => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0]?.boughtUsd).toBeNull();
       expect(result.items[0]?.costBasis).toBeNull();
-    });
-
-    it('throws when the pagination shape is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            items: [mockFeedItem],
-            pagination: { olderCursor: 123, newerCursor: null },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchFeed()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
-      );
     });
 
     it('accepts a feed item with authorComment engagement', async () => {
@@ -2060,14 +1625,14 @@ describe('SocialService', () => {
       expect(result.items[0]?.entryPriceUsd).toBe(2500);
     });
 
-    it('passes feed item flags through and drops an item with invalid flags', async () => {
+    it('passes feed item flags through', async () => {
       const flagged = { ...mockFeedItem, flags: ['insider'] };
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
-            items: [flagged, { ...mockFeedItem, flags: [1] }],
+            items: [flagged],
             pagination: { olderCursor: null, newerCursor: null },
           }),
       });
@@ -2078,7 +1643,7 @@ describe('SocialService', () => {
       expect(result.items).toStrictEqual([flagged]);
     });
 
-    it('passes positionValueUSD through and drops an item with a non-numeric value', async () => {
+    it('passes positionValueUSD through', async () => {
       const valued = { ...mockFeedItem, positionValueUSD: 1500 };
       const closed = { ...mockFeedItem, positionValueUSD: 0 };
       mockFetch.mockResolvedValue({
@@ -2086,12 +1651,7 @@ describe('SocialService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            items: [
-              valued,
-              closed,
-              mockFeedItem,
-              { ...mockFeedItem, positionValueUSD: '1500' },
-            ],
+            items: [valued, closed, mockFeedItem],
             pagination: { olderCursor: null, newerCursor: null },
           }),
       });
@@ -2103,7 +1663,7 @@ describe('SocialService', () => {
     });
 
     // An open position has no final hold; the anchor is what the client
-    // counts from, so it has to survive validation on its own.
+    // counts from, so it has to survive on its own.
     it('accepts an open position that sends only the hold anchor', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -2225,26 +1785,6 @@ describe('SocialService', () => {
         `${SocialServiceErrorMessage.FETCH_TRADER_FEED_FAILED}: 404`,
       );
     });
-
-    it('throws when the pagination shape is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            items: [mockFeedItem],
-            pagination: { olderCursor: 123, newerCursor: null },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchTraderFeed({ addressOrId: '0x1234' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_TRADER_FEED_INVALID_RESPONSE,
-      );
-    });
   });
 
   describe('fetchTokenFeed', () => {
@@ -2360,29 +1900,6 @@ describe('SocialService', () => {
         `${SocialServiceErrorMessage.FETCH_TOKEN_FEED_FAILED}: 400`,
       );
     });
-
-    it('throws when the pagination shape is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            items: [mockFeedItem],
-            pagination: { olderCursor: 123, newerCursor: null },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.fetchTokenFeed({
-          chain: 'base',
-          contractAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-        }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_TOKEN_FEED_INVALID_RESPONSE,
-      );
-    });
   });
 
   describe('fetchFollowing', () => {
@@ -2414,20 +1931,6 @@ describe('SocialService', () => {
 
       await expect(service.fetchFollowing()).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED}: 500`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ following: 'not-an-array', count: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchFollowing()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
       );
     });
 
@@ -2501,20 +2004,6 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ followers: 'not-an-array', count: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchMyFollowers()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_MY_FOLLOWERS_INVALID_RESPONSE,
-      );
-    });
-
     it('always fetches fresh data on repeated calls (staleTime: 0)', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -2567,20 +2056,6 @@ describe('SocialService', () => {
         `${SocialServiceErrorMessage.FOLLOW_FAILED}: 400`,
       );
     });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ followed: 'not-an-array' }),
-      });
-
-      const service = createService();
-
-      await expect(service.follow({ targets: ['0xaaaa'] })).rejects.toThrow(
-        SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE,
-      );
-    });
   });
 
   describe('unfollow', () => {
@@ -2618,20 +2093,6 @@ describe('SocialService', () => {
 
       await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
         `${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ unfollowed: 'not-an-array' }),
-      });
-
-      const service = createService();
-
-      await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
-        SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
       );
     });
   });
@@ -2682,22 +2143,6 @@ describe('SocialService', () => {
         `${SocialServiceErrorMessage.REACT_TO_COMMENT_FAILED}: 404`,
       );
     });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ reactions: 'nope' }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.reactToComment({ commentId: 'comment-1', emotion: '👍' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.REACT_TO_COMMENT_INVALID_RESPONSE,
-      );
-    });
   });
 
   describe('removeCommentReaction', () => {
@@ -2737,22 +2182,6 @@ describe('SocialService', () => {
         service.removeCommentReaction({ commentId: 'comment-1' }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_FAILED}: 500`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ userReaction: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.removeCommentReaction({ commentId: 'comment-1' }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.REMOVE_COMMENT_REACTION_INVALID_RESPONSE,
       );
     });
   });
@@ -2887,25 +2316,6 @@ describe('SocialService', () => {
         `${SocialServiceErrorMessage.CREATE_SWAP_COMMENT_FAILED}: 409`,
       );
     });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 201,
-        json: () => Promise.resolve({ uid: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.createSwapComment({
-          commentText: 'this is alpha',
-          positionUid: 'position-1',
-        }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.CREATE_SWAP_COMMENT_INVALID_RESPONSE,
-      );
-    });
   });
 
   describe('createCopyTradeIntent', () => {
@@ -3038,50 +2448,6 @@ describe('SocialService', () => {
         }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_FAILED}: 404`,
-      );
-    });
-
-    it('throws when the execution does not match a known product', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 201,
-        json: () =>
-          Promise.resolve({
-            ...buildIntentResponse(swapsExecution),
-            execution: { product: 'swaps', oid: '123' },
-          }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.createCopyTradeIntent({
-          origin,
-          copierAccount,
-          execution: swapsExecution,
-        }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 201,
-        json: () => Promise.resolve({ id: 1 }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.createCopyTradeIntent({
-          origin,
-          copierAccount,
-          execution: perpsExecution,
-        }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE,
       );
     });
   });
@@ -3423,20 +2789,6 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ items: 'not-an-array', cursor: null }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchBlockedProfiles()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_BLOCKED_PROFILES_INVALID_RESPONSE,
-      );
-    });
-
     it('is callable via messenger action', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -3525,24 +2877,6 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            items: [{ ...mockBlockedContentResponse.items[0], type: 'post' }],
-            cursor: null,
-          }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchBlockedContent()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_BLOCKED_CONTENT_INVALID_RESPONSE,
-      );
-    });
-
     it('is callable via messenger action', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -3606,20 +2940,6 @@ describe('SocialService', () => {
       );
     });
 
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ ...mockBannedStatus, banned: 'yes' }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchModerationStatus()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_MODERATION_STATUS_INVALID_RESPONSE,
-      );
-    });
-
     it('is callable via messenger action', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -3673,20 +2993,6 @@ describe('SocialService', () => {
 
       await expect(service.fetchQuoteTokens()).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_FAILED}: 500`,
-      );
-    });
-
-    it('throws when response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ ...mockQuoteTokens, natives: [1] }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchQuoteTokens()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_INVALID_RESPONSE,
       );
     });
 
@@ -3752,25 +3058,6 @@ describe('SocialService', () => {
         }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}: 404`,
-      );
-    });
-
-    it('throws when the translation response schema is invalid', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ translations: [] }),
-      });
-
-      const service = createService();
-
-      await expect(
-        service.translateComment({
-          commentId: 'comment-1',
-          targetLanguage: 'en',
-        }),
-      ).rejects.toThrow(
-        SocialServiceErrorMessage.TRANSLATE_COMMENT_INVALID_RESPONSE,
       );
     });
   });
@@ -3909,34 +3196,6 @@ describe('SocialService', () => {
 
       await expect(service.searchGifs({ q: 'cat' })).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_SEARCH_GIFS_FAILED}: 502`,
-      );
-    });
-
-    it('throws when the trending page is missing data', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ result: true }),
-      });
-
-      const service = createService();
-
-      await expect(service.fetchTrendingGifs()).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_TRENDING_GIFS_INVALID_RESPONSE,
-      );
-    });
-
-    it('throws when the search page result is not a boolean', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ result: 'yes', data: {} }),
-      });
-
-      const service = createService();
-
-      await expect(service.searchGifs({ q: 'cat' })).rejects.toThrow(
-        SocialServiceErrorMessage.FETCH_SEARCH_GIFS_INVALID_RESPONSE,
       );
     });
 
