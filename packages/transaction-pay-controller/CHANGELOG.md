@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^74.2.0` to `^74.3.0` ([#11653](https://github.com/MetaMask/core/pull/11653))
+- Bump `@ethersproject/abi` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `@ethersproject/contracts` from `^5.7.0` to `^5.8.0` ([#11645](https://github.com/MetaMask/core/pull/11645))
+- Bump `immer` from `^11.1.18` to `^11.2.10` ([#11645](https://github.com/MetaMask/core/pull/11645))
+
+## [32.1.0]
+
 ### Added
 
 - Persist `accountOverride` (the `InternalAccount` ID) in `TransactionMeta.metamaskPay` when syncing transaction quotes so clients retain the override account ID after controller state cleanup ([#11588](https://github.com/MetaMask/core/pull/11588))
@@ -21,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Native tokens use `slip44` asset IDs, and the Hyperliquid perps margin account uses `hyperliq:mainnet/perps:usdc` instead of the HyperCore placeholder address.
 - Bump `@metamask/transaction-controller` from `^74.1.0` to `^74.2.0` ([#11605](https://github.com/MetaMask/core/pull/11605))
 - Bump `@metamask/ramps-controller` from `^30.0.0` to `^30.1.0` ([#11619](https://github.com/MetaMask/core/pull/11619))
+- Bump `@metamask/assets-controller` from `^20.4.1` to `^21.0.0` ([#11649](https://github.com/MetaMask/core/pull/11649))
 
 ### Fixed
 
@@ -1949,7 +1961,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.1...HEAD
+[32.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.1.0...@metamask/transaction-pay-controller@32.1.1
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@32.0.0...@metamask/transaction-pay-controller@32.1.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.3.0...@metamask/transaction-pay-controller@32.0.0
 [31.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.1...@metamask/transaction-pay-controller@31.3.0
 [31.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.2.0...@metamask/transaction-pay-controller@31.2.1
