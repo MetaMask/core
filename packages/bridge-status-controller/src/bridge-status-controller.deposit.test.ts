@@ -1450,7 +1450,7 @@ describe('BridgeStatusController (deposit)', () => {
       const moneyAccount =
         'moneyAccount' in options
           ? options.moneyAccount
-          : { address: MONEY_ACCOUNT };
+          : { id: 'money-account-id', address: MONEY_ACCOUNT };
       const provider =
         'provider' in options ? options.provider : defaultProvider();
       const messengerCall = vi.fn((action: string, ..._args: unknown[]) => {

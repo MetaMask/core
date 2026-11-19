@@ -96,9 +96,10 @@ describe('unapprovedTxSubscription', () => {
       messenger,
       BATCH_ID,
       Operation.DEPOSIT,
-      { address: MONEY_ACCOUNT },
+      { id: 'money-account-id', address: MONEY_ACCOUNT },
       UNDERLYING_TOKEN,
       CHAIN_IDS.ARBITRUM,
+      'dest-account-id',
     );
 
     rootMessenger.publish(

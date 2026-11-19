@@ -1,4 +1,5 @@
 import { Web3Provider } from '@ethersproject/providers';
+import { formatChainIdToDec } from '@metamask/bridge-controller';
 import type { QuoteResponseV1, Trade } from '@metamask/bridge-controller';
 import { buildMoneyAccountDepositBatch } from '@metamask/money-account-utils';
 import type { MoneyAccountVaultConfig } from '@metamask/money-account-utils';
@@ -27,8 +28,6 @@ const generateDepositTxs = async (
   vaultConfig: MoneyAccountVaultConfig,
   provider: Web3Provider,
 ): Promise<QuoteAndTxMetadata[]> => {
-  const { quote } = quoteResponse;
-
   const {
     boringVault,
     tellerAddress,
@@ -44,7 +43,7 @@ const generateDepositTxs = async (
 
   // Build txs
   const { approveTx, depositTx } = await buildMoneyAccountDepositBatch({
-    amount: BigInt(receivedAmount.toNumber()),
+    amount: BigInt(receivedAmount.toString(10)),
     chainId,
     provider,
     boringVault,
@@ -55,7 +54,7 @@ const generateDepositTxs = async (
 
   const sharedTxParams = {
     from: moneyAccountAddress,
-    chainId: quote.destChainId,
+    chainId: formatChainIdToDec(chainId),
     gasLimit: null,
   };
   const tradeData = [
@@ -166,7 +165,6 @@ export async function* submitDepositHandler(
       isDelegatedAccount,
     ),
     selectedAccount: primaryMoneyAccount,
-    skipInitialGasEstimate: true,
     isGasFeeSponsored: CHAIN_IDS.MONAD === vaultConfig.chainId,
     requiredAssets: [
       {

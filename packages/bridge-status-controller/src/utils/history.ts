@@ -241,8 +241,10 @@ export const lockHistoryItem = (
   const { depositTxMeta } = historyItem;
   const [pending, ...next] = historyItem.next ?? [];
 
-  if (depositTxMeta?.batchId || !pending) {
-    throw new Error(`Deposit has already started, skipping: ${historyKey}`);
+  if (!pending || depositTxMeta?.batchId) {
+    throw new Error(
+      `${historyItem.batchId ? 'Swap' : 'Deposit'} has already started, skipping`,
+    );
   }
 
   const batchId = generateBatchId();

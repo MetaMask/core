@@ -125,7 +125,8 @@ const runWithMmPay = (
     {
       messenger,
       batchId: BATCH_ID,
-      primaryMoneyAccount: { address: MONEY_ACCOUNT },
+      primaryMoneyAccount: { id: 'money-account-id', address: MONEY_ACCOUNT },
+      destAccountId: 'dest-account-id',
       underlyingToken: UNDERLYING_TOKEN,
       chainId: CHAIN_IDS.ARBITRUM,
       operation: Operation.DEPOSIT,

@@ -8,7 +8,7 @@ import { Operation } from '../types.js';
 export const setTransactionConfigForMmPay = (
   messenger: BridgeStatusControllerMessenger,
   txMetaId: string,
-  refundTo: `0x${string}`,
+  moneyAccount: { address: `0x${string}` },
   operation: Operation,
 ): void => {
   messenger.call(
@@ -17,9 +17,9 @@ export const setTransactionConfigForMmPay = (
     (config: TransactionConfig) => {
       if (operation === Operation.DEPOSIT) {
         config.paymentOverride = PaymentOverride.MoneyAccount;
-        config.accountOverride = refundTo;
+        config.accountOverride = undefined;
       }
-      config.refundTo = refundTo; // failed fill returns here
+      config.refundTo = moneyAccount.address; // failed fill returns here
     },
   );
 };

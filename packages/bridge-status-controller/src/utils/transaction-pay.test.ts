@@ -17,8 +17,10 @@ import {
 } from './transaction-pay.js';
 
 const TX_ID = 'tx-id';
+const MONEY_ACCOUNT_ID = 'money-account-id';
 const REFUND_TO = '0x1111111111111111111111111111111111111111' as const;
 const TOKEN = '0x8888888888888888888888888888888888888888' as const;
+const MONEY_ACCOUNT = { id: MONEY_ACCOUNT_ID, address: REFUND_TO };
 
 const setup = (): {
   messenger: ReturnType<typeof getControllerMessenger>;
@@ -49,18 +51,18 @@ const setup = (): {
 };
 
 describe('setTransactionConfigForMmPay', () => {
-  it('sets money-account override and refundTo on deposit', () => {
+  it('sets dest-wallet override and money-account refundTo on deposit', () => {
     const { messenger, configs } = setup();
     setTransactionConfigForMmPay(
       messenger,
       TX_ID,
-      REFUND_TO,
+      MONEY_ACCOUNT,
       Operation.DEPOSIT,
     );
     expect(configs).toStrictEqual([
       {
         paymentOverride: PaymentOverride.MoneyAccount,
-        accountOverride: REFUND_TO,
+        accountOverride: undefined,
         refundTo: REFUND_TO,
       },
     ]);
@@ -71,7 +73,7 @@ describe('setTransactionConfigForMmPay', () => {
     setTransactionConfigForMmPay(
       messenger,
       TX_ID,
-      REFUND_TO,
+      MONEY_ACCOUNT,
       Operation.WITHDRAW,
     );
     expect(configs).toStrictEqual([{ refundTo: REFUND_TO }]);

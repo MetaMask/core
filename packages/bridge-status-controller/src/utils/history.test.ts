@@ -278,13 +278,22 @@ describe('History Utils', () => {
           makeState({ depositTxMeta: { batchId: '0xbatch' } }),
           'tx1',
         ),
-      ).toThrow('Deposit has already started, skipping: tx1');
+      ).toThrow('Deposit has already started, skipping');
     });
 
     it('throws when next is missing', () => {
       expect(() =>
         lockHistoryItem(makeState({ next: undefined }), 'tx1'),
-      ).toThrow('Deposit has already started, skipping: tx1');
+      ).toThrow('Deposit has already started, skipping');
+    });
+
+    it('throws swap already started when next is missing after swap lock', () => {
+      expect(() =>
+        lockHistoryItem(
+          makeState({ next: undefined, batchId: '0xswapBatch' }),
+          'tx1',
+        ),
+      ).toThrow('Swap has already started, skipping');
     });
 
     it('locks a deposit, writes batchId, returns remaining next', () => {

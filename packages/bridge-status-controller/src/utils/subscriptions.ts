@@ -253,7 +253,7 @@ export const unapprovedTxSubscription = (
         setTransactionConfigForMmPay(
           messenger,
           txMeta.id,
-          primaryMoneyAccount.address,
+          primaryMoneyAccount,
           operation,
         );
 
