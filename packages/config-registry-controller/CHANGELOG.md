@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a state struct, used by `@metamask/wallet` to validate persisted state during initialization ([#11671](https://github.com/MetaMask/core/pull/11671))
+- Add a state struct, used by `@metamask/wallet` to validate persisted state during initialization, and infer the state type from it ([#11671](https://github.com/MetaMask/core/pull/11671))
 
 ### Changed
 

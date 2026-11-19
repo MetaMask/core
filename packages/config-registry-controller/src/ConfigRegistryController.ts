@@ -13,6 +13,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
 import {
+  type Infer,
   nullable,
   number,
   optional,
@@ -32,10 +33,7 @@ import type {
   ConfigRegistryApiServiceFetchConfigAction,
   ConfigRegistryApiServiceFetchEventsConfigAction,
 } from './config-registry-api-service/config-registry-api-service-method-action-types.js';
-import type {
-  RegistryEventsConfig,
-  RegistryNetworkConfig,
-} from './config-registry-api-service/types.js';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
 import {
   RegistryEventsConfigStruct,
   RegistryNetworkConfigSchema,
@@ -49,32 +47,33 @@ export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
 const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
 
 /**
- * State for the ConfigRegistryController.
+ * Struct describing the state of the ConfigRegistryController, used by
+ * `@metamask/wallet` to validate persisted state during initialization.
  *
  * Tracks network configurations fetched from the config registry API,
  * along with metadata about the fetch status and caching.
  */
-export type ConfigRegistryControllerState = {
+export const ConfigRegistryControllerStateStruct = type({
   /**
    * Configurations fetched from the config registry API.
    * Stores network configs and events config.
    */
-  configs: {
-    networks: Record<CaipChainId, RegistryNetworkConfig>;
-    eventsConfig?: RegistryEventsConfig | null;
-  };
+  configs: type({
+    networks: record(CaipChainIdStruct, RegistryNetworkConfigSchema),
+    eventsConfig: optional(nullable(RegistryEventsConfigStruct)),
+  }),
   /**
    * Semantic version string of the configuration data from the API.
    * Indicates the version/schema of the configuration structure itself
    * (e.g., "v1.0.0", "1.0.0").
    * This is different from `etag` which is used for HTTP cache validation.
    */
-  version: string | null;
+  version: nullable(string()),
   /**
    * Timestamp (milliseconds since epoch) of when the configuration
    * was last successfully fetched from the API.
    */
-  lastFetched: number | null;
+  lastFetched: nullable(number()),
   /**
    * HTTP entity tag (ETag) used for cache validation.
    * Sent as `If-None-Match` header in subsequent requests to check
@@ -83,12 +82,19 @@ export type ConfigRegistryControllerState = {
    * This is different from `version` which is a semantic version string
    * indicating the schema/version of the configuration data itself.
    */
-  etag: string | null;
+  etag: nullable(string()),
   /**
    * HTTP entity tag (ETag) for the events-config endpoint cache validation.
    */
-  eventsConfigEtag?: string | null;
-};
+  eventsConfigEtag: optional(nullable(string())),
+});
+
+/**
+ * State for the {@link ConfigRegistryController}.
+ */
+export type ConfigRegistryControllerState = Infer<
+  typeof ConfigRegistryControllerStateStruct
+>;
 
 const stateMetadata = {
   configs: {
@@ -122,21 +128,6 @@ const stateMetadata = {
     usedInUi: false,
   },
 } satisfies StateMetadata<ConfigRegistryControllerState>;
-
-/**
- * Struct describing the controller's state, used by `@metamask/wallet` to
- * validate persisted state during initialization.
- */
-export const ConfigRegistryControllerStateStruct = type({
-  configs: type({
-    networks: record(CaipChainIdStruct, RegistryNetworkConfigSchema),
-    eventsConfig: optional(nullable(RegistryEventsConfigStruct)),
-  }),
-  version: nullable(string()),
-  lastFetched: nullable(number()),
-  etag: nullable(string()),
-  eventsConfigEtag: optional(nullable(string())),
-});
 
 /**
  * Default fallback configuration when no configs are available.
