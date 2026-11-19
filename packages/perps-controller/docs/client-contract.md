@@ -54,7 +54,7 @@ Pass tiers from `resolveHyperLiquidMarginTiers`; do not assume a default max lev
 
 ### Controller liquidation previews
 
-`PerpsController.calculateLiquidationPrice` and `PerpsController:calculateLiquidationPrice` return `Promise<string>`. For a HyperLiquid cross opening, pass `marginType: 'cross'`, `asset`, `entryPrice`, `direction`, `leverage` and a positive `positionSize` in base units. In aggregated mode include `providerId: 'hyperliquid'`. The provider reads the selected wallet's current cross account and spot collateral, positions and market tiers.
+`PerpsController.calculateLiquidationPrice` and `PerpsController:calculateLiquidationPrice` return `Promise<string>`. For a HyperLiquid cross opening, pass `marginType: 'cross'`, `asset`, `entryPrice`, `direction`, `leverage` and a positive `positionSize` in base units. In aggregated mode include `providerId: 'hyperliquid'`. The provider reads the selected wallet's current positions and market tiers. Unified uses shared cross equity and spot USDC. Standard uses only the main DEX's cross pool. Standard HIP-3 openings and other account modes are unavailable in this preview.
 
 A preview without sufficient input rejects with `errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE'`. This replaces the old `'0.00'` sentinel on HyperLiquid. Handle it as an unavailable estimate and clear any stale price for that input. HyperLiquid returns unavailable for changes to an existing position or when the cross estimate has no positive solution. Lighter rejects a cross preview with the same code. Valid prices stay decimal strings; a determinate isolated zero is still possible.
 

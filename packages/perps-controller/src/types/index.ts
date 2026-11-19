@@ -1173,6 +1173,12 @@ export type AccountAggregateMetadata = {
 };
 
 export type ClosePositionParams = {
+  /**
+   * Account that supplied a batch close target. A changed account cannot close it.
+   *
+   * @internal
+   */
+  expectedAccountId?: CaipAccountId;
   symbol: string; // Asset identifier to close (e.g., 'ETH', 'BTC', 'xyz:TSLA')
   size?: string; // Size to close (omit for full close)
   /**
@@ -3324,7 +3330,9 @@ export type PerpsProvider = {
    *
    * @internal
    */
-  getPositionSymbolsForClose?(): Promise<string[]>;
+  getClosePositionTargets?(): Promise<
+    Pick<ClosePositionParams, 'symbol' | 'expectedAccountId'>[]
+  >;
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
   /**
    * Replace one TP/SL leg of a position and leave the other leg untouched. The

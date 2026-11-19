@@ -2245,10 +2245,8 @@ describe('HyperLiquidProvider', () => {
           .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
       });
 
-      const read = hip3Provider.getOpenOrders({
-        skipCache: true,
-        throwOnUnavailable: true,
-      });
+      mockSubscriptionService.getFreshPositionsForAllDexs.mockReturnValue([]);
+      const read = hip3Provider.getOpenOrders({ throwOnUnavailable: true });
 
       await expect(read).rejects.toMatchObject({
         orders: [

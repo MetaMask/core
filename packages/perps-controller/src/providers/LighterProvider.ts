@@ -10315,6 +10315,12 @@ export class LighterProvider implements PerpsProvider {
     if (!account) {
       throw new Error(`Lighter account ${accountIndex} not returned`);
     }
+    this.#assertAccountOwnership(account);
+    if (account.index !== accountIndex) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} REST position account index does not match the requested account`,
+      );
+    }
     if (!Array.isArray(account.positions)) {
       throw new Error(
         `${LIGHTER_DATA_INTEGRITY_PREFIX} REST positions missing`,
@@ -10327,15 +10333,21 @@ export class LighterProvider implements PerpsProvider {
    * Discover open markets for close-all without requiring display margin.
    *
    * @internal
-   * @returns Symbols with a validated nonzero position on the bound account.
+   * @returns Targets with validated nonzero positions and their bound account.
    */
-  async getPositionSymbolsForClose(): Promise<string[]> {
+  async getClosePositionTargets(): Promise<
+    Pick<ClosePositionParams, 'symbol' | 'expectedAccountId'>[]
+  > {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     try {
+      const expectedAccountId = await this.getCurrentAccountId();
       const rows = await this.#readPositionRows(generation);
       const seen = new Set<string>();
-      const symbols: string[] = [];
+      const targets: Pick<
+        ClosePositionParams,
+        'symbol' | 'expectedAccountId'
+      >[] = [];
       for (const row of rows) {
         if (!row.symbol || seen.has(row.symbol)) {
           throw new Error(
@@ -10344,10 +10356,10 @@ export class LighterProvider implements PerpsProvider {
         }
         seen.add(row.symbol);
         if (this.#readReductionSize(row) > 0) {
-          symbols.push(row.symbol);
+          targets.push({ symbol: row.symbol, expectedAccountId });
         }
       }
-      return symbols;
+      return targets;
     } catch (error) {
       if (error instanceof LighterAccountNotFoundError) {
         return [];
@@ -14680,14 +14692,7 @@ export class LighterProvider implements PerpsProvider {
     this.#ensureSessionBinding();
     const generation = this.#sessionGeneration;
     try {
-      const accountIndex = await this.#readAccountIndex(generation);
-      const response =
-        await this.#clientService.getAccountByIndex(accountIndex);
-      this.#assertSession(generation);
-      const positions = response.accounts[0]?.positions;
-      if (!Array.isArray(positions)) {
-        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-      }
+      const positions = await this.#readPositionRows(generation);
       const rows = positions.filter((position) => position.symbol === symbol);
       if (rows.length === 0) {
         return undefined;
@@ -14769,6 +14774,19 @@ export class LighterProvider implements PerpsProvider {
       // account with sizing derived from the old one.
       this.#ensureSessionBinding();
       const generationAtIntent = this.#sessionGeneration;
+      if (params.expectedAccountId !== undefined) {
+        const currentAccountId = await this.getCurrentAccountId();
+        this.#assertSession(generationAtIntent);
+        if (
+          currentAccountId.toLowerCase() !==
+          params.expectedAccountId.toLowerCase()
+        ) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+          };
+        }
+      }
       const closeOrderType = params.orderType ?? 'market';
       const shapeError = this.#validateCloseShape(params);
       if (shapeError) {

@@ -1601,19 +1601,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (provider.closePositions) {
       return provider.closePositions(params);
     }
-    let symbols = params.symbols ?? [];
+    let targets = (params.symbols ?? []).map((symbol) => ({ symbol }));
     if (params.closeAll === true) {
-      symbols = provider.getPositionSymbolsForClose
-        ? await provider.getPositionSymbolsForClose()
+      targets = provider.getClosePositionTargets
+        ? await provider.getClosePositionTargets()
         : (await provider.getPositions({ throwOnUnavailable: true })).map(
-            (position) => position.symbol,
+            ({ symbol }) => ({ symbol }),
           );
     }
-    if (symbols.length === 0) {
+    if (targets.length === 0) {
       return { success: false, successCount: 0, failureCount: 0, results: [] };
     }
     const settled = await Promise.allSettled(
-      symbols.map((symbol) => provider.closePosition({ symbol })),
+      targets.map((target) => provider.closePosition(target)),
     );
     const results = settled.map((result, index) => {
       const failed = result.status === 'rejected';
@@ -1627,7 +1627,7 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         error = result.value.error;
       }
       return {
-        symbol: symbols[index],
+        symbol: targets[index].symbol,
         success,
         error,
       };

@@ -984,10 +984,106 @@ describe('HyperLiquidProvider', () => {
         accountId,
         skipCache: true,
         throwOnUnavailable: true,
+        includeProtection: false,
       });
       account.mockRestore();
       positions.mockRestore();
       vi.mocked(provider.getCurrentAccountId).mockRestore();
+    });
+
+    it('quotes Standard mode using only the main DEX cross pool', async () => {
+      const info = mockClientService.getInfoClient();
+      vi.mocked(info.userAbstraction).mockResolvedValue('disabled');
+      const state = await info.clearinghouseState({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      vi.mocked(info.clearinghouseState).mockResolvedValue({
+        ...state,
+        assetPositions: [],
+        crossMaintenanceMarginUsed: '50',
+        crossMarginSummary: {
+          ...state.crossMarginSummary,
+          accountValue: '400',
+          totalNtlPos: '0',
+        },
+      });
+      const aggregate = vi
+        .spyOn(provider, 'getAccountState')
+        .mockResolvedValue({
+          totalBalance: '1000',
+          spendableBalance: '1000',
+          withdrawableBalance: '1000',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+          spotCollateral: '0',
+          crossMarginSummary: {
+            accountValue: '1000',
+            maintenanceMargin: '50',
+            marginUsed: '0',
+            notional: '0',
+          },
+        });
+
+      const price = await provider.calculateLiquidationPrice({
+        asset: 'BTC',
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        marginType: 'cross',
+        positionSize: 0.1,
+      });
+
+      expect(Number(price)).toBeCloseTo(47692.30769, 4);
+      expect(aggregate).not.toHaveBeenCalled();
+      aggregate.mockRestore();
+    });
+
+    it('refuses a cross estimate for a disabled HIP-3 market', async () => {
+      const info = mockClientService.getInfoClient();
+      vi.mocked(info.meta).mockResolvedValue({
+        marginTables: [],
+        collateralToken: 0,
+        universe: [
+          {
+            name: 'xyz:TSLA',
+            szDecimals: 3,
+            maxLeverage: 20,
+            marginTableId: 20,
+          },
+        ],
+      });
+      const account = vi.spyOn(provider, 'getAccountState').mockResolvedValue({
+        totalBalance: '500',
+        spendableBalance: '400',
+        withdrawableBalance: '400',
+        marginUsed: '100',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        spotCollateral: '100',
+        crossMarginSummary: {
+          accountValue: '400',
+          maintenanceMargin: '50',
+          marginUsed: '100',
+          notional: '2000',
+        },
+      });
+      const positions = vi
+        .spyOn(provider, 'getPositions')
+        .mockResolvedValue([]);
+
+      await expect(
+        provider.calculateLiquidationPrice({
+          asset: 'xyz:TSLA',
+          entryPrice: 50000,
+          leverage: 10,
+          direction: 'long',
+          marginType: 'cross',
+          positionSize: 0.1,
+        }),
+      ).rejects.toMatchObject({ errorCode: 'LIQUIDATION_PRICE_UNAVAILABLE' });
+      account.mockRestore();
+      positions.mockRestore();
     });
 
     it('rejects a cross opening without a sized order', async () => {

@@ -326,12 +326,54 @@ describe('aggregated account and destructive-operation discovery', () => {
       const result = await closeAll(fixture);
 
       expect(result.successCount).toBe(count);
-      expect(close).toHaveBeenCalledExactlyOnceWith({ symbol: 'BTC' });
+      expect(close).toHaveBeenCalledExactlyOnceWith({
+        symbol: 'BTC',
+        expectedAccountId: await provider.getCurrentAccountId(),
+      });
       await expect(provider.getPositions()).rejects.toThrow(
         'initial margin fraction',
       );
     },
   );
+
+  it('refuses a discovered Lighter close target after the wallet changes', async () => {
+    const { provider, clientInstance, getUserAddressMock } = setup();
+    const [target] = await provider.getClosePositionTargets();
+    clientInstance.getAccountByIndex.mockClear();
+    getUserAddressMock.mockReturnValue(
+      '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+
+    expect(await provider.closePosition(target)).toMatchObject({
+      success: false,
+      error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+    });
+    expect(clientInstance.getAccountByIndex).not.toHaveBeenCalled();
+  });
+
+  it('rejects Lighter close discovery from the wrong account row', async () => {
+    const { aggregate, provider, clientInstance } = setup();
+    await provider.getPositions();
+    clientInstance.getAccountByIndex.mockResolvedValue({
+      code: 200,
+      accounts: [{ ...ACCOUNT, index: 29 }],
+    });
+    const close = vi
+      .spyOn(provider, 'closePosition')
+      .mockResolvedValue({ success: true });
+    const result = await aggregate.closePositions({ closeAll: true });
+
+    expect(close).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      successCount: 1,
+      failures: [
+        {
+          providerId: 'lighter',
+          error: expect.stringContaining('account index'),
+        },
+      ],
+    });
+  });
 
   it('retains successful closes while reporting a real Lighter account transport failure', async () => {
     const { aggregate, hyperliquid, clientInstance, provider } = setup();

@@ -2739,11 +2739,12 @@ export class TradingService {
         });
       } else {
         // Fallback: Get positions, filter, and close in parallel
-        let positions: Pick<Position, 'symbol' | 'providerId'>[];
-        if (provider.getPositionSymbolsForClose) {
-          positions = (await provider.getPositionSymbolsForClose()).map(
-            (symbol) => ({ symbol }),
-          );
+        let positions: Pick<
+          ClosePositionParams,
+          'symbol' | 'providerId' | 'expectedAccountId'
+        >[];
+        if (provider.getClosePositionTargets) {
+          positions = await provider.getClosePositionTargets();
         } else {
           if (!context.getPositions) {
             throw new Error('getPositions callback not provided in context');
@@ -2799,7 +2800,12 @@ export class TradingService {
           positionsToClose.map((position) =>
             this.closePosition({
               provider,
-              params: { symbol: position.symbol },
+              params: {
+                symbol: position.symbol,
+                ...(position.expectedAccountId !== undefined && {
+                  expectedAccountId: position.expectedAccountId,
+                }),
+              },
               context,
               reportOrderToDataLake: () => Promise.resolve({ success: true }), // No-op for batch fallback
               bulkActionId,

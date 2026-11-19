@@ -99,6 +99,7 @@ import type {
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
+  CrossMarginSummary,
   DepositParams,
   DisconnectResult,
   EditOrderParams,
@@ -14585,13 +14586,8 @@ export class HyperLiquidProvider implements PerpsProvider {
             order.isPositionTpsl && parseFloat(order.origSz || order.sz) === 0,
         )
       ) {
-        const cachedPositions =
-          !params?.skipCache && params?.accountId === undefined
-            ? this.#subscriptionService.getFreshPositionsForAllDexs(
-                false,
-                userAddress,
-              )
-            : null;
+        // A fresh WebSocket position slice can still predate the order just
+        // read over REST. Read position size from the same venue now.
         const protectionDexs = [
           ...new Set(
             rawOrders
@@ -14604,13 +14600,11 @@ export class HyperLiquidProvider implements PerpsProvider {
           ),
         ];
         try {
-          positions =
-            cachedPositions ??
-            (await this.#fetchPositionContext(
-              infoClient,
-              userAddress,
-              protectionDexs,
-            ));
+          positions = await this.#fetchPositionContext(
+            infoClient,
+            userAddress,
+            protectionDexs,
+          );
         } catch (error) {
           if (!params?.throwOnUnavailable) {
             throw error;
@@ -17536,35 +17530,73 @@ export class HyperLiquidProvider implements PerpsProvider {
   }): Promise<number | null> {
     const generation = this.#lifecycleGeneration;
     const accountId = await this.getCurrentAccountId();
-    const [account, positions, meta] = await Promise.all([
-      this.getAccountState({ accountId, throwOnUnavailable: true }),
-      this.getPositions({
-        accountId,
-        throwOnUnavailable: true,
-        skipCache: true,
-      }),
-      this.#getCachedMeta({ dexName: parseAssetName(asset).dex }),
-    ]);
-    const currentAccount = await this.getCurrentAccountId();
+    const userAddress = this.#walletService.getUserAddress(accountId);
+    const { dex } = parseAssetName(asset);
+    await this.#ensureClientsInitialized();
     if (
-      currentAccount !== accountId ||
-      generation !== this.#lifecycleGeneration
-    ) {
-      return null;
-    }
-    const market = meta.universe.find((item) => item.name === asset);
-    // An add, close or flip changes the existing position's maintenance.
-    // The opening-order formula does not model that transition.
-    if (
-      !market ||
-      !this.#isCrossMarginSupported(market) ||
-      positions.some((position) => position.symbol === asset)
+      dex !== null &&
+      (!(await this.#getValidatedDexsStrict()).includes(dex) ||
+        !(await this.#fetchMarketsForDex({ dex })).some(
+          (market) => market.name === asset,
+        ))
     ) {
       return null;
     }
 
-    const summary = account.crossMarginSummary;
-    const accountValue = getCrossCollateral(summary, account.spotCollateral);
+    const infoClient = this.#clientService.getInfoClient();
+    const [mode, meta] = await Promise.all([
+      infoClient.userAbstraction({ user: userAddress }),
+      this.#getCachedMeta({ dexName: dex }),
+    ]);
+    const market = meta.universe.find((item) => item.name === asset);
+    if (!market || !this.#isCrossMarginSupported(market)) {
+      return null;
+    }
+
+    // An add, close or flip needs the existing position's change in
+    // maintenance. This preview only models an opening in a flat market.
+    let summary: CrossMarginSummary | undefined;
+    let spotCollateral: string | undefined;
+    if (mode === HL_UNIFIED_ACCOUNT_MODE) {
+      const [account, positions] = await Promise.all([
+        this.getAccountState({ accountId, throwOnUnavailable: true }),
+        this.getPositions({
+          accountId,
+          throwOnUnavailable: true,
+          skipCache: true,
+          includeProtection: false,
+        }),
+      ]);
+      if (positions.some((position) => position.symbol === asset)) {
+        return null;
+      }
+      summary = account.crossMarginSummary;
+      spotCollateral = account.spotCollateral;
+    } else if ((mode === 'disabled' || mode === 'default') && dex === null) {
+      // Standard mode keeps separate DEX margin pools. A HIP-3 addition may
+      // first move collateral into its DEX, which this preview cannot model.
+      const state = await infoClient.clearinghouseState({ user: userAddress });
+      if (
+        state.assetPositions.some(
+          ({ position }) =>
+            position.coin === asset && Number(position.szi) !== 0,
+        )
+      ) {
+        return null;
+      }
+      summary = adaptAccountStateFromSDK(state).crossMarginSummary;
+      spotCollateral = '0';
+    } else {
+      return null;
+    }
+
+    if (
+      (await this.getCurrentAccountId()) !== accountId ||
+      generation !== this.#lifecycleGeneration
+    ) {
+      return null;
+    }
+    const accountValue = getCrossCollateral(summary, spotCollateral);
     if (
       accountValue === undefined ||
       summary === undefined ||
