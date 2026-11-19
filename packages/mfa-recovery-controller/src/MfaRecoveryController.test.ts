@@ -3508,6 +3508,54 @@ describe('MfaRecoveryController', () => {
       },
     );
 
+    it('rejects a mutation whose identifier verifier is a function', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        const identifier = {
+          ...PASSKEY,
+          verifier: (): string => 'unsupported',
+        };
+        authProvider.identifiers = [identifier, SOCIAL];
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, [identifier, SOCIAL]),
+        ).rejects.toMatchObject({ code: 'invalid_identifier' });
+        expect(apply).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects a mutation whose identifier verifier has an undefined property', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        const identifier = {
+          ...PASSKEY,
+          verifier: { publicKey: 'mock-passkey', unused: undefined },
+        };
+        authProvider.identifiers = [identifier, SOCIAL];
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, [identifier, SOCIAL]),
+        ).rejects.toMatchObject({ code: 'invalid_identifier' });
+        expect(apply).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects a mutation whose identifier verifier has a non-finite number in an array', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        const identifier = {
+          ...PASSKEY,
+          verifier: { values: ['mock-passkey', Number.NaN] },
+        };
+        authProvider.identifiers = [identifier, SOCIAL];
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, [identifier, SOCIAL]),
+        ).rejects.toMatchObject({ code: 'invalid_identifier' });
+        expect(apply).not.toHaveBeenCalled();
+      });
+    });
+
     it.each([
       { domain: 'localhost:3010', chainId: 1 },
       { domain: 'example.com', chainId: 0 },
